@@ -1,0 +1,109 @@
+/* ===============================
+   ADMIN BANNERS
+=============================== */
+
+.cms-banner-card {
+  position: relative;
+}
+
+.cms-banner-card input,
+.cms-banner-card textarea,
+.cms-banner-card select,
+.cms-banner-card button,
+.cms-banner-card a {
+  cursor: auto;
+}
+
+.cms-banner-card .card-img-top {
+  cursor: default;
+}
+
+.cms-banner-drag-handle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: auto;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  pointer-events: auto;
+  user-select: none;
+  cursor: grab;
+}
+
+.cms-banner-drag-handle:hover {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.cms-banner-drag-handle:active {
+  cursor: grabbing;
+}
+
+.cms-banner-drag-handle i {
+  pointer-events: none;
+}
+
+/* Make it obvious when dragging */
+.cms-banner-card.cms-banner-card--dragging {
+  opacity: 0.65;
+  outline: 2px dashed rgba(13, 110, 253, 0.6);
+  outline-offset: 2px;
+}
+
+/* ===============================
+   CROP MODAL (HOME BANNER)
+=============================== */
+
+.cms-cropper {
+  position: relative;
+  border: 1px solid #ddd;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  touch-action: none; /* allow pointer-drag on mobile */
+  user-select: none;
+  background: #0b1220;
+}
+
+.cms-cropper__image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: 560px;
+  max-height: 420px;
+  width: 100%;
+  height: auto;
+}
+
+.cms-cropper__rect {
+  position: absolute;
+  z-index: 2;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.cms-cropper__handle {
+  position: absolute;
+  z-index: 3;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid rgba(13, 110, 253, 0.9);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+}
+
+.cms-cropper__handle--nw { left: -7px; top: -7px; }
+.cms-cropper__handle--ne { right: -7px; top: -7px; }
+.cms-cropper__handle--sw { left: -7px; bottom: -7px; }
+.cms-cropper__handle--se { right: -7px; bottom: -7px; }

@@ -1,0 +1,63 @@
+.compact-dropdown {
+  border-radius: 8px;
+  border-radius: 6px;
+  padding: 4px !important;
+  display: inline-block;
+  line-height: 1;
+}
+.compact-dropdown .list-group {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.compact-dropdown .list-group-item {
+  margin: 0;
+  padding: 10px 14px !important;
+  font-size: 13px;
+  line-height: 1.1;
+  border-radius: 4px;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compact-dropdown .list-group-item + .list-group-item {
+  border-top-width: 1px;
+}
+
+/* Admin-only uniform small text */
+.cms-admin-layout small,
+.cms-admin-layout .small,
+.cms-admin-layout .text-small {
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+/* Ensure compact dropdown items match admin small text sizing */
+.cms-admin-layout .compact-dropdown .list-group-item {
+  font-size: 14px !important;
+}
+
+/* Small settings/gear button affordance */
+.cms-admin-layout .btn-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.cms-admin-layout .btn-settings i {
+  font-size: 14px;
+}
+.cms-admin-layout .btn-settings:hover,
+.cms-admin-layout .btn-settings:focus {
+  background: rgba(13,110,253,0.08);
+  color: #0d6efd;
+}
+
+/* Ensure the dropdown is visually separated and slightly larger tap targets */
+.compact-dropdown .list-group-item {
+  padding: 10px 16px !important;
+}

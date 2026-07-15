@@ -1,0 +1,253 @@
+/* ===============================
+   ADMIN SIDEBAR (RESPONSIVE)
+=============================== */
+
+.cms-admin-layout {
+  position: relative;
+  --cms-sidebar-width: 280px;
+}
+
+.cms-sidebar {
+  width: var(--cms-sidebar-width);
+  height: 100vh;
+  background: linear-gradient(180deg, #0b1220 0%, #0a0f1a 100%);
+  color: #fff;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.cms-sidebar__brand {
+  letter-spacing: 0.3px;
+}
+
+.cms-sidebar__icon {
+  width: 18px;
+  min-width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+
+.cms-sidebar__label-row {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cms-sidebar__label-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cms-sidebar__label-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.cms-sidebar__item-row {
+  min-width: 0;
+  gap: 10px;
+}
+
+.cms-sidebar__item-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cms-sidebar__chevron {
+  flex: 0 0 auto;
+}
+
+.cms-sidebar__user img {
+  border: 2px solid rgba(255, 255, 255, 0.18);
+}
+
+.cms-sidebar__nav {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  /* Bootstrap .nav uses flex-wrap: wrap; in a column layout this can create
+     multiple columns when the list is taller than the viewport. */
+  flex-wrap: nowrap;
+  flex-direction: column;
+  align-content: flex-start;
+  min-height: 0;
+}
+
+.cms-sidebar__nav > div {
+  width: 100%;
+}
+
+.cms-sidebar__nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cms-sidebar__nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.cms-sidebar__link,
+.cms-sidebar__button {
+  transition: background-color 160ms ease, transform 160ms ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-left: 3px solid transparent;
+}
+
+.cms-sidebar__child {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cms-sidebar__child::before {
+  content: "•";
+  opacity: 0.6;
+  margin-right: 8px;
+}
+
+.cms-sidebar__nav .cms-sidebar__link:hover,
+.cms-sidebar__nav .cms-sidebar__button:hover,
+.cms-sidebar__nav .nav-link.cms-sidebar__link:hover,
+.cms-sidebar__nav .nav-link.cms-sidebar__button:hover {
+  background: rgba(13, 110, 253, 0.18) !important;
+  border-left-color: #0d6efd !important;
+  color: #fff !important;
+}
+
+.cms-sidebar__link.active,
+.cms-sidebar__button.active {
+  background: rgba(13, 110, 253, 0.18) !important;
+  border-left: 3px solid #0d6efd;
+}
+
+.cms-sidebar__link.cms-sidebar__hover,
+.cms-sidebar__button.cms-sidebar__hover {
+  background: rgba(13, 110, 253, 0.18) !important;
+  border-left-color: #0d6efd !important;
+  color: #fff !important;
+}
+
+.cms-sidebar__submenu {
+  border-left: 1px dashed rgba(255, 255, 255, 0.18);
+  overflow-x: hidden;
+}
+
+.cms-sidebar-overlay {
+  display: none;
+}
+
+.cms-sidebar-edge-toggle {
+  position: fixed;
+  top: 14px;
+  left: calc(300px - 19px);
+  z-index: 1300;
+  width: 38px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+  transition: left 0.2s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.cms-sidebar-edge-toggle:hover,
+.cms-sidebar-edge-toggle:focus-visible {
+  background: #f8fafc;
+  color: #0d6efd;
+}
+
+.cms-sidebar-edge-toggle--hidden {
+  left: 12px;
+}
+
+/* Mobile off-canvas */
+@media (max-width: 991px) {
+  .cms-sidebar {
+    width: min(var(--cms-sidebar-width), 92vw);
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 1200;
+    transform: translateX(-110%);
+    transition: transform 220ms ease;
+  }
+
+  .cms-admin-layout.cms-admin-layout--sidebar-open .cms-sidebar {
+    transform: translateX(0);
+  }
+
+  .cms-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 220ms ease;
+    display: block;
+  }
+
+  .cms-admin-layout.cms-admin-layout--sidebar-open .cms-sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .cms-topbar__sidebar-toggle {
+    display: inline-flex !important;
+  }
+}
+
+/* Mobile drawer toggle lives in the topbar; desktop uses the edge toggle. */
+@media (min-width: 992px) {
+  .cms-topbar__sidebar-toggle {
+    display: none !important;
+  }
+}
+
+/* Admin form input styles: restore visible textbox underline inside admin layout */
+.cms-admin-layout .form-control {
+     border: 1px solid rgba(0,0,0,0.12) !important;
+     border-radius: 6px !important;
+     background: transparent !important;
+     padding: 8px 10px !important;
+}
+
+.cms-admin-layout textarea.form-control {
+     border: 1px solid rgba(0,0,0,0.12) !important;
+     border-radius: 6px !important;
+     padding: 8px 10px !important;
+}
+
+.cms-admin-layout .form-select {
+     border: 1px solid rgba(0,0,0,0.12) !important;
+     border-radius: 6px !important;
+  /* Keep space for Bootstrap's built-in dropdown arrow */
+  padding: 6px 2.25rem 6px 10px !important;
+}
+
+/* Compact variant */
+.cms-admin-layout .form-control.form-control-sm {
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+}

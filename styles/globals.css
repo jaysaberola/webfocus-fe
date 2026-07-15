@@ -1,0 +1,121 @@
+/* ===============================
+   GLOBAL RESET / BASE
+=============================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* Compact dropdown used for small action menus */
+.compact-dropdown {
+  border-radius: 8px;
+}
+.compact-dropdown {
+  border-radius: 6px;
+  padding: 4px !important;
+  display: inline-block;
+  line-height: 1;
+}
+.compact-dropdown .list-group {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.compact-dropdown .list-group-item {
+  margin: 0;
+  padding: 6px 8px !important;
+  font-size: 13px;
+  line-height: 1.1;
+  border-radius: 4px;
+}
+.compact-dropdown .list-group-item + .list-group-item {
+  border-top-width: 1px;
+}
+
+/* ===============================
+   Top-level menu (horizontal)
+=============================== */
+
+.menu-container {
+  display: flex;
+  align-items: center;
+  gap: 24px; /* space between items */
+}
+
+/* Top-level menu items */
+.menu-container > .menu-item {
+  position: relative;
+}
+
+/* ===============================
+   Sub menus (dropdown)
+=============================== */
+
+.sub-menu-container {
+  display: none;
+  position: absolute;
+  top: 100%;
+  /* align under the left edge of the parent menu-item */
+  left: 0;
+  background: #fff;
+  min-width: 200px;
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transform: translateY(0);
+}
+
+/* Show submenu on hover */
+.menu-item:hover > .sub-menu-container {
+  display: block;
+}
+
+/* Nested submenu (right side) */
+.sub-menu-container .menu-item:hover > .sub-menu-container {
+  top: 0;
+  left: 100%;
+}
+
+/* ===============================
+   Links
+=============================== */
+
+.menu-link {
+  display: block;
+  padding: 8px 12px;
+  text-decoration: none;
+  color: #000;
+  white-space: nowrap;
+}
+
+.menu-item.current > .menu-link {
+  font-weight: 600;
+  color: #0d6efd;
+}
+
+/* Remove bullets from menu lists */
+.menu-container,
+.sub-menu-container {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Make container-fluid flush to remove front-page gaps */
+.container-fluid {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+main > .container-fluid {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
