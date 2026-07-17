@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { isDefaultProtectedPage } from "@/lib/defaultPages";
+import { buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
 import { TableOptionsMenu, TableRowActions } from "@/components/UI/TableRowActions";
 
 interface PageRow {
@@ -26,7 +27,6 @@ type PageAdvancedSearchValues = Record<string, string>;
 
 export default function ManagePages() {
   const router = useRouter();
-  const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL!;
   const [pages, setPages] = useState<PageRow[]>([]);
   const [recentlyDeletedPages, setRecentlyDeletedPages] = useState<PageRow[]>([]);
   const [isLoading, setLoading] = useState(false);
@@ -151,7 +151,7 @@ export default function ManagePages() {
   const getPageViewUrl = (row: PageRow) => {
     const status = normalizePageStatus(row);
     if (status === "published" && row.slug) {
-      return `/public/${row.slug}`;
+      return buildPublicPageMenuTarget(row.slug);
     }
     return `/pages/preview/${row.id}`;
   };
@@ -159,7 +159,7 @@ export default function ManagePages() {
   const getPageViewHint = (row: PageRow) => {
     const status = normalizePageStatus(row);
     if (status === "published" && row.slug) {
-      return `${FRONTEND_URL}/public/${row.slug}`;
+      return buildPublicPageMenuTarget(row.slug);
     }
     return "Private preview available in admin";
   };
