@@ -18,6 +18,11 @@ export const login = async (email: string, password: string) => {
     storeCustomer(null, { notify: false });
 
     storeAuthToken(response.data.token);
+
+    if (response.data?.user) {
+      storeCurrentUser(response.data.user);
+      notifyCurrentUserUpdated();
+    }
   }
 
   return response.data;

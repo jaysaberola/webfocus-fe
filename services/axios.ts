@@ -22,6 +22,8 @@ axiosInstance.interceptors.request.use((config) => {
     const token = localStorage.getItem("auth_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      // cPanel/Apache may strip Authorization; X-Api-Token is restored in public/index.php
+      config.headers["X-Api-Token"] = token;
     }
   }
 
