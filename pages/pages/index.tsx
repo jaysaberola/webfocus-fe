@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { isDefaultProtectedPage } from "@/lib/defaultPages";
+import { TableOptionsMenu, TableRowActions } from "@/components/UI/TableRowActions";
 
 interface PageRow {
   id: number;
@@ -630,78 +631,68 @@ export default function ManagePages() {
       key: "options",
       header: "Options",
       render: (row: any) => (
-        <>
+        <TableRowActions>
           {showDeleted ? (
             <button
               className="btn btn-link p-0 text-success"
               onClick={() => openRestoreConfirm(row.id, row.label || row.title)}
               title="Restore"
+              type="button"
             >
-              <i className="fas fa-trash-restore"></i>
+              <i className="fas fa-trash-restore" />
             </button>
           ) : (
             <>
-              {/* View */}
               <button
-                className="btn btn-link p-0 me-2 text-secondary"
+                className="btn btn-link p-0 text-secondary"
                 onClick={() => window.open(getPageViewUrl(row), "_blank", "noopener,noreferrer")}
                 title="View"
+                type="button"
               >
-                <i className="fas fa-eye"></i>
+                <i className="fas fa-eye" />
               </button>
 
-              {/* Edit */}
               <button
-                className="btn btn-link p-0 me-2 text-secondary"
+                className="btn btn-link p-0 text-secondary"
                 onClick={() => router.push(`/pages/edit/${row.id}`)}
                 title="Edit"
+                type="button"
               >
-                <i className="fas fa-edit"></i>
+                <i className="fas fa-edit" />
               </button>
 
               {!isProtectedRow(row) && <SettingsMenu row={row} />}
 
               {isRowDeleted(row) && (
                 <button
-                  className="btn btn-link p-0 ms-2 text-success"
+                  className="btn btn-link p-0 text-success"
                   onClick={() => openRestoreConfirm(row.id, row.label || row.title)}
                   title="Restore"
+                  type="button"
                 >
-                  <i className="fas fa-trash-restore"></i>
+                  <i className="fas fa-trash-restore" />
                 </button>
               )}
             </>
           )}
-        </>
+        </TableRowActions>
       ),
     },
   ];
 
   function SettingsMenu({ row }: { row: any }) {
-    const [open, setOpen] = useState(false);
-    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-    const handleClick = (e: React.MouseEvent) => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setPos({ top: rect.bottom + window.scrollY, left: rect.left });
-      setOpen((s) => !s);
-    };
-
     const handleDelete = () => {
       setDeleteId(row.id);
       setDeleteTitle(row.label || row.title);
       setDeleteModalOpen(true);
-      setOpen(false);
     };
 
     const handleToggleStatus = async () => {
       const current = (row.visibility || row.status || '').toString().toLowerCase();
       const newStatus = (current === 'published' ? 'private' : 'published') as "published" | "private" | "draft";
-      // Try PUT first (updatePage), fallback to PATCH if necessary
       try {
         await updatePage(row.id, { status: newStatus });
         toast.success(`Status updated to ${newStatus}`);
-        setOpen(false);
         fetchPages();
         return;
       } catch (putErr: any) {
@@ -709,7 +700,6 @@ export default function ManagePages() {
         try {
           await updatePageStatus(row.id, newStatus);
           toast.success(`Status updated to ${newStatus}`);
-          setOpen(false);
           fetchPages();
           return;
         } catch (patchErr: any) {
@@ -720,51 +710,27 @@ export default function ManagePages() {
       }
     };
 
-    return (
-      <div style={{ display: "inline-block", position: "relative" }}>
-        <button
-          className="btn btn-link p-0 text-secondary"
-          onClick={handleClick}
-          title="Settings: click to open actions (Publish/Private/Delete) for this page"
-          aria-label="Settings: click to open actions"
-        >
-          <i className="fas fa-cogs"></i>
-        </button>
+    const currentStatus = (row.visibility || row.status || "").toString().toLowerCase();
+    const toggleLabel = currentStatus === "published" ? "Set Private" : "Publish";
 
-        {open && pos && (
-          <div>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1055 }} onClick={() => setOpen(false)} />
-            <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 1060 }}>
-              <div className="card shadow-sm compact-dropdown" style={{ width: 160 }}>
-                <div className="list-group list-group-flush">
-                  {/* Action to toggle status (show opposite action, not current status) */}
-                  <button
-                    className="list-group-item list-group-item-action"
-                    onClick={handleToggleStatus}
-                    title="Click to switch page visibility between Published and Private"
-                    aria-label="Switch page visibility"
-                  >
-                    {((row.visibility || row.status || '').toString().toLowerCase() === 'published') ? 'Private' : 'Published'}
-                  </button>
-                  {!isRowDeleted(row) && (
-                    <button
-                      className="list-group-item list-group-item-action text-danger"
-                      onClick={handleDelete}
-                      title="Click to move this page to Trash"
-                      aria-label="Move page to Trash"
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {isRowDeleted(row) && (
-                    <div className="list-group-item text-muted">Deleted</div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+    return (
+      <TableOptionsMenu
+        title="Page actions"
+        header="Actions"
+        items={[
+          {
+            label: toggleLabel,
+            onClick: handleToggleStatus,
+          },
+          ...(!isRowDeleted(row)
+            ? [{
+                label: "Move to Trash",
+                onClick: handleDelete,
+                danger: true,
+              }]
+            : []),
+        ]}
+      />
     );
   }
 
@@ -794,33 +760,14 @@ export default function ManagePages() {
           leftExtras={null}
           actionsMenu={(
             <>
-              <div className="list-group-item">
-                <div className="d-flex align-items-center gap-2">
-                  <label className="small mb-0 text-muted">Show</label>
-                  <select
-                    className="form-select form-select-sm w-auto"
-                    value={perPage}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      setPerPage(value);
-                      setCurrentPage(1);
-                    }}
-                    aria-label="Show entries"
-                  >
-                    {[5, 10, 25, 50].map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                  <span className="text-muted">entries</span>
-                </div>
-              </div>
               <button
                 className="list-group-item list-group-item-action"
                 onClick={() => bulkUpdateStatus("published")}
                 type="button"
                 disabled={showDeleted || actionableSelectedIds.length === 0}
               >
-                Publish
+                <i className="fas fa-globe me-2 text-success" />
+                Publish selected
               </button>
               <button
                 className="list-group-item list-group-item-action"
@@ -828,7 +775,8 @@ export default function ManagePages() {
                 type="button"
                 disabled={showDeleted || actionableSelectedIds.length === 0}
               >
-                Private
+                <i className="fas fa-lock me-2 text-secondary" />
+                Set private
               </button>
               <button
                 className="list-group-item list-group-item-action text-danger"
@@ -836,7 +784,8 @@ export default function ManagePages() {
                 type="button"
                 disabled={showDeleted || actionableSelectedIds.length === 0}
               >
-                Delete
+                <i className="fas fa-trash me-2" />
+                Move to trash
               </button>
             </>
           )}

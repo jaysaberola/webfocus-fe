@@ -82,7 +82,7 @@ const entityHref = (row: AuditRow) => {
   return null;
 };
 
-export default function RecentActivity() {
+export default function RecentActivity({ compact = false }: { compact?: boolean }) {
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +90,7 @@ export default function RecentActivity() {
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState<AuditEventFilter>("all");
 
-  const perPage = 5;
+  const perPage = compact ? 3 : 5;
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -188,7 +188,7 @@ export default function RecentActivity() {
   }, [currentPage, totalPages]);
 
   return (
-    <div className="card cms-panel shadow-sm border-0 h-100 d-flex flex-column">
+    <div className={`card cms-panel shadow-sm border-0 h-100 d-flex flex-column${compact ? " cms-panel--compact" : ""}`}>
       <div className="card-header cms-panel__header">
         <div className="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
           <div className="d-flex align-items-center gap-2">
@@ -207,7 +207,7 @@ export default function RecentActivity() {
             </div>
           </div>
 
-          <div className="d-flex flex-wrap gap-2 align-items-center justify-content-md-end">
+          <div className="cms-panel__toolbar justify-content-md-end">
             <div className="input-group input-group-sm" style={{ width: 260 }}>
               <span className="input-group-text">
                 <i className="fas fa-magnifying-glass" />
@@ -289,7 +289,10 @@ export default function RecentActivity() {
               ))}
             </ul>
           ) : limited.length === 0 ? (
-            <div className="text-center py-4">
+            <div className="cms-activity__empty">
+              <div className="cms-activity__empty-icon">
+                <i className="fas fa-clock-rotate-left" />
+              </div>
               <div className="fw-semibold">No activity found</div>
               <div className="text-muted small">Try clearing search or changing the filter.</div>
             </div>
@@ -298,7 +301,7 @@ export default function RecentActivity() {
               {grouped.map(([label, list]) => (
                 <div key={label} className="mb-3">
                   <div className="d-flex align-items-center justify-content-between mb-2">
-                    <div className="text-uppercase text-muted small fw-semibold">{label}</div>
+                    <div className="cms-activity-date">{label}</div>
                     <div className="text-muted small">{list.length} item(s)</div>
                   </div>
 

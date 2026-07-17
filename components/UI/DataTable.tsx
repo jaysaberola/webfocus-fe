@@ -42,6 +42,18 @@ interface DataTableProps<T> {
   entriesPlacement?: "bottom" | "top" | "none";
 }
 
+function buildPageList(current: number, total: number): (number | "ellipsis")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "ellipsis")[] = [1];
+  if (current > 3) pages.push("ellipsis");
+  for (let p = Math.max(2, current - 1); p <= Math.min(total - 1, current + 1); p += 1) {
+    pages.push(p);
+  }
+  if (current < total - 2) pages.push("ellipsis");
+  pages.push(total);
+  return pages;
+}
+
 export default function DataTable<T>({
   columns,
   data,
@@ -99,20 +111,16 @@ export default function DataTable<T>({
     return (
       <button
         type="button"
+        className={`dt-sort-btn${active ? " is-active" : ""}`}
         onClick={() => {
           if (active) { applySortChange(field, effectiveSortOrder === "asc" ? "desc" : "asc"); return; }
           applySortChange(field, defaultOrder);
         }}
         aria-label={`Sort by ${label}`}
         title={`Sort by ${label}`}
-        style={{
-          background: "none", border: "none", padding: 0, cursor: "pointer",
-          display: "inline-flex", alignItems: "center", gap: 6,
-          color: "inherit", fontWeight: 700, fontSize: "inherit",
-        }}
       >
         <span>{col.header}</span>
-        <i className={iconClass} style={{ fontSize: 10, opacity: active ? 1 : 0.4 }} />
+        <i className={iconClass} />
       </button>
     );
   };
@@ -175,13 +183,17 @@ export default function DataTable<T>({
 
   const safeTotal = Math.max(1, effectiveTotalPages);
   const safeCurrent = Math.min(Math.max(1, effectiveCurrentPage), safeTotal);
+  const pageList = buildPageList(safeCurrent, safeTotal);
   const entriesOptions = [5, 10, 25, 50, 100];
   const showBottomEntries = entriesPlacement === "bottom" && (!isServerPaginated || typeof onItemsPerPageChange === "function");
   const shouldRenderPaginationBlock = showBottomEntries || effectiveTotalPages > 1;
 
+  const thPad: CSSProperties = { padding: "12px 16px" };
+  const tdPad: CSSProperties = { padding: "13px 16px" };
+
   const entriesControl = (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <label style={{ fontSize: 13, color: "#64748b", marginBottom: 0 }}>Show</label>
+    <div className="dt-entries-control">
+      <label>Show</label>
       <select
         value={selectedItemsPerPage}
         onChange={(e) => {
@@ -190,89 +202,29 @@ export default function DataTable<T>({
           if (!isServerPaginated) setClientPage(1);
           if (isServerPaginated && typeof onItemsPerPageChange === "function") onItemsPerPageChange(v);
         }}
-        style={{
-          border: "1px solid #e2e8f0", borderRadius: 7, padding: "4px 10px",
-          fontSize: 13, color: "#374151", background: "#fff",
-          cursor: "pointer", outline: "none",
-        }}
       >
         {entriesOptions.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
-      <span style={{ fontSize: 13, color: "#94a3b8" }}>entries</span>
+      <span>entries</span>
     </div>
   );
 
-  // Shared cell/header padding
-  const thPad: CSSProperties = { padding: "11px 14px" };
-  const tdPad: CSSProperties = { padding: "12px 14px" };
-
   return (
     <>
-      <style>{`
-        .dt-enhanced-table { border-collapse: collapse; width: 100%; }
-        .dt-enhanced-table thead th {
-          background: #f8fafc;
-          color: #64748b;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-          border-bottom: 1px solid #e2e8f0;
-          border-right: 1px solid #f1f5f9;
-          white-space: nowrap;
-          position: relative;
-        }
-        .dt-enhanced-table thead th:last-child { border-right: none; }
-        .dt-enhanced-table tbody tr {
-          border-bottom: 1px solid #f1f5f9;
-          transition: background 0.12s;
-        }
-        .dt-enhanced-table tbody tr:last-child { border-bottom: none; }
-        .dt-enhanced-table tbody tr:hover { background: #f8fafc; }
-        .dt-enhanced-table tbody td {
-          color: #374151;
-          font-size: 13.5px;
-          border-right: 1px solid #f8fafc;
-          vertical-align: middle;
-        }
-        .dt-enhanced-table tbody td:last-child { border-right: none; }
-        .dt-pg-btn {
-          height: 32px; min-width: 32px; padding: 0 12px;
-          border-radius: 7px; border: 1px solid #e2e8f0;
-          background: #fff; font-size: 13px; color: #374151;
-          cursor: pointer; display: inline-flex; align-items: center;
-          justify-content: center; transition: background 0.12s, border-color 0.12s;
-          font-family: inherit;
-        }
-        .dt-pg-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
-        .dt-pg-btn:disabled { color: #cbd5e1; cursor: default; background: #fafafa; }
-        .dt-pg-info {
-          height: 32px; padding: 0 14px;
-          border-radius: 7px; background: #f1f5f9;
-          font-size: 13px; color: #64748b;
-          display: inline-flex; align-items: center;
-          border: 1px solid #e8edf3;
-        }
-      `}</style>
-
       {(entriesPlacement === "top" || actions) && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div className="dt-toolbar">
           <div>{actions}</div>
           <div>{entriesPlacement === "top" ? entriesControl : null}</div>
         </div>
       )}
 
-      {/* Table wrapper */}
       <div
-        className={wrapperClassName}
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          border: "1px solid #e8edf3",
-          overflow: "hidden",
-          ...(!wrapperClassName ? { overflowX: "auto" } : {}),
-          ...wrapperStyle,
-        }}
+        className={[
+          "cms-table-wrap",
+          !wrapperClassName ? "cms-table-wrap--scroll" : "",
+          wrapperClassName ?? "",
+        ].join(" ")}
+        style={wrapperStyle}
       >
         <table
           className={`dt-enhanced-table${tableClassName ? ` ${tableClassName}` : ""}`}
@@ -304,17 +256,28 @@ export default function DataTable<T>({
 
           <tbody>
             {loading && (
-              <tr>
-                <td colSpan={columns.length} style={{ ...tdPad, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-                  <span style={{ opacity: 0.7 }}>Loading...</span>
-                </td>
-              </tr>
+              Array.from({ length: 4 }).map((_, i) => (
+                <tr key={`sk-${i}`} className="dt-skeleton-row">
+                  {columns.map((col) => (
+                    <td key={col.key} style={tdPad}>
+                      <div
+                        className="dt-skeleton-bar"
+                        style={{ width: col.key === "options" ? 80 : `${55 + (i * 7) % 30}%` }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))
             )}
 
             {!loading && pageData.length === 0 && (
               <tr>
-                <td colSpan={columns.length} style={{ ...tdPad, textAlign: "center", color: "#94a3b8", fontSize: 13, padding: "40px 14px" }}>
-                  No records found.
+                <td colSpan={columns.length} className="dt-empty-state">
+                  <div className="dt-empty-state__icon">
+                    <i className="fas fa-inbox" />
+                  </div>
+                  <div className="dt-empty-state__title">No records found</div>
+                  <div className="text-muted small mt-1">Try adjusting your search or filters.</div>
                 </td>
               </tr>
             )}
@@ -342,30 +305,53 @@ export default function DataTable<T>({
         </table>
       </div>
 
-      {/* Footer: entries + pagination */}
       {shouldRenderPaginationBlock && (
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "12px 4px 4px",
-        }}>
+        <div className="dt-footer">
           <div>{showBottomEntries && entriesControl}</div>
 
           <nav aria-label="Pagination">
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div className="dt-pagination">
               <button
+                type="button"
                 className="dt-pg-btn"
                 onClick={() => handlePageChange(safeCurrent - 1)}
                 disabled={safeCurrent <= 1}
+                aria-label="Previous page"
               >
+                <i className="fas fa-chevron-left" style={{ fontSize: 10 }} />
                 Prev
               </button>
-              <span className="dt-pg-info">{safeCurrent} / {safeTotal}</span>
+
+              {safeTotal <= 7 ? (
+                pageList.map((p, idx) =>
+                  p === "ellipsis" ? (
+                    <span key={`e-${idx}`} className="dt-pg-info" style={{ padding: "0 8px" }}>…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`dt-pg-btn${p === safeCurrent ? " is-active" : ""}`}
+                      onClick={() => handlePageChange(p)}
+                      aria-label={`Page ${p}`}
+                      aria-current={p === safeCurrent ? "page" : undefined}
+                    >
+                      {p}
+                    </button>
+                  )
+                )
+              ) : (
+                <span className="dt-pg-info">{safeCurrent} / {safeTotal}</span>
+              )}
+
               <button
+                type="button"
                 className="dt-pg-btn"
                 onClick={() => handlePageChange(safeCurrent + 1)}
                 disabled={safeCurrent >= safeTotal}
+                aria-label="Next page"
               >
                 Next
+                <i className="fas fa-chevron-right" style={{ fontSize: 10 }} />
               </button>
             </div>
           </nav>

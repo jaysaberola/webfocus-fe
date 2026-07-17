@@ -173,13 +173,17 @@ export default function SearchBar({
   const handleActionsClick = (e: React.MouseEvent) => {
     if (!actionsMenu) return;
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + window.scrollY, left: rect.left });
+    const menuWidth = 220;
+    const left = Math.min(rect.left, window.innerWidth - menuWidth - 12);
+    setMenuPos({ top: rect.bottom + 6, left: Math.max(8, left) });
     setShowMenu((s) => !s);
   };
 
   const handleFiltersClick = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setFiltersPos({ top: rect.bottom + window.scrollY, left: rect.left });
+    const menuWidth = 320;
+    const left = Math.min(rect.left, window.innerWidth - menuWidth - 12);
+    setFiltersPos({ top: rect.bottom + 6, left: Math.max(8, left) });
     setRenderFiltersAsModal(filtersAsModal);
     const next = !showFilters;
     setShowFilters(next);
@@ -389,17 +393,28 @@ export default function SearchBar({
         )}
 
         {showMenu && actionsMenu && menuPos && (
-          <div>
-            <div style={{ position: "fixed", inset: 0, zIndex: 1055 }} onClick={() => setShowMenu(false)} />
+          <>
             <div
-              className="dropdown-menu show p-0 shadow"
-              style={{ position: "fixed", top: menuPos.top, left: menuPos.left, zIndex: 1060, width: 180 }}
+              style={{ position: "fixed", inset: 0, zIndex: 1055 }}
+              onClick={() => setShowMenu(false)}
+              aria-hidden="true"
+            />
+            <div
+              className="cms-options-menu card shadow-sm compact-dropdown"
+              style={{
+                position: "fixed",
+                top: menuPos.top,
+                left: menuPos.left,
+                zIndex: 1060,
+                minWidth: 220,
+              }}
             >
+              <div className="cms-options-menu__header">Bulk Actions</div>
               <div className="list-group list-group-flush">
                 {actionsMenu}
               </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 

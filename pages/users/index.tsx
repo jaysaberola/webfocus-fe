@@ -6,6 +6,7 @@ import { getUsers, toggleUserActive, UserRow } from "@/services/userService";
 import { useRouter } from "next/router";
 import { toast } from "@/lib/toast";
 import Link from "next/link";
+import { TableRowActions } from "@/components/UI/TableRowActions";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -196,9 +197,9 @@ function ManageUsers() {
       key: "options",
       header: "Options",
       render: (row) => (
-        <>
+        <TableRowActions>
           <button
-            className="btn btn-link p-0 me-2 text-secondary"
+            className="btn btn-link p-0 text-secondary"
             title="View"
             onClick={() => router.push(`/users/view/${row.id}`)}
             type="button"
@@ -207,7 +208,7 @@ function ManageUsers() {
           </button>
 
           <button
-            className="btn btn-link p-0 me-2 text-secondary"
+            className="btn btn-link p-0 text-secondary"
             title="Edit"
             onClick={() => router.push(`/users/edit/${row.id}`)}
             type="button"
@@ -219,14 +220,12 @@ function ManageUsers() {
             className="btn btn-link p-0"
             title={isActiveUser(row) ? "Deactivate" : "Activate"}
             onClick={() => handleToggleActive(row)}
-            style={{
-              color: isActiveUser(row) ? "#198754" : "#6c757d",
-            }}
+            style={{ color: isActiveUser(row) ? "#059669" : "#64748b" }}
             type="button"
           >
             <i className={`fas ${isActiveUser(row) ? "fa-toggle-on" : "fa-toggle-off"}`} />
           </button>
-        </>
+        </TableRowActions>
       ),
     },
   ];

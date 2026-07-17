@@ -93,9 +93,9 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
 
   return (
     <>
-      <nav className="navbar navbar-light bg-white shadow-sm px-4" style={{ minHeight: '56px', padding: '0 1.5rem' }}>
+      <nav className="navbar navbar-light cms-topbar px-4">
         <div className="container-fluid w-100 flex-grow-1 d-flex justify-content-between align-items-center gap-2">
-        <div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
+        <div className="d-flex align-items-center cms-topbar__brand-area">
           {onToggleSidebar && (
             <button
               type="button"
@@ -113,14 +113,14 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
             <img
               src={logoUrl}
               alt="Logo"
+              className="cms-topbar__logo"
               onError={() => setLogoFailed(true)}
-              style={{ height: 34, width: "auto", objectFit: "contain", display: "block" }}
             />
           ) : (
             <img
               src="/images/logo.png"
               alt="Logo"
-              style={{ height: 34, width: "auto", objectFit: "contain", display: "block" }}
+              className="cms-topbar__logo"
             />
           )}
         </div>
@@ -128,11 +128,11 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
         <div className="d-flex align-items-center gap-2">
         <div className="dropdown">
           <button
-            className="btn p-0 border-0 rounded-circle overflow-hidden d-flex align-items-center justify-content-center"
+            className="btn p-0 border-0 rounded-circle overflow-hidden d-flex align-items-center justify-content-center cms-topbar__user-btn"
             type="button"
             id="userDropdown"
             aria-expanded="false"
-            style={{ width: "40px", height: "40px", background: "#0b1220", lineHeight: 0 }}
+            style={{ lineHeight: 0 }}
             onClick={() => dropdownRef.current?.toggle && dropdownRef.current.toggle()}
           >
             {avatarUrl ? (

@@ -8,7 +8,6 @@ import { getAlbums } from "@/services/albumService";
 import { getMenus } from "@/services/menuService";
 import { toast } from "@/lib/toast";
 import AiAssistant from "@/components/AI/AiAssistant";
-import SelectPreset from "@/components/UI/SelectPreset";
 import dynamic from "next/dynamic";
 import { extractGrapesParts } from "@/lib/grapesContent";
 import Tooltip from "@/components/UI/Tooltip";
@@ -44,7 +43,7 @@ export default function CreatePage() {
   const [label, setLabel] = useState("");
   const [tinyContent, setTinyContent] = useState(DEFAULT_CONTENT);
   const [grapesContent, setGrapesContent] = useState(DEFAULT_CONTENT);
-  const [editorType, setEditorType] = useState<"tinymce" | "grapesjs">("tinymce");
+  const [editorType, setEditorType] = useState<"tinymce" | "grapesjs">("grapesjs");
   const [visibility, setVisibility] = useState(true);
   const [albumId, setAlbumId] = useState<number | "">("");
   const [albums, setAlbums] = useState<any[]>([]);
@@ -196,20 +195,6 @@ export default function CreatePage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label d-flex align-items-center">
-              Layout Presets
-              <Tooltip text="Choose a pre-designed layout template to quickly build your page structure." />
-            </label>
-            <SelectPreset
-              onSelect={(html) => {
-                setTinyContent(html);
-                setGrapesContent(html);
-                toast.success("Layout preset applied");
-              }}
-            />
           </div>
 
           <div className="mb-3">

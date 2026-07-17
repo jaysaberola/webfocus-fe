@@ -154,7 +154,7 @@
 .cms-sidebar-edge-toggle {
   position: fixed;
   top: 14px;
-  left: calc(300px - 19px);
+  left: calc(var(--cms-sidebar-width, 272px) - 18px);
   z-index: 1300;
   width: 38px;
   height: 34px;

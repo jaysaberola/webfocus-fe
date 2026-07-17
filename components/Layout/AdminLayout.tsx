@@ -4,7 +4,7 @@ import Topbar from './_Topbar2';
 import ToastHost from "@/components/UI/ToastHost";
 import Head from "next/head";
 import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
-import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings"; // adjust import path
+import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -30,6 +30,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     try {
+      const resetKey = "cms5.admin.sidebarVisibilityReset2026";
+      if (!window.localStorage.getItem(resetKey)) {
+        window.localStorage.setItem(resetKey, "1");
+        window.localStorage.setItem(ADMIN_SIDEBAR_HIDDEN_KEY, "0");
+        setSidebarHidden(false);
+        return;
+      }
       setSidebarHidden(window.localStorage.getItem(ADMIN_SIDEBAR_HIDDEN_KEY) === "1");
     } catch {
       // ignore
@@ -94,7 +101,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Admin-only styles: loaded here to avoid affecting GuestLayout */}
          <link rel="stylesheet" href="/css/custom.css" />
          <link rel="stylesheet" href="/css/admin.css" />
+         <link rel="stylesheet" href="/css/admin-theme.css" />
+         <link rel="stylesheet" href="/css/admin-sidebar-v2.css" />
+         <link rel="stylesheet" href="/css/dashboard.css" />
+         <link rel="stylesheet" href="/css/admin-table.css" />
          <link rel="stylesheet" href="/css/admin-modal.css" />
+         <link rel="preconnect" href="https://fonts.googleapis.com" />
+         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
 
       <div className="cms-sidebar-overlay" onClick={closeSidebar} />
@@ -104,7 +118,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           isOpen={sidebarOpen}
           isMobile={isMobile}
           onClose={closeSidebar}
-          width={300}
+          width={272}
         />
       )}
 
@@ -115,8 +129,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           sidebarHidden={sidebarHidden && !isMobile}
           isMobile={isMobile}
         />
-        <br></br>
-        <main className="p-0 overflow-auto flex-grow-1">
+        <main className="cms-admin-main overflow-auto flex-grow-1">
           {children}
         </main>
       </div>

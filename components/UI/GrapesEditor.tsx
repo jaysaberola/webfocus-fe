@@ -12,6 +12,12 @@ import {
   registerAdvancedCmsBlocks,
   resolveCmsBlockMedia,
 } from "./grapesStudio";
+import {
+  filterBlockPanel,
+  getComponentBreadcrumb,
+  isEditorCanvasEmpty,
+  registerStudioEditorFeatures,
+} from "./grapesStudioFeatures";
 import "codemirror/mode/xml/xml";
 import "codemirror/mode/javascript/javascript";
 import "codemirror/mode/css/css";
@@ -21,6 +27,23 @@ type GrapesEditorProps = {
   value?: string;
   onChange: (content: string) => void;
   height?: number;
+};
+
+type StudioDeviceKey = "desktop" | "tablet" | "mobile";
+
+const STUDIO_DEVICE_LABELS: Record<StudioDeviceKey, string> = {
+  desktop: "Desktop",
+  tablet: "Tablet",
+  mobile: "Mobile",
+};
+
+const STUDIO_DEVICE_KEYS: Record<string, StudioDeviceKey> = {
+  Desktop: "desktop",
+  Tablet: "tablet",
+  Mobile: "mobile",
+  desktop: "desktop",
+  tablet: "tablet",
+  mobile: "mobile",
 };
 
 const extractContentParts = (html: string): { body: string; css: string; js: string } => {
@@ -571,16 +594,33 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const editorRef = useRef<any>(null);
   const lastEmittedRef = useRef<string>("");
   const jsRef = useRef<string>("");
+  const emitTimerRef = useRef<number | null>(null);
   const fullscreenSenderRef = useRef<any>(null);
   const leftBlocksRef = useRef<HTMLDivElement | null>(null);
   const leftLayersRef = useRef<HTMLDivElement | null>(null);
   const rightStylesRef = useRef<HTMLDivElement | null>(null);
   const rightTraitsRef = useRef<HTMLDivElement | null>(null);
   const sidebarRefreshTimeoutRef = useRef<number | null>(null);
+  const blockSearchQueryRef = useRef("");
   const [activeLeftPanel, setActiveLeftPanel] = useState<"blocks" | "layers">("blocks");
   const [activeRightPanel, setActiveRightPanel] = useState<"styles" | "settings">("styles");
-  const [isLeftSidebarHidden, setIsLeftSidebarHidden] = useState(false);
-  const [isRightSidebarHidden, setIsRightSidebarHidden] = useState(false);
+  const [isLeftSidebarHidden, setIsLeftSidebarHidden] = useState(true);
+  const [isRightSidebarHidden, setIsRightSidebarHidden] = useState(true);
+  const [studioHeight, setStudioHeight] = useState(height);
+  const [editorReady, setEditorReady] = useState(false);
+  const [activeDevice, setActiveDevice] = useState<StudioDeviceKey>("desktop");
+  const [blockSearch, setBlockSearch] = useState("");
+  const [selectionLabel, setSelectionLabel] = useState("");
+  const [hasSelection, setHasSelection] = useState(false);
+  const [canvasEmpty, setCanvasEmpty] = useState(true);
+  const [canvasZoom, setCanvasZoom] = useState(100);
+
+  useEffect(() => {
+    const computeHeight = () => setStudioHeight(Math.max(560, window.innerHeight - 260));
+    computeHeight();
+    window.addEventListener("resize", computeHeight);
+    return () => window.removeEventListener("resize", computeHeight);
+  }, []);
 
   useEffect(() => {
     if (!hostRef.current || editorRef.current) return;
@@ -593,9 +633,16 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     const editor = grapesjs.init({
       container: hostRef.current,
       fromElement: false,
-      height: `${height}px`,
+      height: `${studioHeight}px`,
       noticeOnUnload: false,
       storageManager: false,
+      dragMode: "translate",
+      forceClass: true,
+      avoidInlineStyle: false,
+      showOffsets: 1,
+      richTextEditor: {
+        actions: ["bold", "italic", "underline", "link"],
+      },
       plugins: [grapesjsPresetWebpage, grapesjsBlocksBasic, grapesjsPluginForms],
       deviceManager: {
         devices: [
@@ -674,6 +721,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         },
       },
       selectorManager: { componentFirst: true },
+      panels: { defaults: [] },
       components: body || DEFAULT_STUDIO_MARKUP,
       style: css,
     });
@@ -1033,6 +1081,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     registerCmsBlocks(editor);
     registerAdvancedCmsBlocks(editor);
 
+    const blockSearchRef = blockSearchQueryRef;
+
     const syncBlockCategories = () => {
       try {
         configureStudioCategories(editor);
@@ -1067,6 +1117,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       renderInto(rightStylesRef.current, safeRender(() => editor.StyleManager.render()));
       renderInto(rightTraitsRef.current, safeRender(() => editor.TraitManager.render()));
       suppressNativeStyleColorInputs();
+      filterBlockPanel(leftBlocksRef.current, blockSearchRef.current);
+    };
+
+    const syncCanvasEmptyState = () => {
+      setCanvasEmpty(isEditorCanvasEmpty(editor));
+    };
+    const syncCanvasZoomState = () => {
+      try {
+        setCanvasZoom(Math.round(Number(editor.Canvas?.getZoom?.() || 100)));
+      } catch {
+        setCanvasZoom(100);
+      }
     };
 
     syncBlockCategories();
@@ -1137,6 +1199,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const jsTag = script ? `\n<script>${script}</script>` : "";
       return `${html}${cssTag}${jsTag}`.trim();
     };
+
+    registerStudioEditorFeatures(editor, buildContent);
 
     const getFullscreenElement = () => {
       const fullscreenDocument = document as Document & {
@@ -1444,15 +1508,15 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         let cssEditor: any = null;
         let jsEditor: any = null;
 
-        const setEditorHeight = (height: number) => {
-          htmlInput.style.height = `${height}px`;
-          cssInput.style.height = `${height}px`;
-          jsInput.style.height = `${height}px`;
+        const setEditorHeight = (editorHeight: number) => {
+          htmlInput.style.height = `${editorHeight}px`;
+          cssInput.style.height = `${editorHeight}px`;
+          jsInput.style.height = `${editorHeight}px`;
 
           if (htmlEditor && cssEditor && jsEditor) {
-            htmlEditor.setSize("100%", height);
-            cssEditor.setSize("100%", height);
-            jsEditor.setSize("100%", height);
+            htmlEditor.setSize("100%", editorHeight);
+            cssEditor.setSize("100%", editorHeight);
+            jsEditor.setSize("100%", editorHeight);
             htmlEditor.refresh();
             cssEditor.refresh();
             jsEditor.refresh();
@@ -1677,91 +1741,77 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       });
     }
 
+    const hideLegacyPanelElement = (panel: HTMLElement | null) => {
+      if (!panel) return;
+      panel.style.display = "none";
+      panel.style.width = "0";
+      panel.style.minWidth = "0";
+      panel.style.maxWidth = "0";
+      panel.style.height = "0";
+      panel.style.minHeight = "0";
+      panel.style.maxHeight = "0";
+      panel.style.opacity = "0";
+      panel.style.visibility = "hidden";
+      panel.style.pointerEvents = "none";
+      panel.style.overflow = "hidden";
+      panel.style.border = "0";
+      panel.style.boxShadow = "none";
+      panel.style.fontSize = "0";
+      panel.style.lineHeight = "0";
+      panel.style.padding = "0";
+      panel.style.margin = "0";
+    };
+
+    const removeGrapesTopPanels = () => {
+      ["commands", "options", "views", "devices-c"].forEach((panelId) => {
+        try {
+          editor.Panels.removePanel(panelId);
+        } catch {
+          // ignore missing panels
+        }
+      });
+    };
+
     const hideLegacyViewsUi = () => {
       const root = editor.getContainer() as HTMLElement;
       const editorRoot = (root.classList.contains("gjs-editor")
         ? root
         : root.querySelector(".gjs-editor")) as HTMLElement | null;
-      const viewsContainer = root.querySelector(".gjs-pn-views-container") as HTMLElement | null;
-      const viewsPanel = root.querySelector(".gjs-pn-panel.gjs-pn-views") as HTMLElement | null;
-      const optionsTopPanel = root.querySelector(".gjs-pn-panel.gjs-pn-options") as HTMLElement | null;
+      const editorCont = root.querySelector(".gjs-editor-cont") as HTMLElement | null;
       const canvas = root.querySelector(".gjs-cv-canvas") as HTMLElement | null;
 
       root.style.setProperty("--cms-side-panel-width", "0px");
       root.style.setProperty("--gjs-left-width", "0px");
+      root.style.setProperty("--gjs-canvas-top", "0px");
       editorRoot?.style.setProperty("--cms-side-panel-width", "0px");
       editorRoot?.style.setProperty("--gjs-left-width", "0px");
+      editorRoot?.style.setProperty("--gjs-canvas-top", "0px");
+      editorCont?.style.setProperty("--gjs-canvas-top", "0px");
+      editorCont?.style.setProperty("--gjs-left-width", "0px");
 
-      [viewsContainer, viewsPanel].forEach((panel) => {
-        if (!panel) return;
-        panel.style.display = "none";
-        panel.style.width = "0";
-        panel.style.minWidth = "0";
-        panel.style.maxWidth = "0";
-        panel.style.opacity = "0";
-        panel.style.visibility = "hidden";
-        panel.style.pointerEvents = "none";
-        panel.style.overflow = "hidden";
-        panel.style.border = "0";
-        panel.style.boxShadow = "none";
-      });
+      root.querySelectorAll(
+        ".gjs-pn-commands, .gjs-pn-options, .gjs-pn-devices-c, .gjs-pn-views, .gjs-pn-views-container, .gjs-pn-panel",
+      ).forEach((panel) => hideLegacyPanelElement(panel as HTMLElement));
 
-      if (optionsTopPanel) {
-        optionsTopPanel.style.left = "0";
-        optionsTopPanel.style.right = "0";
-        optionsTopPanel.style.justifyContent = "flex-start";
+      if (editorCont) {
+        editorCont.style.overflow = "hidden";
+        editorCont.style.height = "100%";
       }
 
       if (canvas) {
+        canvas.style.top = "0";
+        canvas.style.left = "0";
+        canvas.style.height = "100%";
+        canvas.style.width = "100%";
         canvas.style.right = "0";
         canvas.style.borderRight = "0";
-        canvas.style.width = "";
       }
     };
 
-    const deviceButtons = [
-      {
-        id: "cms-device-desktop",
-        command: "cms:set-device-desktop",
-        device: "Desktop",
-        className: "fa fa-desktop cms-device-btn",
-        title: "Desktop preview",
-      },
-      {
-        id: "cms-device-tablet",
-        command: "cms:set-device-tablet",
-        device: "Tablet",
-        className: "fa fa-tablet cms-device-btn",
-        title: "Tablet preview",
-      },
-      {
-        id: "cms-device-mobile",
-        command: "cms:set-device-mobile",
-        device: "Mobile",
-        className: "fa fa-mobile cms-device-btn",
-        title: "Mobile preview",
-      },
-    ];
-
-    const syncDeviceButtons = () => {
-      const currentDevice = String(editor.getDevice?.() || "Desktop");
-      deviceButtons.forEach(({ id, device }) => {
-        const button = editor.Panels.getButton("options", id);
-        if (button?.set) {
-          button.set("active", currentDevice === device);
-        }
-      });
+    const syncStudioDeviceState = () => {
+      const current = String(editor.getDevice?.() || "Desktop");
+      setActiveDevice(STUDIO_DEVICE_KEYS[current] || "desktop");
     };
-
-    deviceButtons.forEach(({ command, device }) => {
-      if (editor.Commands.has(command)) return;
-      editor.Commands.add(command, {
-        run(ed: any) {
-          ed.setDevice(device);
-          syncDeviceButtons();
-        },
-      });
-    });
 
     const panels = editor.Panels.getPanels();
     panels.forEach((panel: any) => {
@@ -1780,55 +1830,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     forceBindCodeButtons();
 
-    const optionsPanel = editor.Panels.getPanel("options");
-    if (optionsPanel) {
-      const optionsButtons = optionsPanel.get("buttons");
-
-      ["cms-open-code", "cms-toggle-side-panel", "cms-device-desktop", "cms-device-tablet", "cms-device-mobile"].forEach((id) => {
-        const button = editor.Panels.getButton("options", id);
-        if (!button) return;
-        try {
-          optionsButtons?.remove?.(button);
-        } catch {
-          button.collection?.remove?.(button);
-        }
-      });
-
-      [...deviceButtons].reverse().forEach(({ id, command, className, title }) => {
-        (optionsButtons as any)?.add({
-          id,
-          className,
-          label: "",
-          command,
-          togglable: false,
-          attributes: { title },
-        } as any, { at: 0 });
-      });
-
-      const openCodeBtn = editor.Panels.getButton("options", "open-code");
-      if (openCodeBtn?.set) {
-        openCodeBtn.set("className", "fa fa-file-code-o cms-open-code-btn");
-        openCodeBtn.set("label", "");
-        openCodeBtn.set("attributes", {
-          ...(openCodeBtn.get("attributes") || {}),
-          title: "Edit Code",
-        });
-      }
-
-      const exportBtn = editor.Panels.getButton("options", "export-template");
-      if (exportBtn?.set) {
-        exportBtn.set("className", "fa fa-download");
-        exportBtn.set("attributes", {
-          ...(exportBtn.get("attributes") || {}),
-          title: "Export HTML",
-        });
-      }
-    }
-
     const syncEditorChromeState = () => {
+      removeGrapesTopPanels();
       hideLegacyViewsUi();
       forceBindCodeButtons();
-      syncDeviceButtons();
+      syncStudioDeviceState();
     };
 
     const syncInitialStudioState = () => {
@@ -1843,14 +1849,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       try {
         setActiveLeftPanel("blocks");
         setActiveRightPanel("styles");
-        setIsLeftSidebarHidden(false);
-        setIsRightSidebarHidden(false);
+        setIsLeftSidebarHidden(true);
+        setIsRightSidebarHidden(true);
         editor.setDevice("Desktop");
         hideLegacyViewsUi();
         queueFrameWrapperStyleSync();
         mountStudioPanels();
         syncBlockCategories();
-        syncDeviceButtons();
+        syncStudioDeviceState();
       } catch {
         // ignore default sync errors
       }
@@ -1872,10 +1878,25 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     requestAnimationFrame(syncEditorChromeState);
     setTimeout(syncEditorChromeState, 80);
+    setTimeout(syncEditorChromeState, 240);
     handleFrameWrapperRefresh();
+
+    let canvasStyleObserver: MutationObserver | null = null;
+    const attachCanvasStyleObserver = () => {
+      const canvas = editor.getContainer()?.querySelector?.(".gjs-cv-canvas") as HTMLElement | null;
+      if (!canvas || canvasStyleObserver) return;
+      canvasStyleObserver = new MutationObserver(() => {
+        if (canvas.style.top && canvas.style.top !== "0" && canvas.style.top !== "0px") {
+          hideLegacyViewsUi();
+        }
+      });
+      canvasStyleObserver.observe(canvas, { attributes: true, attributeFilter: ["style"] });
+    };
+
+    editor.on("load", attachCanvasStyleObserver);
     editor.on("load", syncInitialStudioState);
     editor.on("load", syncStudioDefaults);
-    editor.on("change:device", syncDeviceButtons);
+    editor.on("change:device", syncStudioDeviceState);
     editor.on("load", handleFrameWrapperRefresh);
     editor.on("change:device", handleFrameWrapperRefresh);
     editor.on("command:run:fullscreen", handleFrameWrapperRefresh);
@@ -1952,14 +1973,32 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       }
     };
 
+    const handleComponentDeselected = () => {
+      setHasSelection(false);
+      setSelectionLabel("");
+    };
+
     editor.on("component:selected", (component: any) => {
       ensureUrlTraits(component);
+      setHasSelection(true);
+      setSelectionLabel(getComponentBreadcrumb(component));
+      setIsRightSidebarHidden(false);
+      setActiveRightPanel("styles");
 
       const tagName = String(component?.get?.("tagName") || "").toLowerCase();
       if (["a", "button", "video", "iframe"].includes(tagName)) {
         setActiveRightPanel("settings");
       }
     });
+
+    editor.on("component:deselected", handleComponentDeselected);
+
+    editor.on("component:add", syncCanvasEmptyState);
+    editor.on("component:remove", syncCanvasEmptyState);
+    editor.on("component:update", syncCanvasEmptyState);
+    editor.on("load", syncCanvasEmptyState);
+    editor.on("load", syncCanvasZoomState);
+    editor.on("update", syncCanvasEmptyState);
 
     editor.on("component:update:attributes:data-url", (component: any) => {
       const tagName = String(component?.get?.("tagName") || "").toLowerCase();
@@ -1999,26 +2038,54 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editorRef.current = editor;
 
     const emit = () => {
-      const next = buildContent(editor);
-      if (next !== lastEmittedRef.current) {
-        lastEmittedRef.current = next;
-        onChange(next);
+      if (emitTimerRef.current !== null) {
+        window.clearTimeout(emitTimerRef.current);
+      }
+      emitTimerRef.current = window.setTimeout(() => {
+        const next = buildContent(editor);
+        if (next !== lastEmittedRef.current) {
+          lastEmittedRef.current = next;
+          onChange(next);
+        }
+        emitTimerRef.current = null;
+      }, 300);
+    };
+
+    const handleEditorReady = () => {
+      setEditorReady(true);
+      syncCanvasEmptyState();
+      syncCanvasZoomState();
+      try {
+        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20 });
+      } catch {
+        // ignore
       }
     };
 
     editor.on("update", emit);
+    editor.on("load", handleEditorReady);
 
     return () => {
       try {
+        if (emitTimerRef.current !== null) {
+          window.clearTimeout(emitTimerRef.current);
+        }
         activeColorPopoverCleanup?.();
         editor.off("update", emit);
         editor.off("load", syncInitialStudioState);
         editor.off("load", syncStudioDefaults);
-        editor.off("change:device", syncDeviceButtons);
+        editor.off("load", handleEditorReady);
+        editor.off("component:deselected", handleComponentDeselected);
+        editor.off("component:add", syncCanvasEmptyState);
+        editor.off("component:remove", syncCanvasEmptyState);
+        editor.off("component:update", syncCanvasEmptyState);
+        editor.off("change:device", syncStudioDeviceState);
         editor.off("load", handleFrameWrapperRefresh);
         editor.off("change:device", handleFrameWrapperRefresh);
         editor.off("command:run:fullscreen", handleFrameWrapperRefresh);
         editor.off("command:stop:fullscreen", handleFrameWrapperRefresh);
+        canvasStyleObserver?.disconnect();
+        canvasStyleObserver = null;
         window.removeEventListener("resize", handleFrameWrapperRefresh);
         document.removeEventListener("fullscreenchange", handleBrowserFullscreenChange);
         editor.destroy();
@@ -2026,6 +2093,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         // ignore destroy errors
       }
       editorRef.current = null;
+      setEditorReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -2043,6 +2111,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editor.setStyle(css || "");
     lastEmittedRef.current = incoming;
   }, [value]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      editor.setConfig?.({ height: `${studioHeight}px` });
+      editor.refresh?.({ tools: true });
+      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20 });
+    } catch {
+      // ignore resize errors
+    }
+  }, [studioHeight]);
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -2084,11 +2164,188 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
   }, [isLeftSidebarHidden, isRightSidebarHidden]);
 
+  useEffect(() => {
+    blockSearchQueryRef.current = blockSearch;
+    filterBlockPanel(leftBlocksRef.current, blockSearch);
+  }, [blockSearch]);
+
+  const runEditorCommand = (command: string) => {
+    editorRef.current?.runCommand?.(command);
+    if (command === "cms:canvas-zoom-in" || command === "cms:canvas-zoom-out" || command === "cms:canvas-fit") {
+      window.setTimeout(() => {
+        try {
+          setCanvasZoom(Math.round(Number(editorRef.current?.Canvas?.getZoom?.() || 100)));
+        } catch {
+          // ignore
+        }
+      }, 60);
+    }
+    if (command === "cms:insert-hero") {
+      setIsLeftSidebarHidden(false);
+      setActiveLeftPanel("blocks");
+      window.setTimeout(syncCanvasEmptyStateFromEditor, 120);
+    }
+  };
+
+  const syncCanvasEmptyStateFromEditor = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    setCanvasEmpty(isEditorCanvasEmpty(editor));
+  };
+
   return (
     <div
       ref={shellRef}
       className={`cms-grapes-shell${isLeftSidebarHidden ? " cms-grapes-shell--left-hidden" : ""}${isRightSidebarHidden ? " cms-grapes-shell--right-hidden" : ""}`}
     >
+      <div className="cms-grapes-studio-bar">
+        <div className="cms-grapes-studio-bar__brand">
+          <i className="fa-solid fa-wand-magic-sparkles" />
+          <span>Visual Builder</span>
+        </div>
+        <div className="cms-grapes-studio-bar__tools">
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Undo"
+            disabled={!editorReady}
+            onClick={() => editorRef.current?.UndoManager?.undo?.()}
+          >
+            <i className="fa-solid fa-rotate-left" />
+          </button>
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Redo"
+            disabled={!editorReady}
+            onClick={() => editorRef.current?.UndoManager?.redo?.()}
+          >
+            <i className="fa-solid fa-rotate-right" />
+          </button>
+          <span className="cms-grapes-studio-bar__divider" />
+          {(["desktop", "tablet", "mobile"] as const).map((device) => (
+            <button
+              key={device}
+              type="button"
+              className={`cms-grapes-studio-btn${activeDevice === device ? " is-active" : ""}`}
+              title={device.charAt(0).toUpperCase() + device.slice(1)}
+              disabled={!editorReady}
+              onClick={() => {
+                editorRef.current?.setDevice?.(STUDIO_DEVICE_LABELS[device]);
+                setActiveDevice(device);
+              }}
+            >
+              <i className={`fa-solid fa-${device === "desktop" ? "desktop" : device === "tablet" ? "tablet-screen-button" : "mobile-screen-button"}`} />
+            </button>
+          ))}
+          {hasSelection && (
+            <>
+              <span className="cms-grapes-studio-bar__divider" />
+              <button
+                type="button"
+                className="cms-grapes-studio-btn"
+                title="Duplicate (Ctrl+D)"
+                disabled={!editorReady}
+                onClick={() => runEditorCommand("cms:duplicate")}
+              >
+                <i className="fa-solid fa-clone" />
+              </button>
+              <button
+                type="button"
+                className="cms-grapes-studio-btn"
+                title="Move up"
+                disabled={!editorReady}
+                onClick={() => runEditorCommand("cms:move-up")}
+              >
+                <i className="fa-solid fa-arrow-up" />
+              </button>
+              <button
+                type="button"
+                className="cms-grapes-studio-btn"
+                title="Move down"
+                disabled={!editorReady}
+                onClick={() => runEditorCommand("cms:move-down")}
+              >
+                <i className="fa-solid fa-arrow-down" />
+              </button>
+              <button
+                type="button"
+                className="cms-grapes-studio-btn cms-grapes-studio-btn--danger"
+                title="Delete (Del)"
+                disabled={!editorReady}
+                onClick={() => runEditorCommand("cms:delete")}
+              >
+                <i className="fa-solid fa-trash-can" />
+              </button>
+            </>
+          )}
+        </div>
+        <div className="cms-grapes-studio-bar__actions">
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Zoom out"
+            disabled={!editorReady}
+            onClick={() => runEditorCommand("cms:canvas-zoom-out")}
+          >
+            <i className="fa-solid fa-magnifying-glass-minus" />
+          </button>
+          <span className="cms-grapes-studio-bar__zoom">{canvasZoom}%</span>
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Zoom in"
+            disabled={!editorReady}
+            onClick={() => runEditorCommand("cms:canvas-zoom-in")}
+          >
+            <i className="fa-solid fa-magnifying-glass-plus" />
+          </button>
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Fit canvas"
+            disabled={!editorReady}
+            onClick={() => runEditorCommand("cms:canvas-fit")}
+          >
+            <i className="fa-solid fa-compress" />
+          </button>
+          <span className="cms-grapes-studio-bar__divider" />
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Preview page (Ctrl+Shift+P)"
+            disabled={!editorReady}
+            onClick={() => runEditorCommand("cms:preview-page")}
+          >
+            <i className="fa-solid fa-eye" />
+          </button>
+          <button
+            type="button"
+            className="cms-grapes-studio-btn"
+            title="Fullscreen"
+            disabled={!editorReady}
+            onClick={() => editorRef.current?.runCommand?.("fullscreen")}
+          >
+            <i className="fa-solid fa-expand" />
+          </button>
+          <button
+            type="button"
+            className="cms-grapes-studio-btn cms-grapes-studio-btn--code"
+            title="Edit code"
+            disabled={!editorReady}
+            onClick={() => editorRef.current?.runCommand?.("cms:open-code")}
+          >
+            {"</>"}
+          </button>
+        </div>
+      </div>
+      {selectionLabel && (
+        <div className="cms-grapes-selection-bar">
+          <i className="fa-solid fa-crosshairs" />
+          <span>{selectionLabel}</span>
+          <span className="cms-grapes-selection-bar__hint">Double-click text to edit inline</span>
+        </div>
+      )}
       <div className="cms-grapes-shell__workspace">
         <aside className={`cms-grapes-sidebar cms-grapes-sidebar--left${isLeftSidebarHidden ? " is-hidden" : ""}`}>
           <div className="cms-grapes-sidebar__toolbar">
@@ -2107,6 +2364,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               Layers
             </button>
           </div>
+          {activeLeftPanel === "blocks" && (
+            <div className="cms-grapes-sidebar__search">
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+              <input
+                type="search"
+                value={blockSearch}
+                onChange={(event) => setBlockSearch(event.target.value)}
+                placeholder="Search blocks..."
+                aria-label="Search blocks"
+              />
+            </div>
+          )}
           <div
             ref={leftBlocksRef}
             className={`cms-grapes-sidebar__panel${activeLeftPanel === "blocks" ? " is-active" : ""}`}
@@ -2117,7 +2386,40 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           />
         </aside>
 
-        <div ref={hostRef} className="cms-grapes-shell__host" />
+        <div className="cms-grapes-shell__host-wrap">
+          <div ref={hostRef} className="cms-grapes-shell__host" />
+          {editorReady && canvasEmpty && (
+            <div className="cms-grapes-empty-guide">
+              <div className="cms-grapes-empty-guide__card">
+                <i className="fa-solid fa-wand-magic-sparkles" />
+                <h3>Start building your page</h3>
+                <p>Drag a section from the blocks panel, or use a quick starter below.</p>
+                <div className="cms-grapes-empty-guide__actions">
+                  <button
+                    type="button"
+                    className="cms-grapes-empty-guide__btn cms-grapes-empty-guide__btn--primary"
+                    onClick={() => {
+                      setIsLeftSidebarHidden(false);
+                      setActiveLeftPanel("blocks");
+                    }}
+                  >
+                    <i className="fa-solid fa-table-cells-large" /> Browse blocks
+                  </button>
+                  <button
+                    type="button"
+                    className="cms-grapes-empty-guide__btn"
+                    onClick={() => runEditorCommand("cms:insert-hero")}
+                  >
+                    <i className="fa-solid fa-flag" /> Add Hero section
+                  </button>
+                </div>
+                <p className="cms-grapes-empty-guide__tips">
+                  Tip: Click any element to style it · Ctrl+D duplicate · Del delete · Ctrl+Shift+P preview
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
 
         <aside className={`cms-grapes-sidebar cms-grapes-sidebar--right${isRightSidebarHidden ? " is-hidden" : ""}`}>
           <div className="cms-grapes-sidebar__toolbar">
@@ -2170,14 +2472,274 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       <style jsx global>{`
         .cms-grapes-shell {
           --cms-left-sidebar-width: 320px;
-          --cms-right-sidebar-width: 320px;
-          --cms-canvas-padding: 28px;
+          --cms-right-sidebar-width: 300px;
+          --cms-canvas-padding: 32px;
+          --cms-grapes-accent: #6366f1;
+          --cms-grapes-accent-dark: #4f46e5;
           position: relative;
-          border: 1px solid rgba(15, 23, 42, 0.12);
-          border-radius: 22px;
+          border: 1px solid rgba(99, 102, 241, 0.12);
+          border-radius: 16px;
           overflow: hidden;
-          background: #dbe4f2;
-          box-shadow: 0 28px 64px rgba(15, 23, 42, 0.14);
+          background: #0f172a;
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .cms-grapes-studio-bar {
+          display: grid;
+          grid-template-columns: minmax(120px, 1fr) auto minmax(120px, 1fr);
+          align-items: center;
+          gap: 12px;
+          padding: 8px 16px;
+          min-height: 52px;
+          background: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+          border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+          flex-shrink: 0;
+        }
+
+        .cms-grapes-studio-bar__brand {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          justify-self: start;
+          color: #f1f5f9;
+          font-size: 13px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+        }
+
+        .cms-grapes-studio-bar__brand i {
+          color: #818cf8;
+          font-size: 14px;
+        }
+
+        .cms-grapes-studio-bar__tools {
+          justify-self: center;
+        }
+
+        .cms-grapes-studio-bar__actions {
+          justify-self: end;
+        }
+
+        .cms-grapes-studio-bar__tools,
+        .cms-grapes-studio-bar__actions {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .cms-grapes-studio-bar__divider {
+          width: 1px;
+          height: 22px;
+          background: rgba(148, 163, 184, 0.25);
+          margin: 0 4px;
+        }
+
+        .cms-grapes-studio-btn {
+          width: 34px;
+          height: 34px;
+          border-radius: 8px;
+          border: 1px solid transparent;
+          background: transparent;
+          color: #94a3b8;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 13px;
+          transition: background 0.12s, border-color 0.12s, color 0.12s;
+        }
+
+        .cms-grapes-studio-btn:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(148, 163, 184, 0.2);
+          color: #f1f5f9;
+        }
+
+        .cms-grapes-studio-btn.is-active {
+          background: rgba(99, 102, 241, 0.22);
+          border-color: rgba(129, 140, 248, 0.4);
+          color: #e0e7ff;
+        }
+
+        .cms-grapes-studio-btn:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+
+        .cms-grapes-studio-btn--code {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          min-width: 42px;
+        }
+
+        .cms-grapes-studio-btn--danger:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.18);
+          border-color: rgba(248, 113, 113, 0.35);
+          color: #fecaca;
+        }
+
+        .cms-grapes-studio-bar__zoom {
+          min-width: 42px;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
+        }
+
+        .cms-grapes-selection-bar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          background: rgba(99, 102, 241, 0.12);
+          border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+          color: #c7d2fe;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .cms-grapes-selection-bar i {
+          color: #818cf8;
+          font-size: 11px;
+        }
+
+        .cms-grapes-selection-bar__hint {
+          margin-left: auto;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        .cms-grapes-sidebar__search {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .cms-grapes-sidebar__search i {
+          color: #64748b;
+          font-size: 12px;
+        }
+
+        .cms-grapes-sidebar__search input {
+          width: 100%;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+          font-size: 12px;
+          padding: 7px 10px;
+          outline: none;
+        }
+
+        .cms-grapes-sidebar__search input:focus {
+          border-color: rgba(129, 140, 248, 0.45);
+          box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+        }
+
+        .cms-grapes-sidebar__search input::placeholder {
+          color: #64748b;
+        }
+
+        .cms-grapes-shell__host-wrap {
+          position: relative;
+          min-width: 0;
+          height: ${studioHeight}px;
+          min-height: ${studioHeight}px;
+          overflow: hidden;
+        }
+
+        .cms-grapes-empty-guide {
+          position: absolute;
+          inset: 0;
+          z-index: 6;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 24px;
+          pointer-events: none;
+        }
+
+        .cms-grapes-empty-guide__card {
+          pointer-events: auto;
+          max-width: 420px;
+          width: 100%;
+          padding: 24px 22px;
+          border-radius: 16px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background: rgba(15, 23, 42, 0.88);
+          color: #e2e8f0;
+          text-align: center;
+          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+          backdrop-filter: blur(8px);
+        }
+
+        .cms-grapes-empty-guide__card > i {
+          font-size: 28px;
+          color: #818cf8;
+          margin-bottom: 10px;
+        }
+
+        .cms-grapes-empty-guide__card h3 {
+          margin: 0 0 8px;
+          font-size: 18px;
+          font-weight: 700;
+          color: #f8fafc;
+        }
+
+        .cms-grapes-empty-guide__card p {
+          margin: 0;
+          font-size: 13px;
+          color: #94a3b8;
+          line-height: 1.5;
+        }
+
+        .cms-grapes-empty-guide__actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: center;
+          margin-top: 16px;
+        }
+
+        .cms-grapes-empty-guide__btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.04);
+          color: #e2e8f0;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 8px 12px;
+          cursor: pointer;
+        }
+
+        .cms-grapes-empty-guide__btn--primary {
+          background: linear-gradient(135deg, var(--cms-grapes-accent), var(--cms-grapes-accent-dark));
+          border-color: transparent;
+          color: #fff;
+        }
+
+        .cms-grapes-empty-guide__btn:hover {
+          filter: brightness(1.06);
+        }
+
+        .cms-grapes-empty-guide__tips {
+          margin-top: 14px !important;
+          font-size: 11px !important;
+          color: #64748b !important;
+        }
+
+        .cms-grapes-shell__workspace {
+          flex: 1 1 auto;
+          min-height: 0;
         }
 
         .cms-grapes-shell:fullscreen,
@@ -2219,17 +2781,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-shell__workspace {
           display: grid;
           grid-template-columns: var(--cms-left-sidebar-width) minmax(0, 1fr) var(--cms-right-sidebar-width);
-          height: ${height}px;
-          min-height: ${height}px;
+          height: ${studioHeight}px;
+          min-height: ${studioHeight}px;
         }
 
         .cms-grapes-sidebar {
           display: flex;
           flex-direction: column;
-          height: ${height}px;
+          height: ${studioHeight}px;
           min-width: 0;
-          min-height: ${height}px;
-          background: linear-gradient(180deg, #08101f 0%, #0f172a 100%);
+          min-height: ${studioHeight}px;
+          background: linear-gradient(180deg, #0c0f1a 0%, #0f172a 55%, #0a0e18 100%);
           color: #e2e8f0;
           overflow: hidden;
           transition: opacity 180ms ease, border-color 180ms ease;
@@ -2253,37 +2815,33 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-sidebar__toolbar {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 8px;
-          padding: 14px 10px 14px 14px;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-          box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+          gap: 6px;
+          padding: 12px;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.1);
         }
 
         .cms-grapes-sidebar__tab {
-          min-height: 42px;
-          padding: 10px 12px;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 14px;
-          background: rgba(255, 255, 255, 0.04);
-          color: #cbd5e1;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.01em;
-          transition: transform 120ms ease, background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+          min-height: 36px;
+          padding: 8px 10px;
+          border: 0;
+          border-radius: 8px;
+          background: transparent;
+          color: #94a3b8;
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          transition: background-color 120ms ease, color 120ms ease;
         }
 
         .cms-grapes-sidebar__tab:hover {
-          transform: translateY(-1px);
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(96, 165, 250, 0.3);
-          color: #ffffff;
+          background: rgba(255, 255, 255, 0.05);
+          color: #e2e8f0;
         }
 
         .cms-grapes-sidebar__tab.is-active {
-          background: linear-gradient(135deg, #2563eb, #1d4ed8);
-          border-color: rgba(96, 165, 250, 0.45);
-          color: #ffffff;
-          box-shadow: 0 14px 24px rgba(37, 99, 235, 0.24);
+          background: rgba(99, 102, 241, 0.2);
+          color: #e0e7ff;
+          box-shadow: none;
         }
 
         .cms-grapes-sidebar__panel {
@@ -2343,32 +2901,39 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell__host {
           position: relative;
-          height: ${height}px;
-          min-height: ${height}px;
+          height: 100%;
+          min-height: 100%;
           min-width: 0;
+          overflow: hidden;
+        }
+
+        .cms-grapes-shell__host .gjs-editor-cont {
+          height: 100% !important;
+          overflow: hidden !important;
         }
 
         .cms-grapes-shell__edge-toggle {
           position: absolute;
-          top: 92px;
+          top: 50%;
           z-index: 40;
-          width: 36px;
-          height: 36px;
+          width: 28px;
+          height: 48px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          border-radius: 999px;
-          background: linear-gradient(180deg, rgba(8, 16, 31, 0.96), rgba(15, 23, 42, 0.96));
-          color: #e2e8f0;
-          box-shadow: 0 16px 28px rgba(15, 23, 42, 0.22);
-          transition: left 220ms ease, right 220ms ease, transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          border-radius: 8px;
+          background: #1e293b;
+          color: #94a3b8;
+          box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
+          transform: translateY(-50%);
+          transition: left 220ms ease, right 220ms ease, border-color 120ms ease, color 120ms ease, background-color 120ms ease;
         }
 
         .cms-grapes-shell__edge-toggle:hover {
-          transform: translateY(-1px);
-          border-color: rgba(96, 165, 250, 0.36);
-          color: #ffffff;
+          border-color: rgba(129, 140, 248, 0.45);
+          background: #334155;
+          color: #e2e8f0;
         }
 
         .cms-grapes-shell__edge-toggle--left {
@@ -2389,15 +2954,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell .gjs-editor {
           --cms-side-panel-width: 0px;
-          --gjs-left-width: 0px;
+          --gjs-left-width: 0px !important;
+          --gjs-canvas-top: 0px !important;
           position: relative;
           height: 100% !important;
-          min-height: ${height}px;
-          background: #dbe4f2;
+          min-height: ${studioHeight}px;
+          background: #cbd5e1;
+          overflow: hidden;
         }
 
         .cms-grapes-shell .gjs-one-bg {
-          background-color: #08101f;
+          background-color: #0f172a;
         }
 
         .cms-grapes-shell .gjs-two-color {
@@ -2405,7 +2972,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-three-bg {
-          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+          background: linear-gradient(135deg, var(--cms-grapes-accent), var(--cms-grapes-accent-dark));
           color: #ffffff;
         }
 
@@ -2414,23 +2981,50 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-cv-canvas {
+          top: 0 !important;
+          left: 0 !important;
+          height: 100% !important;
+          width: 100% !important;
           right: 0;
-          transition: right 220ms ease, border-color 180ms ease;
-          background:
-            radial-gradient(circle at top, rgba(148, 163, 184, 0.4), rgba(226, 232, 240, 0.82) 34%, rgba(248, 250, 252, 0.98) 72%);
+          transition: right 220ms ease;
+          background-color: #d1dae6;
+          background-image: radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.35) 1px, transparent 0);
+          background-size: 20px 20px;
           padding: var(--cms-canvas-padding);
+          box-sizing: border-box;
+        }
+
+        .cms-grapes-shell .gjs-pn-commands,
+        .cms-grapes-shell .gjs-pn-panel {
+          display: none !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          max-width: 0 !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          max-height: 0 !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          overflow: hidden !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          font-size: 0 !important;
+          line-height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
         }
 
         .cms-grapes-shell .gjs-frame-wrapper {
-          border-radius: 24px;
+          border-radius: 8px;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.82);
-          box-shadow: 0 30px 70px rgba(15, 23, 42, 0.18);
+          border: 1px solid rgba(15, 23, 42, 0.12);
+          box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
           background: #ffffff;
         }
 
         .cms-grapes-shell .gjs-pn-panel {
-          background: linear-gradient(180deg, #08101f 0%, #0f172a 100%);
+          background: linear-gradient(180deg, #0c0f1a 0%, #0f172a 55%, #0a0e18 100%);
           color: #cbd5e1;
           border: 0;
         }
@@ -2440,17 +3034,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-pn-panel.gjs-pn-options {
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 8px;
-          padding: 12px 14px;
-          min-height: 62px;
-          box-sizing: border-box;
-          left: 0;
-          right: 0;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.16);
-          box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+          display: none !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          max-width: 0 !important;
+          height: 0 !important;
+          min-height: 0 !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          overflow: hidden !important;
+          border: 0 !important;
+          box-shadow: none !important;
         }
 
         .cms-grapes-shell .gjs-pn-views-container,
@@ -2487,10 +3082,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-pn-btn.gjs-pn-active {
-          background: linear-gradient(135deg, #2563eb, #1d4ed8);
-          border-color: rgba(96, 165, 250, 0.45);
+          background: linear-gradient(135deg, var(--cms-grapes-accent), var(--cms-grapes-accent-dark));
+          border-color: rgba(129, 140, 248, 0.45);
           color: #ffffff;
-          box-shadow: 0 14px 24px rgba(37, 99, 235, 0.28);
+          box-shadow: 0 14px 24px rgba(99, 102, 241, 0.28);
         }
 
         .cms-grapes-shell .cms-device-btn {
@@ -2518,71 +3113,71 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-block-category {
-          margin: 10px 6px 10px 10px;
+          margin: 0;
           width: auto;
-          border-radius: 20px;
-          overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          background: rgba(15, 23, 42, 0.56);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+          border-radius: 0;
+          overflow: visible;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
         }
 
         .cms-grapes-shell .gjs-block-category .gjs-title {
-          padding: 12px 14px;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.1em;
+          padding: 16px 14px 8px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #cbd5e1;
-          background: rgba(255, 255, 255, 0.04);
-          border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+          color: #64748b;
+          background: transparent;
+          border-bottom: 0;
         }
 
         .cms-grapes-shell .gjs-block-category .gjs-blocks-c {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
-          padding: 10px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+          padding: 0 10px 12px;
         }
 
         .cms-grapes-shell .gjs-block {
           width: 100%;
           min-height: 0;
-          padding: 10px;
-          display: grid;
-          grid-template-columns: 42px minmax(0, 1fr);
+          padding: 10px 6px;
+          display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 10px;
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(148, 163, 184, 0.06));
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 18px;
-          color: #eff6ff;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-          transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+          justify-content: flex-start;
+          gap: 6px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(148, 163, 184, 0.12);
+          border-radius: 10px;
+          color: #e2e8f0;
+          box-shadow: none;
+          transition: background-color 120ms ease, border-color 120ms ease;
         }
 
         .cms-grapes-shell .gjs-block:hover {
-          transform: translateY(-2px);
-          border-color: rgba(96, 165, 250, 0.38);
-          box-shadow: 0 18px 26px rgba(15, 23, 42, 0.18);
-          background: linear-gradient(180deg, rgba(37, 99, 235, 0.18), rgba(15, 23, 42, 0.42));
+          transform: none;
+          border-color: rgba(129, 140, 248, 0.35);
+          box-shadow: none;
+          background: rgba(99, 102, 241, 0.14);
         }
 
         .cms-grapes-shell .gjs-block .gjs-block__media {
-          grid-column: 1;
-          width: 42px;
-          min-width: 42px;
-          height: 42px;
-          min-height: 42px;
+          width: 36px;
+          min-width: 36px;
+          height: 36px;
+          min-height: 36px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 18px;
+          font-size: 15px;
           line-height: 1;
           margin-bottom: 0;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.07);
+          border: 0;
           flex: 0 0 auto;
         }
 
@@ -2601,42 +3196,39 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-block .gjs-block-label {
-          grid-column: 2;
           display: flex;
           align-items: center;
+          justify-content: center;
           margin-top: 0;
-          line-height: 1.35;
-          font-size: 13px;
-          text-align: left;
+          line-height: 1.25;
+          font-size: 10px;
+          text-align: center;
           white-space: normal;
           word-break: normal;
           overflow-wrap: anywhere;
-          font-weight: 700;
+          font-weight: 600;
           flex: 1 1 auto;
           min-width: 0;
-          min-height: 42px;
+          min-height: 0;
+          color: #cbd5e1;
         }
 
         .cms-grapes-shell .gjs-sm-sector,
         .cms-grapes-shell .gjs-layer-manager,
         .cms-grapes-shell .gjs-trt-traits {
-          margin: 14px;
-          padding: 14px;
-          border-radius: 18px;
-          background: rgba(15, 23, 42, 0.56);
-          border: 1px solid rgba(148, 163, 184, 0.14);
+          margin: 8px;
+          padding: 12px;
+          border-radius: 10px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(148, 163, 184, 0.1);
           color: #e2e8f0;
         }
 
         .cms-grapes-shell .gjs-sm-sector {
           position: relative;
-          box-shadow: 0 16px 32px rgba(8, 15, 30, 0.2);
-          transition:
-            transform 180ms ease,
-            border-color 180ms ease,
-            background 220ms ease,
-            box-shadow 220ms ease;
-          animation: cms-style-sector-enter 440ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          box-shadow: none;
+          transition: border-color 180ms ease, background 220ms ease;
+          animation: none;
         }
 
         .cms-grapes-shell .gjs-sm-sector::before {
@@ -3087,6 +3679,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           border-right: 0 !important;
         }
 
+        .cms-grapes-shell .cms-side-panel-hidden .gjs-pn-panel.gjs-pn-options {
+          display: none !important;
+        }
+
         .cms-grapes-shell .cms-side-panel-hidden .gjs-pn-views-container,
         .cms-grapes-shell .cms-side-panel-hidden .gjs-pn-panel.gjs-pn-views {
           display: none !important;
@@ -3113,7 +3709,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           }
 
           .cms-grapes-shell__edge-toggle {
-            top: 72px;
+            top: 50%;
           }
 
           .cms-grapes-sidebar {
@@ -3139,7 +3735,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         @media (max-width: 768px) {
           .cms-grapes-shell .gjs-block-category .gjs-blocks-c {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
           .cms-grapes-shell .gjs-cv-canvas {

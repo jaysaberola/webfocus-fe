@@ -30,6 +30,7 @@ export default function StatsCards({
               <div className="cms-stat__label">Total Pages</div>
               <StatValue value={pagesCount} />
             </div>
+            <i className="fas fa-arrow-right cms-stat__arrow" aria-hidden="true" />
           </Link>
         </div>
 
@@ -42,6 +43,7 @@ export default function StatsCards({
               <div className="cms-stat__label">Banner Albums</div>
               <StatValue value={albumsCount} />
             </div>
+            <i className="fas fa-arrow-right cms-stat__arrow" aria-hidden="true" />
           </Link>
         </div>
 
@@ -54,6 +56,7 @@ export default function StatsCards({
               <div className="cms-stat__label">Total News</div>
               <StatValue value={newsCount} />
             </div>
+            <i className="fas fa-arrow-right cms-stat__arrow" aria-hidden="true" />
           </Link>
         </div>
       </div>

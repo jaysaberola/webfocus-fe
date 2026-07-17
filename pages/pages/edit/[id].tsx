@@ -7,7 +7,6 @@ import { getAlbums } from "@/services/albumService";
 import { getMenus } from "@/services/menuService";
 import { toast } from "@/lib/toast";
 import AiAssistant from "@/components/AI/AiAssistant";
-import SelectPreset from "@/components/UI/SelectPreset";
 import dynamic from "next/dynamic";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 import Tooltip from "@/components/UI/Tooltip";
@@ -244,20 +243,6 @@ function EditPage() {
               </select>
             </div>
           )}
-
-          <div className="mb-3">
-            <label className="form-label d-flex align-items-center">
-              Layout Presets
-              <Tooltip text="Apply a predefined layout template to quickly structure your page content." />
-            </label>
-            <SelectPreset
-              onSelect={(html) => {
-                setTinyContent(html);
-                setGrapesContent(html);
-                toast.success("Layout preset applied");
-              }}
-            />
-          </div>
 
           <div className="mb-3">
             <label className="form-label d-flex align-items-center">

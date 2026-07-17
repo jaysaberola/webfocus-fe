@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { websiteService } from "@/services/websiteService";
 import { getUsers } from "@/services/userService";
 import { getPages } from "@/services/pageService";
@@ -15,6 +15,7 @@ type WebsiteSummaryStats = {
 type WebsiteSummaryProps = {
   stats?: WebsiteSummaryStats;
   loading?: boolean;
+  compact?: boolean;
 };
 
 type WebsiteSettingsSnapshot = {
@@ -28,7 +29,7 @@ type WebsiteSettingsSnapshot = {
   google_recaptcha_sitekey?: string | null;
 };
 
-export default function WebsiteSummary({ stats, loading = false }: WebsiteSummaryProps) {
+export default function WebsiteSummary({ stats, loading = false, compact = false }: WebsiteSummaryProps) {
   const [settings, setSettings] = useState<WebsiteSettingsSnapshot | null>(null);
   const [socialCount, setSocialCount] = useState<number | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -281,8 +282,8 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
   }, [settings, socialCount]);
 
   const ChecklistPill = ({ ok, label }: { ok: boolean; label: string }) => (
-    <span className={`badge rounded-pill ${ok ? "text-bg-success" : "text-bg-secondary"}`}>
-      <i className={`me-1 fas ${ok ? "fa-check" : "fa-minus"}`} />
+    <span className={`cms-setup-pill ${ok ? "is-done" : "is-pending"}`}>
+      <i className={`fas ${ok ? "fa-check" : "fa-minus"}`} />
       {label}
     </span>
   );
@@ -317,18 +318,18 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
     const open = openKey === k;
 
     return (
-      <div
-        className="rounded-3"
-        style={{ background: "rgba(248, 250, 252, 0.75)", border: "1px solid rgba(15, 23, 42, 0.06)" }}
-      >
+      <div className={`cms-expand-row${open ? " is-open" : ""}`}>
         <button
           type="button"
-          className="w-100 d-flex align-items-center justify-content-between py-2 px-2 text-start bg-transparent border-0"
+          className="cms-expand-row__toggle"
           onClick={() => setOpenKey((prev) => (prev === k ? null : k))}
+          aria-expanded={open}
         >
           <div className="d-flex align-items-center gap-2 text-truncate" style={{ minWidth: 0 }}>
-            <i className={`${icon} text-muted`} />
-            <span className="text-truncate">{label}</span>
+            <span className="cms-expand-row__icon">
+              <i className={icon} />
+            </span>
+            <span className="text-truncate fw-semibold">{label}</span>
           </div>
 
           <div className="d-flex align-items-center gap-2">
@@ -360,7 +361,7 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
   };
 
   return (
-    <div className="card cms-panel shadow-sm border-0">
+    <div className={`card cms-panel shadow-sm border-0${compact ? " cms-panel--compact h-100" : ""}`}>
       <div className="card-header cms-panel__header">
         <div className="d-flex align-items-center justify-content-between">
           <div className="d-flex align-items-center gap-2">
@@ -382,18 +383,32 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
       <div className="list-group list-group-flush">
         <div className="list-group-item py-3">
           <div className="d-flex align-items-center justify-content-between mb-2">
-            <strong className="fs-6 text-uppercase text-muted d-flex align-items-center gap-2">
+            <strong className="cms-summary-section-title d-flex align-items-center gap-2">
               Setup
               <Tooltip text="Tracks which essential website settings have already been configured." />
             </strong>
             <span className="text-muted small">{isBusy ? "Loading…" : `${checklist.done}/${checklist.total} complete`}</span>
           </div>
 
-          <div className="mb-3">
-            <div className="progress" style={{ height: 7, background: "rgba(15, 23, 42, 0.08)" }} aria-label="Setup completion">
-              <div className="progress-bar" role="progressbar" style={{ width: `${isBusy ? 35 : checklist.pct}%` }} />
+          <div className="cms-setup-meter mb-3">
+            <span
+              className={`cms-setup-meter__pct${!isBusy && checklist.pct === 100 ? " is-complete" : ""}`}
+              style={{ "--pct": `${isBusy ? 35 : checklist.pct}%` } as CSSProperties}
+            >
+              {isBusy ? "…" : `${checklist.pct}%`}
+            </span>
+            <div className="cms-setup-meter__track">
+              <div className="cms-setup-progress progress" aria-label="Setup completion">
+                <div className="progress-bar" role="progressbar" style={{ width: `${isBusy ? 35 : checklist.pct}%` }} />
+              </div>
+              <div className="text-muted small mt-1">
+                {isBusy
+                  ? "Checking settings…"
+                  : checklist.pct === 100
+                    ? "All set — your website is fully configured!"
+                    : `${checklist.total - checklist.done} step${checklist.total - checklist.done === 1 ? "" : "s"} left to finish setup`}
+              </div>
             </div>
-            <div className="text-muted small mt-1">{isBusy ? "Checking settings…" : `${checklist.pct}% ready`}</div>
           </div>
 
           <div className="d-flex flex-wrap gap-2">
@@ -411,16 +426,57 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
 
         <div className="list-group-item py-3">
           <div className="d-flex align-items-center justify-content-between mb-2">
-            <strong className="fs-6 text-uppercase text-muted d-flex align-items-center gap-2">
+            <strong className="cms-summary-section-title d-flex align-items-center gap-2">
               Content
-              <Tooltip text="Overview of your website content including pages, banner albums, news, and users." />
+              {!compact && (
+                <Tooltip text="Overview of your website content including pages, banner albums, news, and users." />
+              )}
             </strong>
-            <Link href="/pages" className="text-muted small text-decoration-none">
-              View all
-              <Tooltip text="Open the full content management section." />
-            </Link>
+            {!compact && (
+              <Link href="/pages" className="text-muted small text-decoration-none">
+                View all
+                <Tooltip text="Open the full content management section." />
+              </Link>
+            )}
           </div>
 
+          {compact ? (
+            <div className="cms-summary-stat-grid">
+              <Link href="/pages" className="cms-summary-stat-tile cms-summary-stat-tile--pages">
+                <span className="cms-summary-stat-tile__row">
+                  <i className="fas fa-layer-group" />
+                  <span>Pages</span>
+                </span>
+                <strong>{contentStats.pages ?? "—"}</strong>
+                <i className="fas fa-arrow-right cms-summary-stat-tile__arrow" />
+              </Link>
+              <Link href="/banners" className="cms-summary-stat-tile cms-summary-stat-tile--albums">
+                <span className="cms-summary-stat-tile__row">
+                  <i className="fas fa-images" />
+                  <span>Albums</span>
+                </span>
+                <strong>{contentStats.albums ?? "—"}</strong>
+                <i className="fas fa-arrow-right cms-summary-stat-tile__arrow" />
+              </Link>
+              <Link href="/news" className="cms-summary-stat-tile cms-summary-stat-tile--news">
+                <span className="cms-summary-stat-tile__row">
+                  <i className="far fa-newspaper" />
+                  <span>News</span>
+                </span>
+                <strong>{contentStats.news ?? "—"}</strong>
+                <i className="fas fa-arrow-right cms-summary-stat-tile__arrow" />
+              </Link>
+              <Link href="/users" className="cms-summary-stat-tile cms-summary-stat-tile--users">
+                <span className="cms-summary-stat-tile__row">
+                  <i className="fas fa-users" />
+                  <span>Users</span>
+                </span>
+                <strong>{contentStats.users ?? "—"}</strong>
+                <i className="fas fa-arrow-right cms-summary-stat-tile__arrow" />
+              </Link>
+            </div>
+          ) : (
+          <>
           <div className="d-grid gap-2">
             <ExpandRow k="pages" label="Pages" value={contentStats.pages} icon="fas fa-layer-group" href="/pages">
               <div className="d-flex flex-wrap gap-2 mb-2">
@@ -433,10 +489,6 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
                 <Link href="/pages/create" className="btn btn-sm btn-outline-secondary">
                   <i className="fas fa-plus me-2" />
                   Create Page
-                </Link>
-                <Link href="/pages/presets" className="btn btn-sm btn-outline-secondary">
-                  <i className="fas fa-layer-group me-2" />
-                  Layout Presets
                 </Link>
               </div>
             </ExpandRow>
@@ -500,6 +552,8 @@ export default function WebsiteSummary({ stats, loading = false }: WebsiteSummar
 
           {!isBusy && contentStats.pages === 0 && contentStats.albums === 0 && contentStats.news === 0 && (
             <div className="text-muted small mt-2">No content stats available yet.</div>
+          )}
+          </>
           )}
         </div>
 
