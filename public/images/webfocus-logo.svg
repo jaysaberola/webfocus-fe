@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 56" role="img" aria-label="WebFocus Solutions, Inc.">
+  <defs>
+    <linearGradient id="focusGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF3300"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </linearGradient>
+  </defs>
+  <text x="0" y="34" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" fill="#6B7280">Web</text>
+  <text x="68" y="34" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="30" font-weight="800" fill="url(#focusGradient)">Focus</text>
+  <text x="68" y="50" font-family="Segoe UI, Arial, Helvetica, sans-serif" font-size="11.5" font-weight="600" fill="#64748B">Solutions, Inc.</text>
+</svg>

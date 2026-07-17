@@ -11,7 +11,8 @@ export interface PublicBanner {
   description_font_size?: number;
   description_bold?: boolean;
   alt?: string;
-  image_url: string;
+  image_url?: string;
+  image_path?: string;
   media_type?: "image" | "video";
   button_text?: string;
   button_font?: string;
@@ -84,6 +85,10 @@ export interface PublicFooter {
   id: number;
   slug: string;
   contents: string;
+  content_type?: "tiny" | "grapes";
+  grapes_html?: string;
+  grapes_css?: string;
+  grapes_js?: string;
 }
 
 export const getFooter = () => {

@@ -9,14 +9,24 @@ export const config = {
 
 const ALLOWED_ORIGIN = process.env.NEXT_PUBLIC_API_URL;
 
+function normalizeOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    if (url.hostname === "localhost") {
+      url.hostname = "127.0.0.1";
+    }
+    return url.origin;
+  } catch {
+    return origin;
+  }
+}
+
 function isAllowedUrl(rawUrl: string) {
   if (!ALLOWED_ORIGIN) return false;
   try {
     const url = new URL(rawUrl);
     const allowed = new URL(ALLOWED_ORIGIN);
-
-    // Only proxy the configured API origin (prevents open proxy abuse)
-    return url.origin === allowed.origin;
+    return normalizeOrigin(url.origin) === normalizeOrigin(allowed.origin);
   } catch {
     return false;
   }

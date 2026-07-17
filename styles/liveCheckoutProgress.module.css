@@ -1,0 +1,137 @@
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+  padding: 0.9rem 1rem 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.title {
+  margin: 0;
+  color: #2563eb;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #334155;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgeDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #2563eb;
+  flex-shrink: 0;
+}
+
+.track {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.segment {
+  display: flex;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 4.5rem;
+}
+
+.nodeWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.nodeCompleted,
+.nodeCurrent,
+.nodePending {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+}
+
+.nodeCompleted,
+.nodeCurrent {
+  background: #22d3ee;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.18);
+}
+
+.nodePending {
+  background: #e2e8f0;
+  color: #94a3b8;
+}
+
+.nodeLabelActive {
+  color: #0f172a;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.nodeLabelPending {
+  color: #94a3b8;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.connectorCompleted,
+.connectorPending {
+  flex: 1;
+  height: 2px;
+  margin-top: 0.92rem;
+  min-width: 0.35rem;
+}
+
+.connectorCompleted {
+  background: #22d3ee;
+}
+
+.connectorPending {
+  background: #e2e8f0;
+}
+
+@media (max-width: 760px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .track {
+    min-width: 560px;
+  }
+}

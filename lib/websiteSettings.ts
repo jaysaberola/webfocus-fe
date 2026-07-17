@@ -1,4 +1,5 @@
 import { websiteService } from "@/services/websiteService";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 
 export type WebsiteSettings = {
   company_logo?: string | null;
@@ -83,25 +84,5 @@ export function subscribeWebsiteSettingsUpdated(cb: () => void): () => void {
 }
 
 export function resolveWebsiteAssetUrl(path?: string | null): string | undefined {
-  const s = (path ?? "").toString().trim().replace(/\\/g, "/");
-  if (!s) return undefined;
-
-  if (s.startsWith("data:")) return s;
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-
-  const configuredBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  const base = configuredBase.endsWith("/api") ? configuredBase.slice(0, -4) : configuredBase;
-
-  if (!base) {
-    if (s.startsWith("/storage/") || s.startsWith("/uploads/")) return s;
-    if (s.startsWith("storage/") || s.startsWith("uploads/")) return `/${s}`;
-    return `/storage/${s.replace(/^\/+/, "")}`;
-  }
-
-  if (s.startsWith("/storage/")) return `${base}${s}`;
-  if (s.startsWith("storage/")) return `${base}/${s}`;
-  if (s.startsWith("/uploads/")) return `${base}${s}`;
-  if (s.startsWith("uploads/")) return `${base}/${s}`;
-
-  return `${base}/storage/${s.replace(/^\.\/?/, "")}`;
+  return resolveStorageAssetUrl(path);
 }

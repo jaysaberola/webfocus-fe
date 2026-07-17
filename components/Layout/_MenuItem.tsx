@@ -71,7 +71,10 @@ export default function MenuItem({
       <div className="menu-row">
         {isInternal ? (
           <Link href={href} className="menu-link" onClick={handleLinkClick}>
-            <span>{item.label.toUpperCase()}</span>
+            <span>{item.label}</span>
+            {item.label.toLowerCase().includes("news") && (
+              <span className="menu-link__dot" aria-hidden="true" />
+            )}
           </Link>
         ) : (
           <a
@@ -81,7 +84,10 @@ export default function MenuItem({
             rel={opensInNewTab ? "noopener noreferrer" : undefined}
             onClick={handleLinkClick}
           >
-            <span>{item.label.toUpperCase()}</span>
+            <span>{item.label}</span>
+            {item.label.toLowerCase().includes("news") && (
+              <span className="menu-link__dot" aria-hidden="true" />
+            )}
           </a>
         )}
 

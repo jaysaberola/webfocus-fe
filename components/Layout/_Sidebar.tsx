@@ -45,6 +45,12 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
 
   const menuSections = [
     {
+      label: "Portals",
+      items: [
+        { label: "Commerce Control Center", icon: "fa-solid fa-store", href: "/public/commerce-admin" },
+      ],
+    },
+    {
       label: "CMS",
       items: [
         { label: "Dashboard", icon: "fa-solid fa-house", href: "/dashboard" },

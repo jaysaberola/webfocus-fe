@@ -104,12 +104,27 @@ export default function PublicPageView({ pageData }: PublicPageViewProps) {
   );
 }
 
+const PAGES_WITHOUT_LAYOUT_BANNER = new Set(["about", "about-us", "news", "services"]);
+
 export async function getServerSideProps(context: any) {
   const { page } = context.params;
+  const slug = String(page || "").toLowerCase();
 
   try {
     const res = await getPublicPageBySlug(page);
-    return { props: { pageData: res.data, layout: { fullWidth: true } } };
+    const pageData = res.data;
+    const isGrapesPage =
+      pageData?.content_type === "grapes" || Boolean(pageData?.grapes_html);
+    // Home keeps the layout banner (MainBanner + domain search); other Grapes pages use their own hero.
+    const hideBanner =
+      PAGES_WITHOUT_LAYOUT_BANNER.has(slug) || (slug !== "home" && isGrapesPage);
+
+    return {
+      props: {
+        pageData,
+        layout: { fullWidth: true, hideBanner },
+      },
+    };
   } catch {
     return { notFound: true };
   }

@@ -1,8 +1,10 @@
 export type ToastType = "success" | "danger" | "warning" | "info";
+export type ToastVariant = "default" | "cart";
 
 type ToastPayload = {
   message: string;
   type: ToastType;
+  variant?: ToastVariant;
 };
 
 type Listener = (toast: ToastPayload) => void;
@@ -13,12 +15,12 @@ class ToastEmitter {
   subscribe(listener: Listener) {
     this.listeners.push(listener);
     return () => {
-      this.listeners = this.listeners.filter(l => l !== listener);
+      this.listeners = this.listeners.filter((l) => l !== listener);
     };
   }
 
   emit(toast: ToastPayload) {
-    this.listeners.forEach(listener => listener(toast));
+    this.listeners.forEach((listener) => listener(toast));
   }
 }
 
@@ -40,5 +42,12 @@ export const toast = {
   },
   info(message: string) {
     toastEmitter.emit({ message, type: "info" });
+  },
+  cartAdded(productName: string) {
+    toastEmitter.emit({
+      message: `Added ${productName.toUpperCase()} to cart!`,
+      type: "success",
+      variant: "cart",
+    });
   },
 };

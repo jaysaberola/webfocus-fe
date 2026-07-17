@@ -9,6 +9,7 @@ import {
   updateAlbum,
 } from "@/services/albumService";
 import { axiosInstance } from "@/services/axios";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import Tooltip from "@/components/UI/Tooltip";
 
 // Extend BannerForm to include order property
@@ -172,11 +173,13 @@ function HomeBanner() {
   const [exitOptions, setExitOptions] = useState<OptionItem[]>([]);
 
   const toProxiedImageUrl = (rawUrl: string) => {
-    // If it's already a local/proxied URL, keep it.
     if (!rawUrl) return rawUrl;
     if (rawUrl.startsWith("/")) return rawUrl;
     if (rawUrl.startsWith("blob:") || rawUrl.startsWith("data:")) return rawUrl;
-    // Remote URL: proxy through Next.js to avoid CORS issues.
+
+    const resolvedStorage = resolveStorageAssetUrl(rawUrl);
+    if (resolvedStorage) return resolvedStorage;
+
     return `/api/image-proxy?url=${encodeURIComponent(rawUrl)}`;
   };
 
@@ -232,9 +235,9 @@ function HomeBanner() {
 
       setBanners(
         album.banners.map((b: any, i: number) => {
-          const rawServerUrl = `${process.env.NEXT_PUBLIC_API_URL}/storage/${b.image_path}`;
+          const serverPreview = resolveStorageAssetUrl(b.image_path) ?? "";
           const mediaType: BannerType = isVideoUrl(b.image_path) || b.media_type === "video" ? "video" : loadedBannerType;
-          const serverPreview = mediaType === "video" ? rawServerUrl : toProxiedImageUrl(rawServerUrl);
+          const resolvedPreview = mediaType === "video" ? serverPreview : toProxiedImageUrl(serverPreview);
 
           const keyById = b?.id ? `id:${b.id}` : undefined;
           const keyByOrder = typeof b?.order !== "undefined" ? `order:${b.order}` : undefined;
@@ -315,7 +318,8 @@ function HomeBanner() {
 
           return {
             id: b.id,
-            preview: (b.id && localPreviews[b.id]) ? localPreviews[b.id] : serverPreview,
+            preview: (b.id && localPreviews[b.id]) ? localPreviews[b.id] : resolvedPreview,
+            image_path: b.image_path,
             media_type: mediaType,
             is_active: isActive,
             title: b.title,

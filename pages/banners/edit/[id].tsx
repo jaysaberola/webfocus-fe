@@ -6,6 +6,7 @@ import { OptionItem, getOptions } from "@/services/optionService";
 import { getAlbum, updateAlbum } from "@/services/albumService";
 import { toast } from "@/lib/toast";
 import { axiosInstance } from "@/services/axios";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import Tooltip from "@/components/UI/Tooltip";
 
 type BannerType = "image" | "video";
@@ -60,6 +61,10 @@ function EditAlbum() {
     if (!rawUrl) return rawUrl;
     if (rawUrl.startsWith("/")) return rawUrl;
     if (rawUrl.startsWith("blob:") || rawUrl.startsWith("data:")) return rawUrl;
+
+    const resolvedStorage = resolveStorageAssetUrl(rawUrl);
+    if (resolvedStorage) return resolvedStorage;
+
     return `/api/image-proxy?url=${encodeURIComponent(rawUrl)}`;
   };
 
@@ -107,12 +112,13 @@ function EditAlbum() {
 
       setBanners(
         album.banners.map((b: any) => {
-          const rawServerUrl = `${process.env.NEXT_PUBLIC_API_URL}/storage/${b.image_path}`;
+          const serverPreview = resolveStorageAssetUrl(b.image_path) ?? "";
           const mediaType: BannerType = isVideoUrl(b.image_path) || b.media_type === "video" ? "video" : loadedBannerType;
 
           return ({
           id: b.id,
-          preview: mediaType === "video" ? rawServerUrl : toProxiedImageUrl(rawServerUrl),
+          preview: mediaType === "video" ? serverPreview : toProxiedImageUrl(serverPreview),
+          image_path: b.image_path,
           media_type: mediaType,
           title: b.title,
           title_font: b.title_font ?? b.titleFont ?? b.title_font_family ?? b.titleFontFamily,

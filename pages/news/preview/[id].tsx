@@ -1,9 +1,10 @@
 import Head from "next/head";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
+import NewsArticleView from "@/components/News/NewsArticleView";
 import { requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
 import { getArticle } from "@/services/articleService";
 import { getMenuById } from "@/services/menuService";
-import { articleToAlbum } from "@/schemas/articleToAlbum";
+import styles from "@/styles/news.module.css";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import type { GetServerSidePropsContext } from "next";
@@ -131,9 +132,8 @@ export default function AdminNewsPreview() {
     <LandingPageLayout
       pageData={{
         title: article?.name,
-        album: article ? articleToAlbum(article) : null,
       }}
-      layout={{ fullWidth: true }}
+      layout={{ fullWidth: true, hideBanner: true }}
     >
       <Head>
         <title>{article?.meta_title || article?.name || "News Preview"}</title>
@@ -150,33 +150,15 @@ export default function AdminNewsPreview() {
           <div className="alert alert-danger mb-0">Unable to load news preview.</div>
         </div>
       ) : article ? (
-        <div className="container-fluid px-4 pt-3">
-          <h1 className="fw-bold text-primary mb-2">{article.name}</h1>
-
-          <div className="text-muted small mb-4">
-            {article.date ? <>Posted on {article.date}</> : null}
-            {article.date && article.user?.name ? <> &nbsp;|&nbsp; </> : null}
-            {article.user?.name ? <>By {article.user.name}</> : null}
-            {(article.date || article.user?.name) && article.category?.name ? <> &nbsp;|&nbsp; </> : null}
-            {article.category?.name ? article.category.name : null}
-          </div>
-
-          {(article.thumbnail_url || article.image_url) && (
-            <div className="mb-5 text-center">
-              <img
-                src={
-                  article.thumbnail_url
-                    ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${article.thumbnail_url}`
-                    : `${process.env.NEXT_PUBLIC_API_URL}/storage/${article.image_url}`
-                }
-                alt={article.name}
-                className="img-fluid rounded"
-                style={{ maxWidth: "500px" }}
-              />
-            </div>
-          )}
-
-          <div className="article-content" dangerouslySetInnerHTML={{ __html: article.contents || "" }} />
+        <div className={styles.page}>
+          <NewsArticleView
+            article={article}
+            backHref="/news"
+            backLabel="Back to admin"
+            previewBanner={
+              <div className="alert alert-warning mb-4">This article may not be published yet.</div>
+            }
+          />
         </div>
       ) : (
         <div className="container py-5">

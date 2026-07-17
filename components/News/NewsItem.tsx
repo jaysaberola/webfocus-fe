@@ -1,69 +1,93 @@
 import Link from "next/link";
+import styles from "@/styles/news.module.css";
+import {
+  formatArticleDate,
+  formatArticleDateShort,
+  getArticleCardImageUrl,
+  getAuthorName,
+  getCategoryStyle,
+} from "@/lib/articleDisplay";
 
-export default function NewsItem({ article }: any) {
-  const date = new Date(article.date);
-  const day = date.getDate();
-  const month = date.toLocaleString("en-US", { month: "short" });
-  const year = date.getFullYear();
+type Props = {
+  article: any;
+};
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+export default function FeaturedNewsItem({ article }: Props) {
+  const categoryStyle = getCategoryStyle(article.category);
+  const href = `/public/news/${article.slug}`;
 
   return (
-    <div className="blo4 p-b-63">
-      <div className="pic-blo4 hov-img-zoom bo-rad-10 pos-relative">
-        <Link href={`/public/news/${article.slug}`}>
-          <img
-            src={
-              article.thumbnail_url
-                ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${article.thumbnail_url}`
-                : article.image_url
-            }
-            alt={article.name}
-            loading="lazy"
-            decoding="async"
-          />
-        </Link>
+    <Link href={href} className={styles.featured}>
+      <div className={styles.featuredMedia}>
+        <img src={getArticleCardImageUrl(article)} alt={article.name} loading="lazy" decoding="async" />
+        <span className={styles.featuredBadge}>Featured</span>
+      </div>
+      <div className={styles.featuredBody}>
+        {article.category?.name && (
+          <span
+            className={styles.categoryBadge}
+            style={{ background: categoryStyle.bg, color: categoryStyle.text }}
+          >
+            {article.category.name}
+          </span>
+        )}
+        <h2 className={styles.featuredTitle}>{article.name}</h2>
+        <div className={styles.meta}>
+          <span className={styles.metaItem}>{formatArticleDate(article.date)}</span>
+          <span className={`${styles.metaItem} ${styles.metaDot}`}>
+            {getAuthorName(article.user)}
+          </span>
+        </div>
+        {article.teaser && <p className={styles.excerpt}>{article.teaser}</p>}
+        <span className={styles.readMore}>
+          Read full article
+          <ArrowIcon />
+        </span>
+      </div>
+    </Link>
+  );
+}
 
-        {/* DATE BADGE */}
-        <div className="date-blo4 flex-col-c-m">
-          <span className="txt30 m-b-4">{day}</span>
-          <span className="txt31">
-            {month}, {year}
+export function NewsCard({ article, delay = 0 }: Props & { delay?: number }) {
+  const categoryStyle = getCategoryStyle(article.category);
+  const href = `/public/news/${article.slug}`;
+
+  return (
+    <Link
+      href={href}
+      className={styles.card}
+      style={{ ["--reveal-delay" as string]: `${delay}ms` }}
+    >
+      <div className={styles.cardMedia}>
+        <img src={getArticleCardImageUrl(article)} alt={article.name} loading="lazy" decoding="async" />
+      </div>
+      <div className={styles.cardBody}>
+        {article.category?.name && (
+          <span
+            className={styles.categoryBadge}
+            style={{ background: categoryStyle.bg, color: categoryStyle.text }}
+          >
+            {article.category.name}
+          </span>
+        )}
+        <h3 className={styles.cardTitle}>{article.name}</h3>
+        {article.teaser && <p className={styles.cardExcerpt}>{article.teaser}</p>}
+        <div className={styles.cardFooter}>
+          <span className={styles.cardDate}>{formatArticleDateShort(article.date)}</span>
+          <span className={styles.readMore}>
+            Read
+            <ArrowIcon />
           </span>
         </div>
       </div>
-
-      <div className="text-blo4 p-t-33">
-        <h4 className="p-b-16">
-          <Link href={`/public/news/${article.slug}`} className="tit9">
-            {article.name}
-          </Link>
-        </h4>
-
-        <div className="txt32 flex-w p-b-24">
-          <span>
-            by {article.user?.fname}
-            <span className="m-r-6 m-l-4">|</span>
-          </span>
-
-          <span>
-            {date.toDateString()}
-            <span className="m-r-6 m-l-4">|</span>
-          </span>
-
-          <span>
-            {article.category?.name}
-          </span>
-        </div>
-
-        <p>{article.teaser}</p>
-
-        <Link
-          href={`/public/news/${article.slug}`}
-          className="dis-block txt4 m-t-30"
-        >
-          Continue Reading
-          <i className="fa-solid fa-arrow-right-long m-l-10" />
-        </Link>
-      </div>
-    </div>
+    </Link>
   );
 }

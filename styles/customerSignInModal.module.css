@@ -1,0 +1,72 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+.dialog {
+  position: relative;
+  width: min(100%, 430px);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #b8c2cc;
+  border-radius: 2px;
+  padding: 1.35rem 1.75rem 1.5rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+  animation: modalFadeIn 0.24s ease;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem;
+}
+
+.closeBtn:hover {
+  color: #0f172a;
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.logo {
+  height: 32px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

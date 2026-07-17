@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PublicAlbum } from "@/services/publicPageService";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 
 interface PageBannerProps {
   title?: string;
@@ -180,7 +181,7 @@ export default function PageBanner({
               style={{
                 position: "absolute",
                 inset: 0,
-                ...(isVideoBanner(banner) ? {} : { backgroundImage: `url(${banner.image_url})` }),
+                ...(isVideoBanner(banner) ? {} : { backgroundImage: `url(${resolveStorageAssetUrl(banner.image_url || banner.image_path) || ""})` }),
                 backgroundSize: "cover",
                 backgroundPosition: "center",
                 opacity: isActive || isExiting ? 1 : 0,
@@ -191,7 +192,7 @@ export default function PageBanner({
             >
               {isVideoBanner(banner) && (
                 <video
-                  src={banner.image_url}
+                  src={resolveStorageAssetUrl(banner.image_url || banner.image_path) || ""}
                   autoPlay
                   loop
                   muted

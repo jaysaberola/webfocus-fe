@@ -1,51 +1,51 @@
 import { useEffect } from "react";
+import type { ToastType, ToastVariant } from "@/lib/toast";
+import styles from "@/styles/toast.module.css";
+
+const defaultTypeClass: Record<ToastType, string> = {
+  success: styles.defaultToastSuccess,
+  danger: styles.defaultToastDanger,
+  warning: styles.defaultToastWarning,
+  info: styles.defaultToastInfo,
+};
 
 export default function Toast({
   message,
   type,
+  variant = "default",
   onClose,
 }: {
   message: string;
-  type: "success" | "danger" | "warning" | "info";
+  type: ToastType;
+  variant?: ToastVariant;
   onClose: () => void;
 }) {
-  const colors: Record<string, string> = {
-    success: "#198754",
-    danger: "#dc3545",
-    warning: "#ffc107",
-    info: "#0dcaf0",
-  };
-
   useEffect(() => {
-    const t = setTimeout(onClose, 3000);
-    return () => clearTimeout(t);
-  }, [onClose]);
+    const duration = variant === "cart" ? 4000 : 3000;
+    const timer = setTimeout(onClose, duration);
+    return () => clearTimeout(timer);
+  }, [onClose, variant]);
+
+  if (variant === "cart") {
+    return (
+      <div className={styles.cartToast} role="status" aria-live="polite">
+        <div className={styles.cartToastBody}>
+          <div className={styles.cartToastIcon} aria-hidden="true">
+            <i className="fa-solid fa-wand-magic-sparkles" />
+          </div>
+          <p className={styles.cartToastMessage}>{message}</p>
+        </div>
+        <button type="button" className={styles.cartToastClose} onClick={onClose} aria-label="Dismiss">
+          <i className="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        backgroundColor: colors[type],
-        color: "#fff",
-        padding: "12px 16px",
-        borderRadius: "6px",
-        minWidth: "260px",
-        boxShadow: "0 4px 10px rgba(0,0,0,.15)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
+    <div className={`${styles.defaultToast} ${defaultTypeClass[type]}`} role="status" aria-live="polite">
       <span>{message}</span>
-      <button
-        onClick={onClose}
-        style={{
-          background: "transparent",
-          border: "none",
-          color: "#fff",
-          fontSize: "18px",
-          cursor: "pointer",
-        }}
-      >
+      <button type="button" className={styles.defaultToastClose} onClick={onClose} aria-label="Dismiss">
         ×
       </button>
     </div>

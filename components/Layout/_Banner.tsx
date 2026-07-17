@@ -1,5 +1,7 @@
 import { PublicAlbum } from "@/services/publicPageService";
 import MainBanner from "./MainBanner";
+import HomeFeaturesStrip from "./HomeFeaturesStrip";
+import HomeDomainSearch from "./HomeDomainSearch";
 import PageBanner from "./PageBanner";
 
 interface BannerProps {
@@ -14,7 +16,13 @@ export default function Banner({
   album,
 }: BannerProps) {
   if (album?.type === "main_banner") {
-    return <MainBanner album={album} />;
+    return (
+      <>
+        <MainBanner album={album} />
+        <HomeFeaturesStrip />
+        <HomeDomainSearch />
+      </>
+    );
   }
 
   return (

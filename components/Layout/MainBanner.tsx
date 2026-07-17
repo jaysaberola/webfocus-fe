@@ -1,9 +1,32 @@
 import { useEffect, useState } from "react";
 import { PublicAlbum } from "@/services/publicPageService";
+import { resolveStorageAssetUrl, resolveStorageAssetUrlWithFallback } from "@/lib/storageAssets";
 import styles from "@/styles/mainbanner.module.css";
 
 interface MainBannerProps {
   album: PublicAlbum;
+}
+
+const DEFAULT_HERO_IMAGE = "/images/homescreenify-sA3wymYqyaI-unsplash.jpg";
+
+function resolveSlideImage(banner: { image_url?: string; image_path?: string }) {
+  const resolved =
+    resolveStorageAssetUrl(banner.image_url) ||
+    resolveStorageAssetUrl(banner.image_path);
+
+  return resolved || DEFAULT_HERO_IMAGE;
+}
+
+function resolveSubtitle(banner: { alt?: string; title?: string }) {
+  const alt = banner.alt?.trim();
+  if (alt) return alt;
+
+  const title = (banner.title ?? "").toLowerCase();
+  if (title.includes("restaurant") || title.includes("place")) {
+    return "Discover exceptional flavors, warm hospitality, and an unforgettable dining experience.";
+  }
+
+  return "Establish a powerhouse digital presence on Manila's lowest-latency hosting nodes to load your pages 3x faster than traditional foreign servers.";
 }
 
 export default function MainBanner({ album }: MainBannerProps) {
@@ -128,9 +151,26 @@ export default function MainBanner({ album }: MainBannerProps) {
   if (!banners.length) return null;
 
   const banner = banners[current];
-  const hasCustomScriptText = Boolean(banner.description?.trim());
-  const scriptText = hasCustomScriptText ? banner.description!.trim() : "Welcome to";
-  const isWelcomeScript = ["welcome", "welcome to"].includes(scriptText.toLowerCase());
+  const subtitleText = resolveSubtitle(banner);
+
+  const buttonParts = (banner.button_text || "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const urlParts = (banner.url || "")
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const primaryButtonText = buttonParts[0] || "";
+  const secondaryButtonText = buttonParts[1] || "";
+  const primaryButtonUrl = urlParts[0] || "";
+  const secondaryButtonUrl = urlParts[1] || "";
+
+  const resolvedPrimaryText = primaryButtonText || "CLICK TO SEE MORE";
+  const resolvedSecondaryText = secondaryButtonText || "CUSTOM PACKAGES";
+  const resolvedPrimaryUrl = primaryButtonUrl || secondaryButtonUrl || "#";
+  const resolvedSecondaryUrl = secondaryButtonUrl || primaryButtonUrl || "/public/products";
 
   const overrideById = (banner as any)?.id ? fontOverrides[`id:${(banner as any).id}`] : undefined;
   const overrideByOrder = typeof (banner as any)?.order !== "undefined" ? fontOverrides[`order:${(banner as any).order}`] : undefined;
@@ -239,25 +279,13 @@ export default function MainBanner({ album }: MainBannerProps) {
           ? false
           : undefined;
 
-  const scriptStyle =
-    hasCustomScriptText &&
-    !isWelcomeScript &&
-    (descriptionFont || typeof descriptionFontSize === "number" || typeof descriptionBold === "boolean")
-      ? ({
-          ...(descriptionFont ? { fontFamily: descriptionFont } : {}),
-          ...(typeof descriptionFontSize === "number" && Number.isFinite(descriptionFontSize)
-            ? { fontSize: Math.max(10, Math.min(120, descriptionFontSize)) }
-            : {}),
-          ...(typeof descriptionBold === "boolean" ? { fontWeight: descriptionBold ? 700 : 400 } : {}),
-        } as const)
-      : undefined;
   const titleStyle = titleFont
     ? ({
         fontFamily: titleFont,
         ...(typeof titleFontSize === "number" && Number.isFinite(titleFontSize)
           ? { fontSize: Math.max(10, Math.min(120, titleFontSize)) }
           : {}),
-        ...(typeof titleBold === "boolean" ? { fontWeight: titleBold ? 900 : 400 } : {}),
+        ...(typeof titleBold === "boolean" ? { fontWeight: titleBold ? 800 : 400 } : {}),
       } as const)
     : (
         typeof titleFontSize === "number" || typeof titleBold === "boolean"
@@ -265,11 +293,23 @@ export default function MainBanner({ album }: MainBannerProps) {
               ...(typeof titleFontSize === "number" && Number.isFinite(titleFontSize)
                 ? { fontSize: Math.max(10, Math.min(120, titleFontSize)) }
                 : {}),
-              ...(typeof titleBold === "boolean" ? { fontWeight: titleBold ? 900 : 400 } : {}),
+              ...(typeof titleBold === "boolean" ? { fontWeight: titleBold ? 800 : 400 } : {}),
             } as const)
           : undefined
       );
-  const buttonStyle =
+
+  const subtitleStyle =
+    descriptionFont || typeof descriptionFontSize === "number" || typeof descriptionBold === "boolean"
+      ? ({
+          ...(descriptionFont ? { fontFamily: descriptionFont } : {}),
+          ...(typeof descriptionFontSize === "number" && Number.isFinite(descriptionFontSize)
+            ? { fontSize: Math.max(10, Math.min(120, descriptionFontSize)) }
+            : {}),
+          ...(typeof descriptionBold === "boolean" ? { fontWeight: descriptionBold ? 600 : 400 } : {}),
+        } as const)
+      : undefined;
+
+  const primaryButtonStyle =
     buttonFont || typeof buttonFontSize === "number" || typeof buttonBold === "boolean"
       ? ({
           ...(buttonFont ? { fontFamily: buttonFont } : {}),
@@ -280,10 +320,21 @@ export default function MainBanner({ album }: MainBannerProps) {
         } as const)
       : undefined;
 
+  const secondaryButtonStyle = buttonFont || typeof buttonFontSize === "number" || typeof buttonBold === "boolean"
+    ? ({
+        ...(buttonFont ? { fontFamily: buttonFont } : {}),
+        ...(typeof buttonFontSize === "number" && Number.isFinite(buttonFontSize)
+          ? { fontSize: Math.max(10, Math.min(120, buttonFontSize)) }
+          : {}),
+        ...(typeof buttonBold === "boolean" ? { fontWeight: buttonBold ? 700 : 400 } : {}),
+      } as const)
+    : undefined;
+
   return (
-    <>
-      <section className={styles.bannerSection}>
-      {/* 🖼 SLIDER STRIP */}
+    <section className={styles.bannerWrap}>
+      <div className={styles.bannerHero}>
+        <div className={styles.bannerCard}>
+      {/* SLIDER STRIP */}
       <div className={styles.sliderStrip}>
         {banners.map((banner, index) => {
           const isActive = index === current;
@@ -305,14 +356,16 @@ export default function MainBanner({ album }: MainBannerProps) {
                 animationClass ? `animate__${animationClass}` : "",
               ].filter(Boolean).join(" ")}
               style={{
-                ...(isVideoBanner(banner) ? {} : { backgroundImage: `url(${banner.image_url})` }),
+                ...(isVideoBanner(banner)
+                  ? {}
+                  : { backgroundImage: `url(${resolveSlideImage(banner)})` }),
                 ["--animate-duration" as any]: `${animationDurationMs}ms`,
               }}
             >
               {isVideoBanner(banner) && (
                 <video
                   className={styles.slideVideo}
-                  src={banner.image_url}
+                  src={resolveStorageAssetUrlWithFallback(banner.image_url || banner.image_path, DEFAULT_HERO_IMAGE)}
                   autoPlay
                   loop
                   muted
@@ -328,44 +381,60 @@ export default function MainBanner({ album }: MainBannerProps) {
       {/* overlay */}
       <div className={styles.overlay} />
 
-      {/* 🧾 CONTENT (STATIC) */}
-      <div className={`container text-center text-white ${styles.content}`}>
+      {/* CONTENT */}
+      <div className={styles.content}>
         <div className={styles.inner}>
-          <div className={styles.script} style={scriptStyle}>
-            {scriptText}
-          </div>
-
           {banner.title && (
             <h1 className={styles.title} style={titleStyle}>
               {banner.title}
             </h1>
           )}
 
-          {banner.button_text && banner.url && (
+          {subtitleText && (
+            <p className={styles.subtitle} style={subtitleStyle}>
+              {subtitleText}
+            </p>
+          )}
+
+          <div className={styles.ctaRow}>
             <a
-              href={banner.url}
+              href={resolvedPrimaryUrl}
               target="_blank"
               rel="noreferrer"
-              className={styles.cta}
-              style={buttonStyle}
+              className={styles.ctaPrimary}
+              style={primaryButtonStyle}
             >
-              {banner.button_text}
+              {resolvedPrimaryText}
+              <span aria-hidden="true">→</span>
             </a>
-          )}
+
+            <a
+              href={resolvedSecondaryUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.ctaSecondary}
+              style={secondaryButtonStyle}
+            >
+              {resolvedSecondaryText}
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* ● dots */}
-      <div className={styles.dots}>
-        {banners.map((_, index) => (
-          <span
-            key={index}
-            onClick={() => goToBanner(index)}
-            className={`${styles.dot} ${index === current ? ' ' + styles.active : ''}`}
-          />
-        ))}
+      {/* dots */}
+      {banners.length > 1 && (
+        <div className={styles.dots}>
+          {banners.map((_, index) => (
+            <span
+              key={index}
+              onClick={() => goToBanner(index)}
+              className={`${styles.dot} ${index === current ? " " + styles.active : ""}`}
+            />
+          ))}
+        </div>
+      )}
+      </div>
       </div>
     </section>
-    </>
   );
 }

@@ -1,84 +1,38 @@
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Menu from "./_Menu";
+import HeaderSearch from "./HeaderSearch";
+import SignInDropdown from "@/components/Auth/SignInDropdown";
+import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/_topbar.module.css";
-import { getWebsiteSettingsCached, resolveWebsiteAssetUrl, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
-import { getStoredCustomer } from "@/services/publicCustomerService";
+
+const LOGO_SRC = "/images/webfocus-logo.png";
 
 export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [logoAlt, setLogoAlt] = useState<string>("Logo");
-  const [navAlignment, setNavAlignment] = useState<'left' | 'center' | 'right'>('center');
-  const [customerName, setCustomerName] = useState("");
   const [cartItemsCount, setCartItemsCount] = useState(0);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
-    let alive = true;
-
-    const refresh = async (opts?: { force?: boolean }) => {
-      try {
-        const s = await getWebsiteSettingsCached({ force: opts?.force === true });
-        if (!alive) return;
-
-        const url = resolveWebsiteAssetUrl((s as any)?.company_logo) ?? null;
-        setNavAlignment((s as any)?.nav_alignment ?? 'center');
-        setLogoUrl(url);
-        setLogoAlt((s as any)?.website_name || (s as any)?.company_name || "Logo");
-      } catch {
-        // ignore
-      }
-    };
-
-    refresh({ force: false });
-    const unsub = subscribeWebsiteSettingsUpdated(() => refresh({ force: true }));
-    return () => {
-      alive = false;
-      unsub();
-    };
-  }, []);
-
-  useEffect(() => {
-    const refreshCustomer = () => {
-      const customer = getStoredCustomer();
-      setCustomerName(customer ? `${customer.fname ?? ""} ${customer.lname ?? ""}`.trim() || "My Account" : "");
-    };
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
-    refreshCustomer();
     refreshCart();
-    window.addEventListener("public-customer-updated", refreshCustomer);
     window.addEventListener("public-cart-updated", refreshCart);
     window.addEventListener("storage", refreshCart);
     return () => {
-      window.removeEventListener("public-customer-updated", refreshCustomer);
       window.removeEventListener("public-cart-updated", refreshCart);
       window.removeEventListener("storage", refreshCart);
     };
   }, []);
 
   useEffect(() => {
-    // compute threshold: if there's a banner, stay transparent until user scrolls
-    // past the banner height. Otherwise use a small default threshold.
-    const bannerEl = document.querySelector('.page-banner') as HTMLElement | null;
-    const threshold = bannerEl ? Math.max(20, bannerEl.offsetHeight - 40) : 20;
-
-    const onScroll = () => {
-      setScrolled(window.scrollY > threshold);
-    };
-
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   useEffect(() => {
@@ -107,58 +61,90 @@ export default function LandingTopbar() {
   const closeMobileMenu = () => setMobileOpen(false);
 
   return (
-    <header className={`${styles['topbar-dark']} ${scrolled ? styles.scrolled : ''}`}>
-      <div className={styles['topbar-inner']}>
-        <div className="left">
-          <Link href="/public/home" className={styles.brand}>
-            <span className={styles['logo-box']}>
+    <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
+      <div className={styles["topbar-inner"]}>
+        <div className={styles.left}>
+          <Link href="/public/home" className={styles.brand} onClick={closeMobileMenu} aria-label="WebFocus Solutions, Inc.">
+            {!logoFailed ? (
               <img
-                src={logoUrl || "/images/logo-light.png"}
-                alt={logoAlt}
-                className={styles['logo-img']}
+                src={LOGO_SRC}
+                alt="WebFocus Solutions, Inc."
+                className={styles["logo-img-full"]}
+                onError={() => setLogoFailed(true)}
               />
-            </span>
-
+            ) : (
+              <span className={styles.wordmark}>
+                <span className={styles["wordmark-row"]}>
+                  <span className={styles["wordmark-web"]}>Web</span>
+                  <span className={styles["wordmark-focus-block"]}>
+                    <span className={styles["wordmark-focus"]}>Focus</span>
+                    <span className={styles["wordmark-sub"]}>Solutions, Inc.</span>
+                  </span>
+                </span>
+              </span>
+            )}
           </Link>
         </div>
 
-        <div className={styles.right}>
-          <div className={styles['search-wrapper']}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!searchQuery) return;
-                // Navigate to a search results page if available
-                try {
-                  window.location.href = `/public/search?q=${encodeURIComponent(searchQuery)}`;
-                } catch (err) {
-                  // fallback
-                  console.log('search:', searchQuery);
-                }
-              }}
-            >
-              <input
-                ref={inputRef}
-                className={styles['search-input']}
-                aria-label="Search"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => setSearchOpen(false)}
-              />
-              <button
-                type="button"
-                className={styles['search-icon']}
-                aria-label="Open search"
-                onClick={() => {
-                  setSearchOpen((v) => !v);
-                  setTimeout(() => inputRef.current?.focus(), 50);
-                }}
-              >
-                <i className="fa fa-search" aria-hidden="true"></i>
-              </button>
-            </form>
+        <nav
+          id="landing-topbar-nav"
+          className={`${styles["nav-wrap"]} ${mobileOpen ? styles["nav-wrap-open"] : ""}`}
+          aria-label="Main navigation"
+        >
+          <div className={styles["mobile-utilities"]}>
+            <Link href="/public/search" className={styles["mobile-utility-link"]} onClick={closeMobileMenu}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-3.5-3.5" />
+              </svg>
+              Search
+            </Link>
+            <Link href="/public/login" className={styles["mobile-utility-link"]} onClick={closeMobileMenu}>
+              <i className="fa-regular fa-user" aria-hidden="true" />
+              Sign In
+            </Link>
           </div>
+          <ul className={styles["nav-list"]}>
+            <Menu isMobile={mobileOpen} onNavigate={closeMobileMenu} />
+          </ul>
+        </nav>
+
+        <HeaderSearch />
+
+        <div className={styles.actions}>
+          <Link href="/public/search" className={`${styles["search-mobile-btn"]} ${styles["desktop-only"]}`} aria-label="Search" title="Search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M20 20l-3.5-3.5" />
+            </svg>
+          </Link>
+
+          <SignInDropdown
+            buttonClassName={`${styles["portal-btn"]} ${styles["desktop-only"]}`}
+            chevronClassName={styles["portal-chevron"]}
+          />
+
+          <div className={styles["icon-group"]}>
+            <Link href="/public/contact-us" className={styles["contact-btn"]} aria-label="Contact us" title="Contact us">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            </Link>
+
+            <button
+              type="button"
+              className={styles["cart-btn"]}
+              aria-label="Shopping cart"
+              title="Cart"
+              onClick={openCartDrawer}
+            >
+              <i className="fa fa-shopping-cart" aria-hidden="true" />
+              {cartItemsCount > 0 && (
+                <span className={styles["cart-badge"]}>{cartItemsCount}</span>
+              )}
+            </button>
+          </div>
+
           <button
             type="button"
             className={styles["mobile-toggle"]}
@@ -171,82 +157,17 @@ export default function LandingTopbar() {
             <span className={styles["mobile-toggle-bar"]} />
             <span className={styles["mobile-toggle-bar"]} />
           </button>
-
-          <div className={styles.socials}>
-            <Link href="/public/cart" className={styles['social-icon']} aria-label="Cart" title="Cart" style={{ position: "relative" }}>
-              <i className="fa fa-shopping-cart" aria-hidden="true"></i>
-              {cartItemsCount > 0 && (
-                <span style={{
-                  position: "absolute",
-                  top: -6,
-                  right: -7,
-                  minWidth: 16,
-                  height: 16,
-                  borderRadius: 999,
-                  background: "#ec1d25",
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  lineHeight: "16px",
-                  textAlign: "center",
-                }}>{cartItemsCount}</span>
-              )}
-            </Link>
-            <Link href={customerName ? "/public/account" : "/public/login"} className={styles['social-icon']} aria-label={customerName ? "My Account" : "Login"} title={customerName || "Login"}>
-              <i className="fa fa-user" aria-hidden="true"></i>
-            </Link>
-            <a
-              href="https://facebook.com/"
-              className={styles['social-icon']}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-            >
-              <i className="fab fa-facebook-f" aria-hidden="true"></i>
-            </a>
-
-            <a
-              href="https://instagram.com/"
-              className={styles['social-icon']}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-            >
-              <i className="fab fa-instagram" aria-hidden="true"></i>
-            </a>
-
-            <a
-              href="https://twitter.com/"
-              className={styles['social-icon']}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Twitter"
-            >
-              <i className="fab fa-twitter" aria-hidden="true"></i>
-            </a>
-          </div>
-
-          {mobileOpen && (
-            <button
-              type="button"
-              className={styles.backdrop}
-              aria-label="Close menu"
-              onClick={closeMobileMenu}
-            />
-          )}
-
-          <nav
-            id="landing-topbar-nav"
-            className={`${styles["nav-wrap"]} ${mobileOpen ? styles["nav-wrap-open"] : ""}`}
-            data-align={navAlignment}
-          >
-            <ul className={styles["nav-list"]}>
-              <Menu isMobile={mobileOpen} onNavigate={closeMobileMenu} />
-            </ul>
-          </nav>
         </div>
       </div>
+
+      {mobileOpen && (
+        <button
+          type="button"
+          className={styles.backdrop}
+          aria-label="Close menu"
+          onClick={closeMobileMenu}
+        />
+      )}
     </header>
   );
 }
-

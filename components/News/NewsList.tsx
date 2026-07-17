@@ -1,21 +1,46 @@
-import NewsItem from "./NewsItem";
+import FeaturedNewsItem, { NewsCard } from "./NewsItem";
+import NewsReveal from "./NewsReveal";
+import styles from "@/styles/news.module.css";
 
 type Props = {
   articles: any[];
+  showFeatured?: boolean;
 };
 
-export default function NewsList({ articles }: Props) {
-  return (
-    <div className="p-t-80 p-b-124 bo5-r h-full p-r-50 p-r-0-md bo-none-md">
-      {articles.length === 0 ? (
-        <div className="txt32 text-center p-t-50">
-          No news available.
+export default function NewsList({ articles, showFeatured = false }: Props) {
+  const featured = showFeatured && articles.length > 0 ? articles[0] : null;
+  const rest = showFeatured && articles.length > 1 ? articles.slice(1) : articles;
+
+  if (!articles.length) {
+    return (
+      <div className={styles.empty}>
+        <div className={styles.emptyIcon} aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
         </div>
-      ) : (
-        articles.map((article) => (
-          <NewsItem key={article.id} article={article} />
-        ))
+        <h3>No articles found</h3>
+        <p>Try adjusting your search or browse all categories.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {featured && (
+        <NewsReveal>
+          <FeaturedNewsItem article={featured} />
+        </NewsReveal>
       )}
-    </div>
+
+      <div className={styles.grid}>
+        {rest.map((article, index) => (
+          <NewsReveal key={article.id} delay={index * 80}>
+            <NewsCard article={article} delay={index * 80} />
+          </NewsReveal>
+        ))}
+      </div>
+    </>
   );
 }

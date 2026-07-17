@@ -18,14 +18,14 @@ function CheckoutPage() {
     setItems(readPublicCart());
     const stored = getStoredCustomer();
     setCustomer(stored);
-    fetchCurrentCustomer({ silent: true }).then(setCustomer).catch(() => router.push("/public/login?redirect=/public/checkout"));
+    fetchCurrentCustomer({ silent: true }).then(setCustomer).catch(() => router.push("/public/cart?signin=1"));
   }, []);
 
   const subtotal = cartSubtotal(items);
 
   const placeOrder = async () => {
     if (!customer) {
-      router.push("/public/login?redirect=/public/checkout");
+      router.push("/public/cart?signin=1");
       return;
     }
     if (!items.length) {

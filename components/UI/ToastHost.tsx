@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import Toast from "./Toast";
-import { toastEmitter } from "@/lib/toast";
+import { toastEmitter, ToastType, ToastVariant } from "@/lib/toast";
 
 interface ToastItem {
   id: number;
   message: string;
-  type: "success" | "danger" | "warning" | "info";
+  type: ToastType;
+  variant: ToastVariant;
 }
 
 let id = 0;
@@ -17,22 +18,28 @@ export default function ToastHost() {
     const unsubscribe = toastEmitter.subscribe((toast) => {
       setToasts((prev) => [
         ...prev,
-        { id: ++id, ...toast },
+        {
+          id: ++id,
+          message: toast.message,
+          type: toast.type,
+          variant: toast.variant ?? "default",
+        },
       ]);
     });
 
     return unsubscribe;
   }, []);
 
-  const remove = (id: number) =>
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const remove = (toastId: number) => setToasts((prev) => prev.filter((t) => t.id !== toastId));
+
+  const hasCartToast = toasts.some((t) => t.variant === "cart");
 
   return (
     <div
       style={{
         position: "fixed",
-        top: "20px",
-        right: "20px",
+        top: hasCartToast ? "5rem" : "20px",
+        right: "1rem",
         zIndex: 9999,
         display: "flex",
         flexDirection: "column",
@@ -44,6 +51,7 @@ export default function ToastHost() {
           key={t.id}
           message={t.message}
           type={t.type}
+          variant={t.variant}
           onClose={() => remove(t.id)}
         />
       ))}

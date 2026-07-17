@@ -9,6 +9,8 @@ export type PublicCartItem = {
   price: number;
   qty: number;
   image?: string;
+  category?: string;
+  detail?: string;
 };
 
 const CART_KEY = "cms4.publicCart.v1";
@@ -68,4 +70,19 @@ export const removePublicCartItem = (key: string) => {
   const next = readPublicCart().filter((item) => item.key !== key);
   writePublicCart(next);
   return next;
+};
+
+export const formatCartMoney = (amount: number) =>
+  `₱${Number(amount || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+export const cartCategoryLabel = (category?: string) => {
+  const value = String(category || "Service").trim();
+  if (/domain/i.test(value)) return "DOMAIN";
+  if (/hosting/i.test(value)) return "HOSTING";
+  if (/dms|document/i.test(value)) return "DMS";
+  if (/web design|agency/i.test(value)) return "DESIGN";
+  return value.split(/\s+/)[0].toUpperCase().slice(0, 12);
 };

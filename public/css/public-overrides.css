@@ -3,6 +3,42 @@
    by restoring Bootstrap-like borders where we use .form-control/.form-select.
 */
 
+/* Public layout: remove trailing white gap below footer */
+html,
+body {
+  height: auto !important;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#__next {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-site-shell {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.public-site-main {
+  padding-bottom: 0 !important;
+}
+
+.public-site-footer-host {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.public-site-footer-host .wsi-footer {
+  margin-bottom: 0 !important;
+}
+
 /* Contact Us page form controls */
 .public-contact .form-control,
 .public-contact .form-select {
