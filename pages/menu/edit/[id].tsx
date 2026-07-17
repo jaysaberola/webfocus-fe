@@ -18,6 +18,7 @@ import {
   serializeMenuTree,
 } from "@/components/MenuBuilder/treeUtils";
 import CustomUrlPanel from "@/components/MenuBuilder/CustomUrlPanel";
+import { buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
 
 function EditMenu() {
   const router = useRouter();
@@ -68,8 +69,6 @@ function EditMenu() {
     );
   };
 
-  const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL;
-
   const addPages = () => {
     const newItems: MenuItem[] = pages
       .filter(
@@ -81,7 +80,7 @@ function EditMenu() {
         id: p.id,
         label: p.title,
         type: "page",
-        target: `${FRONTEND_URL}/public/${p.slug}`,
+        target: buildPublicPageMenuTarget(p.slug),
         children: [],
       }));
 

@@ -14,6 +14,7 @@ import {
   buildTree,
   serializeMenuTree,
 } from "@/components/MenuBuilder/treeUtils";
+import { buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
 
 function CreateMenu() {
   const [menuName, setMenuName] = useState("");
@@ -47,8 +48,6 @@ function CreateMenu() {
     );
   };
 
-  const FRONTEND_URL = process.env.NEXT_PUBLIC_FRONTEND_URL;
-
   const addPages = () => {
     const newItems: MenuItem[] = pages
       .filter(
@@ -60,7 +59,7 @@ function CreateMenu() {
         id: p.id,
         label: p.title,
         type: "page",
-        target: `${FRONTEND_URL}/public/${p.slug}`,
+        target: buildPublicPageMenuTarget(p.slug),
         children: [],
       }));
 
