@@ -616,7 +616,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const [canvasZoom, setCanvasZoom] = useState(100);
 
   useEffect(() => {
-    const computeHeight = () => setStudioHeight(Math.max(560, window.innerHeight - 260));
+    const computeHeight = () => setStudioHeight(Math.max(640, window.innerHeight - 220));
     computeHeight();
     window.addEventListener("resize", computeHeight);
     return () => window.removeEventListener("resize", computeHeight);
@@ -626,33 +626,33 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     if (!hostRef.current || editorRef.current) return;
 
     const { body, css, js } = extractContentParts(value);
-    const basePreviewFrameHeight = 760;
-    const previewFrameHeight = `${basePreviewFrameHeight}px`;
+    const previewFrameMinHeight = `${Math.max(680, studioHeight - 120)}px`;
     jsRef.current = js;
 
     const editor = grapesjs.init({
       container: hostRef.current,
       fromElement: false,
-      height: `${studioHeight}px`,
+      height: "100%",
       noticeOnUnload: false,
       storageManager: false,
       dragMode: "translate",
       forceClass: true,
       avoidInlineStyle: false,
-      showOffsets: 1,
+      showOffsets: true,
       richTextEditor: {
         actions: ["bold", "italic", "underline", "link"],
       },
       plugins: [grapesjsPresetWebpage, grapesjsBlocksBasic, grapesjsPluginForms],
       deviceManager: {
         devices: [
-          { id: "desktop", name: "Desktop", width: "", height: previewFrameHeight, minHeight: previewFrameHeight },
-          { id: "tablet", name: "Tablet", width: "834px", widthMedia: "992px", height: previewFrameHeight, minHeight: previewFrameHeight },
-          { id: "mobile", name: "Mobile", width: "390px", widthMedia: "480px", height: previewFrameHeight, minHeight: previewFrameHeight },
+          { id: "desktop", name: "Desktop", width: "", height: "auto", minHeight: previewFrameMinHeight },
+          { id: "tablet", name: "Tablet", width: "834px", widthMedia: "992px", height: "auto", minHeight: previewFrameMinHeight },
+          { id: "mobile", name: "Mobile", width: "390px", widthMedia: "480px", height: "auto", minHeight: previewFrameMinHeight },
         ],
       },
       canvas: {
         styles: [],
+        scrollableCanvas: true,
       },
       canvasCss: cmsStudioCanvasCss,
       assetManager: {
@@ -1162,14 +1162,6 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       if (!isFullscreen) {
         frameWrapper.style.removeProperty("left");
         frameWrapper.style.removeProperty("top");
-        frameWrapper.style.removeProperty("height");
-        frameWrapper.style.removeProperty("min-height");
-
-        if (frameElement) {
-          frameElement.style.removeProperty("height");
-          frameElement.style.removeProperty("min-height");
-        }
-
         return;
       }
 
@@ -1796,16 +1788,29 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       if (editorCont) {
         editorCont.style.overflow = "hidden";
         editorCont.style.height = "100%";
+        editorCont.style.position = "relative";
+      }
+
+      if (editorRoot) {
+        editorRoot.style.height = "100%";
       }
 
       if (canvas) {
+        canvas.style.position = "absolute";
         canvas.style.top = "0";
         canvas.style.left = "0";
-        canvas.style.height = "100%";
-        canvas.style.width = "100%";
         canvas.style.right = "0";
+        canvas.style.bottom = "0";
+        canvas.style.width = "auto";
+        canvas.style.height = "auto";
         canvas.style.borderRight = "0";
+        canvas.style.overflow = "auto";
       }
+    };
+
+    const handleCanvasZoomChange = () => {
+      syncCanvasZoomState();
+      hideLegacyViewsUi();
     };
 
     const syncStudioDeviceState = () => {
@@ -1886,7 +1891,12 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const canvas = editor.getContainer()?.querySelector?.(".gjs-cv-canvas") as HTMLElement | null;
       if (!canvas || canvasStyleObserver) return;
       canvasStyleObserver = new MutationObserver(() => {
-        if (canvas.style.top && canvas.style.top !== "0" && canvas.style.top !== "0px") {
+        const top = canvas.style.top;
+        const height = canvas.style.height;
+        const needsReset =
+          (top && top !== "0" && top !== "0px") ||
+          (height && height !== "auto" && height !== "100%" && height !== "100% !important");
+        if (needsReset) {
           hideLegacyViewsUi();
         }
       });
@@ -1901,6 +1911,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editor.on("change:device", handleFrameWrapperRefresh);
     editor.on("command:run:fullscreen", handleFrameWrapperRefresh);
     editor.on("command:stop:fullscreen", handleFrameWrapperRefresh);
+    editor.on("canvas:zoom", handleCanvasZoomChange);
     window.addEventListener("resize", handleFrameWrapperRefresh);
     document.addEventListener("fullscreenchange", handleBrowserFullscreenChange);
 
@@ -2056,7 +2067,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       syncCanvasEmptyState();
       syncCanvasZoomState();
       try {
-        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20 });
+        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: 100 });
       } catch {
         // ignore
       }
@@ -2084,6 +2095,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         editor.off("change:device", handleFrameWrapperRefresh);
         editor.off("command:run:fullscreen", handleFrameWrapperRefresh);
         editor.off("command:stop:fullscreen", handleFrameWrapperRefresh);
+        editor.off("canvas:zoom", handleCanvasZoomChange);
         canvasStyleObserver?.disconnect();
         canvasStyleObserver = null;
         window.removeEventListener("resize", handleFrameWrapperRefresh);
@@ -2116,9 +2128,31 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     const editor = editorRef.current;
     if (!editor) return;
     try {
-      editor.setConfig?.({ height: `${studioHeight}px` });
+      editor.setConfig?.({ height: "100%" });
       editor.refresh?.({ tools: true });
-      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20 });
+      requestAnimationFrame(() => {
+        try {
+          const canvas = editor.getContainer()?.querySelector?.(".gjs-cv-canvas") as HTMLElement | null;
+          const editorRoot = editor.getContainer()?.querySelector?.(".gjs-editor") as HTMLElement | null;
+          if (editorRoot) {
+            editorRoot.style.height = "100%";
+          }
+          if (canvas) {
+            canvas.style.position = "absolute";
+            canvas.style.top = "0";
+            canvas.style.left = "0";
+            canvas.style.right = "0";
+            canvas.style.bottom = "0";
+            canvas.style.width = "auto";
+            canvas.style.height = "auto";
+            canvas.style.overflow = "auto";
+          }
+          const zoom = Number(editor.Canvas?.getZoom?.() || 100);
+          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom });
+        } catch {
+          // ignore
+        }
+      });
     } catch {
       // ignore resize errors
     }
@@ -2133,9 +2167,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         editor.refresh?.({ tools: true });
         editor.refreshCanvas?.({ tools: true });
         editor.Canvas?.refresh?.({ all: true });
+        const zoom = Number(editor.Canvas?.getZoom?.() || 100);
         editor.Canvas?.fitViewport?.({
           ignoreHeight: true,
           gap: isLeftSidebarHidden && isRightSidebarHidden ? 12 : 20,
+          zoom,
         });
       } catch {
         // ignore canvas refresh errors
@@ -2174,7 +2210,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     if (command === "cms:canvas-zoom-in" || command === "cms:canvas-zoom-out" || command === "cms:canvas-fit") {
       window.setTimeout(() => {
         try {
-          setCanvasZoom(Math.round(Number(editorRef.current?.Canvas?.getZoom?.() || 100)));
+          const editor = editorRef.current;
+          if (!editor) return;
+          setCanvasZoom(Math.round(Number(editor.Canvas?.getZoom?.() || 100)));
         } catch {
           // ignore
         }
@@ -2649,9 +2687,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-shell__host-wrap {
           position: relative;
           min-width: 0;
-          height: ${studioHeight}px;
-          min-height: ${studioHeight}px;
+          height: 100%;
+          min-height: 0;
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
         }
 
         .cms-grapes-empty-guide {
@@ -2782,7 +2822,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           display: grid;
           grid-template-columns: var(--cms-left-sidebar-width) minmax(0, 1fr) var(--cms-right-sidebar-width);
           height: ${studioHeight}px;
-          min-height: ${studioHeight}px;
+          min-height: 640px;
         }
 
         .cms-grapes-sidebar {
@@ -2901,14 +2941,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell__host {
           position: relative;
-          height: 100%;
-          min-height: 100%;
+          flex: 1 1 auto;
+          height: 100% !important;
+          min-height: 0;
           min-width: 0;
           overflow: hidden;
         }
 
         .cms-grapes-shell__host .gjs-editor-cont {
+          position: relative !important;
           height: 100% !important;
+          min-height: 100% !important;
           overflow: hidden !important;
         }
 
@@ -2958,7 +3001,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           --gjs-canvas-top: 0px !important;
           position: relative;
           height: 100% !important;
-          min-height: ${studioHeight}px;
+          min-height: 0 !important;
           background: #cbd5e1;
           overflow: hidden;
         }
@@ -2981,17 +3024,24 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-cv-canvas {
+          position: absolute !important;
           top: 0 !important;
           left: 0 !important;
-          height: 100% !important;
-          width: 100% !important;
-          right: 0;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: auto !important;
+          height: auto !important;
           transition: right 220ms ease;
           background-color: #d1dae6;
           background-image: radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.35) 1px, transparent 0);
           background-size: 20px 20px;
           padding: var(--cms-canvas-padding);
           box-sizing: border-box;
+          overflow: auto !important;
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas__frames {
+          min-height: 100%;
         }
 
         .cms-grapes-shell .gjs-pn-commands,
@@ -3017,7 +3067,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell .gjs-frame-wrapper {
           border-radius: 8px;
-          overflow: hidden;
+          overflow: visible !important;
           border: 1px solid rgba(15, 23, 42, 0.12);
           box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
           background: #ffffff;

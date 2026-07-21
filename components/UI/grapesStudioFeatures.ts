@@ -117,8 +117,7 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
 
   const fitCanvas = () => {
     try {
-      editor.Canvas?.setZoom?.(100);
-      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20 });
+      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: 100 });
     } catch {
       // ignore
     }
@@ -126,9 +125,11 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
 
   const adjustZoom = (delta: number) => {
     try {
-      const current = Number(editor.Canvas?.getZoom?.() || 100);
+      const canvas = editor.Canvas;
+      const current = Number(canvas?.getZoom?.() || 100);
       const next = Math.max(40, Math.min(160, current + delta));
-      editor.Canvas?.setZoom?.(next);
+      if (next === current) return;
+      canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: next });
     } catch {
       // ignore
     }
