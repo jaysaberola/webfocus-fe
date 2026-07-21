@@ -1,6 +1,7 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { getPublicPageBySlug, PublicPage } from "@/services/publicPageService";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { useEffect, useMemo, useRef } from "react";
 
 interface PublicPageViewProps {
@@ -92,6 +93,12 @@ export default function PublicPageView({ pageData }: PublicPageViewProps) {
       oldScript.parentNode?.replaceChild(newScript, oldScript);
     });
   }, [htmlContent, pageData?.id]);
+
+  useEffect(() => {
+    return () => {
+      cleanupPublicPageScripts();
+    };
+  }, [pageData?.slug]);
 
   if (!pageData) return <div>Page not found</div>;
 

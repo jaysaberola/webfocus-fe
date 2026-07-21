@@ -39,6 +39,13 @@ body {
   margin-bottom: 0 !important;
 }
 
+/* Home portfolio modal: keep hidden unless opened (prevents leak on route change) */
+.wsi-portfolio-modal:not(.is-open):not(.is-closing) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 /* Contact Us page form controls */
 .public-contact .form-control,
 .public-contact .form-select {

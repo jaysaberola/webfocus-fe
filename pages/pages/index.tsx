@@ -8,7 +8,7 @@ import { toast } from "@/lib/toast";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { isDefaultProtectedPage } from "@/lib/defaultPages";
-import { buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
+import { buildPublicPageFullUrl, buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
 import { TableOptionsMenu, TableRowActions } from "@/components/UI/TableRowActions";
 
 interface PageRow {
@@ -28,6 +28,9 @@ type PageAdvancedSearchValues = Record<string, string>;
 export default function ManagePages() {
   const router = useRouter();
   const [pages, setPages] = useState<PageRow[]>([]);
+  const [frontendBase, setFrontendBase] = useState(() =>
+    (process.env.NEXT_PUBLIC_FRONTEND_URL || "").replace(/\/$/, "")
+  );
   const [recentlyDeletedPages, setRecentlyDeletedPages] = useState<PageRow[]>([]);
   const [isLoading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -159,7 +162,7 @@ export default function ManagePages() {
   const getPageViewHint = (row: PageRow) => {
     const status = normalizePageStatus(row);
     if (status === "published" && row.slug) {
-      return buildPublicPageMenuTarget(row.slug);
+      return buildPublicPageFullUrl(row.slug, frontendBase);
     }
     return "Private preview available in admin";
   };
@@ -475,6 +478,12 @@ export default function ManagePages() {
       if (!(overrides?.silent ?? false)) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_FRONTEND_URL && typeof window !== "undefined") {
+      setFrontendBase(window.location.origin);
+    }
+  }, []);
 
   useEffect(() => {
     if (!hasMountedSearchRef.current) {

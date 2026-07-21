@@ -41,3 +41,12 @@ export function buildPublicPageMenuTarget(slug: string): string {
   const clean = slug.replace(/^\/+/, "").replace(/^public\//, "");
   return `/public/${clean}`;
 }
+
+/** Full public URL for admin display (Manage Pages, tooltips, copy). */
+export function buildPublicPageFullUrl(slug: string, frontendBase?: string | null): string {
+  const path = buildPublicPageMenuTarget(slug);
+  const base = (frontendBase || process.env.NEXT_PUBLIC_FRONTEND_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  return base ? `${base}${path}` : path;
+}
