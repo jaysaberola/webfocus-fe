@@ -1,19 +1,39 @@
 import Link from "next/link";
+import { useState } from "react";
 import Image from "next/image";
-import { TEMPLATE_GROUPS, WEBDESIGN_PACKAGES, formatPeso } from "@/lib/servicesCatalog";
+import {
+  TEMPLATE_GROUPS,
+  WEBDESIGN_PACKAGES,
+  type TemplateGroup,
+  type WebsiteTemplate,
+  formatPeso,
+} from "@/lib/servicesCatalog";
 import { useServiceCart } from "./useServiceCart";
+import TemplatePreviewModal from "./TemplatePreviewModal";
 import styles from "@/styles/services.module.css";
 
 export default function ServicesWebDesignTab() {
   const { addToCart } = useServiceCart();
+  const [previewTemplate, setPreviewTemplate] = useState<WebsiteTemplate | null>(null);
+  const [previewGroup, setPreviewGroup] = useState<TemplateGroup | null>(null);
+
+  const openPreview = (group: TemplateGroup, template: WebsiteTemplate) => {
+    setPreviewGroup(group);
+    setPreviewTemplate(template);
+  };
+
+  const closePreview = () => {
+    setPreviewTemplate(null);
+    setPreviewGroup(null);
+  };
 
   return (
     <div className={styles.tabPanel}>
       <div className={styles.templatesIntro}>
         <h2>Website Templates</h2>
         <p>
-          Choose from modern, responsive templates designed to launch your business and capture your
-          brand instantly.
+          Browse Canvas 7 sample designs from our template library. Click any template to preview the
+          live layout before choosing your package.
         </p>
       </div>
 
@@ -22,18 +42,25 @@ export default function ServicesWebDesignTab() {
           <h3>{group.title}</h3>
           <div className={styles.templateGrid}>
             {group.templates.map((template) => (
-              <article key={template.label} className={styles.templateCard}>
-                <div className={styles.templateImageWrap}>
-                  <Image
-                    src={template.image}
-                    alt={template.alt}
-                    width={400}
-                    height={260}
-                    className={styles.templateImage}
-                  />
-                  <span className={styles.templatePreview}>Preview</span>
-                </div>
-                <h5>{template.label}</h5>
+              <article key={template.id} className={styles.templateCard}>
+                <button
+                  type="button"
+                  className={styles.templateCardButton}
+                  onClick={() => openPreview(group, template)}
+                  aria-label={`Preview ${template.label} template`}
+                >
+                  <div className={styles.templateImageWrap}>
+                    <Image
+                      src={template.image}
+                      alt={template.alt}
+                      width={400}
+                      height={260}
+                      className={styles.templateImage}
+                    />
+                    <span className={styles.templatePreview}>Preview</span>
+                  </div>
+                  <h5>{template.label}</h5>
+                </button>
               </article>
             ))}
           </div>
@@ -96,6 +123,14 @@ export default function ServicesWebDesignTab() {
           Technical Intake Form
         </Link>
       </section>
+
+      <TemplatePreviewModal
+        open={Boolean(previewTemplate && previewGroup)}
+        template={previewTemplate}
+        group={previewGroup}
+        onClose={closePreview}
+        onAddPackage={addToCart}
+      />
     </div>
   );
 }

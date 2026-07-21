@@ -1,3 +1,8 @@
+import {
+  getCanvas7DemoUrl,
+  getCanvas7ThumbnailUrl,
+} from "@/lib/canvasTemplateCatalog";
+
 export type HostingPlanType = "cloud" | "shared" | "dedicated" | "baremetal";
 
 export type HostingPlan = {
@@ -24,9 +29,20 @@ export type WebDesignPackage = {
   features: string[];
 };
 
+export type WebsiteTemplate = {
+  id: string;
+  image: string;
+  alt: string;
+  label: string;
+  summary: string;
+  packageId: string;
+  previewUrl: string;
+};
+
 export type TemplateGroup = {
   title: string;
-  templates: { image: string; alt: string; label: string }[];
+  packageId: string;
+  templates: WebsiteTemplate[];
 };
 
 export const HOSTING_PLANS: HostingPlan[] = [
@@ -148,29 +164,116 @@ export const WEBDESIGN_PACKAGES: WebDesignPackage[] = [
 export const TEMPLATE_GROUPS: TemplateGroup[] = [
   {
     title: "Business Starter Launch",
+    packageId: "design-starter",
     templates: [
-      { image: "/images/templates/article.jpg", alt: "Recipe Website", label: "Recipe Website" },
-      { image: "/images/templates/blog.jpg", alt: "News Blog", label: "News Blog" },
-      { image: "/images/templates/burger.jpg", alt: "Restaurant", label: "Restaurant" },
+      {
+        id: "recipe-website",
+        image: getCanvas7ThumbnailUrl("recipes.jpg"),
+        alt: "Recipe Website",
+        label: "Recipe Website",
+        summary: "Canvas 7 recipe magazine layout with featured dishes, categories, and editorial sections.",
+        packageId: "design-starter",
+        previewUrl: getCanvas7DemoUrl("demo-recipes.html"),
+      },
+      {
+        id: "news-blog",
+        image: getCanvas7ThumbnailUrl("blog.jpg"),
+        alt: "News Blog",
+        label: "News Blog",
+        summary: "Canvas 7 blog and magazine layout with article grids, featured posts, and sidebar widgets.",
+        packageId: "design-starter",
+        previewUrl: getCanvas7DemoUrl("demo-blog.html"),
+      },
+      {
+        id: "restaurant",
+        image: getCanvas7ThumbnailUrl("burger.jpg"),
+        alt: "Restaurant",
+        label: "Restaurant",
+        summary: "Canvas 7 restaurant layout with menu highlights, food photography, and reservation CTAs.",
+        packageId: "design-starter",
+        previewUrl: getCanvas7DemoUrl("demo-burger.html"),
+      },
     ],
   },
   {
     title: "Custom Professional Corporate",
+    packageId: "design-corporate",
     templates: [
-      { image: "/images/templates/cleaner.jpg", alt: "Cleaning", label: "Cleaning" },
-      { image: "/images/templates/construction.jpg", alt: "Construction", label: "Construction" },
-      { image: "/images/templates/coworking.jpg", alt: "Coworking", label: "Coworking" },
+      {
+        id: "cleaning",
+        image: getCanvas7ThumbnailUrl("cleaner.jpg"),
+        alt: "Cleaning",
+        label: "Cleaning",
+        summary: "Canvas 7 cleaning services layout with pricing blocks, service areas, and quote forms.",
+        packageId: "design-corporate",
+        previewUrl: getCanvas7DemoUrl("demo-cleaner.html"),
+      },
+      {
+        id: "construction",
+        image: getCanvas7ThumbnailUrl("construction.jpg"),
+        alt: "Construction",
+        label: "Construction",
+        summary: "Canvas 7 construction company layout with project listings, stats, and capability sections.",
+        packageId: "design-corporate",
+        previewUrl: getCanvas7DemoUrl("demo-construction.html"),
+      },
+      {
+        id: "coworking",
+        image: getCanvas7ThumbnailUrl("coworking.jpg"),
+        alt: "Coworking",
+        label: "Coworking",
+        summary: "Canvas 7 coworking space layout with membership plans, amenities, and booking sections.",
+        packageId: "design-corporate",
+        previewUrl: getCanvas7DemoUrl("demo-coworking.html"),
+      },
     ],
   },
   {
     title: "High-Concurrency E-Commerce Plus",
+    packageId: "design-ecommerce",
     templates: [
-      { image: "/images/templates/hostel.jpg", alt: "Hotel", label: "Hotel" },
-      { image: "/images/templates/hosting.jpg", alt: "Hosting", label: "Hosting" },
-      { image: "/images/templates/yoga.jpg", alt: "Yoga", label: "Yoga" },
+      {
+        id: "hotel",
+        image: getCanvas7ThumbnailUrl("hostel.jpg"),
+        alt: "Hotel",
+        label: "Hotel",
+        summary: "Canvas 7 hostel and hotel layout with room showcases, gallery sections, and booking prompts.",
+        packageId: "design-ecommerce",
+        previewUrl: getCanvas7DemoUrl("demo-hostel.html"),
+      },
+      {
+        id: "hosting",
+        image: getCanvas7ThumbnailUrl("hosting.jpg"),
+        alt: "Hosting",
+        label: "Hosting",
+        summary: "Canvas 7 hosting provider layout with pricing tables, feature lists, and domain search.",
+        packageId: "design-ecommerce",
+        previewUrl: getCanvas7DemoUrl("demo-hosting.html"),
+      },
+      {
+        id: "yoga",
+        image: getCanvas7ThumbnailUrl("yoga.jpg"),
+        alt: "Yoga",
+        label: "Yoga",
+        summary: "Canvas 7 yoga and wellness layout with class schedules, instructors, and membership CTAs.",
+        packageId: "design-ecommerce",
+        previewUrl: getCanvas7DemoUrl("demo-yoga.html"),
+      },
     ],
   },
 ];
+
+export function getWebsiteTemplateById(templateId: string) {
+  for (const group of TEMPLATE_GROUPS) {
+    const match = group.templates.find((template) => template.id === templateId);
+    if (match) return { group, template: match };
+  }
+  return null;
+}
+
+export function getWebDesignPackageById(packageId: string) {
+  return WEBDESIGN_PACKAGES.find((pkg) => pkg.id === packageId);
+}
 
 export const DOMAIN_REFERENCE = [
   {

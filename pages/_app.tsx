@@ -18,6 +18,7 @@ type AppPropsWithLayout = AppProps & {
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const Layout = Component.Layout || React.Fragment;
+  const enableCfAnalytics = process.env.NEXT_PUBLIC_ENABLE_CF_ANALYTICS === "true";
 
   React.useEffect(() => {
     // Load Bootstrap JS locally (no CDN) to avoid browser tracking-prevention warnings.
@@ -32,7 +33,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
 
       <Component {...pageProps} />
 
-      {process.env.NODE_ENV === "production" && (
+      {enableCfAnalytics ? (
         <Script
           id="cf-beacon"
           src="https://static.cloudflareinsights.com/beacon.min.js/vcd15cbe7772f49c399c6a5babf22c1241717689176015"
@@ -41,7 +42,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
           data-cf-beacon='{"version":"2024.11.0","token":"cd0b4b3a733644fc843ef0b185f98241","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}'
           crossOrigin="anonymous"
         />
-      )}
+      ) : null}
 
       <Script src="/js/bootstrap.bundle.min.js" strategy="afterInteractive" />
       <Script src="/js/flatpickr.min.js" strategy="afterInteractive" />
