@@ -2,17 +2,27 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
+import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
+import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   cartCount,
   cartSubtotal,
+  clearPublicCart,
   formatCartMoney,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
 } from "@/lib/publicCart";
+import {
+  formatPaynamicsPaymentMethod,
+  getPaynamicsPaymentLabel,
+  PAYNAMICS_PAYMENT_METHODS,
+} from "@/lib/checkoutPaymentMethods";
+import { hasCheckoutAgreementAccepted, markCheckoutAgreementAccepted } from "@/lib/checkoutAgreement";
 import { readStoredAuthToken } from "@/lib/authToken";
-import { getStoredCustomer } from "@/services/publicCustomerService";
+import { fetchCurrentCustomer, getStoredCustomer, PublicCustomer } from "@/services/publicCustomerService";
+import { createSalesTransaction } from "@/services/salesTransactionService";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/publicCartCheckout.module.css";
 
@@ -42,18 +52,26 @@ export default function PublicCartCheckoutPage() {
   const [items, setItems] = useState<PublicCartItem[]>([]);
   const [terms, setTerms] = useState<Record<string, number>>({});
   const [signInOpen, setSignInOpen] = useState(false);
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [customer, setCustomer] = useState<PublicCustomer | null>(null);
+  const [placingOrder, setPlacingOrder] = useState(false);
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
   const refreshAuth = () => {
-    setIsLoggedIn(Boolean(readStoredAuthToken() && getStoredCustomer()));
+    const storedCustomer = getStoredCustomer();
+    setCustomer(storedCustomer);
+    setIsLoggedIn(Boolean(readStoredAuthToken() && storedCustomer));
   };
 
   const refreshCart = () => {
     const nextItems = readPublicCart();
     setItems(nextItems);
+    setAgreementAccepted(hasCheckoutAgreementAccepted(nextItems));
     setTerms((current) => {
       const next = { ...current };
       nextItems.forEach((item) => {
@@ -85,6 +103,9 @@ export default function PublicCartCheckoutPage() {
 
   const itemCount = cartCount(items);
   const subtotal = cartSubtotal(items);
+  const emptyState = items.length === 0;
+  const paymentStepActive = isLoggedIn && agreementAccepted && !emptyState;
+  const checkoutBlockedByAgreement = isLoggedIn && !agreementAccepted && !emptyState;
 
   const removeItem = (key: string) => {
     setItems(removePublicCartItem(key));
@@ -92,17 +113,90 @@ export default function PublicCartCheckoutPage() {
 
   const handleReadyForCheckout = () => {
     if (!items.length) return;
-    if (isLoggedIn) {
-      router.push("/public/checkout");
+    if (!isLoggedIn) {
+      setSignInOpen(true);
       return;
     }
-    setSignInOpen(true);
+    if (!agreementAccepted) {
+      setAgreementOpen(true);
+      return;
+    }
+  };
+
+  const handleAgreementContinueToPayment = () => {
+    setAgreementAccepted(true);
+    setAgreementOpen(false);
+    markCheckoutAgreementAccepted(items);
+  };
+
+  const handleProceedToPaynamics = async () => {
+    if (!items.length) return;
+    if (!isLoggedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    if (!agreementAccepted) {
+      setAgreementOpen(true);
+      return;
+    }
+    if (!paymentMethod) {
+      toast.warning("Select a payment method to continue.");
+      return;
+    }
+
+    const activeCustomer = customer ?? getStoredCustomer();
+    if (!activeCustomer) {
+      setSignInOpen(true);
+      return;
+    }
+
+    const paymentLabel = getPaynamicsPaymentLabel(paymentMethod);
+    const paymentGateway = formatPaynamicsPaymentMethod(paymentMethod);
+    const itemSummary = items.map((item) => `${item.qty} x ${item.name} @ ${formatCartMoney(item.price)}`).join("\n");
+
+    try {
+      setPlacingOrder(true);
+      await createSalesTransaction({
+        customer_id: activeCustomer.id,
+        customer_name: `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+        customer_email: activeCustomer.email,
+        subtotal,
+        discount_total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        payment_status: "pending",
+        order_status: "pending",
+        transacted_at: new Date().toISOString(),
+        items: items.map((item) => ({
+          product_id: item.id ?? null,
+          name: item.name,
+          item_type: "product",
+          price: item.price,
+          quantity: item.qty,
+          total_price: item.price * item.qty,
+        })),
+        notes: [
+          "Customer checkout order",
+          `Payment method: ${paymentGateway} (${paymentLabel})`,
+          "",
+          "Items:",
+          itemSummary,
+        ].join("\n"),
+      });
+      clearPublicCart();
+      toast.success(`Order created. Redirecting to Paynamics (${paymentLabel})...`);
+      router.push("/public/orders");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to start Paynamics payment");
+    } finally {
+      setPlacingOrder(false);
+    }
   };
 
   const handleSignInSuccess = () => {
     refreshAuth();
+    fetchCurrentCustomer({ silent: true }).then(setCustomer).catch(() => undefined);
     router.replace("/public/cart", undefined, { shallow: true });
-    router.push("/public/checkout");
   };
 
   const applyPromoCode = () => {
@@ -120,8 +214,6 @@ export default function PublicCartCheckoutPage() {
     setPromoCode("");
   };
 
-  const emptyState = items.length === 0;
-
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -130,7 +222,11 @@ export default function PublicCartCheckoutPage() {
           <p>Review your requested domains and services prior to proceeding with checkout.</p>
         </header>
 
-        <LiveCheckoutProgress isLoggedIn={isLoggedIn} hasItems={!emptyState} />
+        <LiveCheckoutProgress
+          isLoggedIn={isLoggedIn}
+          hasItems={!emptyState}
+          agreementAccepted={agreementAccepted}
+        />
 
         <div className={styles.layout}>
           <section className={styles.mainColumn}>
@@ -245,14 +341,60 @@ export default function PublicCartCheckoutPage() {
                 )}
               </div>
 
-              <button
-                type="button"
-                className={styles.checkoutBtn}
-                disabled={emptyState}
-                onClick={handleReadyForCheckout}
-              >
-                Ready for Checkout
-              </button>
+              {isLoggedIn && !emptyState ? (
+                <div className={styles.agreementBlock}>
+                  {agreementAccepted ? (
+                    <p className={styles.agreementAccepted}>
+                      <i className="fa-solid fa-circle-check" aria-hidden="true" />
+                      Agreement accepted
+                    </p>
+                  ) : (
+                    <p className={styles.agreementPrompt}>
+                      Review and accept the policy and contract agreement before checkout.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.agreementLink}
+                    onClick={() => setAgreementOpen(true)}
+                  >
+                    {agreementAccepted ? "Review agreement again" : "Read policy and contract agreement"}
+                  </button>
+                </div>
+              ) : null}
+
+              {paymentStepActive ? (
+                <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
+              ) : null}
+
+              {paymentStepActive ? (
+                <button
+                  type="button"
+                  className={styles.checkoutBtn}
+                  disabled={placingOrder}
+                  onClick={handleProceedToPaynamics}
+                >
+                  {placingOrder ? "Processing..." : "Proceed to Paynamics"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.checkoutBtn}
+                  disabled={emptyState || checkoutBlockedByAgreement}
+                  onClick={handleReadyForCheckout}
+                >
+                  Ready for Checkout
+                </button>
+              )}
+              {checkoutBlockedByAgreement ? (
+                <p className={styles.agreementHint}>
+                  Open the agreement, scroll to the end, and accept it to continue.
+                </p>
+              ) : paymentStepActive ? (
+                <p className={styles.agreementHint}>
+                  Selected: {getPaynamicsPaymentLabel(paymentMethod)} via Paynamics IPG.
+                </p>
+              ) : null}
             </div>
 
             <div className={styles.trustCard}>
@@ -270,6 +412,13 @@ export default function PublicCartCheckoutPage() {
         open={signInOpen}
         onClose={() => setSignInOpen(false)}
         onSuccess={handleSignInSuccess}
+      />
+
+      <CheckoutAgreementModal
+        open={agreementOpen}
+        items={items}
+        onClose={() => setAgreementOpen(false)}
+        onAccept={handleAgreementContinueToPayment}
       />
     </div>
   );

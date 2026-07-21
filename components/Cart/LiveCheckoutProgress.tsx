@@ -12,7 +12,11 @@ const STEPS = [
 
 type StepStatus = "completed" | "current" | "pending";
 
-function getStepStatuses(isLoggedIn: boolean, hasItems: boolean): StepStatus[] {
+function getStepStatuses(
+  isLoggedIn: boolean,
+  hasItems: boolean,
+  agreementAccepted: boolean
+): StepStatus[] {
   if (!hasItems) {
     return ["current", "pending", "pending", "pending", "pending", "pending", "pending"];
   }
@@ -21,17 +25,33 @@ function getStepStatuses(isLoggedIn: boolean, hasItems: boolean): StepStatus[] {
     return ["completed", "completed", "current", "pending", "pending", "pending", "pending"];
   }
 
-  return ["completed", "completed", "completed", "current", "pending", "pending", "pending"];
+  if (!agreementAccepted) {
+    return ["completed", "completed", "completed", "current", "pending", "pending", "pending"];
+  }
+
+  return ["completed", "completed", "completed", "completed", "current", "pending", "pending"];
+}
+
+function getStatusHint(isLoggedIn: boolean, hasItems: boolean, agreementAccepted: boolean) {
+  if (!hasItems) return "Add items to continue";
+  if (!isLoggedIn) return "Sign in before payment";
+  if (!agreementAccepted) return "Review agreement next";
+  return "Select payment method";
 }
 
 type Props = {
   isLoggedIn: boolean;
   hasItems: boolean;
+  agreementAccepted?: boolean;
 };
 
-export default function LiveCheckoutProgress({ isLoggedIn, hasItems }: Props) {
-  const statuses = getStepStatuses(isLoggedIn, hasItems);
-  const statusHint = isLoggedIn ? "Review agreement next" : "Sign in before payment";
+export default function LiveCheckoutProgress({
+  isLoggedIn,
+  hasItems,
+  agreementAccepted = false,
+}: Props) {
+  const statuses = getStepStatuses(isLoggedIn, hasItems, agreementAccepted);
+  const statusHint = getStatusHint(isLoggedIn, hasItems, agreementAccepted);
 
   return (
     <section className={styles.card} aria-label="Live checkout progress">

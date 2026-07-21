@@ -295,6 +295,66 @@
   font-weight: 600;
 }
 
+.agreementBlock {
+  margin-bottom: 0.95rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.65rem;
+  background: #f8fbff;
+}
+
+.agreementPrompt {
+  margin: 0 0 0.55rem;
+  color: #475569;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  font-weight: 600;
+}
+
+.agreementAccepted {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.55rem;
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.agreementAccepted i {
+  font-size: 0.875rem;
+}
+
+.agreementLink {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.agreementLink:hover {
+  color: #1d4ed8;
+}
+
+.agreementHint {
+  margin: 0.55rem 0 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .checkoutBtn {
   width: 100%;
   min-height: 2.9rem;
@@ -314,6 +374,115 @@
 
 .checkoutBtn:hover:not(:disabled) {
   background: #1e293b;
+}
+
+.paymentBlock {
+  margin-bottom: 0.95rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+  background: #ffffff;
+}
+
+.paymentBlockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+}
+
+.paymentBlockTitle {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.paymentGatewayBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.4rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.paymentBlockHint {
+  margin: 0 0 0.75rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.paymentMethodList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.paymentMethodOption {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.paymentMethodOption:hover {
+  border-color: #cbd5e1;
+}
+
+.paymentMethodOptionActive {
+  border-color: #2563eb;
+  background: #f8fbff;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+.paymentMethodOption input {
+  margin-top: 0.2rem;
+  accent-color: #2563eb;
+}
+
+.paymentMethodIcon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.paymentMethodCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.paymentMethodCopy strong {
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.paymentMethodCopy span {
+  color: #64748b;
+  font-size: 0.6875rem;
+  line-height: 1.4;
 }
 
 .trustCard h4 {

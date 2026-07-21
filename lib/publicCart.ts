@@ -29,6 +29,11 @@ export const writePublicCart = (items: PublicCartItem[]) => {
   if (typeof window === "undefined") return;
   localStorage.setItem(CART_KEY, JSON.stringify(items));
   window.dispatchEvent(new Event("public-cart-updated"));
+  try {
+    sessionStorage.removeItem("cms4.checkoutAgreementAccepted.v1");
+  } catch {
+    // ignore
+  }
 };
 
 export const clearPublicCart = () => writePublicCart([]);
