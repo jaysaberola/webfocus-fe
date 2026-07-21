@@ -10,6 +10,7 @@ body {
   min-height: 100%;
   margin: 0;
   padding: 0;
+  overflow-x: clip;
 }
 
 #__next {
@@ -22,8 +23,15 @@ body {
 .public-site-shell {
   flex: 1 1 auto;
   width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
+}
+
+:root {
+  --public-layout-max: 1320px;
+  --public-layout-gutter: clamp(16px, 2.5vw, 32px);
 }
 
 .public-site-main {
@@ -165,4 +173,274 @@ body {
   .career-card:hover {
     transform: none !important;
   }
+}
+
+/* Privacy / terms consent banner */
+.privacy-consent-banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1050;
+  background: #f7e9ef;
+  border-top: 1px solid rgba(155, 27, 48, 0.12);
+  box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.08);
+}
+
+.privacy-consent-banner__inner {
+  width: 100%;
+  max-width: var(--public-layout-max, 1320px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem 1.25rem;
+  flex-wrap: wrap;
+  padding: 0.85rem var(--public-layout-gutter, 32px);
+}
+
+.privacy-consent-banner__text {
+  margin: 0;
+  color: #1f2937;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.privacy-consent-banner__link {
+  color: #9b1b30;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.privacy-consent-banner__link:hover,
+.privacy-consent-banner__link:focus {
+  color: #7f1527;
+  text-decoration: underline;
+}
+
+.privacy-consent-banner__btn {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #5fa876;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0.6rem 1.45rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(95, 168, 118, 0.35);
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.privacy-consent-banner__btn:hover,
+.privacy-consent-banner__btn:focus {
+  background: #4f9664;
+  box-shadow: 0 6px 18px rgba(95, 168, 118, 0.42);
+}
+
+.privacy-consent-banner__btn:active {
+  transform: translateY(1px);
+}
+
+body.has-privacy-consent-banner .public-site-shell {
+  padding-bottom: 4.75rem;
+}
+
+@media (max-width: 768px) {
+  .privacy-consent-banner__inner {
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.95rem;
+    padding-bottom: 0.95rem;
+  }
+
+  .privacy-consent-banner__btn {
+    width: min(100%, 220px);
+  }
+}
+
+.legal-content-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.legal-content-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.5);
+  cursor: pointer;
+}
+
+.legal-content-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(720px, 100%);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid rgba(155, 27, 48, 0.08);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+  overflow: visible;
+}
+
+.legal-content-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(155, 27, 48, 0.1);
+  background: linear-gradient(180deg, #f7e9ef 0%, #ffffff 100%);
+  border-radius: 20px 20px 0 0;
+}
+
+.legal-content-modal__kicker {
+  margin: 0 0 0.2rem;
+  color: #9b1b30;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legal-content-modal__header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.legal-content-modal__close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(155, 27, 48, 0.08);
+  color: #7f1527;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.legal-content-modal__body {
+  padding: 1rem 1.35rem 0.85rem;
+  overflow: visible;
+  color: #475569;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.legal-content-modal__body .legal-document,
+.legal-content-modal__body section {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: inherit !important;
+}
+
+.legal-content-modal__body p {
+  margin: 0 0 0.65rem;
+}
+
+.legal-content-modal__body p:last-child {
+  margin-bottom: 0;
+}
+
+.legal-content-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 0.95rem 1.25rem 1.15rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+  background: #fafafa;
+  border-radius: 0 0 20px 20px;
+}
+
+.legal-content-modal__secondary,
+.legal-content-modal__primary {
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.62rem 1.2rem;
+  cursor: pointer;
+}
+
+.legal-content-modal__secondary {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #ffffff;
+  color: #334155;
+}
+
+.legal-content-modal__primary {
+  border: 0;
+  background: #5fa876;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(95, 168, 118, 0.35);
+}
+
+.legal-content-modal__primary:hover,
+.legal-content-modal__primary:focus {
+  background: #4f9664;
+}
+
+@media (max-width: 768px) {
+  .legal-content-modal {
+    padding: 0.75rem;
+  }
+
+  .legal-content-modal__footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .legal-content-modal__secondary,
+  .legal-content-modal__primary {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Freshchat / Freshworks chat widget */
+.custom_fc_frame {
+  right: 20px !important;
+  bottom: 100px !important;
+}
+
+.custom_fc_frame,
+.fc-widget,
+.fc-frame,
+.fc-button,
+.fw-chat,
+.fw-widget,
+.fw-widget-container,
+.fw-cdn-widget,
+.wh-widget,
+.wh-widget-container,
+.wh-popup,
+iframe[src*="fw-cdn.com"],
+iframe[src*="wchat.freshchat.com"],
+div[id^="fcWidget"],
+div[class*="fc-"],
+div[class*="fw-"],
+div[class*="wh-"] {
+  z-index: 20000 !important;
+  pointer-events: auto !important;
 }

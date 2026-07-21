@@ -18,9 +18,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 0 32px;
+  max-width: var(--public-layout-max, 1320px);
+  margin-inline: auto;
+  padding: 0 var(--public-layout-gutter, clamp(16px, 2.5vw, 32px));
   height: 80px;
 }
 

@@ -1213,3 +1213,10 @@
   }
 }
 
+.hostingLoading,
+.hostingFallbackNote {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+

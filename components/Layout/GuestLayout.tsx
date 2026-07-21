@@ -5,6 +5,7 @@ import Banner from "./_Banner";
 import { PublicAlbum } from "@/services/publicPageService";
 import ToastHost from "@/components/UI/ToastHost";
 import PublicCartDrawer from "@/components/Cart/PublicCartDrawer";
+import PrivacyConsentBanner from "@/components/Layout/PrivacyConsentBanner";
 import { PublicCartDrawerProvider } from "@/components/Cart/PublicCartDrawerContext";
 import Head from "next/head";
 import { useEffect, useState } from "react";
@@ -100,6 +101,7 @@ export default function LandingPageLayout({
 
         <ToastHost />
         <PublicCartDrawer />
+        <PrivacyConsentBanner />
       </div>
     </PublicCartDrawerProvider>
   );

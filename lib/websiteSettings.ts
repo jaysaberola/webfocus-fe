@@ -54,7 +54,8 @@ export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Prom
   if (!inflight) {
     inflight = websiteService
       .getSettings()
-      .then((settings: WebsiteSettings) => {
+      .then((response: any) => {
+        const settings = response?.setting ?? response ?? {};
         storeWebsiteSettings(settings);
         return settings;
       })

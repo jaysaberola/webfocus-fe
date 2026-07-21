@@ -1,16 +1,21 @@
 .bannerWrap {
   --hero-header-height: 80px;
+  --public-layout-max: 1320px;
+  --public-layout-gutter: clamp(16px, 2.5vw, 32px);
   position: relative;
-  padding: 14px 28px 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 14px var(--public-layout-gutter) 0;
   background: #f8fafc;
 }
 
 .bannerHero {
   display: flex;
   flex-direction: column;
-  max-width: 1320px;
+  max-width: var(--public-layout-max);
   width: 100%;
-  margin: 0 auto;
+  margin-inline: auto;
   min-height: calc(100vh - var(--hero-header-height) - 56px);
 }
 
@@ -262,7 +267,7 @@
 @media (max-width: 991px) {
   .bannerWrap {
     --hero-header-height: 72px;
-    padding: 10px 20px 0;
+    padding: 10px var(--public-layout-gutter) 0;
   }
 
   .bannerHero {
@@ -277,7 +282,7 @@
 
 @media (max-width: 767px) {
   .bannerWrap {
-    padding: 8px 16px 0;
+    padding: 8px var(--public-layout-gutter) 0;
   }
 
   .bannerCard {

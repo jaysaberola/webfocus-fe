@@ -1,18 +1,18 @@
 .sectionOuter {
-  padding: 0 28px 2rem;
+  padding: 0 var(--public-layout-gutter, clamp(16px, 2.5vw, 32px)) 2rem;
   background: #f8fafc;
 }
 
 .section {
-  max-width: 1320px;
-  margin: 0 auto;
+  max-width: var(--public-layout-max, 1320px);
+  margin-inline: auto;
   background: linear-gradient(to bottom right, #1d4ed8, #172554);
   padding: 4rem 1rem;
   color: #ffffff;
   display: flex;
   justify-content: center;
   align-items: center;
-  border-radius: 6px;
+  border-radius: 28px;
   opacity: 0;
   transform: translateY(28px);
   animation: domainSectionIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;

@@ -1,13 +1,13 @@
 .strip {
   background: #ffffff;
   border-bottom: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 1.125rem 28px;
+  padding: 1.125rem var(--public-layout-gutter, clamp(16px, 2.5vw, 32px));
   overflow: hidden;
 }
 
 .inner {
-  max-width: 1320px;
-  margin: 0 auto;
+  max-width: var(--public-layout-max, 1320px);
+  margin-inline: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -69,7 +69,7 @@
 
 @media (max-width: 991px) {
   .strip {
-    padding: 1rem 20px;
+    padding: 1rem var(--public-layout-gutter, clamp(16px, 2.5vw, 32px));
   }
 
   .inner {

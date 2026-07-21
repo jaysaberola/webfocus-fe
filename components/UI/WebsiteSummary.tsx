@@ -55,7 +55,7 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
         ]);
 
         if (!mounted) return;
-        setSettings(s);
+        setSettings((s as any)?.setting ?? s);
         const count = Array.isArray((socials as any)?.data) ? (socials as any).data.filter(Boolean).length : 0;
         setSocialCount(count);
 

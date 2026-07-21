@@ -98,17 +98,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     >
       <Head>
         <title>{tabTitle}</title>
-        {/* Admin-only styles: loaded here to avoid affecting GuestLayout */}
-         <link rel="stylesheet" href="/css/custom.css" />
-         <link rel="stylesheet" href="/css/admin.css" />
-         <link rel="stylesheet" href="/css/admin-theme.css" />
-         <link rel="stylesheet" href="/css/admin-sidebar-v2.css" />
-         <link rel="stylesheet" href="/css/dashboard.css" />
-         <link rel="stylesheet" href="/css/admin-table.css" />
-         <link rel="stylesheet" href="/css/admin-modal.css" />
-         <link rel="preconnect" href="https://fonts.googleapis.com" />
-         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </Head>
 
       <div className="cms-sidebar-overlay" onClick={closeSidebar} />

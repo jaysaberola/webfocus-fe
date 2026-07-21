@@ -1,10 +1,18 @@
 import { useState, ChangeEvent } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import { useEffect } from "react";
+import dynamic from "next/dynamic";
 import { websiteService } from "@/services/websiteService";
 import { toast } from "@/lib/toast";
-import TinyEditor from "@/components/UI/Editor";
+import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import {
+  DEFAULT_PRIVACY_HTML,
+  DEFAULT_PRIVACY_POPUP,
+  DEFAULT_PRIVACY_TITLE,
+} from "@/lib/defaultPrivacyContent";
 import { notifyWebsiteSettingsUpdated, storeWebsiteSettings } from "@/lib/websiteSettings";
+
+const GrapesEditor = dynamic(() => import("@/components/UI/GrapesEditor"), { ssr: false });
 
 type TabKey = "website" | "contact" | "social" | "privacy";
 
@@ -85,10 +93,9 @@ function WebsiteSettingsPage() {
 
   useEffect(() => {
     const loadSettings = async () => {
-      const s = await websiteService.getSettings();
-
-      // Normalize response: some backends return { setting: {...} }, others return the object directly.
-      const data = s?.setting ?? s ?? {};
+      const response = await websiteService.getSettings();
+      const data = response?.setting ?? response ?? {};
+      const privacyPage = response?.data_privacy ?? null;
 
       setCompanyName(data.company_name ?? data.website_name ?? "");
       setWebsiteName(data.website_name ?? "");
@@ -104,10 +111,21 @@ function WebsiteSettingsPage() {
       setTelephone(data.tel_no ?? "");
       setContactEmail(data.email ?? "");
 
-      // Privacy fields: support both nested `data_privacy` object and flat keys
-      setPrivacyTitle(data.data_privacy_title ?? data.data_privacy?.name ?? "");
-      setPrivacyPopup(data.data_privacy_popup_content ?? data.data_privacy?.popup_content ?? "");
-      setPrivacyContent(data.data_privacy_content ?? data.data_privacy?.contents ?? data.data_privacy?.content ?? "");
+      const privacyTitleValue = data.data_privacy_title ?? privacyPage?.name ?? DEFAULT_PRIVACY_TITLE;
+      const privacyPopupValue =
+        data.data_privacy_popup_content ?? DEFAULT_PRIVACY_POPUP;
+      const hasGrapesFields = Boolean(privacyPage?.grapes_html || privacyPage?.grapes_css || privacyPage?.grapes_js);
+      const privacyHtml = hasGrapesFields
+        ? composeContentFromGrapes({
+            grapes_html: privacyPage?.grapes_html || privacyPage?.contents || "",
+            grapes_css: privacyPage?.grapes_css || "",
+            grapes_js: privacyPage?.grapes_js || "",
+          })
+        : data.data_privacy_content || privacyPage?.contents || DEFAULT_PRIVACY_HTML;
+
+      setPrivacyTitle(privacyTitleValue);
+      setPrivacyPopup(privacyPopupValue);
+      setPrivacyContent(privacyHtml || DEFAULT_PRIVACY_HTML);
 
       if (data.company_logo) {
         setLogoPreview(`${process.env.NEXT_PUBLIC_API_URL}/storage/${data.company_logo}`);
@@ -162,8 +180,8 @@ function WebsiteSettingsPage() {
 
       // Refresh cached settings so other UI (topbar, etc.) updates immediately.
       try {
-        const s = await websiteService.getSettings();
-        storeWebsiteSettings(s);
+        const response = await websiteService.getSettings();
+        storeWebsiteSettings(response?.setting ?? response);
         notifyWebsiteSettingsUpdated();
       } catch {
         // ignore
@@ -230,10 +248,15 @@ function WebsiteSettingsPage() {
 
   const handleSavePrivacy = async () => {
     try {
+      const parts = extractGrapesParts(privacyContent);
+
       await websiteService.updatePrivacy({
         data_privacy_title: privacyTitle,
         data_privacy_popup_content: privacyPopup,
         data_privacy_content: privacyContent,
+        grapes_html: parts.grapes_html,
+        grapes_css: parts.grapes_css,
+        grapes_js: parts.grapes_js,
       });
 
       toast.success("Data privacy settings saved successfully");
@@ -599,14 +622,14 @@ function WebsiteSettingsPage() {
                   value={privacyPopup}
                   onChange={(e) => setPrivacyPopup(e.target.value)}
                 />
+                <small className="text-muted">
+                  Short summary shown in consent areas. The full policy opens in a modal on the public site.
+                </small>
               </div>
 
               <div className="mb-4">
                 <label className="form-label">Content *</label>
-                <TinyEditor
-                  value={privacyContent}
-                  onChange={setPrivacyContent}
-                />
+                <GrapesEditor value={privacyContent} onChange={setPrivacyContent} height={640} />
               </div>
 
               <button
