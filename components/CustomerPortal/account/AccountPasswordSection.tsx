@@ -44,6 +44,7 @@ export default function AccountPasswordSection() {
         <label className={styles.fullWidth}>
           <span>Current Password</span>
           <input
+            className={styles.cpControl}
             type={showPasswords ? "text" : "password"}
             value={form.current_password}
             onChange={(e) => setForm({ ...form, current_password: e.target.value })}
@@ -54,6 +55,7 @@ export default function AccountPasswordSection() {
         <label>
           <span>New Password</span>
           <input
+            className={styles.cpControl}
             type={showPasswords ? "text" : "password"}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -65,6 +67,7 @@ export default function AccountPasswordSection() {
         <label>
           <span>Confirm New Password</span>
           <input
+            className={styles.cpControl}
             type={showPasswords ? "text" : "password"}
             value={form.password_confirmation}
             onChange={(e) => setForm({ ...form, password_confirmation: e.target.value })}

@@ -9,7 +9,7 @@ CustomerDashboardPage.Layout = function CustomerDashboardLayout({ children }: { 
   return (
     <LandingPageLayout
       pageData={{ title: "My Account", meta: { title: "My Account" } }}
-      layout={{ hideBanner: true }}
+      layout={{ hideBanner: true, minimalFooter: true }}
     >
       {children}
     </LandingPageLayout>

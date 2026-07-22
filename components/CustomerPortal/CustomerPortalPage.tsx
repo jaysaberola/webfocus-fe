@@ -11,6 +11,7 @@ import ContractTab from "./tabs/ContractTab";
 import NotificationsTab from "./tabs/NotificationsTab";
 import HelpTab from "./tabs/HelpTab";
 import AccountTab from "./tabs/AccountTab";
+import PortalTabLoader from "./PortalTabLoader";
 import styles from "@/styles/customerPortal.module.css";
 
 const VALID_TABS: CustomerPortalTab[] = [
@@ -43,6 +44,7 @@ export default function CustomerPortalPage() {
   const unreadCount = usePortalUnreadCount(Boolean(customer));
 
   const switchTab = (tab: CustomerPortalTab) => {
+    if (tab === activeTab) return;
     setActiveTab(tab);
     router.replace({ pathname: "/public/dashboard", query: tab === "overview" ? {} : { tab } }, undefined, {
       shallow: true,
@@ -50,7 +52,11 @@ export default function CustomerPortalPage() {
   };
 
   if (loading) {
-    return <div className={styles.loadingState}>Loading your account...</div>;
+    return (
+      <div className={styles.page}>
+        <PortalTabLoader label="Loading your account..." />
+      </div>
+    );
   }
 
   return (
@@ -61,15 +67,17 @@ export default function CustomerPortalPage() {
         unreadNotifications={unreadCount}
       />
 
-      {activeTab === "overview" && <OverviewTab />}
-      {activeTab === "billing" && <BillingTab />}
-      {activeTab === "orders" && <OrdersTab />}
-      {activeTab === "contract" && <ContractTab />}
-      {activeTab === "notification" && <NotificationsTab />}
-      {activeTab === "help" && <HelpTab />}
-      {activeTab === "account" && (
-        <AccountTab customer={customer} onCustomerUpdate={setCustomer} />
-      )}
+      <div key={activeTab} className={styles.tabPanel}>
+        {activeTab === "overview" && <OverviewTab />}
+        {activeTab === "billing" && <BillingTab />}
+        {activeTab === "orders" && <OrdersTab />}
+        {activeTab === "contract" && <ContractTab />}
+        {activeTab === "notification" && <NotificationsTab />}
+        {activeTab === "help" && <HelpTab />}
+        {activeTab === "account" && (
+          <AccountTab customer={customer} onCustomerUpdate={setCustomer} />
+        )}
+      </div>
     </div>
   );
 }

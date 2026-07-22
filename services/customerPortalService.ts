@@ -24,6 +24,11 @@ export type PortalBillingResponse = {
     title: string;
     dueDate: string;
     amount: number;
+    kind?: "payment" | "renewal";
+    headline?: string;
+    buttonLabel?: string;
+    daysUntilDue?: number;
+    canPay?: boolean;
   } | null;
   paymentProofs: PortalPaymentProof[];
 };
@@ -45,8 +50,17 @@ export async function fetchPortalOrders(): Promise<PortalOrder[]> {
   return res.data?.data ?? [];
 }
 
-export async function fetchPortalBilling(): Promise<PortalBillingResponse> {
-  const res = await axiosInstance.get("/customer/portal/billing", { headers: silentHeaders });
+export async function fetchPortalBilling(params?: {
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<PortalBillingResponse> {
+  const res = await axiosInstance.get("/customer/portal/billing", {
+    headers: silentHeaders,
+    params: {
+      date_from: params?.dateFrom || undefined,
+      date_to: params?.dateTo || undefined,
+    },
+  });
   return res.data?.data ?? { invoices: [], reminder: null, paymentProofs: [] };
 }
 
@@ -64,6 +78,18 @@ export async function fetchPortalUnreadNotificationCount(): Promise<number> {
 
 export async function markPortalNotificationRead(id: number): Promise<void> {
   await axiosInstance.patch(`/customer/portal/notifications/${id}/read`, null, {
+    headers: silentHeaders,
+  });
+}
+
+export async function markAllPortalNotificationsRead(): Promise<void> {
+  await axiosInstance.patch("/customer/portal/notifications/read-all", null, {
+    headers: silentHeaders,
+  });
+}
+
+export async function deletePortalNotification(id: number): Promise<void> {
+  await axiosInstance.delete(`/customer/portal/notifications/${id}`, {
     headers: silentHeaders,
   });
 }
@@ -97,6 +123,27 @@ export async function addPortalFunds(payload: { amount: number; paymentMethod: s
     amount: payload.amount,
     payment_method: payload.paymentMethod,
   });
+  return res.data;
+}
+
+export async function uploadPortalPaymentProof(payload: {
+  invoiceId: string;
+  notes?: string;
+  receipt: File;
+}) {
+  const formData = new FormData();
+  formData.append("invoice_id", payload.invoiceId);
+  if (payload.notes) formData.append("notes", payload.notes);
+  formData.append("receipt", payload.receipt);
+
+  const res = await axiosInstance.post("/customer/portal/billing/payment-proofs", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
+export async function deletePortalPaymentProof(recordId: number) {
+  const res = await axiosInstance.delete(`/customer/portal/billing/payment-proofs/${recordId}`);
   return res.data;
 }
 

@@ -1,4 +1,5 @@
 import OverviewAlertsPanel from "@/components/CustomerPortal/OverviewAlertsPanel";
+import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import ServiceStatusPanel from "@/components/CustomerPortal/ServiceStatusPanel";
 import { usePortalOverview } from "@/lib/customerPortal/usePortalOverview";
 import styles from "@/styles/customerPortal.module.css";
@@ -7,7 +8,7 @@ export default function OverviewTab() {
   const { stats, alerts, services, loading, error } = usePortalOverview();
 
   if (loading) {
-    return <div className={styles.loadingState}>Loading overview...</div>;
+    return <PortalTabLoader label="Loading overview..." />;
   }
 
   if (error) {

@@ -12,6 +12,7 @@ type BillingPaymentModalProps = {
   invoiceId?: string;
   title?: string;
   amount?: number;
+  submitLabel?: string;
   submitting?: boolean;
   onClose: () => void;
   onSubmit: (paymentMethod: string, amount?: number) => void;
@@ -23,6 +24,7 @@ export default function BillingPaymentModal({
   invoiceId,
   title,
   amount,
+  submitLabel = "Pay Now",
   submitting = false,
   onClose,
   onSubmit,
@@ -58,7 +60,7 @@ export default function BillingPaymentModal({
         <div className={styles.billingModalHead}>
           <div>
             <h3 id="billing-payment-title">
-              {mode === "add-funds" ? "Add Funds" : "Pay & Renew"}
+              {mode === "add-funds" ? "Add Funds" : submitLabel === "Pay & Renew" ? "Pay & Renew" : "Pay Invoice"}
             </h3>
             <p className={styles.panelSub}>
               {mode === "add-funds"
@@ -127,7 +129,7 @@ export default function BillingPaymentModal({
               ? "Processing..."
               : mode === "add-funds"
                 ? "Proceed to Paynamics"
-                : "Pay & Renew"}
+                : submitLabel}
           </button>
         </div>
       </div>

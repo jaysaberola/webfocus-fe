@@ -196,7 +196,7 @@
   align-items: center;
   gap: 6px;
   transition: background 0.18s ease, color 0.18s ease;
-  font-weight: 500;
+  font-weight: 700;
   font-size: 0.9375rem;
   text-decoration: none;
 }
@@ -215,7 +215,7 @@
 .nav-list :global(.menu-item.current) > :global(.menu-row) > :global(.menu-link) {
   color: #2563eb;
   background: #eff6ff;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .nav-list :global(.menu-link__dot) {

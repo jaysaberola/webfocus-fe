@@ -51,6 +51,7 @@ export default function AccountTwoFactorSection() {
         <label className={styles.securityField}>
           <span>Verification Method</span>
           <select
+            className={styles.cpControl}
             value={method}
             onChange={(e) => setMethod(e.target.value as typeof method)}
             disabled={enabled}
@@ -69,14 +70,16 @@ export default function AccountTwoFactorSection() {
             : "Enable 2FA to protect account changes, billing actions, and portal sign-in."}
         </p>
 
-        <button
-          type="button"
-          className={enabled ? styles.secondaryBtnSm : styles.primaryBtnSm}
-          onClick={toggle2fa}
-          disabled={busy}
-        >
-          {busy ? "Please wait..." : enabled ? "Disable 2FA" : "Enable 2FA"}
-        </button>
+        <div className={styles.securityActions}>
+          <button
+            type="button"
+            className={enabled ? styles.secondaryBtnSm : styles.primaryBtnSm}
+            onClick={toggle2fa}
+            disabled={busy}
+          >
+            {busy ? "Please wait..." : enabled ? "Disable 2FA" : "Enable 2FA"}
+          </button>
+        </div>
       </div>
     </section>
   );

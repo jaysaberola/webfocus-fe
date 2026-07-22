@@ -13,13 +13,19 @@ export type PortalInvoice = {
   date: string;
   due: string;
   amount: number;
-  status: "Paid" | "Pending Payment";
+  status: "Paid" | "Pending Payment" | "Awaiting Approval" | "Payment Due" | "Overdue";
+  canPay?: boolean;
+  daysUntilDue?: number | null;
+  serviceName?: string;
+  plan?: string;
   subscription: string;
   items: string;
 };
 
 export type PortalOrder = {
   id: string;
+  invoiceId?: string;
+  serviceName?: string;
   date: string;
   expiredDate: string;
   total: number;
@@ -47,8 +53,10 @@ export type PortalNotification = {
 
 export type PortalPaymentProof = {
   id: string;
+  recordId?: number;
   invoiceId: string;
   fileName: string;
+  fileUrl?: string | null;
   date: string;
   status: string;
   notes?: string;

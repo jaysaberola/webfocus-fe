@@ -146,7 +146,7 @@ export default function HelpTab() {
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
-            <button type="button" onClick={sendMessage}>
+            <button type="button" className={styles.chatSendBtn} onClick={sendMessage}>
               Send
             </button>
           </div>
