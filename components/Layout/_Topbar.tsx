@@ -13,10 +13,7 @@ const LOGO_SRC = "/images/webfocus-logo.png";
 export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [cartItemsCount, setCartItemsCount] = useState(() => {
-    if (typeof window === "undefined") return 0;
-    return cartCount(readPublicCart());
-  });
+  const [cartItemsCount, setCartItemsCount] = useState(0);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 

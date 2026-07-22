@@ -6,8 +6,13 @@ export type GrapesParts = {
   grapes_js: string;
 };
 
+/** Normalize CRLF/CR to LF so SSR and client hydration match on Windows. */
+export function normalizeLineEndings(value: string) {
+  return value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
 export const extractGrapesParts = (content: string): GrapesParts => {
-  const raw = content || "";
+  const raw = normalizeLineEndings(content || "");
 
   const styleMatch = raw.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   const scriptMatch = raw.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
@@ -31,12 +36,12 @@ export const extractGrapesParts = (content: string): GrapesParts => {
 };
 
 export const composeContentFromGrapes = (parts: Partial<GrapesParts>) => {
-  const html = (parts.grapes_html || "").trim();
-  const css = (parts.grapes_css || "").trim();
-  const js = (parts.grapes_js || "").trim();
+  const html = normalizeLineEndings((parts.grapes_html || "").trim());
+  const css = normalizeLineEndings((parts.grapes_css || "").trim());
+  const js = normalizeLineEndings((parts.grapes_js || "").trim());
 
   const cssTag = css ? `\n<style>${css}</style>` : "";
   const jsTag = js ? `\n<script>${js}</script>` : "";
 
-  return `${html}${cssTag}${jsTag}`.trim();
+  return normalizeLineEndings(`${html}${cssTag}${jsTag}`.trim());
 };

@@ -1,6 +1,6 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { getPublicPageBySlug, PublicPage } from "@/services/publicPageService";
-import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import { composeContentFromGrapes, extractGrapesParts, normalizeLineEndings } from "@/lib/grapesContent";
 import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
@@ -17,12 +17,12 @@ export default function PublicPageView({ pageData }: PublicPageViewProps) {
     const hasGrapesFields = Boolean(pageData?.grapes_html || pageData?.grapes_css || pageData?.grapes_js);
     const isGrapes = pageData?.content_type === "grapes" || hasGrapesFields;
 
-    if (!isGrapes) return pageData?.content || "";
+    if (!isGrapes) return normalizeLineEndings(pageData?.content || "");
 
     const parsed = extractGrapesParts(pageData?.content || "");
-    const grapesHtml = (pageData?.grapes_html || "").trim() || parsed.grapes_html;
-    const grapesCss = (pageData?.grapes_css || "").trim() || parsed.grapes_css;
-    const grapesJs = (pageData?.grapes_js || "").trim() || parsed.grapes_js;
+    const grapesHtml = normalizeLineEndings((pageData?.grapes_html || "").trim() || parsed.grapes_html);
+    const grapesCss = normalizeLineEndings((pageData?.grapes_css || "").trim() || parsed.grapes_css);
+    const grapesJs = normalizeLineEndings((pageData?.grapes_js || "").trim() || parsed.grapes_js);
 
     return composeContentFromGrapes({
       grapes_html: grapesHtml,

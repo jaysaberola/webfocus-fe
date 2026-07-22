@@ -24,19 +24,22 @@ const TAB_QUERY_MAP: Record<string, ServiceTab> = {
   dms: "dms",
 };
 
+export function resolveServiceTabFromQuery(tab: unknown): ServiceTab {
+  const tabParam = String(tab || "").toLowerCase();
+  return TAB_QUERY_MAP[tabParam] || "hosting";
+}
+
 function tabToQuery(tab: ServiceTab) {
   return tab === "hosting" ? undefined : tab;
 }
 
-export default function ServicesPage() {
+export default function ServicesPage({ initialTab = "hosting" }: { initialTab?: ServiceTab }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ServiceTab>("hosting");
+  const [activeTab, setActiveTab] = useState<ServiceTab>(initialTab);
 
   useEffect(() => {
     if (!router.isReady) return;
-    const tabParam = String(router.query.tab || "").toLowerCase();
-    const mapped = TAB_QUERY_MAP[tabParam];
-    if (mapped) setActiveTab(mapped);
+    setActiveTab(resolveServiceTabFromQuery(router.query.tab));
   }, [router.isReady, router.query.tab]);
 
   const handleTabChange = (tab: ServiceTab) => {

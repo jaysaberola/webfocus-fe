@@ -94,28 +94,31 @@ export default function MainBanner({ album }: MainBannerProps) {
     return true;
   };
 
-  const visibilityOverrides = useMemo(
-    () => readJsonStorage(HOME_BANNER_VISIBILITY_STORAGE_KEY, {} as Record<string, { is_active?: boolean }>),
-    []
-  );
-  const fontOverrides = useMemo(
-    () => readJsonStorage(HOME_BANNER_FONT_STORAGE_KEY, {} as Record<string, any>),
-    []
-  );
+  const [visibilityOverrides, setVisibilityOverrides] = useState<
+    Record<string, { is_active?: boolean }>
+  >({});
+  const [fontOverrides, setFontOverrides] = useState<Record<string, any>>({});
 
-  const banners = (album.banners || []).filter((banner: any, index: number) => {
-    const keyById = banner?.id ? `id:${banner.id}` : undefined;
-    const keyByOrder = typeof banner?.order !== "undefined" ? `order:${banner.order}` : undefined;
-    const keyByIndex = `index:${index}`;
+  useEffect(() => {
+    setVisibilityOverrides(readJsonStorage(HOME_BANNER_VISIBILITY_STORAGE_KEY, {}));
+    setFontOverrides(readJsonStorage(HOME_BANNER_FONT_STORAGE_KEY, {}));
+  }, []);
 
-    const local =
-      (keyById ? visibilityOverrides[keyById] : undefined) ||
-      (keyByOrder ? visibilityOverrides[keyByOrder] : undefined) ||
-      visibilityOverrides[keyByIndex];
+  const banners = useMemo(() => {
+    return (album.banners || []).filter((banner: any, index: number) => {
+      const keyById = banner?.id ? `id:${banner.id}` : undefined;
+      const keyByOrder = typeof banner?.order !== "undefined" ? `order:${banner.order}` : undefined;
+      const keyByIndex = `index:${index}`;
 
-    if (typeof local?.is_active === "boolean") return local.is_active;
-    return isBannerVisible(banner);
-  });
+      const local =
+        (keyById ? visibilityOverrides[keyById] : undefined) ||
+        (keyByOrder ? visibilityOverrides[keyByOrder] : undefined) ||
+        visibilityOverrides[keyByIndex];
+
+      if (typeof local?.is_active === "boolean") return local.is_active;
+      return isBannerVisible(banner);
+    });
+  }, [album.banners, visibilityOverrides]);
   const [current, setCurrent] = useState(0);
   const [exiting, setExiting] = useState<number | null>(null);
 
