@@ -6,24 +6,13 @@ import Document, {
   Main,
   NextScript,
 } from "next/document";
+import { ADMIN_FONT_HREF, ADMIN_STYLESHEETS, isAdminSiteRoute } from "@/lib/adminRoute";
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
 
 type CustomDocumentProps = DocumentInitialProps & {
   isPublicRoute: boolean;
   isAdminRoute: boolean;
 };
-
-function isAdminRoute(pathname: string) {
-  if (isPublicSiteRoute(pathname)) return false;
-  if (
-    pathname === "/" ||
-    pathname === "/forgot-password" ||
-    pathname === "/reset-password"
-  ) {
-    return false;
-  }
-  return true;
-}
 
 export default function CustomDocument({ isPublicRoute, isAdminRoute }: CustomDocumentProps) {
   return (
@@ -47,19 +36,12 @@ export default function CustomDocument({ isPublicRoute, isAdminRoute }: CustomDo
         )}
         {isAdminRoute && (
           <>
-            <link rel="stylesheet" href="/css/custom.css" />
-            <link rel="stylesheet" href="/css/admin.css" />
-            <link rel="stylesheet" href="/css/admin-theme.css" />
-            <link rel="stylesheet" href="/css/admin-sidebar-v2.css" />
-            <link rel="stylesheet" href="/css/dashboard.css" />
-            <link rel="stylesheet" href="/css/admin-table.css" />
-            <link rel="stylesheet" href="/css/admin-modal.css" />
+            {ADMIN_STYLESHEETS.map((href) => (
+              <link key={href} rel="stylesheet" href={href} />
+            ))}
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <link
-              href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-              rel="stylesheet"
-            />
+            <link href={ADMIN_FONT_HREF} rel="stylesheet" />
           </>
         )}
       </Head>
@@ -85,6 +67,6 @@ CustomDocument.getInitialProps = async (ctx: DocumentContext) => {
   return {
     ...initialProps,
     isPublicRoute: isPublicSiteRoute(pathname),
-    isAdminRoute: isAdminRoute(pathname),
+    isAdminRoute: isAdminSiteRoute(pathname),
   };
 };

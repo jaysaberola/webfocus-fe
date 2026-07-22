@@ -39,6 +39,9 @@
 /* ── Topbar ─────────────────────────────────────────────── */
 
 .cms-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1400;
   min-height: 60px;
   padding: 0 1.25rem !important;
   background: rgba(255, 255, 255, 0.92) !important;
@@ -46,6 +49,12 @@
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--admin-border) !important;
   box-shadow: var(--admin-shadow-sm) !important;
+  overflow: visible;
+}
+
+.cms-admin-layout > .flex-grow-1 {
+  min-width: 0;
+  overflow: visible;
 }
 
 .cms-topbar__brand-area {
@@ -94,12 +103,18 @@
   box-shadow: 0 6px 16px var(--admin-accent-glow);
 }
 
+.cms-topbar .dropdown {
+  position: relative;
+  z-index: 1401;
+}
+
 .cms-topbar .dropdown-menu {
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
   box-shadow: var(--admin-shadow-lg);
   padding: 0.35rem;
   margin-top: 0.5rem !important;
+  z-index: 1402;
 }
 
 .cms-topbar .dropdown-item {

@@ -24,6 +24,13 @@ export default function DashboardIndex() {
   const [stats, setStats] = useState({ pages: 0, albums: 0, news: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [greeting, setGreeting] = useState("Welcome");
+  const [todayLabel, setTodayLabel] = useState("");
+
+  useEffect(() => {
+    setGreeting(getGreeting());
+    setTodayLabel(formatToday());
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -53,8 +60,8 @@ export default function DashboardIndex() {
           <div className="cms-dashboard__hero-top">
             <div>
               <p className="cms-dashboard__kicker mb-1">Dashboard</p>
-              <h1 className="cms-dashboard__title mb-1">{getGreeting()}, Admin</h1>
-              <p className="cms-dashboard__subtitle mb-0">{formatToday()}</p>
+              <h1 className="cms-dashboard__title mb-1">{greeting}, Admin</h1>
+              <p className="cms-dashboard__subtitle mb-0">{todayLabel || "\u00A0"}</p>
             </div>
             <div className="cms-dashboard__actions">
               <Link href="/pages/create" className="btn btn-sm btn-light">

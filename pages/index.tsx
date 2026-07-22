@@ -38,7 +38,7 @@ function LoginPage() {
       toast.success("Login successfully.");
       const redirect = typeof router.query.redirect === "string" ? router.query.redirect : "";
       const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/dashboard";
-      router.push(safeRedirect);
+      window.location.assign(safeRedirect);
     } catch (error: any) {
       const message = String(getLoginErrorMessage(error));
       toast.error(message);

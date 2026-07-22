@@ -7,6 +7,7 @@ import SignInDropdown from "@/components/Auth/SignInDropdown";
 import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
+import { getUnreadPortalNotificationCount } from "@/lib/customerPortal/mockData";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
 
@@ -14,12 +15,16 @@ export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
+    const refreshNotifications = () => setUnreadNotifications(getUnreadPortalNotificationCount());
+
     refreshCart();
+    refreshNotifications();
     window.addEventListener("public-cart-updated", refreshCart);
     window.addEventListener("storage", refreshCart);
     return () => {
@@ -149,6 +154,25 @@ export default function LandingTopbar() {
                 {cartItemsCount > 0 ? cartItemsCount : 0}
               </span>
             </button>
+
+            <Link
+              href="/public/dashboard?tab=notification"
+              className={styles["notify-btn"]}
+              aria-label={
+                unreadNotifications > 0
+                  ? `Notifications (${unreadNotifications} unread)`
+                  : "Notifications"
+              }
+              title="Notifications"
+            >
+              <i className="fa-regular fa-bell" aria-hidden="true" />
+              <span
+                className={`${styles["cart-badge"]}${unreadNotifications > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
+                aria-hidden={unreadNotifications <= 0}
+              >
+                {unreadNotifications > 0 ? unreadNotifications : 0}
+              </span>
+            </Link>
           </div>
 
           <button

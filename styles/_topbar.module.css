@@ -350,7 +350,8 @@
   color: #0f172a;
 }
 
-.cart-btn {
+.cart-btn,
+.notify-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -368,7 +369,9 @@
 }
 
 .cart-btn:hover,
-.cart-btn:focus {
+.cart-btn:focus,
+.notify-btn:hover,
+.notify-btn:focus {
   border-color: rgba(15, 23, 42, 0.22);
   background: #f8fafc;
   color: #0f172a;
@@ -539,6 +542,7 @@
 
   .contact-btn,
   .cart-btn,
+  .notify-btn,
   .mobile-toggle {
     width: 38px;
     height: 38px;
@@ -551,7 +555,8 @@
     height: 16px;
   }
 
-  .cart-btn i {
+  .cart-btn i,
+  .notify-btn i {
     font-size: 0.9rem;
   }
 

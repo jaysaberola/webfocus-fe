@@ -1,35 +1,18 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { getPublicPageBySlug, PublicPage } from "@/services/publicPageService";
-import { composeContentFromGrapes, extractGrapesParts, normalizeLineEndings } from "@/lib/grapesContent";
+import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesContent";
 import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 interface PublicPageViewProps {
   pageData: PublicPage;
+  htmlContent: string;
 }
 
-export default function PublicPageView({ pageData }: PublicPageViewProps) {
+export default function PublicPageView({ pageData, htmlContent }: PublicPageViewProps) {
   const contentRef = useRef<HTMLDivElement | null>(null);
-
-  const htmlContent = useMemo(() => {
-    const hasGrapesFields = Boolean(pageData?.grapes_html || pageData?.grapes_css || pageData?.grapes_js);
-    const isGrapes = pageData?.content_type === "grapes" || hasGrapesFields;
-
-    if (!isGrapes) return normalizeLineEndings(pageData?.content || "");
-
-    const parsed = extractGrapesParts(pageData?.content || "");
-    const grapesHtml = normalizeLineEndings((pageData?.grapes_html || "").trim() || parsed.grapes_html);
-    const grapesCss = normalizeLineEndings((pageData?.grapes_css || "").trim() || parsed.grapes_css);
-    const grapesJs = normalizeLineEndings((pageData?.grapes_js || "").trim() || parsed.grapes_js);
-
-    return composeContentFromGrapes({
-      grapes_html: grapesHtml,
-      grapes_css: grapesCss,
-      grapes_js: grapesJs,
-    });
-  }, [pageData]);
 
   useEffect(() => {
     const root = contentRef.current;
@@ -150,6 +133,7 @@ export default function PublicPageView({ pageData }: PublicPageViewProps) {
     <div
       ref={contentRef}
       className="public-page-content"
+      suppressHydrationWarning
       dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   );
@@ -163,7 +147,8 @@ export async function getServerSideProps(context: any) {
 
   try {
     const res = await getPublicPageBySlug(page);
-    const pageData = res.data;
+    const pageData = normalizeGrapesPageData(res.data);
+    const htmlContent = buildPublicPageHtml(pageData);
     const isGrapesPage =
       pageData?.content_type === "grapes" || Boolean(pageData?.grapes_html);
     // Home keeps the layout banner (MainBanner + domain search); other Grapes pages use their own hero.
@@ -173,6 +158,7 @@ export async function getServerSideProps(context: any) {
     return {
       props: {
         pageData,
+        htmlContent,
         layout: { fullWidth: true, hideBanner },
       },
     };

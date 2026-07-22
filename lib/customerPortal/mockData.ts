@@ -144,6 +144,10 @@ export const PORTAL_NOTIFICATIONS: PortalNotification[] = [
   },
 ];
 
+export function getUnreadPortalNotificationCount(): number {
+  return PORTAL_NOTIFICATIONS.filter((item) => item.unread).length;
+}
+
 export const PORTAL_PAYMENT_PROOFS: PortalPaymentProof[] = [
   {
     id: "PRF-8821",

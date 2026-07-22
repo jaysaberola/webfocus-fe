@@ -1,8 +1,12 @@
 import "bootstrap/dist/css/bootstrap.min.css"; //AdminLayout
 import "@fortawesome/fontawesome-free/css/all.min.css"; //AdminLayout
 import "grapesjs/dist/css/grapes.min.css";
-// NOTE: Admin template styles are loaded in AdminLayout via <link href="/css/admin.css" />
-// to prevent global CSS from merging into GuestLayout.
+import "@/styles/admin-theme.css";
+import "@/styles/admin-sidebar-v2.css";
+import "@/styles/dashboard.css";
+import "@/styles/admin-table.css";
+import "@/styles/admin-modal.css";
+// Public-folder admin CSS (custom.css, admin.css) is loaded via <link> when on admin routes.
 
 import type { AppProps } from "next/app";
 import React from "react";
@@ -11,6 +15,7 @@ import Script from "next/script";
 import { useRouter } from "next/router";
 import FreshchatWidget from "@/components/Layout/FreshchatWidget";
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
+import { ADMIN_FONT_HREF, ADMIN_STYLESHEETS, isAdminSiteRoute } from "@/lib/adminRoute";
 import { isLightweightPublicPage } from "@/lib/publicLegacyScripts";
 // LoadingProvider removed to disable global loading overlay
 
@@ -27,6 +32,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const showFreshchat = isPublicSiteRoute(router.pathname);
   const lightweightPublic = isLightweightPublicPage(router.pathname);
   const isPublic = isPublicSiteRoute(router.pathname);
+  const isAdmin = isAdminSiteRoute(router.pathname);
 
   React.useEffect(() => {
     if (isPublic) return;
@@ -35,11 +41,21 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
 
   return (
     <>
-      <Layout {...pageProps}>
-        <Head>
-          <meta name="viewport" content="width=device-width, initial-scale=1" />
-        </Head>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {isAdmin ? (
+          <>
+            {ADMIN_STYLESHEETS.map((href) => (
+              <link key={href} rel="stylesheet" href={href} />
+            ))}
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <link href={ADMIN_FONT_HREF} rel="stylesheet" />
+          </>
+        ) : null}
+      </Head>
 
+      <Layout {...pageProps}>
         <Component {...pageProps} />
 
         {enableCfAnalytics ? (
