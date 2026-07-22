@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import type { CustomerPortalTab } from "@/lib/customerPortal/types";
-import { getUnreadPortalNotificationCount } from "@/lib/customerPortal/mockData";
 import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
+import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
 import CustomerPortalTabs from "./CustomerPortalTabs";
 import OverviewTab from "./tabs/OverviewTab";
 import BillingTab from "./tabs/BillingTab";
@@ -40,7 +40,7 @@ export default function CustomerPortalPage() {
     setActiveTab(parseTab(router.query.tab));
   }, [router.isReady, router.query.tab]);
 
-  const unreadCount = useMemo(() => getUnreadPortalNotificationCount(), []);
+  const unreadCount = usePortalUnreadCount(Boolean(customer));
 
   const switchTab = (tab: CustomerPortalTab) => {
     setActiveTab(tab);

@@ -1,8 +1,24 @@
 import Link from "next/link";
-import { formatPeso, PORTAL_ORDERS } from "@/lib/customerPortal/mockData";
+import { useEffect, useState } from "react";
+import { formatPeso } from "@/lib/customerPortal/mockData";
+import { fetchPortalOrders } from "@/services/customerPortalService";
+import type { PortalOrder } from "@/lib/customerPortal/types";
 import styles from "@/styles/customerPortal.module.css";
 
 export default function OrdersTab() {
+  const [orders, setOrders] = useState<PortalOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPortalOrders()
+      .then(setOrders)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className={styles.loadingState}>Loading orders...</div>;
+  }
+
   return (
     <div className={styles.tabStack}>
       <section className={styles.panel}>
@@ -31,26 +47,32 @@ export default function OrdersTab() {
               </tr>
             </thead>
             <tbody>
-              {PORTAL_ORDERS.map((order) => {
-                const item = order.items[0];
-                const pending = order.status === "Pending Request";
-                return (
-                  <tr key={order.id}>
-                    <td className={styles.monoBlue}>{order.id}</td>
-                    <td>{item?.name}</td>
-                    <td>{item?.detail}</td>
-                    <td className={styles.monoBold}>{formatPeso(order.total)}</td>
-                    <td>{order.gateway}</td>
-                    <td>{order.date}</td>
-                    <td>{order.expiredDate}</td>
-                    <td>
-                      <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
-                        {pending ? "Pending Request" : "Active Live"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              {orders.length === 0 ? (
+                <tr>
+                  <td colSpan={8}>No orders yet.</td>
+                </tr>
+              ) : (
+                orders.map((order) => {
+                  const item = order.items[0];
+                  const pending = order.status === "Pending Request";
+                  return (
+                    <tr key={order.id}>
+                      <td className={styles.monoBlue}>{order.id}</td>
+                      <td>{item?.name}</td>
+                      <td>{item?.detail}</td>
+                      <td className={styles.monoBold}>{formatPeso(order.total)}</td>
+                      <td>{order.gateway}</td>
+                      <td>{order.date}</td>
+                      <td>{order.expiredDate}</td>
+                      <td>
+                        <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
+                          {pending ? "Pending Request" : "Active Live"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

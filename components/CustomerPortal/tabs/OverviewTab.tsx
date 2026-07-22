@@ -1,10 +1,18 @@
-import { PORTAL_OVERVIEW_STATS } from "@/lib/customerPortal/mockData";
 import OverviewAlertsPanel from "@/components/CustomerPortal/OverviewAlertsPanel";
 import ServiceStatusPanel from "@/components/CustomerPortal/ServiceStatusPanel";
+import { usePortalOverview } from "@/lib/customerPortal/usePortalOverview";
 import styles from "@/styles/customerPortal.module.css";
 
 export default function OverviewTab() {
-  const stats = PORTAL_OVERVIEW_STATS;
+  const { stats, alerts, services, loading, error } = usePortalOverview();
+
+  if (loading) {
+    return <div className={styles.loadingState}>Loading overview...</div>;
+  }
+
+  if (error) {
+    return <div className={styles.loadingState}>{error}</div>;
+  }
 
   return (
     <div className={styles.tabStack}>
@@ -31,8 +39,8 @@ export default function OverviewTab() {
         </article>
       </div>
 
-      <OverviewAlertsPanel />
-      <ServiceStatusPanel />
+      <OverviewAlertsPanel alerts={alerts} />
+      <ServiceStatusPanel services={services} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ export type CustomerPortalTab =
 
 export type PortalInvoice = {
   id: string;
+  transactionNo?: string;
   date: string;
   due: string;
   amount: number;
@@ -40,6 +41,8 @@ export type PortalNotification = {
   desc: string;
   date: string;
   unread: boolean;
+  type?: string;
+  actionUrl?: string | null;
 };
 
 export type PortalPaymentProof = {

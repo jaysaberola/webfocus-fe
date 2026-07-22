@@ -515,6 +515,26 @@
   color: var(--cp-slate-900);
 }
 
+.notifTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.notifActionLink {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cp-blue);
+  text-decoration: none;
+}
+
+.notifActionLink:hover {
+  text-decoration: underline;
+}
+
 .notifDate {
   font-family: ui-monospace, monospace;
   font-size: 0.625rem;
@@ -546,6 +566,32 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.ticketForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--cp-slate-50);
+  border: 1px solid var(--cp-slate-200);
+}
+
+.ticketForm input,
+.ticketForm textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.65rem;
+  font: inherit;
+}
+
+.ticketFormActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .ticketCard {
@@ -1119,6 +1165,8 @@
 }
 
 .addServiceBtn {
+  display: inline-flex;
+  align-items: center;
   border: 1px solid #bfdbfe;
   border-radius: 999px;
   padding: 0.45rem 0.95rem;
@@ -1127,6 +1175,7 @@
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
@@ -1350,4 +1399,105 @@
   .tabBtn {
     padding: 0.7rem;
   }
+}
+
+.billingModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.billingModal {
+  width: min(100%, 560px);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 1rem;
+  background: #fff;
+  border: 1px solid var(--cp-slate-200);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  padding: 1.25rem;
+}
+
+.billingModalHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.billingModalHead h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.125rem;
+}
+
+.billingModalClose {
+  border: 0;
+  background: transparent;
+  color: var(--cp-slate-500);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.billingModalSummary {
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.85rem;
+  background: var(--cp-slate-50);
+  border: 1px solid var(--cp-slate-200);
+}
+
+.billingModalLine {
+  margin: 0 0 0.35rem;
+}
+
+.billingModalLine:last-child {
+  margin-bottom: 0;
+}
+
+.fundPresetRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.fundPresetBtn {
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.fundPresetBtnActive {
+  border-color: var(--cp-blue);
+  background: #eff6ff;
+  color: var(--cp-blue);
+}
+
+.fundCustomLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: var(--cp-slate-600);
+}
+
+.fundCustomLabel input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.65rem;
+  font: inherit;
+}
+
+.billingModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
 }

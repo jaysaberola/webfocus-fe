@@ -156,7 +156,7 @@ export default function PublicCartCheckoutPage() {
 
     try {
       setPlacingOrder(true);
-      await createSalesTransaction({
+      const result = await createSalesTransaction({
         customer_id: activeCustomer.id,
         customer_name: `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
         customer_email: activeCustomer.email,
@@ -184,8 +184,13 @@ export default function PublicCartCheckoutPage() {
         ].join("\n"),
       });
       clearPublicCart();
-      toast.success(`Order created. Redirecting to Paynamics (${paymentLabel})...`);
-      router.push("/public/orders");
+      const orderNo = result?.data?.transaction_no;
+      toast.success(
+        orderNo
+          ? `Order ${orderNo} submitted. Redirecting to your orders...`
+          : "Order submitted. Redirecting to your orders..."
+      );
+      window.location.assign("/public/dashboard?tab=orders");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to start Paynamics payment");
     } finally {

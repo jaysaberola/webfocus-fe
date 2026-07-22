@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PORTAL_SERVICE_FILTERS, PORTAL_SERVICE_STATUS } from "@/lib/customerPortal/mockData";
+import { PORTAL_SERVICE_FILTERS } from "@/lib/customerPortal/mockData";
 import type { PortalServiceStatus } from "@/lib/customerPortal/types";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -12,14 +13,18 @@ const STATUS_CLASS: Record<PortalServiceStatus["status"], string> = {
   Expired: styles.serviceBadgeExpired,
 };
 
-export default function ServiceStatusPanel() {
+type ServiceStatusPanelProps = {
+  services: PortalServiceStatus[];
+};
+
+export default function ServiceStatusPanel({ services }: ServiceStatusPanelProps) {
   const [filter, setFilter] = useState<FilterValue>("All");
   const [view, setView] = useState<ViewMode>("grid");
 
-  const services = useMemo(() => {
-    if (filter === "All") return PORTAL_SERVICE_STATUS;
-    return PORTAL_SERVICE_STATUS.filter((item) => item.category === filter);
-  }, [filter]);
+  const filteredServices = useMemo(() => {
+    if (filter === "All") return services;
+    return services.filter((item) => item.category === filter);
+  }, [filter, services]);
 
   return (
     <section className={styles.servicePanel}>
@@ -29,9 +34,9 @@ export default function ServiceStatusPanel() {
             <i className="fa-solid fa-database" aria-hidden="true" />
             Service Status
           </h2>
-          <button type="button" className={styles.addServiceBtn}>
+          <Link href="/public/services" className={styles.addServiceBtn}>
             + Add Service
-          </button>
+          </Link>
         </div>
 
         <div className={styles.serviceToolbar}>
@@ -69,15 +74,17 @@ export default function ServiceStatusPanel() {
         </div>
       </div>
 
-      {view === "grid" ? (
+      {filteredServices.length === 0 ? (
+        <p className={styles.panelSub}>No services yet. Browse our catalog to add one.</p>
+      ) : view === "grid" ? (
         <div className={styles.serviceGrid}>
-          {services.map((service) => (
+          {filteredServices.map((service) => (
             <ServiceCard key={service.id} service={service} />
           ))}
         </div>
       ) : (
         <div className={styles.serviceList}>
-          {services.map((service) => (
+          {filteredServices.map((service) => (
             <ServiceRow key={service.id} service={service} />
           ))}
         </div>

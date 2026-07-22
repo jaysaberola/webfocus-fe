@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { PORTAL_OVERVIEW_ALERTS } from "@/lib/customerPortal/mockData";
 import type { PortalOverviewAlert } from "@/lib/customerPortal/types";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -8,10 +7,16 @@ const TONE_CLASS: Record<PortalOverviewAlert["tone"], string> = {
   payment: styles.alertPayment,
 };
 
-export default function OverviewAlertsPanel() {
+type OverviewAlertsPanelProps = {
+  alerts: PortalOverviewAlert[];
+};
+
+export default function OverviewAlertsPanel({ alerts }: OverviewAlertsPanelProps) {
+  if (alerts.length === 0) return null;
+
   return (
     <div className={styles.alertStack}>
-      {PORTAL_OVERVIEW_ALERTS.map((alert) => (
+      {alerts.map((alert) => (
         <OverviewAlertBanner key={alert.id} alert={alert} />
       ))}
     </div>

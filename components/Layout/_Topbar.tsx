@@ -7,29 +7,53 @@ import SignInDropdown from "@/components/Auth/SignInDropdown";
 import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
-import { getUnreadPortalNotificationCount } from "@/lib/customerPortal/mockData";
+import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
+import { readStoredAuthToken } from "@/lib/authToken";
+import { readStoredCurrentUser } from "@/lib/currentUser";
+import { getStoredCustomer } from "@/services/publicCustomerService";
+import { isAdminLikeUser } from "@/lib/userRoles";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
+
+function isPublicSiteUserLoggedIn() {
+  if (!readStoredAuthToken()) return false;
+  if (getStoredCustomer()) return true;
+  const admin = readStoredCurrentUser();
+  return Boolean(admin && isAdminLikeUser(admin));
+}
 
 export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
+  const unreadNotifications = usePortalUnreadCount(isCustomerLoggedIn);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
-    const refreshNotifications = () => setUnreadNotifications(getUnreadPortalNotificationCount());
+    const refreshAuth = () => {
+      const loggedIn = isPublicSiteUserLoggedIn();
+      const customerLoggedIn = Boolean(readStoredAuthToken() && getStoredCustomer());
+      setIsLoggedIn(loggedIn);
+      setIsCustomerLoggedIn(customerLoggedIn);
+    };
 
     refreshCart();
-    refreshNotifications();
+    refreshAuth();
     window.addEventListener("public-cart-updated", refreshCart);
     window.addEventListener("storage", refreshCart);
+    window.addEventListener("public-customer-updated", refreshAuth);
+    window.addEventListener("storage", refreshAuth);
+    window.addEventListener("cms4:user-updated", refreshAuth);
     return () => {
       window.removeEventListener("public-cart-updated", refreshCart);
       window.removeEventListener("storage", refreshCart);
+      window.removeEventListener("public-customer-updated", refreshAuth);
+      window.removeEventListener("storage", refreshAuth);
+      window.removeEventListener("cms4:user-updated", refreshAuth);
     };
   }, []);
 
@@ -155,24 +179,26 @@ export default function LandingTopbar() {
               </span>
             </button>
 
-            <Link
-              href="/public/dashboard?tab=notification"
-              className={styles["notify-btn"]}
-              aria-label={
-                unreadNotifications > 0
-                  ? `Notifications (${unreadNotifications} unread)`
-                  : "Notifications"
-              }
-              title="Notifications"
-            >
-              <i className="fa-regular fa-bell" aria-hidden="true" />
-              <span
-                className={`${styles["cart-badge"]}${unreadNotifications > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
-                aria-hidden={unreadNotifications <= 0}
+            {isLoggedIn ? (
+              <Link
+                href="/public/dashboard?tab=notification"
+                className={styles["notify-btn"]}
+                aria-label={
+                  unreadNotifications > 0
+                    ? `Notifications (${unreadNotifications} unread)`
+                    : "Notifications"
+                }
+                title="Notifications"
               >
-                {unreadNotifications > 0 ? unreadNotifications : 0}
-              </span>
-            </Link>
+                <i className="fa-regular fa-bell" aria-hidden="true" />
+                <span
+                  className={`${styles["cart-badge"]}${unreadNotifications > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
+                  aria-hidden={unreadNotifications <= 0}
+                >
+                  {unreadNotifications > 0 ? unreadNotifications : 0}
+                </span>
+              </Link>
+            ) : null}
           </div>
 
           <button
