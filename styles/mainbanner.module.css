@@ -16,13 +16,13 @@
   max-width: var(--public-layout-max);
   width: 100%;
   margin-inline: auto;
-  min-height: calc(100vh - var(--hero-header-height) - 56px);
+  min-height: min(calc(100svh - var(--hero-header-height) - 56px), 760px);
 }
 
 .bannerCard {
   position: relative;
   flex: 1 1 auto;
-  min-height: calc(100vh - var(--hero-header-height) - 56px);
+  min-height: min(calc(100svh - var(--hero-header-height) - 56px), 760px);
   border-radius: 28px;
   overflow: hidden;
   box-shadow:
@@ -42,21 +42,29 @@
   position: absolute;
   inset: 0;
   background-color: #1e293b;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   height: 100%;
   opacity: 0;
   z-index: 0;
-  transform: scale(1.02);
   transition: opacity 0.6s ease;
+}
+
+.slideImage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
 }
 
 .slideActive {
   opacity: 1;
   z-index: 1;
-  transform: scale(1);
-  animation: heroKenBurns 12s ease-out forwards;
+}
+
+.slideActivePrimary .slideImage {
+  animation: heroKenBurns 12s ease-out 1.5s forwards;
 }
 
 @keyframes heroKenBurns {
@@ -69,7 +77,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .slideActive {
+  .slideActivePrimary .slideImage {
     animation: none;
   }
 }
@@ -144,11 +152,9 @@
 @keyframes heroFadeUp {
   from {
     opacity: 0;
-    transform: translateY(18px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -273,11 +279,11 @@
   }
 
   .bannerHero {
-    min-height: calc(100vh - var(--hero-header-height) - 48px);
+    min-height: min(calc(100svh - var(--hero-header-height) - 48px), 680px);
   }
 
   .bannerCard {
-    min-height: calc(100vh - var(--hero-header-height) - 48px);
+    min-height: min(calc(100svh - var(--hero-header-height) - 48px), 680px);
     border-radius: 22px;
   }
 }
@@ -289,7 +295,7 @@
 
   .bannerCard {
     border-radius: 18px;
-    min-height: calc(100vh - var(--hero-header-height) - 40px);
+    min-height: min(calc(100svh - var(--hero-header-height) - 40px), 620px);
   }
 
   .content {

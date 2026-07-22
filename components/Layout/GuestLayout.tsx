@@ -9,6 +9,7 @@ import PrivacyConsentBanner from "@/components/Layout/PrivacyConsentBanner";
 import { PublicCartDrawerProvider } from "@/components/Cart/PublicCartDrawerContext";
 import Head from "next/head";
 import { useEffect, useState } from "react";
+import { getHeroPreloadImage } from "@/lib/heroBanner";
 import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 
 interface LandingPageLayoutProps {
@@ -74,6 +75,7 @@ export default function LandingPageLayout({
     pageData?.slug === "about-us" ||
     pageData?.slug === "news" ||
     pageData?.slug === "services";
+  const heroPreloadImage = isHomeHero ? getHeroPreloadImage(pageData?.album) : null;
 
   return (
     <PublicCartDrawerProvider>
@@ -82,6 +84,9 @@ export default function LandingPageLayout({
           <title>{tabTitle}</title>
           {metaDescription && <meta name="description" content={metaDescription} />}
           {metaKeywords && <meta name="keywords" content={metaKeywords} />}
+          {heroPreloadImage ? (
+            <link rel="preload" as="image" href={heroPreloadImage} fetchPriority="high" />
+          ) : null}
         </Head>
 
         <LandingTopbar />

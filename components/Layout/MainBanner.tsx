@@ -374,18 +374,16 @@ export default function MainBanner({ album }: MainBannerProps) {
               className={[
                 styles.slide,
                 isActive ? styles.slideActive : "",
+                isActive && index === 0 ? styles.slideActivePrimary : "",
                 isExiting ? styles.slideExiting : "",
-                animationClass ? "animate__animated" : "",
-                animationClass ? `animate__${animationClass}` : "",
+                animationClass && index !== 0 ? "animate__animated" : "",
+                animationClass && index !== 0 ? `animate__${animationClass}` : "",
               ].filter(Boolean).join(" ")}
               style={{
-                ...(isVideoBanner(banner)
-                  ? {}
-                  : { backgroundImage: `url(${resolveSlideImage(banner)})` }),
                 ["--animate-duration" as any]: `${animationDurationMs}ms`,
               }}
             >
-              {isVideoBanner(banner) && (
+              {isVideoBanner(banner) ? (
                 <video
                   className={styles.slideVideo}
                   src={resolveStorageAssetUrlWithFallback(banner.image_url || banner.image_path, DEFAULT_HERO_IMAGE)}
@@ -393,7 +391,19 @@ export default function MainBanner({ album }: MainBannerProps) {
                   loop
                   muted
                   playsInline
-                  preload="metadata"
+                  preload={index === 0 ? "auto" : "metadata"}
+                />
+              ) : (
+                <img
+                  src={resolveSlideImage(banner)}
+                  alt=""
+                  className={styles.slideImage}
+                  width={1920}
+                  height={1080}
+                  sizes="100vw"
+                  fetchPriority={index === 0 && isActive ? "high" : "auto"}
+                  loading={index === 0 ? "eager" : "lazy"}
+                  decoding={index === 0 ? "sync" : "async"}
                 />
               )}
             </div>

@@ -50,43 +50,25 @@ body {
   pointer-events: none;
 }
 
-/* Home CMS scroll reveal with motion */
+/* Home CMS scroll reveal — opacity only to avoid layout shift */
 .public-page-content .wsi-reveal {
   opacity: 0;
-  transition:
-    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   transition-delay: var(--wsi-reveal-delay, 0ms);
-  will-change: opacity, transform;
+  transform: none !important;
 }
 
-.public-page-content .wsi-reveal-up {
-  transform: translateY(28px);
-}
-
-.public-page-content .wsi-reveal-down {
-  transform: translateY(-16px);
-}
-
-.public-page-content .wsi-reveal-left {
-  transform: translateX(-24px);
-}
-
-.public-page-content .wsi-reveal-right {
-  transform: translateX(24px);
-}
-
-.public-page-content .wsi-reveal-scale {
-  transform: scale(0.96);
-}
-
+.public-page-content .wsi-reveal-up,
+.public-page-content .wsi-reveal-down,
+.public-page-content .wsi-reveal-left,
+.public-page-content .wsi-reveal-right,
+.public-page-content .wsi-reveal-scale,
 .public-page-content .wsi-reveal-fade {
-  transform: none;
+  transform: none !important;
 }
 
 .public-page-content .wsi-reveal.is-visible {
   opacity: 1 !important;
-  transform: none !important;
 }
 
 .public-page-content .wsi-clients-section,
@@ -101,12 +83,18 @@ body {
 @keyframes publicSectionIn {
   from {
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
+}
+
+.public-page-content .wsi-clients-map-bg img {
+  animation: none !important;
+}
+
+.public-page-content .wsi-clients-map-bg {
+  min-height: 12rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -264,34 +252,12 @@ body {
   }
 }
 
-/* Public pages: soft entrance without blocking LCP */
-body {
-  animation: publicPageFadeIn 0.45s ease-out both;
-}
-
-@keyframes publicPageFadeIn {
-  from {
-    opacity: 0.92;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body {
-    animation: none !important;
-  }
-}
-
 @keyframes consentBannerIn {
   from {
     opacity: 0;
-    transform: translateY(100%);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
