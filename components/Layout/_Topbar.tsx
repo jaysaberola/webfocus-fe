@@ -13,7 +13,10 @@ const LOGO_SRC = "/images/webfocus-logo.png";
 export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [cartItemsCount, setCartItemsCount] = useState(0);
+  const [cartItemsCount, setCartItemsCount] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    return cartCount(readPublicCart());
+  });
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
@@ -73,7 +76,6 @@ export default function LandingTopbar() {
                 width={130}
                 height={30}
                 decoding="async"
-                fetchPriority="high"
                 onError={() => setLogoFailed(true)}
               />
             ) : (
@@ -143,9 +145,12 @@ export default function LandingTopbar() {
               onClick={openCartDrawer}
             >
               <i className="fa fa-shopping-cart" aria-hidden="true" />
-              {cartItemsCount > 0 && (
-                <span className={styles["cart-badge"]}>{cartItemsCount}</span>
-              )}
+              <span
+                className={`${styles["cart-badge"]}${cartItemsCount > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
+                aria-hidden={cartItemsCount <= 0}
+              >
+                {cartItemsCount > 0 ? cartItemsCount : 0}
+              </span>
             </button>
           </div>
 

@@ -1,6 +1,9 @@
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
 
 const LIGHTWEIGHT_PUBLIC_ROUTE_PATTERNS = [
+  /^\/public\/home(\/|$)/,
+  /^\/public\/about-us(\/|$)/,
+  /^\/public\/about(\/|$)/,
   /^\/public\/services(\/|$)/,
   /^\/public\/cart(\/|$)/,
   /^\/public\/checkout(\/|$)/,

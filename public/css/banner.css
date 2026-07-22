@@ -44,6 +44,7 @@
       rgba(0, 0, 0, 0.75)
     );
   backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   z-index: 1;
 }
 

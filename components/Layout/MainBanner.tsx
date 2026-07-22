@@ -1,10 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { PublicAlbum } from "@/services/publicPageService";
 import { resolveStorageAssetUrl, resolveStorageAssetUrlWithFallback } from "@/lib/storageAssets";
 import styles from "@/styles/mainbanner.module.css";
 
 interface MainBannerProps {
   album: PublicAlbum;
+}
+
+const HOME_BANNER_VISIBILITY_STORAGE_KEY = "cms4.homeBanner.visibility.v1";
+const HOME_BANNER_FONT_STORAGE_KEY = "cms4.homeBanner.fonts.v1";
+
+function readJsonStorage<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+const WEB_DESIGN_SERVICES_URL = "/public/services?tab=webdesign";
+
+function isInternalHref(href: string) {
+  return href.startsWith("/") && !href.startsWith("//");
+}
+
+function resolveSecondaryBannerUrl(url: string, label: string) {
+  const normalizedLabel = label.trim().toLowerCase();
+  const isCustomPackages =
+    normalizedLabel.includes("custom package") || normalizedLabel === "custom packages";
+
+  if (isCustomPackages || !url || url === "#" || url === "/public/products") {
+    return WEB_DESIGN_SERVICES_URL;
+  }
+
+  return url;
 }
 
 const DEFAULT_HERO_IMAGE = "/images/homescreenify-sA3wymYqyaI-unsplash.jpg";
@@ -30,7 +63,6 @@ function resolveSubtitle(banner: { alt?: string; title?: string }) {
 }
 
 export default function MainBanner({ album }: MainBannerProps) {
-  const HOME_BANNER_VISIBILITY_STORAGE_KEY = "cms4.homeBanner.visibility.v1";
   const isVideoBanner = (banner: any) => {
     const mediaType = String(banner?.media_type ?? banner?.mediaType ?? "").toLowerCase();
     if (mediaType === "video") return true;
@@ -62,20 +94,14 @@ export default function MainBanner({ album }: MainBannerProps) {
     return true;
   };
 
-  const [visibilityOverrides, setVisibilityOverrides] = useState<Record<string, { is_active?: boolean }>>({});
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(HOME_BANNER_VISIBILITY_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        setVisibilityOverrides(parsed as Record<string, { is_active?: boolean }>);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  const visibilityOverrides = useMemo(
+    () => readJsonStorage(HOME_BANNER_VISIBILITY_STORAGE_KEY, {} as Record<string, { is_active?: boolean }>),
+    []
+  );
+  const fontOverrides = useMemo(
+    () => readJsonStorage(HOME_BANNER_FONT_STORAGE_KEY, {} as Record<string, any>),
+    []
+  );
 
   const banners = (album.banners || []).filter((banner: any, index: number) => {
     const keyById = banner?.id ? `id:${banner.id}` : undefined;
@@ -92,7 +118,6 @@ export default function MainBanner({ album }: MainBannerProps) {
   });
   const [current, setCurrent] = useState(0);
   const [exiting, setExiting] = useState<number | null>(null);
-  const [fontOverrides, setFontOverrides] = useState<Record<string, any>>({});
 
   const normalizeAnimationName = (value: any) => {
     if (!value) return "";
@@ -120,19 +145,6 @@ export default function MainBanner({ album }: MainBannerProps) {
     }, animationDurationMs);
   };
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("cms4.homeBanner.fonts.v1");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        setFontOverrides(parsed as Record<string, any>);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const transitionSeconds = Number(album.transition);
   const interval = Number.isFinite(transitionSeconds) && transitionSeconds > 0
     ? transitionSeconds * 1000
@@ -148,7 +160,15 @@ export default function MainBanner({ album }: MainBannerProps) {
     return () => clearInterval(timer);
   }, [banners.length, current, interval]);
 
-  if (!banners.length) return null;
+  if (!banners.length) {
+    return (
+      <section className={styles.bannerWrap} aria-hidden="true">
+        <div className={styles.bannerHero}>
+          <div className={styles.bannerCard} />
+        </div>
+      </section>
+    );
+  }
 
   const banner = banners[current];
   const subtitleText = resolveSubtitle(banner);
@@ -170,7 +190,10 @@ export default function MainBanner({ album }: MainBannerProps) {
   const resolvedPrimaryText = primaryButtonText || "CLICK TO SEE MORE";
   const resolvedSecondaryText = secondaryButtonText || "CUSTOM PACKAGES";
   const resolvedPrimaryUrl = primaryButtonUrl || secondaryButtonUrl || "#";
-  const resolvedSecondaryUrl = secondaryButtonUrl || primaryButtonUrl || "/public/products";
+  const resolvedSecondaryUrl = resolveSecondaryBannerUrl(
+    secondaryButtonUrl || primaryButtonUrl || "",
+    resolvedSecondaryText
+  );
 
   const overrideById = (banner as any)?.id ? fontOverrides[`id:${(banner as any).id}`] : undefined;
   const overrideByOrder = typeof (banner as any)?.order !== "undefined" ? fontOverrides[`order:${(banner as any).order}`] : undefined;
@@ -397,26 +420,39 @@ export default function MainBanner({ album }: MainBannerProps) {
           )}
 
           <div className={styles.ctaRow}>
-            <a
-              href={resolvedPrimaryUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.ctaPrimary}
-              style={primaryButtonStyle}
-            >
-              {resolvedPrimaryText}
-              <span aria-hidden="true">→</span>
-            </a>
+            {isInternalHref(resolvedPrimaryUrl) ? (
+              <Link
+                href={resolvedPrimaryUrl}
+                className={styles.ctaPrimary}
+                style={primaryButtonStyle}
+              >
+                {resolvedPrimaryText}
+                <span aria-hidden="true">→</span>
+              </Link>
+            ) : (
+              <a href={resolvedPrimaryUrl} className={styles.ctaPrimary} style={primaryButtonStyle}>
+                {resolvedPrimaryText}
+                <span aria-hidden="true">→</span>
+              </a>
+            )}
 
-            <a
-              href={resolvedSecondaryUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.ctaSecondary}
-              style={secondaryButtonStyle}
-            >
-              {resolvedSecondaryText}
-            </a>
+            {isInternalHref(resolvedSecondaryUrl) ? (
+              <Link
+                href={resolvedSecondaryUrl}
+                className={styles.ctaSecondary}
+                style={secondaryButtonStyle}
+              >
+                {resolvedSecondaryText}
+              </Link>
+            ) : (
+              <a
+                href={resolvedSecondaryUrl}
+                className={styles.ctaSecondary}
+                style={secondaryButtonStyle}
+              >
+                {resolvedSecondaryText}
+              </a>
+            )}
           </div>
         </div>
       </div>

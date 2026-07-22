@@ -38,6 +38,95 @@ body {
   padding-bottom: 0 !important;
 }
 
+/* Reserve nav width while the menu API loads */
+.nav-list :global(.menu-link--skeleton) {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  color: transparent;
+  background: rgba(148, 163, 184, 0.14);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Home CMS scroll reveal with motion */
+.public-page-content .wsi-reveal {
+  opacity: 0;
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--wsi-reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+.public-page-content .wsi-reveal-up {
+  transform: translateY(28px);
+}
+
+.public-page-content .wsi-reveal-down {
+  transform: translateY(-16px);
+}
+
+.public-page-content .wsi-reveal-left {
+  transform: translateX(-24px);
+}
+
+.public-page-content .wsi-reveal-right {
+  transform: translateX(24px);
+}
+
+.public-page-content .wsi-reveal-scale {
+  transform: scale(0.96);
+}
+
+.public-page-content .wsi-reveal-fade {
+  transform: none;
+}
+
+.public-page-content .wsi-reveal.is-visible {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.public-page-content .wsi-clients-section,
+.public-page-content .wsi-portfolio-section {
+  animation: publicSectionIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.public-page-content .wsi-portfolio-section {
+  animation-delay: 0.08s;
+}
+
+@keyframes publicSectionIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-page-content .wsi-reveal,
+  .public-page-content .wsi-clients-section,
+  .public-page-content .wsi-portfolio-section {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.public-page-content .wsi-brand-cell img,
+.public-page-content .wsi-portfolio-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .public-site-footer-host {
   margin-top: auto;
   flex-shrink: 0;
@@ -175,9 +264,41 @@ body {
   }
 }
 
-/* Public pages: avoid full-page fade that delays LCP */
+/* Public pages: soft entrance without blocking LCP */
 body {
-  animation: none !important;
+  animation: publicPageFadeIn 0.45s ease-out both;
+}
+
+@keyframes publicPageFadeIn {
+  from {
+    opacity: 0.92;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none !important;
+  }
+}
+
+@keyframes consentBannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .privacy-consent-banner {
+    animation: none;
+  }
 }
 
 /* Privacy / terms consent banner */
@@ -190,6 +311,7 @@ body {
   background: #f7e9ef;
   border-top: 1px solid rgba(155, 27, 48, 0.12);
   box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.08);
+  animation: consentBannerIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .privacy-consent-banner__inner {

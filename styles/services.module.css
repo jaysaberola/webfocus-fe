@@ -18,6 +18,18 @@
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 16px 40px rgba(15, 23, 42, 0.07);
   overflow: hidden;
+  animation: introShellIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes introShellIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .introAccent {
@@ -133,6 +145,7 @@
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.06),
     0 8px 22px rgba(15, 23, 42, 0.08);
+  transform: translateY(-2px);
 }
 
 .introTabIcon {
@@ -171,16 +184,18 @@
   position: absolute;
   bottom: 0.45rem;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scaleX(0.4);
   width: 1.25rem;
   height: 3px;
   border-radius: 9999px;
   background: currentColor;
   opacity: 0;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .introTabActive .introTabIndicator {
   opacity: 1;
+  transform: translateX(-50%) scaleX(1);
 }
 
 .introTab_blue .introTabIcon { background: #dbeafe; color: #1d4ed8; }
@@ -199,12 +214,17 @@
 .introTab_amber.introTabActive .introTabIcon { background: #ea580c; color: #fff; }
 
 .tabContent {
-  animation: fadeIn 0.25s ease;
+  animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .intro,
   .tabContent {
     animation: none;
+  }
+
+  .introTabActive {
+    transform: none;
   }
 }
 
@@ -215,8 +235,14 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .shell {
@@ -282,6 +308,20 @@
   border: 1px solid #e2e8f0;
   border-radius: 1.25rem;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.planCard:hover,
+.addonCard:hover,
+.packageCard:hover,
+.dmsMailCard:hover,
+.universalAddonCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
 }
 
 .planCard,

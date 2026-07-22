@@ -23,7 +23,7 @@
     function init() {
         const path = (window.location && window.location.pathname) ? window.location.pathname : '';
         const isProductsPage = /^\/public\/(products|product)(\/|$)/.test(path);
-        const isLightweightPublicPage = /^\/public\/(services|cart|checkout|orders|account|legal|privacy|terms|data-privacy)(\/|$)/.test(path);
+        const isLightweightPublicPage = /^\/public\/(home|about-us|about|services|cart|checkout|orders|account|legal|privacy|terms|data-privacy)(\/|$)/.test(path);
         const isNextManagedRoute = path.startsWith('/public') || path.startsWith('/news') || path.startsWith('/pages/preview');
 
         initWebPDetection();

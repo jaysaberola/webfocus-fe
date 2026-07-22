@@ -390,6 +390,12 @@
   padding: 0 4px;
 }
 
+.cart-badgeHidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .mobile-toggle {
   display: none;
   width: 44px;

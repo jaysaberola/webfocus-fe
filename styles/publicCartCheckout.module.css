@@ -11,6 +11,7 @@
 
 .pageHeader {
   margin-bottom: 1.35rem;
+  animation: cartBlockIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .pageHeader h1 {
@@ -82,6 +83,19 @@
   gap: 1rem;
   padding: 1.15rem 1.25rem;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  animation: cartBlockIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mainColumn .itemCard:nth-child(2) {
+  animation-delay: 0.06s;
+}
+
+.mainColumn .itemCard:nth-child(3) {
+  animation-delay: 0.12s;
+}
+
+.mainColumn .itemCard:nth-child(4) {
+  animation-delay: 0.18s;
 }
 
 .itemIcon {
@@ -164,6 +178,37 @@
   gap: 1rem;
   position: sticky;
   top: 5.5rem;
+  animation: cartSidebarIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+@keyframes cartBlockIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cartSidebarIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pageHeader,
+  .itemCard,
+  .sidebar {
+    animation: none;
+  }
 }
 
 .summaryCard,
