@@ -2,6 +2,8 @@ import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { getPublicPageBySlug, PublicPage } from "@/services/publicPageService";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
+import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
+import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
 import { useEffect, useMemo, useRef } from "react";
 
 interface PublicPageViewProps {
@@ -99,6 +101,48 @@ export default function PublicPageView({ pageData }: PublicPageViewProps) {
       cleanupPublicPageScripts();
     };
   }, [pageData?.slug]);
+
+  useEffect(() => {
+    const slug = String(pageData?.slug || "").toLowerCase();
+    if (slug !== "about" && slug !== "about-us") return;
+
+    const root = contentRef.current;
+    if (!root) return;
+
+    const run = () => stabilizeAboutPage(root);
+
+    run();
+    const t1 = window.setTimeout(run, 0);
+    const t2 = window.setTimeout(run, 120);
+    const t3 = window.setTimeout(run, 900);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [htmlContent, pageData?.slug]);
+
+  useEffect(() => {
+    const slug = String(pageData?.slug || "").toLowerCase();
+    if (slug !== "home") return;
+
+    const root = contentRef.current;
+    if (!root) return;
+
+    const run = () => initHomeBrandMarquee(root);
+
+    run();
+    const t1 = window.setTimeout(run, 0);
+    const t2 = window.setTimeout(run, 150);
+    const t3 = window.setTimeout(run, 600);
+
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [htmlContent, pageData?.slug]);
 
   if (!pageData) return <div>Page not found</div>;
 

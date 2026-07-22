@@ -533,3 +533,155 @@ div[class*="wh-"] {
   z-index: 20000 !important;
   pointer-events: auto !important;
 }
+
+/* About Us page — beat embedded Grapes CSS (loaded later in page body) */
+.public-page-content .wsi-about-cms .wsi-reveal,
+.public-page-content .wsi-about-cms .wsi-reveal-up,
+.public-page-content .wsi-about-cms .wsi-reveal-down,
+.public-page-content .wsi-about-cms .wsi-reveal-left,
+.public-page-content .wsi-about-cms .wsi-reveal-right,
+.public-page-content .wsi-about-cms .wsi-reveal-scale,
+.public-page-content .wsi-about-cms .wsi-reveal-fade {
+  transform: none !important;
+  transition: opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-page-hero-glow {
+  animation: none !important;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-counter {
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 3.5ch;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-counter[data-target="1000"] {
+  min-width: 5.5ch;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-counter[data-target="99.9"] {
+  min-width: 5.5ch;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-stats-bar-inner {
+  min-height: 5.5rem;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-intro-visual {
+  min-height: 280px;
+}
+
+.public-page-content .wsi-about-cms .wsi-about-intro-visual img {
+  display: block;
+  width: auto;
+  max-width: min(100%, 320px);
+  height: auto;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Home client logos — auto-loop marquee with prev/next controls */
+.public-page-content .wsi-slider-wrap {
+  max-width: 64rem;
+  margin: 0 auto;
+}
+
+.public-page-content .wsi-slider-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .public-page-content .wsi-slider-controls {
+    gap: 1rem;
+  }
+}
+
+.public-page-content .wsi-slider-btn {
+  flex-shrink: 0;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.public-page-content .wsi-slider-btn:hover {
+  background: #f3f4f6;
+}
+
+.public-page-content .wsi-slider-btn svg {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .public-page-content .wsi-slider-btn svg {
+    width: 2rem;
+    height: 2rem;
+  }
+}
+
+.public-page-content .wsi-brand-marquee-shell {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.public-page-content .wsi-brand-marquee-viewport {
+  overflow-x: hidden;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 6%, #000 94%, transparent 100%);
+  scroll-behavior: auto;
+}
+
+.public-page-content .wsi-brand-marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.public-page-content .wsi-brand-marquee-group {
+  display: flex;
+  align-items: center;
+  gap: clamp(2rem, 5vw, 4rem);
+  padding-right: clamp(2rem, 5vw, 4rem);
+}
+
+.public-page-content .wsi-brand-marquee-group .wsi-brand-cell {
+  flex: 0 0 auto;
+  width: clamp(118px, 16vw, 176px);
+  height: 5rem;
+}
+
+@media (min-width: 768px) {
+  .public-page-content .wsi-brand-marquee-group .wsi-brand-cell {
+    height: 6rem;
+  }
+}
+
+.public-page-content .wsi-brand-marquee-group .wsi-brand-cell img {
+  display: block;
+  max-height: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-page-content .wsi-brand-marquee-viewport {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .public-page-content .wsi-brand-marquee-group[aria-hidden="true"] {
+    display: none;
+  }
+}

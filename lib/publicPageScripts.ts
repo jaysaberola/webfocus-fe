@@ -20,5 +20,6 @@ export function cleanupPublicPageScripts() {
 
   delete win.__wsiPortfolioModal;
   delete win.__wsiHomeCmsInit;
+  delete (win as Window & { __wsiAboutCmsInit?: boolean }).__wsiAboutCmsInit;
   document.body.classList.remove("wsi-portfolio-modal-open");
 }
