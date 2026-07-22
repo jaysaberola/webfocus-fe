@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
+import PortalModal from "@/components/CustomerPortal/PortalModal";
 import { PAYNAMICS_PAYMENT_METHODS } from "@/lib/checkoutPaymentMethods";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import styles from "@/styles/customerPortal.module.css";
@@ -38,8 +39,6 @@ export default function BillingPaymentModal({
     setFundAmount(FUND_PRESETS[1]);
   }, [open, mode, invoiceId]);
 
-  if (!open) return null;
-
   const handleSubmit = () => {
     if (mode === "add-funds") {
       onSubmit(paymentMethod, fundAmount);
@@ -49,34 +48,36 @@ export default function BillingPaymentModal({
   };
 
   return (
-    <div className={styles.billingModalOverlay} role="presentation" onClick={onClose}>
-      <div
-        className={styles.billingModal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="billing-payment-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.billingModalHead}>
-          <div>
-            <h3 id="billing-payment-title">
-              {mode === "add-funds" ? "Add Funds" : submitLabel === "Pay & Renew" ? "Pay & Renew" : "Pay Invoice"}
-            </h3>
-            <p className={styles.panelSub}>
-              {mode === "add-funds"
-                ? "Choose an amount and payment method. You will be redirected to Paynamics to complete payment."
-                : "Choose a payment method to pay your pending invoice through Paynamics."}
-            </p>
-          </div>
-          <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
+    <PortalModal open={open} onClose={onClose} ariaLabelledBy="billing-payment-title">
+      <div className={styles.billingModalHead}>
+        <div className={styles.billingModalHeadText}>
+          <h3 id="billing-payment-title">
+            {mode === "add-funds" ? "Add Funds" : submitLabel === "Pay & Renew" ? "Pay & Renew" : "Pay Invoice"}
+          </h3>
+          <p className={styles.panelSub}>
+            {mode === "add-funds"
+              ? "Choose an amount and payment method. You will be redirected to Paynamics to complete payment."
+              : "Choose a payment method to pay your pending invoice through Paynamics."}
+          </p>
         </div>
+        <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
+          <i className="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
 
+      <div className={styles.billingModalBody}>
         {mode === "invoice" ? (
           <div className={styles.billingModalSummary}>
-            {title ? <p className={styles.billingModalLine}><strong>Service:</strong> {title}</p> : null}
-            {invoiceId ? <p className={styles.billingModalLine}><strong>Invoice:</strong> {invoiceId}</p> : null}
+            {title ? (
+              <p className={styles.billingModalLine}>
+                <strong>Service:</strong> {title}
+              </p>
+            ) : null}
+            {invoiceId ? (
+              <p className={styles.billingModalLine}>
+                <strong>Invoice:</strong> {invoiceId}
+              </p>
+            ) : null}
             {amount != null ? (
               <p className={styles.billingModalLine}>
                 <strong>Amount:</strong> {formatPeso(amount)}
@@ -93,10 +94,7 @@ export default function BillingPaymentModal({
                 <button
                   key={preset}
                   type="button"
-                  className={[
-                    styles.fundPresetBtn,
-                    fundAmount === preset ? styles.fundPresetBtnActive : "",
-                  ]
+                  className={[styles.fundPresetBtn, fundAmount === preset ? styles.fundPresetBtnActive : ""]
                     .filter(Boolean)
                     .join(" ")}
                   onClick={() => setFundAmount(preset)}
@@ -119,20 +117,17 @@ export default function BillingPaymentModal({
         )}
 
         <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
-
-        <div className={styles.billingModalActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onClose} disabled={submitting}>
-            Cancel
-          </button>
-          <button type="button" className={styles.primaryBtnSm} onClick={handleSubmit} disabled={submitting}>
-            {submitting
-              ? "Processing..."
-              : mode === "add-funds"
-                ? "Proceed to Paynamics"
-                : submitLabel}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className={styles.billingModalActions}>
+        <button type="button" className={styles.primaryBtnSm} onClick={handleSubmit} disabled={submitting}>
+          {submitting
+            ? "Processing..."
+            : mode === "add-funds"
+              ? "Proceed to Paynamics"
+              : submitLabel}
+        </button>
+      </div>
+    </PortalModal>
   );
 }

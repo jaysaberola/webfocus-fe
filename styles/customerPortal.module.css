@@ -290,13 +290,21 @@
 }
 
 .primaryBtnSm {
-  background: var(--cp-blue);
-  color: #fff;
+  background: var(--cp-blue) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
 }
 
-.primaryBtnSm:hover {
-  background: var(--cp-blue-dark);
-  color: #fff;
+.primaryBtnSm:hover:not(:disabled) {
+  background: var(--cp-blue-dark) !important;
+  color: #fff !important;
+}
+
+.primaryBtnSm:disabled {
+  background: #93c5fd !important;
+  color: #fff !important;
+  opacity: 1;
+  cursor: not-allowed;
 }
 
 .secondaryBtnSm {
@@ -1686,51 +1694,193 @@
 .billingModalOverlay {
   position: fixed;
   inset: 0;
-  z-index: 1600;
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
-  background: rgba(15, 23, 42, 0.45);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  background: rgba(2, 24, 69, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overscroll-behavior: contain;
+  animation: portalModalOverlayIn 0.18s ease both;
 }
 
 .billingModal {
-  width: min(100%, 560px);
-  max-height: 90vh;
-  overflow: auto;
-  border-radius: 1rem;
+  width: min(100%, 520px);
+  max-height: min(88vh, 760px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 1.25rem;
   background: #fff;
-  border: 1px solid var(--cp-slate-200);
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
-  padding: 1.25rem;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset,
+    0 24px 64px rgba(15, 23, 42, 0.16);
+  animation: portalModalDialogIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.billingModalBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.35rem 1.35rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .billingModalHead {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  flex-shrink: 0;
+  padding: 1.2rem 1.35rem 1rem;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+  border-bottom: 1px solid #e8eef5;
+  position: relative;
+}
+
+.billingModalHead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 1.25rem 1.25rem 0 0;
+  background: linear-gradient(90deg, var(--cp-blue) 0%, #60a5fa 100%);
+}
+
+.billingModalHeadText {
+  min-width: 0;
+  padding-top: 0.15rem;
 }
 
 .billingModalHead h3 {
-  margin: 0 0 0.35rem;
-  font-size: 1.125rem;
+  margin: 0 0 0.3rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--cp-navy);
+  letter-spacing: -0.01em;
+}
+
+.billingModalHead .panelSub {
+  margin: 0;
+  color: var(--cp-slate-500);
 }
 
 .billingModalClose {
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 999px;
+  background: #fff;
   color: var(--cp-slate-500);
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.billingModalClose:hover {
+  background: var(--cp-slate-50);
+  border-color: #cbd5e1;
+  color: var(--cp-slate-700);
 }
 
 .billingModalSummary {
-  margin-bottom: 1rem;
+  margin-bottom: 0.85rem;
   padding: 0.9rem 1rem;
-  border-radius: 0.85rem;
-  background: var(--cp-slate-50);
+  border-radius: var(--cp-radius-lg);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid var(--cp-slate-200);
+}
+
+.billingModalDetails {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: var(--cp-radius-lg);
+  overflow: hidden;
+  background: #fff;
+}
+
+.billingModalDetailRow {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 9.5rem) 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid #eef2f7;
+  font-size: var(--cp-text-sm);
+}
+
+.billingModalDetailRow:last-child {
+  border-bottom: 0;
+}
+
+.billingModalDetailRow:nth-child(even) {
+  background: #fafbfd;
+}
+
+.billingModalDetailLabel {
+  font-size: var(--cp-text-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.billingModalDetailValue {
+  font-weight: 600;
+  color: var(--cp-slate-900);
+  overflow-wrap: anywhere;
+}
+
+.billingModalDetailValueMono {
+  font-weight: 600;
+  color: var(--cp-blue-dark);
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+@media (max-width: 640px) {
+  .billingModalDetailRow {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+    align-items: start;
+  }
+}
+
+@keyframes portalModalOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes portalModalDialogIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .billingModalOverlay,
+  .billingModal {
+    animation: none;
+  }
 }
 
 .billingModalLine {
@@ -1776,7 +1926,19 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
+  flex-shrink: 0;
+  padding: 0.9rem 1.35rem 1.2rem;
+  margin-top: 0;
+  border-top: 1px solid #eef2f7;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.billingModalActions .primaryBtnSm {
+  min-width: 11rem;
+  height: 2.375rem;
+  min-height: 2.375rem;
+  padding: 0 1.15rem;
+  font-size: var(--cp-text-sm);
 }
 
 .billingDateFilter {
@@ -1947,10 +2109,11 @@
 }
 
 .proofCardInline {
-  padding: 0.75rem;
-  border-radius: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--cp-radius-lg);
   background: #fff;
   border: 1px solid var(--cp-slate-200);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .billingProofGrid {
@@ -1973,18 +2136,212 @@
   font-weight: 600;
 }
 
+.billingModalForm {
+  width: min(100%, 480px);
+}
+
+.billingModalActionsStacked {
+  padding: 1rem 1.35rem 1.25rem;
+}
+
+.billingModalActionsStacked .proofSubmitBtn {
+  width: 100%;
+}
+
+.proofSubmitBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  height: 2.75rem;
+  padding: 0 1.25rem;
+  border: 1px solid var(--cp-blue-dark) !important;
+  border-radius: var(--cp-radius-md);
+  background: var(--cp-blue) !important;
+  color: #fff !important;
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.proofSubmitBtn:hover:not(:disabled) {
+  background: var(--cp-blue-dark) !important;
+  border-color: #1e40af !important;
+}
+
+.proofSubmitBtn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.proofSubmitBtn:disabled {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  cursor: not-allowed;
+}
+
+.proofFormPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.proofInvoiceCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 0.95rem 1rem;
+  border-radius: var(--cp-radius-lg);
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fbff 100%);
+  border: 1px solid #bfdbfe;
+}
+
+.proofInvoiceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: var(--cp-blue);
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  border: 1px solid #dbeafe;
+}
+
+.proofInvoiceMeta {
+  min-width: 0;
+}
+
+.proofInvoiceId {
+  margin: 0 0 0.2rem;
+  font-family: ui-monospace, monospace;
+  font-size: var(--cp-text-sm);
+  font-weight: 700;
+  color: var(--cp-blue-dark);
+}
+
+.proofInvoiceDetail {
+  margin: 0 0 0.25rem;
+  font-size: var(--cp-text-sm);
+  color: var(--cp-slate-600);
+  line-height: 1.45;
+}
+
+.proofInvoiceAmount {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--cp-slate-900);
+}
+
+.proofUploadZone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 1.1rem 1rem;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: var(--cp-radius-lg);
+  background: #fafbfd;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.proofUploadZone:hover:not(:disabled) {
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+}
+
+.proofUploadZone:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.proofUploadZoneReady {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.proofUploadZoneReady:hover:not(:disabled) {
+  border-color: #4ade80;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.proofUploadIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--cp-blue);
+  font-size: 1.1rem;
+  border: 1px solid #e2e8f0;
+}
+
+.proofUploadZoneReady .proofUploadIcon {
+  color: #16a34a;
+  border-color: #bbf7d0;
+  background: #fff;
+}
+
+.proofUploadTitle {
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+  color: var(--cp-slate-800);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.proofUploadHint {
+  font-size: var(--cp-text-xs);
+  color: var(--cp-slate-500);
+}
+
 .proofField {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.85rem;
-  font-size: 0.8125rem;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+  font-size: var(--cp-text-sm);
   color: var(--cp-slate-700);
 }
 
-.proofField input,
+.proofField:last-child {
+  margin-bottom: 0;
+}
+
+.proofField span {
+  font-size: var(--cp-text-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.proofField input:not([type="file"]),
 .proofField select {
   width: 100%;
+}
+
+.proofFileInput {
+  display: none;
 }
 
 .proofHint {
@@ -2003,7 +2360,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 
 .proofEmptyState {

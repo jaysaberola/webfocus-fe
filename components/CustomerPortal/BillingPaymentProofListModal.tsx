@@ -1,5 +1,6 @@
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import type { PortalPaymentProof } from "@/lib/customerPortal/types";
+import PortalModal from "@/components/CustomerPortal/PortalModal";
 import styles from "@/styles/customerPortal.module.css";
 
 type BillingPaymentProofListModalProps = {
@@ -24,8 +25,6 @@ export default function BillingPaymentProofListModal({
   onClose,
   onDelete,
 }: BillingPaymentProofListModalProps) {
-  if (!open) return null;
-
   const handleViewFile = (proof: PortalPaymentProof) => {
     const url = resolveStorageAssetUrl(proof.fileUrl);
     if (!url) return;
@@ -33,24 +32,18 @@ export default function BillingPaymentProofListModal({
   };
 
   return (
-    <div className={styles.billingModalOverlay} role="presentation" onClick={onClose}>
-      <div
-        className={styles.billingModal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="billing-proof-list-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.billingModalHead}>
-          <div>
-            <h3 id="billing-proof-list-title">Uploaded Receipts &amp; Verification Status</h3>
-            <p className={styles.panelSub}>Payment proofs submitted for this invoice.</p>
-          </div>
-          <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
+    <PortalModal open={open} onClose={onClose} ariaLabelledBy="billing-proof-list-title">
+      <div className={styles.billingModalHead}>
+        <div className={styles.billingModalHeadText}>
+          <h3 id="billing-proof-list-title">Uploaded Receipts &amp; Verification Status</h3>
+          <p className={styles.panelSub}>Payment proofs submitted for this invoice.</p>
         </div>
+        <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
+          <i className="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
 
+      <div className={styles.billingModalBody}>
         <div className={styles.billingModalSummary}>
           <p className={styles.billingModalLine}>
             <strong>Invoice:</strong> {invoiceLabel ?? invoiceId}
@@ -98,13 +91,7 @@ export default function BillingPaymentProofListModal({
             })}
           </div>
         )}
-
-        <div className={styles.billingModalActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onClose}>
-            Close
-          </button>
-        </div>
       </div>
-    </div>
+    </PortalModal>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
+import PortalModal from "@/components/CustomerPortal/PortalModal";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import { fetchPortalOrders } from "@/services/customerPortalService";
 import type { PortalOrder } from "@/lib/customerPortal/types";
@@ -255,71 +256,85 @@ export default function OrdersTab() {
         </div>
       </section>
 
-      {detailModal.open ? (
-        <div className={styles.billingModalOverlay} role="presentation" onClick={() => setDetailModal({ open: false })}>
-          <div
-            className={styles.billingModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="order-detail-title"
-            onClick={(event) => event.stopPropagation()}
+      <PortalModal
+        open={detailModal.open}
+        onClose={() => setDetailModal({ open: false })}
+        ariaLabelledBy="order-detail-title"
+      >
+        <div className={styles.billingModalHead}>
+          <div className={styles.billingModalHeadText}>
+            <h3 id="order-detail-title">Order Details</h3>
+            <p className={styles.panelSub}>
+              {detailModal.open ? detailModal.order.id : "Order summary"}
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.billingModalClose}
+            aria-label="Close"
+            onClick={() => setDetailModal({ open: false })}
           >
-            <div className={styles.billingModalHead}>
-              <div>
-                <h3 id="order-detail-title">Order Details</h3>
-                <p className={styles.panelSub}>Summary for {detailModal.order.id}</p>
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+
+        {detailModal.open ? (
+          <div className={styles.billingModalBody}>
+            <div className={styles.billingModalDetails}>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Order #</span>
+                <span className={styles.billingModalDetailValueMono}>{detailModal.order.id}</span>
               </div>
-              <button
-                type="button"
-                className={styles.billingModalClose}
-                aria-label="Close"
-                onClick={() => setDetailModal({ open: false })}
-              >
-                <i className="fa-solid fa-xmark" aria-hidden="true" />
-              </button>
-            </div>
-
-            <div className={styles.billingModalSummary}>
-              <p className={styles.billingModalLine}>
-                <strong>Order #:</strong> {detailModal.order.id}
-              </p>
               {detailModal.order.invoiceId ? (
-                <p className={styles.billingModalLine}>
-                  <strong>Invoice:</strong> {detailModal.order.invoiceId}
-                </p>
+                <div className={styles.billingModalDetailRow}>
+                  <span className={styles.billingModalDetailLabel}>Invoice</span>
+                  <span className={styles.billingModalDetailValueMono}>{detailModal.order.invoiceId}</span>
+                </div>
               ) : null}
-              <p className={styles.billingModalLine}>
-                <strong>Service:</strong>{" "}
-                {detailModal.order.serviceName ?? detailModal.order.items[0]?.name}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Plan:</strong> {detailModal.order.items[0]?.detail ?? detailModal.order.items[0]?.name}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Amount:</strong> {formatPeso(detailModal.order.total)}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Payment Method:</strong> {detailModal.order.gateway}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Date Ordered:</strong> {detailModal.order.date}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Expired Date:</strong> {detailModal.order.expiredDate}
-              </p>
-              <p className={styles.billingModalLine}>
-                <strong>Status:</strong> {detailModal.order.status}
-              </p>
-            </div>
-
-            <div className={styles.billingModalActions}>
-              <button type="button" className={styles.secondaryBtnSm} onClick={() => setDetailModal({ open: false })}>
-                Close
-              </button>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Service</span>
+                <span className={styles.billingModalDetailValue}>
+                  {detailModal.order.serviceName ?? detailModal.order.items[0]?.name}
+                </span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Plan</span>
+                <span className={styles.billingModalDetailValue}>
+                  {detailModal.order.items[0]?.detail ?? detailModal.order.items[0]?.name}
+                </span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Amount</span>
+                <span className={styles.billingModalDetailValue}>{formatPeso(detailModal.order.total)}</span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Payment</span>
+                <span className={styles.billingModalDetailValue}>{detailModal.order.gateway}</span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Date Ordered</span>
+                <span className={styles.billingModalDetailValue}>{detailModal.order.date}</span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Expires</span>
+                <span className={styles.billingModalDetailValue}>{detailModal.order.expiredDate}</span>
+              </div>
+              <div className={styles.billingModalDetailRow}>
+                <span className={styles.billingModalDetailLabel}>Status</span>
+                <span className={styles.billingModalDetailValue}>
+                  <span
+                    className={
+                      detailModal.order.status === "Pending Request" ? styles.badgeAmber : styles.badgeGreen
+                    }
+                  >
+                    {detailModal.order.status}
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
+      </PortalModal>
     </div>
   );
 }
