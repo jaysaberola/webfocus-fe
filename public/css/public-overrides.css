@@ -175,6 +175,11 @@ body {
   }
 }
 
+/* Public pages: avoid full-page fade that delays LCP */
+body {
+  animation: none !important;
+}
+
 /* Privacy / terms consent banner */
 .privacy-consent-banner {
   position: fixed;
@@ -248,10 +253,6 @@ body {
 
 .privacy-consent-banner__btn:active {
   transform: translateY(1px);
-}
-
-body.has-privacy-consent-banner .public-site-shell {
-  padding-bottom: 4.75rem;
 }
 
 @media (max-width: 768px) {

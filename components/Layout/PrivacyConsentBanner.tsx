@@ -5,9 +5,9 @@ import {
   DEFAULT_PRIVACY_POPUP,
   DEFAULT_PRIVACY_TITLE,
 } from "@/lib/defaultPrivacyContent";
+import { PUBLIC_CONSENT_STORAGE_KEY } from "@/lib/publicLegacyScripts";
 import { getPublicLegalContent, type PublicLegalContent } from "@/services/publicLegalService";
 
-const CONSENT_STORAGE_KEY = "webfocus.publicConsent.v1";
 const LEGAL_MODAL_TITLE = "Privacy Policy & Terms of Use";
 
 const FALLBACK_LEGAL: PublicLegalContent = {
@@ -17,14 +17,31 @@ const FALLBACK_LEGAL: PublicLegalContent = {
   terms_title: "Terms of Use",
 };
 
+function readConsentVisible() {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(PUBLIC_CONSENT_STORAGE_KEY) !== "1";
+  } catch {
+    return false;
+  }
+}
+
+function syncConsentDocumentClass(visible: boolean) {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("needs-privacy-consent", visible);
+}
+
 export default function PrivacyConsentBanner() {
+  const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [legalContent, setLegalContent] = useState<PublicLegalContent>(FALLBACK_LEGAL);
   const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setVisible(localStorage.getItem(CONSENT_STORAGE_KEY) !== "1");
+    const shouldShow = readConsentVisible();
+    setMounted(true);
+    setVisible(shouldShow);
+    syncConsentDocumentClass(shouldShow);
   }, []);
 
   useEffect(() => {
@@ -33,22 +50,14 @@ export default function PrivacyConsentBanner() {
       .catch(() => setLegalContent(FALLBACK_LEGAL));
   }, []);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-
-    document.body.classList.toggle("has-privacy-consent-banner", visible);
-    return () => {
-      document.body.classList.remove("has-privacy-consent-banner");
-    };
-  }, [visible]);
-
   const handleAccept = () => {
-    localStorage.setItem(CONSENT_STORAGE_KEY, "1");
+    localStorage.setItem(PUBLIC_CONSENT_STORAGE_KEY, "1");
     setVisible(false);
     setModalOpen(false);
+    syncConsentDocumentClass(false);
   };
 
-  if (!visible) return null;
+  if (!mounted || !visible) return null;
 
   return (
     <>

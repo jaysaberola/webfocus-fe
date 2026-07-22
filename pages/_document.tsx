@@ -31,6 +31,12 @@ export default function CustomDocument({ isPublicRoute, isAdminRoute }: CustomDo
       <Head>
         {isPublicRoute && (
           <>
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <link
+              href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+              rel="stylesheet"
+            />
             <link rel="stylesheet" href="/css/public-css.css" />
             <link rel="stylesheet" href="/css/custom.css" />
             <link rel="stylesheet" href="/css/product.css" />
@@ -58,6 +64,13 @@ export default function CustomDocument({ isPublicRoute, isAdminRoute }: CustomDo
         )}
       </Head>
       <body>
+        {isPublicRoute ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `(function(){try{if(localStorage.getItem("webfocus.publicConsent.v1")!=="1"){document.documentElement.classList.add("needs-privacy-consent");}}catch(e){}})();`,
+            }}
+          />
+        ) : null}
         <Main />
         <NextScript />
       </body>

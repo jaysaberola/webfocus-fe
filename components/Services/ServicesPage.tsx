@@ -1,10 +1,18 @@
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import ServicesIntro, { type ServiceTab } from "./ServicesIntro";
 import ServicesHostingTab from "./ServicesHostingTab";
-import ServicesWebDesignTab from "./ServicesWebDesignTab";
-import ServicesDomainsTab from "./ServicesDomainsTab";
-import ServicesDmsTab from "./ServicesDmsTab";
 import styles from "@/styles/services.module.css";
+
+const ServicesWebDesignTab = dynamic(() => import("./ServicesWebDesignTab"), {
+  loading: () => null,
+});
+const ServicesDomainsTab = dynamic(() => import("./ServicesDomainsTab"), {
+  loading: () => null,
+});
+const ServicesDmsTab = dynamic(() => import("./ServicesDmsTab"), {
+  loading: () => null,
+});
 
 export default function ServicesPage() {
   const [activeTab, setActiveTab] = useState<ServiceTab>("hosting");

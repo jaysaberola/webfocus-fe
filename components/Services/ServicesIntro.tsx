@@ -106,7 +106,7 @@ export default function ServicesIntro({ activeTab, onTabChange }: Props) {
                 >
                   <span className={styles.introTabIcon}>{tab.icon}</span>
                   <span className={styles.introTabLabel}>{tab.label}</span>
-                  {isActive && <span className={styles.introTabIndicator} aria-hidden="true" />}
+                  <span className={styles.introTabIndicator} aria-hidden="true" />
                 </button>
               );
             })}

@@ -63,7 +63,7 @@ export default function FreshchatWidget() {
   return (
     <>
       {config.token ? (
-        <Script id="freshchat-widget" strategy="afterInteractive">
+        <Script id="freshchat-widget" strategy="lazyOnload">
           {`
             window.fcSettings = {
               token: ${JSON.stringify(config.token)},
@@ -95,7 +95,7 @@ export default function FreshchatWidget() {
         <Script
           id="freshworks-chat-widget"
           src={normalizeScriptSrc(config.fwcScriptSrc)}
-          strategy="afterInteractive"
+          strategy="lazyOnload"
           {...({ chat: "true" } as Record<string, string>)}
         />
       ) : null}

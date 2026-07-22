@@ -70,6 +70,10 @@ export default function LandingTopbar() {
                 src={LOGO_SRC}
                 alt="WebFocus Solutions, Inc."
                 className={styles["logo-img-full"]}
+                width={130}
+                height={30}
+                decoding="async"
+                fetchPriority="high"
                 onError={() => setLogoFailed(true)}
               />
             ) : (

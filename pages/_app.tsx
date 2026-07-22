@@ -11,6 +11,7 @@ import Script from "next/script";
 import { useRouter } from "next/router";
 import FreshchatWidget from "@/components/Layout/FreshchatWidget";
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
+import { isLightweightPublicPage } from "@/lib/publicLegacyScripts";
 // LoadingProvider removed to disable global loading overlay
 
 type AppPropsWithLayout = AppProps & {
@@ -24,11 +25,13 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const Layout = Component.Layout || React.Fragment;
   const enableCfAnalytics = process.env.NEXT_PUBLIC_ENABLE_CF_ANALYTICS === "true";
   const showFreshchat = isPublicSiteRoute(router.pathname);
+  const lightweightPublic = isLightweightPublicPage(router.pathname);
+  const isPublic = isPublicSiteRoute(router.pathname);
 
   React.useEffect(() => {
-    // Load Bootstrap JS locally (no CDN) to avoid browser tracking-prevention warnings.
+    if (isPublic) return;
     import("bootstrap");
-  }, []);
+  }, [isPublic]);
 
   return (
     <>
@@ -51,11 +54,23 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
         ) : null}
 
         <Script src="/js/bootstrap.bundle.min.js" strategy="afterInteractive" />
-        <Script src="/js/flatpickr.min.js" strategy="afterInteractive" />
-        <Script src="/js/glightbox.min.js" strategy="afterInteractive" />
-        <Script src="/js/swiper-bundle.min.js" strategy="afterInteractive" />
-        <Script src="/js/swiper-custom.js" strategy="afterInteractive" />
-        <Script src="/js/main.js" strategy="afterInteractive" />
+        {!lightweightPublic ? (
+          <>
+            <Script src="/js/flatpickr.min.js" strategy="afterInteractive" />
+            <Script src="/js/glightbox.min.js" strategy="afterInteractive" />
+            <Script src="/js/swiper-bundle.min.js" strategy="afterInteractive" />
+            <Script src="/js/swiper-custom.js" strategy="afterInteractive" />
+            <Script src="/js/main.js" strategy="afterInteractive" />
+          </>
+        ) : (
+          <Script id="public-light-init" strategy="lazyOnload">
+            {`
+              document.body.classList.add('page-loaded');
+              var yearEl = document.getElementById('copyright-year');
+              if (yearEl) yearEl.textContent = new Date().getFullYear();
+            `}
+          </Script>
+        )}
       </Layout>
 
       {showFreshchat ? <FreshchatWidget /> : null}

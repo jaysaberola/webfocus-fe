@@ -23,17 +23,18 @@
     function init() {
         const path = (window.location && window.location.pathname) ? window.location.pathname : '';
         const isProductsPage = /^\/public\/(products|product)(\/|$)/.test(path);
+        const isLightweightPublicPage = /^\/public\/(services|cart|checkout|orders|account|legal|privacy|terms|data-privacy)(\/|$)/.test(path);
+        const isNextManagedRoute = path.startsWith('/public') || path.startsWith('/news') || path.startsWith('/pages/preview');
 
         initWebPDetection();
-        initPageTransitions();
+        initPageTransitions(isNextManagedRoute);
         initBackToTop();
         initFixedHeader();
         initSidebar();
         initCopyrightYear();
 
-        // Products pages don't use gallery/lightbox/parallax/video/datepicker features.
-        // Skipping them reduces CPU work and avoids extra observers/timeouts.
-        if (isProductsPage) return;
+        // Products and lightweight public pages don't use gallery/lightbox/parallax/video/datepicker features.
+        if (isProductsPage || isLightweightPublicPage) return;
 
         initFlatpickr();
         initVideoModal();
@@ -127,9 +128,11 @@
     /**
      * Page Transitions (CSS-based replacement for Animsition)
      */
-    function initPageTransitions() {
+    function initPageTransitions(skipLinkHijacking) {
         // Add fade-in animation on page load
         document.body.classList.add('page-loaded');
+
+        if (skipLinkHijacking) return;
 
         // Add fade-out on internal link clicks
         document

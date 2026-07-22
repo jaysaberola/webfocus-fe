@@ -57,18 +57,25 @@ function mapFallbackUniversalAddons(): PublicHostingAddon[] {
 
 export default function ServicesHostingTab() {
   const [hostingType, setHostingType] = useState<HostingPlanType>("cloud");
-  const [plans, setPlans] = useState<PublicHostingPlan[]>([]);
-  const [typeAddons, setTypeAddons] = useState<PublicHostingAddon[]>([]);
-  const [universalAddons, setUniversalAddons] = useState<PublicHostingAddon[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [usingFallback, setUsingFallback] = useState(false);
+  const [plans, setPlans] = useState<PublicHostingPlan[]>(() => mapFallbackPlans("cloud"));
+  const [typeAddons, setTypeAddons] = useState<PublicHostingAddon[]>(() => mapFallbackAddons("cloud"));
+  const [universalAddons, setUniversalAddons] = useState<PublicHostingAddon[]>(() =>
+    mapFallbackUniversalAddons()
+  );
+  const [refreshing, setRefreshing] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(true);
   const { addToCart } = useServiceCart();
 
   useEffect(() => {
     let cancelled = false;
 
+    setPlans(mapFallbackPlans(hostingType));
+    setTypeAddons(mapFallbackAddons(hostingType));
+    setUniversalAddons(mapFallbackUniversalAddons());
+    setUsingFallback(true);
+
     async function loadCatalog() {
-      setLoading(true);
+      setRefreshing(true);
 
       try {
         const [planRows, addonRows, universalRows] = await Promise.all([
@@ -79,19 +86,15 @@ export default function ServicesHostingTab() {
 
         if (cancelled) return;
 
-        setPlans(planRows);
-        setTypeAddons(addonRows);
-        setUniversalAddons(universalRows);
+        if (planRows.length) setPlans(planRows);
+        if (addonRows.length) setTypeAddons(addonRows);
+        if (universalRows.length) setUniversalAddons(universalRows);
         setUsingFallback(false);
       } catch {
         if (cancelled) return;
-
-        setPlans(mapFallbackPlans(hostingType));
-        setTypeAddons(mapFallbackAddons(hostingType));
-        setUniversalAddons(mapFallbackUniversalAddons());
         setUsingFallback(true);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setRefreshing(false);
       }
     }
 
@@ -118,7 +121,7 @@ export default function ServicesHostingTab() {
         ))}
       </div>
 
-      {loading ? <p className={styles.hostingLoading}>Loading hosting catalog...</p> : null}
+      {refreshing ? <p className={styles.hostingLoading}>Updating live catalog...</p> : null}
 
       <div className={styles.planGrid}>
         {plans.map((plan) => (
