@@ -63,7 +63,7 @@ export default function CommerceCustomizeDashboardModal({
               </p>
             </div>
           </div>
-          <button type="button" className={styles.customizeCloseBtn} onClick={onClose}>
+          <button type="button" className={styles.secondaryBtnSm} onClick={onClose}>
             Close
           </button>
         </div>
@@ -75,7 +75,7 @@ export default function CommerceCustomizeDashboardModal({
               {visibleWidgets.length} of {COMMERCE_DASHBOARD_WIDGETS.length} dashboard items selected
             </p>
           </div>
-          <button type="button" className={styles.customizeResetBtn} onClick={onReset}>
+          <button type="button" className={styles.secondaryBtnSm} onClick={onReset}>
             <i className="fa-solid fa-rotate-left" aria-hidden="true" />
             Reset Default
           </button>

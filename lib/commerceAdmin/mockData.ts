@@ -17,6 +17,7 @@ export const COMMERCE_ADMIN_TABS = [
   { id: "approvals", label: "Approvals", icon: "fa-solid fa-circle-check", badge: true },
   { id: "managed", label: "Managed", icon: "fa-solid fa-server" },
   { id: "contracts", label: "Contracts", icon: "fa-regular fa-file-lines" },
+  { id: "catalog", label: "Catalog", icon: "fa-solid fa-boxes-stacked" },
   { id: "users", label: "Users", icon: "fa-solid fa-user-gear" },
   { id: "notifications", label: "Notifications", icon: "fa-regular fa-bell" },
   { id: "helpdesk", label: "Helpdesk", icon: "fa-solid fa-headset" },
@@ -331,10 +332,10 @@ export const COMMERCE_MONTHLY_RENEWALS = [
 ];
 
 export const COMMERCE_QUICK_ACTIONS = [
-  { id: "service", label: "Add New Service", hint: "Catalog setup", icon: "fa-solid fa-plus", tone: "green" as const },
-  { id: "soa", label: "Generate SOA", hint: "Receivables", icon: "fa-solid fa-file-invoice", tone: "green" as const },
-  { id: "reminder", label: "Send Reminder", hint: "Follow-ups", icon: "fa-solid fa-envelope", tone: "purple" as const },
-  { id: "search", label: "Search", hint: "Clients & services", icon: "fa-solid fa-magnifying-glass", tone: "blue" as const },
-  { id: "reports", label: "Reports", hint: "Analytics center", icon: "fa-solid fa-chart-column", tone: "blue" as const },
-  { id: "upload", label: "Upload Document", hint: "Contracts", icon: "fa-solid fa-cloud-arrow-up", tone: "blue" as const },
+  { id: "service", label: "Add New Service", hint: "Catalog setup", icon: "fa-solid fa-plus", tone: "green" as const, tab: "catalog" as const },
+  { id: "soa", label: "Generate SOA", hint: "Receivables", icon: "fa-solid fa-file-invoice", tone: "green" as const, tab: "transactions" as const },
+  { id: "reminder", label: "Send Reminder", hint: "Follow-ups", icon: "fa-solid fa-envelope", tone: "purple" as const, tab: "notifications" as const },
+  { id: "search", label: "Search", hint: "Clients & services", icon: "fa-solid fa-magnifying-glass", tone: "blue" as const, tab: "clients" as const },
+  { id: "reports", label: "Reports", hint: "Analytics center", icon: "fa-solid fa-chart-column", tone: "blue" as const, tab: "reports" as const },
+  { id: "upload", label: "Upload Document", hint: "Contracts", icon: "fa-solid fa-cloud-arrow-up", tone: "blue" as const, tab: "contracts" as const },
 ];

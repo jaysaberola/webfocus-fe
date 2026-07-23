@@ -5,6 +5,7 @@ export type CommerceAdminTab =
   | "approvals"
   | "managed"
   | "contracts"
+  | "catalog"
   | "users"
   | "notifications"
   | "helpdesk"

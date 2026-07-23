@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
+import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type AnalyticsView = "day" | "month" | "year";
@@ -130,7 +131,11 @@ export default function RenewalsCollectionChart() {
               </button>
             ))}
           </div>
-          <button type="button" className={styles.btnPrimary}>
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            onClick={() => toast.info("Graph export will be available in a future release.")}
+          >
             Export Graph
           </button>
         </div>

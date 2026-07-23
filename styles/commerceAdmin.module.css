@@ -1,9 +1,11 @@
 .commerceAdmin {
   --ca-blue: #2563eb;
   --ca-blue-dark: #1d4ed8;
+  --ca-navy: #021845;
   --ca-slate-900: #0f172a;
   --ca-slate-800: #1e293b;
   --ca-slate-700: #334155;
+  --ca-slate-600: #475569;
   --ca-slate-500: #64748b;
   --ca-slate-200: #e2e8f0;
   --ca-slate-100: #f1f5f9;
@@ -12,8 +14,133 @@
   --ca-amber: #d97706;
   --ca-rose: #e11d48;
   --ca-cyan: #22d3ee;
-  color: var(--ca-slate-900);
+  --ca-text-base: 0.875rem;
+  --ca-text-sm: 0.8125rem;
+  --ca-text-xs: 0.75rem;
+  --ca-text-label: 0.6875rem;
+  --ca-text-title: 1.125rem;
+  --ca-control-height: 2.125rem;
+  --ca-radius-sm: 0.5rem;
+  --ca-radius-md: 0.625rem;
+  --ca-radius-lg: 0.85rem;
+  --ca-radius-pill: 999px;
+  color: var(--ca-slate-700);
   font-family: inherit;
+  font-size: var(--ca-text-sm);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.primaryBtnSm,
+.secondaryBtnSm,
+.dangerBtnSm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: var(--ca-control-height);
+  height: var(--ca-control-height);
+  padding: 0 0.95rem;
+  border: 1px solid transparent;
+  border-radius: var(--ca-radius-md);
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.primaryBtnSm {
+  background: var(--ca-blue) !important;
+  color: #fff !important;
+  border: 1px solid transparent !important;
+}
+
+.primaryBtnSm:hover:not(:disabled) {
+  background: var(--ca-blue-dark) !important;
+  color: #fff !important;
+}
+
+.primaryBtnSm:disabled {
+  background: #93c5fd !important;
+  color: #fff !important;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.secondaryBtnSm {
+  background: var(--ca-slate-100) !important;
+  color: var(--ca-slate-900) !important;
+  border-color: var(--ca-slate-200) !important;
+}
+
+.secondaryBtnSm:hover:not(:disabled) {
+  background: #e2e8f0 !important;
+  color: var(--ca-slate-900) !important;
+}
+
+.secondaryBtnSm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--ca-slate-100) !important;
+  color: #94a3b8 !important;
+}
+
+.dangerBtnSm {
+  background: #fff !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.dangerBtnSm:hover:not(:disabled) {
+  background: #fef2f2 !important;
+}
+
+.btnPrimary {
+  composes: primaryBtnSm;
+}
+
+.btnSm {
+  composes: secondaryBtnSm;
+}
+
+.btnDanger {
+  composes: dangerBtnSm;
+}
+
+.btnSuccess {
+  composes: primaryBtnSm;
+  background: var(--ca-emerald) !important;
+  border-color: var(--ca-emerald) !important;
+}
+
+.select,
+.selectInline,
+.cpControl {
+  min-height: var(--ca-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--ca-slate-200) !important;
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 400;
+  color: var(--ca-slate-900);
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.select:focus,
+.selectInline:focus,
+.cpControl:focus {
+  outline: none;
+  border-color: var(--ca-blue) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
 .page {
@@ -42,12 +169,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.65rem 0.9rem;
-  border-radius: 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--ca-radius-lg);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
   text-decoration: none;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
 }
 
 .portalNavItem {
@@ -63,6 +190,7 @@
 .portalNavItemActive {
   background: var(--ca-blue);
   color: #fff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22);
 }
 
 .hero {
@@ -179,7 +307,7 @@
   background: #fff;
   border: 1px solid var(--ca-slate-200);
   border-radius: 1rem;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -192,15 +320,15 @@
   flex: 0 0 auto;
   flex-direction: row;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.85rem;
+  gap: 0.45rem;
+  padding: 0.65rem 0.85rem;
   border: none;
-  border-radius: 0.75rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border-radius: var(--ca-radius-lg);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.22s ease, color 0.22s ease, transform 0.18s ease, box-shadow 0.22s ease;
 }
 
 .moduleTabBtn {
@@ -212,19 +340,35 @@
   background: var(--ca-slate-50);
 }
 
+.moduleTabBtn:active {
+  transform: scale(0.98);
+}
+
 .moduleTabBtnActive {
   background: var(--ca-blue);
   color: #fff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22);
+}
+
+.moduleTabBtnActive:hover {
+  background: var(--ca-blue-dark);
 }
 
 .moduleTabBadge {
-  position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: #f59e0b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  margin-left: 0.2rem;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  position: static;
 }
 
 .operatorBar {
@@ -248,25 +392,15 @@
 
 .operatorBar h2 {
   margin: 0;
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: var(--ca-text-title);
+  font-weight: 600;
+  color: var(--ca-slate-900);
 }
 
 .operatorBar p {
-  margin: 0.2rem 0 0;
-  font-size: 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: var(--ca-text-xs);
   color: var(--ca-slate-500);
-}
-
-.viewSiteLink {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ca-blue);
-  text-decoration: none;
-}
-
-.viewSiteLink:hover {
-  text-decoration: underline;
 }
 
 .tabStack {
@@ -311,8 +445,9 @@
 
 .panelTitle {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--ca-text-title);
+  font-weight: 600;
+  color: var(--ca-slate-900);
   display: flex;
   align-items: center;
   gap: 0.45rem;
@@ -320,8 +455,9 @@
 
 .panelSubtitle {
   margin: 0.25rem 0 0;
-  font-size: 0.75rem;
+  font-size: var(--ca-text-xs);
   color: var(--ca-slate-500);
+  line-height: 1.45;
 }
 
 .badge {
@@ -489,54 +625,31 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: var(--ca-text-sm);
   text-align: left;
 }
 
 .table th {
-  padding: 0.65rem 0.5rem;
+  padding: 0.75rem 0.5rem;
   border-bottom: 1px solid var(--ca-slate-200);
-  color: var(--ca-slate-500);
-  font-family: ui-monospace, monospace;
-  font-size: 0.625rem;
+  color: #94a3b8;
+  font-size: var(--ca-text-label);
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .table td {
-  padding: 0.75rem 0.5rem;
-  border-bottom: 1px solid var(--ca-slate-100);
+  padding: 0.85rem 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
+  color: var(--ca-slate-700);
 }
 
 .tableActions {
   display: flex;
   gap: 0.35rem;
   justify-content: flex-end;
-}
-
-.btnSm {
-  padding: 0.35rem 0.65rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--ca-slate-200);
-  background: #fff;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btnPrimary {
-  composes: btnSm;
-  background: var(--ca-blue);
-  border-color: var(--ca-blue);
-  color: #fff;
-}
-
-.btnSuccess {
-  composes: btnSm;
-  background: #059669;
-  border-color: #059669;
-  color: #fff;
 }
 
 .statusActive {
@@ -588,13 +701,15 @@
 
 .analyticsToggleBtn,
 .analyticsToggleBtnActive {
-  padding: 0.45rem 0.75rem;
+  min-height: var(--ca-control-height);
+  padding: 0 0.75rem;
   border: none;
-  border-radius: 0.55rem;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border-radius: var(--ca-radius-md);
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .analyticsToggleBtn {
@@ -1004,16 +1119,6 @@
   gap: 0.5rem;
 }
 
-.select {
-  padding: 0.45rem 0.65rem;
-  border: 1px solid var(--ca-slate-200);
-  border-radius: 0.75rem;
-  background: var(--ca-slate-50);
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ca-slate-700);
-}
-
 .nodeGrid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1129,22 +1234,12 @@
 
 .dashHeaderHint {
   margin: 0.25rem 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--ca-text-sm);
   color: var(--ca-slate-500);
 }
 
 .dashCustomizeBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.85rem;
-  border: 1px solid var(--ca-slate-200);
-  border-radius: 0.5rem;
-  background: #fff;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ca-slate-700);
-  cursor: pointer;
+  composes: secondaryBtnSm;
 }
 
 .dashCustomizeCount {
@@ -1154,10 +1249,11 @@
   min-width: 1.35rem;
   height: 1.35rem;
   padding: 0 0.35rem;
-  border-radius: 999px;
-  background: var(--ca-slate-100);
-  font-size: 0.6875rem;
+  border-radius: var(--ca-radius-pill);
+  background: #fff;
+  font-size: var(--ca-text-label);
   font-weight: 700;
+  color: var(--ca-slate-700);
 }
 
 .dashPanel {
@@ -1177,11 +1273,11 @@
 
 .dashSectionTitle {
   margin: 0;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ca-slate-700);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ca-slate-900);
 }
 
 .dashViewToggle {
@@ -1244,16 +1340,16 @@
 
 .queueOverviewTitle {
   margin: 0;
-  font-size: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #1e3a8a;
+  font-size: var(--ca-text-title);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ca-slate-900);
 }
 
 .queueOverviewSubtitle {
-  margin: 0.35rem 0 0;
-  font-size: 0.8125rem;
+  margin: 0.25rem 0 0;
+  font-size: var(--ca-text-xs);
   color: var(--ca-slate-500);
 }
 
@@ -1327,17 +1423,17 @@
 .queueTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.75rem;
+  font-size: var(--ca-text-sm);
 }
 
 .queueTable th {
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   background: #fff;
   border-bottom: 1px solid var(--ca-slate-200);
-  color: var(--ca-slate-400);
-  font-size: 0.625rem;
+  color: #94a3b8;
+  font-size: var(--ca-text-label);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-align: left;
   white-space: nowrap;
@@ -1345,8 +1441,9 @@
 
 .queueTable td {
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--ca-slate-100);
+  border-bottom: 1px solid #f1f5f9;
   color: var(--ca-slate-700);
+  font-size: var(--ca-text-sm);
   white-space: nowrap;
 }
 
@@ -1383,22 +1480,30 @@
 }
 
 .queueViewAllLink {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
+  min-height: 2.75rem;
   margin: 0;
-  padding: 0.85rem 1rem;
-  border: none;
-  border-top: 1px solid var(--ca-slate-100);
-  background: #fff;
-  font-size: 0.8125rem;
+  padding: 0 0.95rem;
+  border: none !important;
+  border-top: 1px solid var(--ca-slate-100) !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  color: var(--ca-blue) !important;
+  font: inherit;
+  font-size: var(--ca-text-sm);
   font-weight: 600;
-  color: #2563eb;
-  text-align: center;
+  line-height: 1;
   cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.queueViewAllLink:hover {
-  background: var(--ca-slate-50);
+.queueViewAllLink:hover:not(:disabled) {
+  background: var(--ca-slate-50) !important;
+  color: var(--ca-blue-dark) !important;
 }
 
 .statusNew {
@@ -1444,13 +1549,7 @@
 }
 
 .dashMonthSelect {
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--ca-slate-200);
-  border-radius: 0.45rem;
-  background: #fff;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ca-slate-700);
+  composes: cpControl;
 }
 
 .dashRenewalsBody {
@@ -1694,14 +1793,15 @@
 .quickActionGreen strong,
 .quickActionPurple strong,
 .quickActionBlue strong {
-  font-size: 0.8125rem;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
   color: var(--ca-slate-900);
 }
 
 .quickActionGreen span:last-child,
 .quickActionPurple span:last-child,
 .quickActionBlue span:last-child {
-  font-size: 0.6875rem;
+  font-size: var(--ca-text-xs);
   color: var(--ca-slate-500);
 }
 
@@ -1750,17 +1850,8 @@
 }
 
 .activityViewAll {
-  display: block;
-  width: 100%;
+  composes: queueViewAllLink;
   margin-top: 0.75rem;
-  padding: 0.65rem;
-  border: none;
-  border-top: 1px solid var(--ca-slate-100);
-  background: transparent;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ca-blue);
-  cursor: pointer;
 }
 
 .serviceStatsGrid {
@@ -1908,12 +1999,12 @@
 }
 
 .customizeCloseBtn {
-  border: none;
-  background: transparent;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ca-slate-600);
-  cursor: pointer;
+  composes: secondaryBtnSm;
+}
+
+.customizeResetBtn {
+  composes: secondaryBtnSm;
+  background: #fff !important;
 }
 
 .customizeToolbar {
@@ -1939,22 +2030,8 @@
 
 .customizeToolbarMeta {
   margin: 0.2rem 0 0;
-  font-size: 0.8125rem;
+  font-size: var(--ca-text-sm);
   color: var(--ca-slate-700);
-}
-
-.customizeResetBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--ca-slate-200);
-  border-radius: 0.55rem;
-  background: #fff;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--ca-slate-700);
-  cursor: pointer;
 }
 
 .customizeWidgetGrid {
@@ -2041,4 +2118,139 @@
 .customizeWidgetStatusOff {
   background: var(--ca-slate-100);
   color: var(--ca-slate-500);
+}
+
+.emptyState {
+  margin: 0;
+  padding: 1.25rem 0;
+  color: var(--ca-slate-500);
+  font-size: var(--ca-text-sm);
+}
+
+.monoCell {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--ca-blue-dark);
+}
+
+.amountCell {
+  font-weight: 600;
+  color: var(--ca-slate-900);
+}
+
+.approvalList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.approvalCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.approvalFile {
+  margin: 0.65rem 0;
+  font-size: var(--ca-text-sm);
+  color: var(--ca-slate-600);
+}
+
+.approvalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.linkBtn {
+  composes: secondaryBtnSm;
+  background: #fff !important;
+}
+
+.managedCard {
+  padding: 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-lg);
+  background: #fff;
+}
+
+.managedCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.managedMeta,
+.managedRenew {
+  margin: 0.2rem 0 0;
+  font-size: var(--ca-text-xs);
+  color: var(--ca-slate-500);
+}
+
+.catalogGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.85rem;
+}
+
+.catalogCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-lg);
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.catalogCard:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+}
+
+.catalogCard strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: var(--ca-text-sm);
+  color: var(--ca-slate-900);
+}
+
+.catalogCard p {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  color: var(--ca-slate-500);
+  line-height: 1.45;
+}
+
+.catalogIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  background: #eff6ff;
+  color: var(--ca-blue);
+  flex-shrink: 0;
+}
+
+.catalogArrow {
+  margin-left: auto;
+  color: var(--ca-slate-400);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.reportCard {
+  padding: 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-lg);
+  background: var(--ca-slate-50);
 }

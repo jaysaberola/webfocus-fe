@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { COMMERCE_ADMIN_TABS, COMMERCE_APPROVALS } from "@/lib/commerceAdmin/mockData";
+import { useEffect, useState } from "react";
+import { COMMERCE_ADMIN_TABS } from "@/lib/commerceAdmin/mockData";
+import { fetchCommerceDashboard } from "@/services/commerceAdminService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import AdminPortalNav from "./AdminPortalNav";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -11,7 +13,13 @@ type Props = {
 };
 
 export default function CommerceAdminShell({ activeTab, onTabChange, userName }: Props) {
-  const pendingApprovals = COMMERCE_APPROVALS.length;
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  useEffect(() => {
+    fetchCommerceDashboard()
+      .then((data) => setPendingApprovals(data.counts.pendingApprovals))
+      .catch(() => setPendingApprovals(0));
+  }, [activeTab]);
 
   return (
     <>
@@ -30,7 +38,11 @@ export default function CommerceAdminShell({ activeTab, onTabChange, userName }:
             >
               <i className={tab.icon} aria-hidden="true" />
               {tab.label}
-              {showBadge && <span className={styles.moduleTabBadge} aria-hidden="true" />}
+              {showBadge ? (
+                <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
+                  {pendingApprovals > 9 ? "9+" : pendingApprovals}
+                </span>
+              ) : null}
             </button>
           );
         })}
@@ -38,10 +50,12 @@ export default function CommerceAdminShell({ activeTab, onTabChange, userName }:
 
       <div className={styles.operatorBar}>
         <div>
-          <h2>{COMMERCE_ADMIN_TABS.find((tab) => tab.id === activeTab)?.label || "Dashboard"}</h2>
-          <p>Welcome back, {userName} — Active Role: Super Admin</p>
+          <h2 className={styles.panelTitle}>
+            {COMMERCE_ADMIN_TABS.find((tab) => tab.id === activeTab)?.label || "Dashboard"}
+          </h2>
+          <p className={styles.panelSubtitle}>Welcome back, {userName} — Active Role: Super Admin</p>
         </div>
-        <Link href="/public/home" className={styles.viewSiteLink}>
+        <Link href="/public/home" className={styles.secondaryBtnSm}>
           View Public Site
         </Link>
       </div>

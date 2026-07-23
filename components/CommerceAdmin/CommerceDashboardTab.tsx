@@ -1,15 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import {
   COMMERCE_MONTHLY_RENEWALS,
-  COMMERCE_QUEUE_EXPIRING,
-  COMMERCE_QUEUE_NEW_ORDERS,
-  COMMERCE_QUEUE_OVERDUE,
   COMMERCE_QUICK_ACTIONS,
   COMMERCE_RECENT_ACTIVITY,
   COMMERCE_SERVICE_STATS,
   formatCommerceMoney,
 } from "@/lib/commerceAdmin/mockData";
+import { fetchCommerceDashboard, type CommerceDashboardData } from "@/services/commerceAdminService";
 import { useCommerceDashboardWidgets } from "@/lib/commerceAdmin/useCommerceDashboardWidgets";
 import CommerceCustomizeDashboardModal from "./CommerceCustomizeDashboardModal";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -43,8 +41,19 @@ function monthlyChartGeometry() {
 export default function CommerceDashboardTab({ onTabChange }: Props) {
   const [queueView, setQueueView] = useState<QueueView>("list");
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [dashboardData, setDashboardData] = useState<CommerceDashboardData | null>(null);
   const { visibleWidgets, visibleCount, toggleWidget, resetWidgets, isVisible } =
     useCommerceDashboardWidgets();
+
+  useEffect(() => {
+    fetchCommerceDashboard()
+      .then(setDashboardData)
+      .catch(() => setDashboardData(null));
+  }, []);
+
+  const newOrders = dashboardData?.newOrders ?? [];
+  const expiringServices = dashboardData?.expiringServices ?? [];
+  const overdueInvoices = dashboardData?.overdueInvoices ?? [];
 
   const geometry = useMemo(() => monthlyChartGeometry(), []);
   const polylinePoints = geometry.map((p) => `${p.xPercent},${p.actualY}`).join(" ");
@@ -65,7 +74,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
           <p className={styles.dashKicker}>Dashboard Display</p>
           <p className={styles.dashHeaderHint}>Choose which widgets the admin wants to keep visible on this page.</p>
         </div>
-        <button type="button" className={styles.dashCustomizeBtn} onClick={() => setCustomizeOpen(true)}>
+        <button type="button" className={styles.secondaryBtnSm} onClick={() => setCustomizeOpen(true)}>
           <i className="fa-solid fa-sliders" aria-hidden="true" />
           Customize Dashboard
           <span className={styles.dashCustomizeCount}>{visibleCount}</span>
@@ -119,15 +128,21 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {COMMERCE_QUEUE_NEW_ORDERS.map((row) => (
-                          <tr key={row.id}>
-                            <td className={styles.queueCellStrong}>{row.orderId}</td>
-                            <td>{row.company}</td>
-                            <td>{row.dateCreated}</td>
-                            <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
-                            <td><span className={styles.statusNew}>New</span></td>
+                        {newOrders.length === 0 ? (
+                          <tr>
+                            <td colSpan={5}>No new orders in queue.</td>
                           </tr>
-                        ))}
+                        ) : (
+                          newOrders.map((row) => (
+                            <tr key={row.id}>
+                              <td className={styles.queueCellStrong}>{row.orderId}</td>
+                              <td>{row.company}</td>
+                              <td>{row.dateCreated}</td>
+                              <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
+                              <td><span className={styles.statusNew}>{row.status}</span></td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                 </div>
@@ -154,15 +169,21 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {COMMERCE_QUEUE_EXPIRING.map((row) => (
-                          <tr key={row.id}>
-                            <td className={styles.queueCellStrong}>{row.service}</td>
-                            <td>{row.company}</td>
-                            <td>{row.expiryDate}</td>
-                            <td>{row.daysLeft}</td>
-                            <td><span className={styles.statusExpiring}>Expiring</span></td>
+                        {expiringServices.length === 0 ? (
+                          <tr>
+                            <td colSpan={5}>No expiring services.</td>
                           </tr>
-                        ))}
+                        ) : (
+                          expiringServices.map((row) => (
+                            <tr key={row.id}>
+                              <td className={styles.queueCellStrong}>{row.service}</td>
+                              <td>{row.company}</td>
+                              <td>{row.expiryDate}</td>
+                              <td>{row.daysLeft}</td>
+                              <td><span className={styles.statusExpiring}>Expiring</span></td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                 </div>
@@ -189,15 +210,21 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {COMMERCE_QUEUE_OVERDUE.map((row) => (
-                          <tr key={row.id}>
-                            <td className={styles.queueCellStrong}>{row.reference}</td>
-                            <td>{row.company}</td>
-                            <td>{row.dueDate}</td>
-                            <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
-                            <td><span className={styles.statusOverdue}>Overdue</span></td>
+                        {overdueInvoices.length === 0 ? (
+                          <tr>
+                            <td colSpan={5}>No overdue invoices.</td>
                           </tr>
-                        ))}
+                        ) : (
+                          overdueInvoices.map((row) => (
+                            <tr key={row.id}>
+                              <td className={styles.queueCellStrong}>{row.reference}</td>
+                              <td>{row.company}</td>
+                              <td>{row.dueDate}</td>
+                              <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
+                              <td><span className={styles.statusOverdue}>Overdue</span></td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                 </div>
@@ -293,6 +320,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                           ? styles.quickActionPurple
                           : styles.quickActionBlue
                     }
+                    onClick={() => onTabChange(action.tab)}
                   >
                     <span className={styles.quickActionIcon}><i className={action.icon} aria-hidden="true" /></span>
                     <strong>{action.label}</strong>
@@ -338,7 +366,9 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
               </tbody>
             </table>
           </div>
-          <button type="button" className={styles.activityViewAll}>View All Activity</button>
+          <button type="button" className={styles.activityViewAll} onClick={() => onTabChange("notifications")}>
+            View All Activity
+          </button>
         </section>
       )}
 
