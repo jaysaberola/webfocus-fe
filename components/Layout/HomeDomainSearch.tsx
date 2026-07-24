@@ -9,6 +9,12 @@ import {
 import { getWebsiteSettingsCached } from "@/lib/websiteSettings";
 import styles from "@/styles/homeDomainSearch.module.css";
 
+function availabilityRank(available: boolean | null) {
+  if (available === true) return 0;
+  if (available === false) return 1;
+  return 2;
+}
+
 function SearchIcon() {
   return (
     <svg
@@ -87,7 +93,12 @@ export default function HomeDomainSearch() {
       const ordered = [...response.results].sort((a, b) => {
         if (a.tld === tld && b.tld !== tld) return -1;
         if (b.tld === tld && a.tld !== tld) return 1;
-        if (a.available !== b.available) return a.available ? -1 : 1;
+        const availabilityDifference =
+  availabilityRank(a.available) - availabilityRank(b.available);
+
+if (availabilityDifference !== 0) {
+  return availabilityDifference;
+}
         return a.price - b.price;
       });
       setResults(ordered);
@@ -180,35 +191,67 @@ export default function HomeDomainSearch() {
 
         {results.length > 0 && (
           <div className={styles.results} aria-live="polite">
-            {results.map((result) => (
-              <div key={result.domain} className={styles.resultRow}>
-                <div>
-                  <strong>{result.domain}</strong>
-                  <span
-                    className={`${styles.status}${result.available ? ` ${styles.statusAvailable}` : ` ${styles.statusTaken}`}`}
-                  >
-                    {result.available ? "Available" : "Taken"}
-                  </span>
-                </div>
-                <div className={styles.resultActions}>
-                  <span className={styles.price}>
-                    {result.currency} {result.price.toLocaleString()}/yr
-                  </span>
-                  {result.available ? (
-                    <a
-                      href={`/public/contact-us?subject=Domain%20Registration&domain=${encodeURIComponent(result.domain)}`}
-                      className={styles.registerBtn}
+            {results.map((result) => {
+              const isAvailable = result.available === true;
+              const isTaken = result.available === false;
+              const isUnknown = result.available === null;
+
+              return (
+                <div key={result.domain} className={styles.resultRow}>
+                  <div>
+                    <strong>{result.domain}</strong>
+
+                    <span
+                      className={`${styles.status} ${
+                        isAvailable
+                          ? styles.statusAvailable
+                          : isTaken
+                            ? styles.statusTaken
+                            : styles.statusUnknown
+                      }`}
+                      title={result.message || undefined}
                     >
-                      Register
-                    </a>
-                  ) : (
-                    <button type="button" className={styles.registerBtnDisabled} disabled>
-                      Unavailable
-                    </button>
-                  )}
+                      {isAvailable
+                        ? "Available"
+                        : isTaken
+                          ? "Taken"
+                          : "Unable to verify"}
+                    </span>
+
+                    {isUnknown && result.message && (
+                      <small className={styles.providerMessage}>
+                        {result.message}
+                      </small>
+                    )}
+                  </div>
+
+                  <div className={styles.resultActions}>
+                    <span className={styles.price}>
+                      {result.currency} {result.price.toLocaleString()}/yr
+                    </span>
+
+                    {isAvailable ? (
+                      <a
+                        href={`/public/contact-us?subject=Domain%20Registration&domain=${encodeURIComponent(
+                          result.domain
+                        )}`}
+                        className={styles.registerBtn}
+                      >
+                        Register
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.registerBtnDisabled}
+                        disabled
+                      >
+                        {isTaken ? "Unavailable" : "Check Failed"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
