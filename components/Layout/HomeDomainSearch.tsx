@@ -6,6 +6,8 @@ import {
   PRIMARY_TLDS,
   type DomainCheckResult,
 } from "@/services/domainSearchService";
+import { useServiceCart } from "@/components/Services/useServiceCart";
+import { formatPeso } from "@/lib/servicesCatalog";
 import { getWebsiteSettingsCached } from "@/lib/websiteSettings";
 import styles from "@/styles/homeDomainSearch.module.css";
 
@@ -48,6 +50,7 @@ export default function HomeDomainSearch() {
   const [error, setError] = useState("");
   const [results, setResults] = useState<DomainCheckResult[]>([]);
   const [companyLabel, setCompanyLabel] = useState("WebFocus Solutions, Inc.");
+  const { addToCart } = useServiceCart();
 
   useEffect(() => {
     getWebsiteSettingsCached()
@@ -231,14 +234,20 @@ if (availabilityDifference !== 0) {
                     </span>
 
                     {isAvailable ? (
-                      <a
-                        href={`/public/contact-us?subject=Domain%20Registration&domain=${encodeURIComponent(
-                          result.domain
-                        )}`}
+                      <button
+                        type="button"
                         className={styles.registerBtn}
+                        onClick={() =>
+                          addToCart(
+                            result.domain,
+                            result.price,
+                            "Domain",
+                            "1 year registration"
+                          )
+                        }
                       >
-                        Register
-                      </a>
+                        Add to Cart {formatPeso(result.price)}
+                      </button>
                     ) : (
                       <button
                         type="button"
