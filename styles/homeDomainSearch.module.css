@@ -361,4 +361,16 @@
     width: 100%;
     justify-content: space-between;
   }
+  .statusUnknown {
+  color: #fbbf24;
+}
+
+.providerMessage {
+  display: block;
+  max-width: 520px;
+  margin-top: 5px;
+  color: #fbbf24;
+  font-size: 11px;
+  line-height: 1.4;
+}
 }

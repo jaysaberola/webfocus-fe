@@ -3,9 +3,15 @@ import { axiosInstance } from "./axios";
 export type DomainCheckResult = {
   domain: string;
   tld: string;
-  available: boolean;
+  available: boolean | null;
   price: number;
   currency: string;
+  provider?: string | null;
+  premium?: boolean;
+  provider_currency?: string | null;
+  provider_register_price?: number | null;
+  code?: string | null;
+  message?: string | null;
 };
 
 export type DomainCheckResponse = {
