@@ -211,12 +211,7 @@
   }
 }
 
-/* Mobile drawer toggle lives in the topbar; desktop uses the edge toggle. */
-@media (min-width: 992px) {
-  .cms-topbar__sidebar-toggle {
-    display: none !important;
-  }
-}
+/* Sidebar toggle is always in the topbar (mobile drawer + desktop show/hide). */
 
 /* Admin form input styles: restore visible textbox underline inside admin layout */
 .cms-admin-layout .form-control {

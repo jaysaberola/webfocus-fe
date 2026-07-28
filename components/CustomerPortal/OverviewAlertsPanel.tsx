@@ -11,12 +11,59 @@ type OverviewAlertsPanelProps = {
   alerts: PortalOverviewAlert[];
 };
 
+function consolidateAlerts(alerts: PortalOverviewAlert[]): PortalOverviewAlert[] {
+  const provisioning = alerts.filter((alert) => alert.tone === "provisioning");
+  const payment = alerts.filter((alert) => alert.tone === "payment");
+  const consolidated: PortalOverviewAlert[] = [];
+
+  if (provisioning.length > 0) {
+    const count = provisioning.length;
+    const first = provisioning[0];
+
+    consolidated.push({
+      id: "alert-provisioning-summary",
+      tone: "provisioning",
+      title:
+        count === 1 ? first.title : `Provisioning Alerts (${count})`,
+      message:
+        count === 1
+          ? first.message
+          : `You have ${count} services currently provisioning. We'll notify you when they're active.`,
+      actionLabel: first.actionLabel || "View Alerts",
+      actionHref: first.actionHref || "/public/dashboard?tab=notification",
+      icon: "bell",
+    });
+  }
+
+  if (payment.length > 0) {
+    const count = payment.length;
+    const first = payment[0];
+
+    consolidated.push({
+      id: "alert-payment-summary",
+      tone: "payment",
+      title: first.title || "Payment pending admin approval",
+      message:
+        count === 1
+          ? first.message
+          : `You have ${count} orders pending payment approval. Provisioning begins only after payment is complete.`,
+      actionLabel: first.actionLabel || "View Orders",
+      actionHref: first.actionHref || "/public/dashboard?tab=orders",
+      icon: "card",
+    });
+  }
+
+  return consolidated;
+}
+
 export default function OverviewAlertsPanel({ alerts }: OverviewAlertsPanelProps) {
-  if (alerts.length === 0) return null;
+  const visibleAlerts = consolidateAlerts(alerts);
+
+  if (visibleAlerts.length === 0) return null;
 
   return (
     <div className={styles.alertStack}>
-      {alerts.map((alert) => (
+      {visibleAlerts.map((alert) => (
         <OverviewAlertBanner key={alert.id} alert={alert} />
       ))}
     </div>

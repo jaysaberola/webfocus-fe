@@ -10,7 +10,7 @@ export function isAdminSiteRoute(pathname: string) {
 }
 
 /** Styles served from /public/css (not bundled via _app imports). */
-export const ADMIN_STYLESHEETS = ["/css/custom.css", "/css/admin.css"] as const;
+export const ADMIN_STYLESHEETS = ["/css/custom.css", "/css/admin.css", "/css/admin-no-hover.css"] as const;
 
 export const ADMIN_FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";

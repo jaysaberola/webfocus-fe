@@ -96,18 +96,21 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
       <nav className="navbar navbar-light cms-topbar px-4">
         <div className="container-fluid w-100 flex-grow-1 d-flex justify-content-between align-items-center gap-2">
         <div className="d-flex align-items-center cms-topbar__brand-area">
-          {onToggleSidebar && (
-            <button
-              type="button"
-              className="btn btn-outline-secondary cms-topbar__sidebar-toggle"
-              onClick={onToggleSidebar}
-              aria-label={isMobile ? "Toggle sidebar" : sidebarHidden ? "Show sidebar" : "Hide sidebar"}
-              title={isMobile ? "Toggle sidebar" : sidebarHidden ? "Show sidebar" : "Hide sidebar"}
-              ref={sidebarToggleRef}
-            >
-              <i className={`fa-solid ${isMobile ? "fa-bars" : sidebarHidden ? "fa-bars" : "fa-left-long"}`} />
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn-outline-secondary cms-topbar__sidebar-toggle"
+            onClick={onToggleSidebar}
+            aria-label={isMobile ? "Toggle sidebar" : sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+            title={isMobile ? "Toggle sidebar" : sidebarHidden ? "Show sidebar" : "Hide sidebar"}
+            ref={sidebarToggleRef}
+          >
+            <i
+              className={`fa-solid ${
+                isMobile || sidebarHidden ? "fa-bars" : "fa-angles-left"
+              }`}
+              aria-hidden="true"
+            />
+          </button>
 
           {logoUrl && !logoFailed ? (
             <img

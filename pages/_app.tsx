@@ -6,6 +6,7 @@ import "@/styles/admin-sidebar-v2.css";
 import "@/styles/dashboard.css";
 import "@/styles/admin-table.css";
 import "@/styles/admin-modal.css";
+import "@/styles/admin-no-hover.css";
 // Public-folder admin CSS (custom.css, admin.css) is loaded via <link> when on admin routes.
 
 import type { AppProps } from "next/app";

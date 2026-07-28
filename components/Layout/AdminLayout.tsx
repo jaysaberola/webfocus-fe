@@ -113,7 +113,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       <div className="flex-grow-1 d-flex flex-column">
         <Topbar
-          onToggleSidebar={isMobile ? toggleSidebar : undefined}
+          onToggleSidebar={toggleSidebar}
           sidebarToggleRef={sidebarToggleRef}
           sidebarHidden={sidebarHidden && !isMobile}
           isMobile={isMobile}
@@ -122,18 +122,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           {children}
         </main>
       </div>
-
-      {!isMobile && (
-        <button
-          type="button"
-          className={`cms-sidebar-edge-toggle${sidebarHidden ? " cms-sidebar-edge-toggle--hidden" : ""}`}
-          onClick={toggleSidebar}
-          aria-label={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
-          title={sidebarHidden ? "Show sidebar" : "Hide sidebar"}
-        >
-          <i className={`fa-solid ${sidebarHidden ? "fa-right-long" : "fa-left-long"}`} />
-        </button>
-      )}
 
       <ToastHost />
     </div>

@@ -14,6 +14,7 @@ import {
   type PublicHostingPlan,
 } from "@/services/publicHostingService";
 import { useServiceCart } from "./useServiceCart";
+import { serviceCardGridClass } from "./serviceCardGridClass";
 import styles from "@/styles/services.module.css";
 
 const HOSTING_TYPES: HostingPlanType[] = ["cloud", "shared", "dedicated", "baremetal"];
@@ -108,109 +109,158 @@ export default function ServicesHostingTab() {
 
   return (
     <div className={styles.tabPanel}>
-      <div className={styles.hostingFilters}>
-        {HOSTING_TYPES.map((type) => (
-          <button
-            key={type}
-            type="button"
-            className={`${styles.hostingFilterBtn}${hostingType === type ? ` ${styles.hostingFilterBtnActive}` : ""}`}
-            onClick={() => setHostingType(type)}
-          >
-            {HOSTING_TYPE_LABELS[type]}
-          </button>
-        ))}
-      </div>
+      <div className={styles.hostingWrap}>
+        <section className={styles.hostingHero} aria-label="Hosting services overview">
+          <div className={styles.hostingHeroInner}>
+            <p className={styles.hostingEyebrow}>Hosting Services</p>
+            <h2 className={styles.hostingHeroTitle}>Enterprise Hosting Plans</h2>
 
-      {refreshing ? <p className={styles.hostingLoading}>Updating live catalog...</p> : null}
-
-      <div className={styles.planGrid}>
-        {plans.map((plan) => (
-          <article key={plan.slug} className={styles.planCard}>
-            <div className={styles.planBody}>
-              <span className={styles.planKicker}>{plan.type.toUpperCase()} NODE</span>
-              <h4 className={styles.planName}>{plan.name}</h4>
-              <p className={styles.planPrice}>
-                {formatPeso(plan.price)} <span>/ {plan.billing}</span>
-              </p>
-              <div className={styles.planSpecs}>
-                <p>
-                  RAM / Spec: <strong>{plan.ram}</strong>
-                </p>
-                <p>
-                  Storage: <strong>{plan.ssd}</strong>
-                </p>
-              </div>
+            <div className={styles.hostingTypeRow}>
+              {HOSTING_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={`${styles.hostingTypePill}${
+                    hostingType === type ? ` ${styles.hostingTypePillActive}` : ""
+                  }`}
+                  onClick={() => setHostingType(type)}
+                >
+                  {HOSTING_TYPE_LABELS[type]}
+                </button>
+              ))}
             </div>
-            <button
-              type="button"
-              className={styles.primaryBtn}
-              onClick={() => addToCart(plan.name, plan.price, `${plan.type.toUpperCase()} Hosting`, plan.billing)}
-            >
-              Add to Cart
-            </button>
-          </article>
-        ))}
-      </div>
+          </div>
+        </section>
 
-      <section className={styles.addonsSection}>
-        <div className={styles.sectionHeading}>
-          <h3>{hostingType.toUpperCase()} Add-ons &amp; Enhancements</h3>
-          <p>Enhance your {sectionTitle.toLowerCase()} with certified Manila NOC add-on modules.</p>
-        </div>
-        <div className={styles.addonGrid}>
-          {typeAddons.map((addon) => (
-            <article key={addon.slug} className={styles.addonCard}>
-              <div className={styles.addonBody}>
-                <div className={styles.addonHeader}>
-                  <h5>{addon.name}</h5>
-                  <span>
-                    {formatPeso(addon.price)}/{addon.billing}
-                  </span>
+        <section className={styles.hostingContent}>
+          {refreshing ? <p className={styles.hostingLoading}>Updating live catalog...</p> : null}
+          {usingFallback ? (
+            <p className={styles.hostingFallbackNote}>
+              Showing cached hosting catalog while the live catalog reloads.
+            </p>
+          ) : null}
+
+          <div className={styles.hostingSectionHead}>
+            <h3 className={styles.hostingSectionTitle}>{sectionTitle} Plans</h3>
+            <p className={styles.hostingSectionHint}>
+              Choose a node tier with defined RAM and storage allocations for your workload.
+            </p>
+          </div>
+
+          <div className={serviceCardGridClass(plans.length)}>
+            {plans.map((plan) => (
+              <article key={plan.slug} className={styles.serviceCard}>
+                <div className={styles.serviceCardTop}>
+                  <span className={styles.serviceCardBadge}>{plan.type.toUpperCase()} NODE</span>
+                  <h4 className={styles.serviceCardTitle}>{plan.name}</h4>
+                  <p className={styles.serviceCardPrice}>
+                    {formatPeso(plan.price)}
+                    <span> / {plan.billing}</span>
+                  </p>
                 </div>
-                {addon.desc ? <p>{addon.desc}</p> : null}
-              </div>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={() => addToCart(addon.name, addon.price, "Hosting Add-on", addon.desc || "Annual add-on")}
-              >
-                Add to Cart
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
+                <div className={styles.serviceCardBody}>
+                  <div className={styles.serviceCardMeta}>
+                    <p>
+                      RAM / Spec: <strong>{plan.ram}</strong>
+                    </p>
+                    <p>
+                      Storage: <strong>{plan.ssd}</strong>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.serviceCardBtn} ${styles.serviceCardBtnPrimary}`}
+                  onClick={() =>
+                    addToCart(plan.name, plan.price, `${plan.type.toUpperCase()} Hosting`, plan.billing)
+                  }
+                >
+                  + ADD TO CART
+                </button>
+              </article>
+            ))}
+          </div>
 
-      <section className={styles.addonsSection}>
-        <div className={styles.sectionHeading}>
-          <h3>Other Service Add-on List (Available for All Hosting Services)</h3>
-          <p>Comprehensive schedule of specialized infrastructure add-ons and licensing enhancements.</p>
-        </div>
-        <div className={styles.addonGrid}>
-          {universalAddons.map((addon) => (
-            <article key={addon.slug} className={styles.universalAddonCard}>
-              <div className={styles.universalAddonBody}>
-                {addon.label ? <span className={styles.universalLabel}>{addon.label}</span> : null}
-                <h5>{addon.name}</h5>
-                <p className={styles.universalPrice}>
-                  {formatPeso(addon.price)} <span>/{addon.billing}</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                className={styles.secondaryBtn}
-                onClick={() => addToCart(addon.name, addon.price, "Hosting Add-on", addon.desc || "Annual add-on")}
-              >
-                Add to Cart
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
+          <div className={styles.hostingAddonsBlock}>
+            <div className={styles.hostingSectionHead}>
+              <h3 className={styles.hostingSectionTitle}>
+                {hostingType.toUpperCase()} Add-ons &amp; Enhancements
+              </h3>
+              <p className={styles.hostingSectionHint}>
+                Enhance your {sectionTitle.toLowerCase()} with certified Manila NOC add-on modules.
+              </p>
+            </div>
 
-      {usingFallback ? (
-        <p className={styles.hostingFallbackNote}>Showing cached hosting catalog while the live catalog reloads.</p>
-      ) : null}
+            <div className={serviceCardGridClass(typeAddons.length)}>
+              {typeAddons.map((addon) => (
+                <article key={addon.slug} className={styles.serviceCard}>
+                  <div className={styles.serviceCardTop}>
+                    <div className={styles.hostingAddonTop}>
+                      <h4 className={styles.serviceCardTitle}>{addon.name}</h4>
+                      <span className={styles.hostingAddonPrice}>
+                        {formatPeso(addon.price)}/{addon.billing}
+                      </span>
+                    </div>
+                  </div>
+                  {addon.desc ? (
+                    <div className={styles.serviceCardBody}>
+                      <p className={styles.serviceCardDesc}>{addon.desc}</p>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`${styles.serviceCardBtn} ${styles.serviceCardBtnNavy}`}
+                    onClick={() =>
+                      addToCart(addon.name, addon.price, "Hosting Add-on", addon.desc || "Annual add-on")
+                    }
+                  >
+                    + ADD TO CART
+                  </button>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.hostingAddonsBlock}>
+            <div className={styles.hostingSectionHead}>
+              <h3 className={styles.hostingSectionTitle}>
+                Universal Add-ons (All Hosting Services)
+              </h3>
+              <p className={styles.hostingSectionHint}>
+                Specialized infrastructure add-ons and licensing enhancements available across plans.
+              </p>
+            </div>
+
+            <div className={serviceCardGridClass(universalAddons.length)}>
+              {universalAddons.map((addon) => (
+                <article key={addon.slug} className={styles.serviceCard}>
+                  <div className={styles.serviceCardTop}>
+                    {addon.label ? (
+                      <span className={`${styles.serviceCardBadge} ${styles.serviceCardBadgeOrange}`}>
+                        {addon.label}
+                      </span>
+                    ) : null}
+                    <h4 className={styles.serviceCardTitle}>{addon.name}</h4>
+                    <p className={styles.serviceCardPrice}>
+                      {formatPeso(addon.price)}
+                      <span> / {addon.billing}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.serviceCardBtn} ${styles.serviceCardBtnNavy}`}
+                    onClick={() =>
+                      addToCart(addon.name, addon.price, "Hosting Add-on", addon.desc || "Annual add-on")
+                    }
+                  >
+                    + ADD TO CART
+                  </button>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

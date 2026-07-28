@@ -1,0 +1,200 @@
+/* ============================================================
+   CMS Portal — disable hover animations & motion effects
+   ============================================================ */
+
+.cms-admin-layout * {
+  transition: none !important;
+}
+
+.cms-admin-layout .sb-root {
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.cms-admin-layout .cms-sidebar-overlay {
+  transition: opacity 220ms ease !important;
+}
+
+.cms-admin-layout .cms-skeleton {
+  animation: cms-skeleton 1.2s ease-in-out infinite !important;
+}
+
+.cms-admin-layout .sb-viewsite-dot {
+  animation: sb-pulse 2s ease-in-out infinite !important;
+}
+
+.cms-admin-layout .sb-submenu {
+  animation: sb-submenu-in 0.2s ease !important;
+}
+
+.cms-admin-layout .cms-setup-progress .progress-bar {
+  transition: width 0.5s ease !important;
+}
+
+@media (hover: hover) {
+  .cms-admin-layout *:hover {
+    transform: none !important;
+  }
+
+  /* Dashboard cards & links */
+  .cms-admin-layout .cms-stats .cms-stat:hover {
+    transform: none !important;
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: var(--admin-shadow-md, 0 8px 24px rgba(15, 23, 42, 0.08)) !important;
+  }
+
+  .cms-admin-layout .cms-stat--pages:hover,
+  .cms-admin-layout .cms-stat--albums:hover,
+  .cms-admin-layout .cms-stat--news:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+  }
+
+  .cms-admin-layout .cms-stats .cms-stat:hover .cms-stat__arrow {
+    transform: none !important;
+    color: #cbd5e1 !important;
+  }
+
+  .cms-admin-layout .cms-metric-card:hover {
+    transform: none !important;
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: var(--admin-shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.06)) !important;
+  }
+
+  .cms-admin-layout .cms-metric-card--pages:hover,
+  .cms-admin-layout .cms-metric-card--albums:hover,
+  .cms-admin-layout .cms-metric-card--news:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+  }
+
+  .cms-admin-layout .cms-metric-card:hover::after {
+    opacity: 0.35 !important;
+    transform: none !important;
+  }
+
+  .cms-admin-layout .cms-metric-card--pages:hover .cms-metric-card__arrow,
+  .cms-admin-layout .cms-metric-card--albums:hover .cms-metric-card__arrow,
+  .cms-admin-layout .cms-metric-card--news:hover .cms-metric-card__arrow {
+    transform: none !important;
+    color: #cbd5e1 !important;
+  }
+
+  .cms-admin-layout .cms-quicklink:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    color: #334155 !important;
+  }
+
+  .cms-admin-layout .cms-quicklink:hover > i:first-child {
+    background: var(--admin-accent-soft, rgba(99, 102, 241, 0.14)) !important;
+    color: var(--admin-accent, #6366f1) !important;
+  }
+
+  .cms-admin-layout .cms-quicklink:hover .cms-quicklink__chevron {
+    transform: none !important;
+    color: #cbd5e1 !important;
+  }
+
+  .cms-admin-layout .cms-expand-row:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: none !important;
+  }
+
+  .cms-admin-layout .cms-expand-row.is-open:hover {
+    border-color: rgba(99, 102, 241, 0.25) !important;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.08) !important;
+  }
+
+  .cms-admin-layout .cms-setup-pill:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+
+  .cms-admin-layout .cms-summary-stat-tile:hover {
+    transform: none !important;
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: var(--admin-shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.06)) !important;
+  }
+
+  .cms-admin-layout .cms-summary-stat-tile:hover::after {
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  .cms-admin-layout .cms-summary-stat-tile:hover .cms-summary-stat-tile__arrow {
+    opacity: 0 !important;
+    transform: none !important;
+  }
+
+  .cms-admin-layout a.cms-dashboard__hero-stat:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+  }
+
+  /* Activity feed */
+  .cms-admin-layout .cms-activity__item:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+
+  /* Data tables */
+  .cms-admin-layout .dt-enhanced-table tbody tr:hover {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .cms-admin-layout .dt-enhanced-table tbody tr:nth-child(even):hover {
+    background: rgba(248, 250, 252, 0.55) !important;
+  }
+
+  .cms-admin-layout .dt-enhanced-table tbody tr:nth-child(odd):hover {
+    background: transparent !important;
+  }
+
+  .cms-admin-layout .dt-pg-btn:hover:not(:disabled):not(.is-active) {
+    background: #fff !important;
+    border-color: #e2e8f0 !important;
+    color: #475569 !important;
+    transform: none !important;
+  }
+
+  .cms-admin-layout .dt-pg-btn.is-active:hover:not(:disabled) {
+    transform: none !important;
+  }
+
+  .cms-admin-layout .cms-action-btn:hover,
+  .cms-admin-layout .cms-options-trigger:hover,
+  .cms-admin-layout .cms-options-trigger:focus-visible {
+    transform: none !important;
+  }
+
+  /* Topbar */
+  .cms-admin-layout .cms-topbar__user-btn:hover {
+    transform: none !important;
+  }
+
+  .cms-admin-layout .cms-topbar__sidebar-toggle:hover {
+    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    color: #475569 !important;
+    background: var(--admin-surface, #fff) !important;
+  }
+
+  /* Sidebar navigation */
+  .cms-admin-layout .sb-parent-btn:hover:not(.sb-active),
+  .cms-admin-layout .sb-single-link:hover:not(.sb-active) {
+    background: transparent !important;
+    color: var(--admin-sidebar-text, rgba(226, 232, 240, 0.88)) !important;
+    border-color: transparent !important;
+  }
+
+  .cms-admin-layout .sb-child-link:hover:not(.sb-active) {
+    background: transparent !important;
+    color: var(--admin-sidebar-muted, rgba(148, 163, 184, 0.72)) !important;
+  }
+
+  .cms-admin-layout .sb-viewsite a:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: rgba(203, 213, 225, 0.85) !important;
+  }
+}
