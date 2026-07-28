@@ -10,6 +10,13 @@ import {
   updateSalesTransaction,
 } from "@/services/salesTransactionService";
 import { toast } from "@/lib/toast";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleDate,
+  CmsModuleRowActions,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 const emptyForm = {
   transaction_no: "",
@@ -40,7 +47,7 @@ function ManageSalesTransactions() {
   const [neededEnd, setNeededEnd] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | null>(null);
   const [selected, setSelected] = useState<SalesTransaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SalesTransaction | null>(null);
@@ -173,26 +180,27 @@ function ManageSalesTransactions() {
       header: "Payment Status",
       minWidth: 150,
       render: (row) => (
-        <span className={`badge ${String(row.payment_status).toLowerCase() === "paid" ? "bg-success" : "bg-secondary"}`}>
-          {row.payment_status}
-        </span>
+        <CmsModuleStatusBadge
+          status={String(row.payment_status).toLowerCase() === "paid" ? "active" : "inactive"}
+          label={row.payment_status}
+        />
       ),
     },
     {
       key: "order_status",
       header: "Order Status",
       minWidth: 140,
-      render: (row) => <span className="badge bg-info text-dark">{row.order_status}</span>,
+      render: (row) => <CmsModuleStatusBadge status="draft" label={row.order_status} />,
     },
-    { key: "transacted_at", header: "Ordered Date", minWidth: 130, render: (row) => formatDate(row.transacted_at) },
-    { key: "date_needed", header: "Date Needed", minWidth: 130, render: () => "-" },
+    { key: "transacted_at", header: "Ordered Date", minWidth: 130, render: (row) => <CmsModuleDate value={formatDate(row.transacted_at)} /> },
+    { key: "date_needed", header: "Date Needed", minWidth: 130, render: () => <CmsModuleDate value="—" /> },
     {
       key: "options",
       header: "Actions",
       minWidth: 130,
       render: (row) => (
-        <>
-          <button className="btn btn-link p-0 me-2 text-secondary" title="View" onClick={() => { setSelected(row); setModalMode("view"); }} type="button">
+        <CmsModuleRowActions>
+          <button className="btn btn-link p-0 text-secondary" title="View" onClick={() => { setSelected(row); setModalMode("view"); }} type="button">
             <i className="fas fa-eye" />
           </button>
           <button className="btn btn-link p-0 me-2 text-secondary" title="Edit" onClick={() => openEdit(row)} type="button">
@@ -201,16 +209,18 @@ function ManageSalesTransactions() {
           <button className="btn btn-link p-0 text-danger" title="Delete" onClick={() => remove(row)} type="button">
             <i className="fas fa-trash" />
           </button>
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4">Sales Transaction Manager</h3>
-
-      <div className="st-filter-grid mb-3">
+    <CmsModuleShell
+      title="Sales Transaction Manager"
+      description="Search and manage sales transactions by source, status, delivery type, and date range."
+      icon="fa-solid fa-receipt"
+      toolbar={(
+      <div className="st-filter-grid">
         <select className="form-select" value={source} onChange={(e) => { setSource(e.target.value); setCurrentPage(1); }}>
           <option value="">0 selected source</option>
           <option value="website">Website</option>
@@ -241,11 +251,13 @@ function ManageSalesTransactions() {
           <option value="">0 selected delivery address</option>
         </select>
       </div>
-
+      )}
+    >
       <DataTable<SalesTransaction>
         columns={columns}
         data={transactions}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -304,7 +316,7 @@ function ManageSalesTransactions() {
           }
         }
       `}</style>
-    </div>
+    </CmsModuleShell>
   );
 }
 

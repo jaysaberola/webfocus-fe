@@ -6,7 +6,14 @@ import ConfirmModal from "@/components/UI/ConfirmModal";
 import { deleteMenu, getMenus, MenuRow, activateMenu, postMethodDeleteMenu, updateMenuName, restoreMenu, setMenuInactive } from "@/services/menuService";
 import { useRouter } from "next/router";
 import { toast } from "@/lib/toast";
-import Link from "next/link";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleDate,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -19,7 +26,7 @@ function ManageMenus() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("updated_at");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
@@ -346,14 +353,7 @@ function ManageMenus() {
       sortField: "name",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={showDeleted ? "fw-bold text-decoration-line-through text-muted" : "fw-bold text-primary"}>
-          {row.name}
-          {showDeleted && (
-            <span className="badge bg-danger ms-2" style={{ fontSize: 11, verticalAlign: "middle" }}>
-              Deleted
-            </span>
-          )}
-        </span>
+        <CmsModuleTitleCell title={row.name} muted={showDeleted} />
       ),
     },
     {
@@ -363,13 +363,10 @@ function ManageMenus() {
       sortField: "is_active",
       defaultSortOrder: "desc",
       render: (row) => (
-        <span
-          className={`badge ${
-            row.is_active ? "bg-success" : "bg-secondary"
-          }`}
-        >
-          {row.is_active ? "Active" : "Inactive"}
-        </span>
+        <CmsModuleStatusBadge
+          status={row.is_active ? "active" : "inactive"}
+          label={row.is_active ? "Active" : "Inactive"}
+        />
       ),
     },
     {
@@ -379,12 +376,13 @@ function ManageMenus() {
       sortField: "updated_at",
       sortLabel: "Date Modified",
       defaultSortOrder: "desc",
+      render: (row) => <CmsModuleDate value={row.updated_at_formatted} />,
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           {showDeleted ? (
             <button
               className="btn btn-link p-0 text-success"
@@ -443,15 +441,39 @@ function ManageMenus() {
               </button>
             </>
           )}
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Menus</h3>
-
+    <CmsModuleShell
+      title="Manage Menus"
+      description="Create and manage navigation menus. Set an active menu or open the trash to restore deleted menus."
+      icon="fa-solid fa-bars"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Menus" : "View Trash"}
+          </button>
+          <CmsModuleCreateButton href="/menu/create" label="Create Menu" />
+        </>
+      )}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted menus only. Restore a menu to bring it back to your list.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
       <SearchBar
         placeholder="Search Menus"
         value={search}
@@ -481,26 +503,7 @@ function ManageMenus() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/menu/create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create Menu
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -537,11 +540,13 @@ function ManageMenus() {
         initialPerPage={perPage}
         initialShowDeleted={showDeleted}
       />
-
+      )}
+    >
       <DataTable<MenuRow>
         columns={columns}
         data={menus}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -676,7 +681,7 @@ function ManageMenus() {
           setRestoreTarget(null);
         }}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { websiteService } from "@/services/websiteService";
+import { getWebsiteSettingsCached } from "@/lib/websiteSettings";
+import { scheduleIdleTask } from "@/lib/referenceDataCache";
 import { getUsers } from "@/services/userService";
 import { getPages } from "@/services/pageService";
 import { getArticles } from "@/services/articleService";
@@ -49,13 +51,13 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
       try {
         setSettingsLoading(true);
         const [s, socials, usersRes] = await Promise.all([
-          websiteService.getSettings(),
+          getWebsiteSettingsCached(),
           websiteService.getSocials().catch(() => ({ data: [] })),
           getUsers({ page: 1, per_page: 1 }).catch(() => null),
         ]);
 
         if (!mounted) return;
-        setSettings((s as any)?.setting ?? s);
+        setSettings(s as WebsiteSettingsSnapshot);
         const count = Array.isArray((socials as any)?.data) ? (socials as any).data.filter(Boolean).length : 0;
         setSocialCount(count);
 
@@ -96,70 +98,12 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
       return raw;
     };
 
-    const fetchAllPages = async (paramsBase: any) => {
-      const perPage = 200;
-      const maxPages = 20;
-      const all: any[] = [];
-
-      let page = 1;
-      let lastPage = 1;
-      while (page <= lastPage && page <= maxPages) {
-        const res = await getPages({ ...paramsBase, page, per_page: perPage } as any);
-        const rows: any[] = Array.isArray((res as any)?.data?.data) ? (res as any).data.data : [];
-        const meta = (res as any)?.data?.meta;
-        lastPage = Number(meta?.last_page ?? meta?.lastPage ?? 1) || 1;
-        all.push(...rows);
-        page++;
-
-        // Stop if backend doesn't paginate and returns everything
-        if (rows.length < perPage) break;
-      }
-      return all;
-    };
-
-    const fetchAllArticles = async (paramsBase: any) => {
-      const perPage = 200;
-      const maxPages = 20;
-      const all: any[] = [];
-
-      let page = 1;
-      let lastPage = 1;
-      while (page <= lastPage && page <= maxPages) {
-        const payload: any = await getArticles({ ...paramsBase, page, per_page: perPage } as any);
-        const rows: any[] = Array.isArray(payload?.data) ? payload.data : [];
-        lastPage = Number(payload?.last_page ?? payload?.meta?.last_page ?? 1) || 1;
-        all.push(...rows);
-        page++;
-
-        if (rows.length < perPage) break;
-      }
-      return all;
-    };
-
-    const fetchAllUsers = async (paramsBase: any) => {
-      const perPage = 200;
-      const maxPages = 20;
-      const all: any[] = [];
-
-      let page = 1;
-      let lastPage = 1;
-      while (page <= lastPage && page <= maxPages) {
-        const payload: any = await getUsers({ ...paramsBase, page, per_page: perPage } as any);
-        // getUsers() returns the raw axios payload (commonly { data: { data: [...], meta: {...} } })
-        const rows: any[] = Array.isArray(payload?.data?.data)
-          ? payload.data.data
-          : Array.isArray(payload?.data)
-            ? payload.data
-            : [];
-
-        const meta = payload?.meta ?? payload?.data?.meta;
-        lastPage = Number(meta?.last_page ?? meta?.lastPage ?? payload?.last_page ?? 1) || 1;
-        all.push(...rows);
-        page++;
-
-        if (rows.length < perPage) break;
-      }
-      return all;
+    const fetchFirstBatch = async (fetcher: (params: any) => Promise<any>, paramsBase: any) => {
+      const res = await fetcher({ ...paramsBase, page: 1, per_page: 200 });
+      if (Array.isArray((res as any)?.data?.data)) return (res as any).data.data;
+      if (Array.isArray((res as any)?.data)) return (res as any).data;
+      if (Array.isArray((res as any)?.data?.data?.data)) return (res as any).data.data.data;
+      return [];
     };
 
     const loadBreakdown = async () => {
@@ -167,11 +111,11 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
         setBreakdownLoading(true);
 
         const [pagesRows, pagesDeletedRows, newsRows, newsDeletedRows, userRows] = await Promise.all([
-          fetchAllPages({}),
-          fetchAllPages({ show_deleted: 1, with_trashed: 1, only_trashed: 1, only_deleted: 1 }).catch(() => []),
-          fetchAllArticles({}),
-          fetchAllArticles({ show_deleted: 1, with_trashed: 1, only_trashed: 1, only_deleted: 1 }).catch(() => []),
-          fetchAllUsers({}),
+          fetchFirstBatch(getPages, {}),
+          fetchFirstBatch(getPages, { show_deleted: 1, with_trashed: 1, only_trashed: 1, only_deleted: 1 }).catch(() => []),
+          fetchFirstBatch(getArticles, {}),
+          fetchFirstBatch(getArticles, { show_deleted: 1, with_trashed: 1, only_trashed: 1, only_deleted: 1 }).catch(() => []),
+          fetchFirstBatch(getUsers, {}),
         ]);
 
         const pagesCounts = { published: 0, private: 0, draft: 0, deleted: 0 };
@@ -244,9 +188,13 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
     };
 
     load();
-    loadBreakdown();
+    const cancelBreakdown = scheduleIdleTask(() => {
+      if (mounted) void loadBreakdown();
+    }, 2500);
+
     return () => {
       mounted = false;
+      cancelBreakdown();
     };
   }, []);
 

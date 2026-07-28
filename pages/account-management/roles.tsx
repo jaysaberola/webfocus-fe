@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import DataTable, { Column } from "@/components/UI/DataTable";
@@ -11,6 +11,20 @@ import {
   updateRole,
   deleteRole,
 } from "@/services/roleService";
+import CmsModuleShell, { CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import CmsFormModal from "@/components/Modules/CmsFormModal";
+import {
+  CmsSettingsField,
+  CmsSettingsGrid,
+  CmsSettingsLayout,
+  CmsSettingsSection,
+} from "@/components/Modules/CmsSettingsForm";
+import {
+  CmsModuleDate,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type SortOrder = "asc" | "desc";
 type AdvancedSearchValues = Record<string, string>;
@@ -22,7 +36,7 @@ function ManageRoles() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
@@ -230,7 +244,7 @@ function ManageRoles() {
       sortable: true,
       sortField: "name",
       defaultSortOrder: "asc",
-      render: (row) => <span className="fw-bold">{row.name}</span>,
+      render: (row) => <CmsModuleTitleCell title={row.name} />,
     },
     {
       key: "description",
@@ -238,7 +252,7 @@ function ManageRoles() {
       sortable: true,
       sortField: "description",
       defaultSortOrder: "asc",
-      render: (row) => row.description || "-",
+      render: (row) => row.description || "—",
     },
     {
       key: "updated_at",
@@ -246,15 +260,15 @@ function ManageRoles() {
       sortable: true,
       sortField: "updated_at",
       defaultSortOrder: "desc",
-      render: (row) => (row.updated_at ? new Date(row.updated_at).toLocaleString() : "-"),
+      render: (row) => <CmsModuleDate value={row.updated_at ? new Date(row.updated_at).toLocaleString() : undefined} />,
     },
     {
       key: "options",
       header: "Options",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           <button
-            className="btn btn-link p-0 me-2 text-secondary"
+            className="btn btn-link p-0 text-secondary"
             title="Edit"
             onClick={() => openEditModal(row)}
             type="button"
@@ -270,15 +284,32 @@ function ManageRoles() {
           >
             <i className="fas fa-trash" />
           </button>
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
-  return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Roles</h3>
+  const roleStats = useMemo(() => ({ total: roles.length }), [roles]);
 
+  return (
+    <CmsModuleShell
+      title="Manage Roles"
+      description="Create and manage user roles. Assign roles to users and configure access rights per role."
+      icon="fa-solid fa-user-shield"
+      actions={(
+        <button
+          type="button"
+          className="btn btn-primary cms-module__create-btn"
+          onClick={openCreateModal}
+        >
+          <i className="fa-solid fa-plus" aria-hidden="true" />
+          Create Role
+        </button>
+      )}
+      stats={[
+        { label: "Showing", value: roleStats.total },
+      ]}
+      toolbar={(
       <SearchBar
         placeholder="Search roles"
         value={search}
@@ -297,27 +328,7 @@ function ManageRoles() {
           </button>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <button
-              type="button"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-              onClick={openCreateModal}
-            >
-              Create Role
-            </button>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -344,71 +355,72 @@ function ManageRoles() {
         initialPerPage={perPage}
         showDeletedToggle={false}
       />
-
-      <DataTable<RoleRow>
-        columns={columns}
-        data={roles}
-        loading={loading}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        itemsPerPage={perPage}
-        onItemsPerPageChange={(n: number) => {
-          setPerPage(n);
-          setCurrentPage(1);
-        }}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSortChange={(nextBy, nextOrder) => {
-          silentSortFetchRef.current = true;
-          setSortBy(nextBy);
-          setSortOrder(nextOrder);
-          setCurrentPage(1);
-        }}
-      />
-
-      {showRoleModal && (
-        <div className="modal show d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(15, 23, 42, 0.35)" }}>
-          <div className="modal-dialog modal-dialog-centered" role="document">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">{editingRole ? "Edit Role" : "Create Role"}</h5>
-                <button type="button" className="btn-close" aria-label="Close" onClick={closeRoleModal} />
-              </div>
-
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Role name</label>
-                  <input
-                    className="form-control"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    className="form-control"
-                    rows={4}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={closeRoleModal}>
-                  Cancel
-                </button>
-                <button type="button" className="btn btn-primary" onClick={handleSaveRole}>
-                  {editingRole ? "Update Role" : "Create Role"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
+    >
+      <CmsSettingsLayout>
+        <CmsSettingsSection
+          title="Roles List"
+          description="View, edit, and delete roles assigned to admin users."
+          icon="fa-solid fa-list"
+        >
+          <DataTable<RoleRow>
+            columns={columns}
+            data={roles}
+            loading={loading}
+            {...cmsModuleTableProps}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={perPage}
+            onItemsPerPageChange={(n: number) => {
+              setPerPage(n);
+              setCurrentPage(1);
+            }}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={(nextBy, nextOrder) => {
+              silentSortFetchRef.current = true;
+              setSortBy(nextBy);
+              setSortOrder(nextOrder);
+              setCurrentPage(1);
+            }}
+          />
+        </CmsSettingsSection>
+      </CmsSettingsLayout>
+
+      <CmsFormModal
+        show={showRoleModal}
+        title={editingRole ? "Edit Role" : "Create Role"}
+        description={
+          editingRole
+            ? "Update the role name and description used across the admin portal."
+            : "Add a new role that can be assigned to users and configured in access rights."
+        }
+        icon="fa-solid fa-user-shield"
+        submitLabel={editingRole ? "Update Role" : "Create Role"}
+        onClose={closeRoleModal}
+        onSubmit={handleSaveRole}
+      >
+        <CmsSettingsGrid columns={1}>
+          <CmsSettingsField label="Role Name" required>
+            <input
+              className="form-control"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Editor, Manager"
+            />
+          </CmsSettingsField>
+          <CmsSettingsField label="Description" required hint="Briefly describe what this role is allowed to do.">
+            <textarea
+              className="form-control"
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe the responsibilities for this role"
+            />
+          </CmsSettingsField>
+        </CmsSettingsGrid>
+      </CmsFormModal>
 
       <ConfirmModal
         show={!!deleteTarget}
@@ -427,7 +439,7 @@ function ManageRoles() {
         onConfirm={confirmDeleteSelectedRoles}
         onCancel={() => setConfirmBulkDelete(false)}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

@@ -5,6 +5,12 @@ import DataTable, { Column } from "@/components/UI/DataTable";
 import SearchBar from "@/components/UI/SearchBar";
 import { Coupon, createCoupon, deleteCoupon, getCoupons, updateCoupon } from "@/services/couponService";
 import { toast } from "@/lib/toast";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleRowActions,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 const emptyForm = {
   code: "",
@@ -24,7 +30,7 @@ function ManageCoupons() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | null>(null);
   const [selected, setSelected] = useState<Coupon | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null);
@@ -135,14 +141,14 @@ function ManageCoupons() {
     {
       key: "status",
       header: "Status",
-      render: (row) => <span className={`badge ${row.status === "active" ? "bg-success" : "bg-secondary"}`}>{row.status}</span>,
+      render: (row) => <CmsModuleStatusBadge status={row.status ?? "inactive"} />,
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
-        <>
-          <button className="btn btn-link p-0 me-2 text-secondary" title="View" onClick={() => { setSelected(row); setModalMode("view"); }} type="button">
+        <CmsModuleRowActions>
+          <button className="btn btn-link p-0 text-secondary" title="View" onClick={() => { setSelected(row); setModalMode("view"); }} type="button">
             <i className="fas fa-eye" />
           </button>
           <button className="btn btn-link p-0 me-2 text-secondary" title="Edit" onClick={() => openEdit(row)} type="button">
@@ -151,32 +157,37 @@ function ManageCoupons() {
           <button className="btn btn-link p-0 text-danger" title="Delete" onClick={() => remove(row)} type="button">
             <i className="fas fa-trash" />
           </button>
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Coupons</h3>
-
+    <CmsModuleShell
+      title="Manage Coupons"
+      description="Create and manage discount coupons for your store."
+      icon="fa-solid fa-ticket"
+      actions={(
+        <button type="button" className="btn btn-primary cms-module__create-btn" onClick={openCreate}>
+          <i className="fa-solid fa-plus" aria-hidden="true" />
+          Create Coupon
+        </button>
+      )}
+      toolbar={(
       <SearchBar
         placeholder="Search coupons"
         value={search}
         onChange={(v) => { setSearch(v); setCurrentPage(1); }}
         showFiltersButton={false}
         showActionsButton={false}
-        rightExtras={(
-          <button className="btn btn-primary" onClick={openCreate} type="button" style={{ height: 40, whiteSpace: "nowrap" }}>
-            Create Coupon
-          </button>
-        )}
       />
-
+      )}
+    >
       <DataTable<Coupon>
         columns={columns}
         data={coupons}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -203,7 +214,7 @@ function ManageCoupons() {
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

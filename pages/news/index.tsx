@@ -15,7 +15,15 @@ import {
   ArticleRow,
 } from "@/services/articleService";
 import { useRouter } from "next/router";
-import Link from "next/link";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleLabelPill,
+  CmsModuleDate,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type NewsRow = ArticleRow & { slug?: string };
 type AdvancedSearchValues = Record<string, string>;
@@ -29,7 +37,7 @@ function ManageNews() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("updated_at");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
@@ -64,36 +72,6 @@ function ManageNews() {
     if (raw === "draft") return "draft";
     if (raw === "deleted") return "deleted";
     return raw;
-  };
-
-  const statusBadgeClass = (status: string) => {
-    switch (status) {
-      case "published":
-        return "badge bg-success";
-      case "private":
-        return "badge bg-secondary";
-      case "draft":
-        return "badge bg-info text-dark";
-      case "deleted":
-        return "badge bg-danger";
-      default:
-        return "badge bg-light text-dark border";
-    }
-  };
-
-  const statusLabel = (status: string) => {
-    switch (status) {
-      case "published":
-        return "Published";
-      case "private":
-        return "Private";
-      case "draft":
-        return "Draft";
-      case "deleted":
-        return "Deleted";
-      default:
-        return status ? status.charAt(0).toUpperCase() + status.slice(1) : "—";
-    }
   };
 
   const getNewsViewUrl = (row: NewsRow) => {
@@ -212,6 +190,18 @@ function ManageNews() {
       })),
     [articles]
   );
+
+  const newsStats = useMemo(() => {
+    const published = tableData.filter((row) => normalizeStatus(row) === "published").length;
+    const privateCount = tableData.filter((row) => normalizeStatus(row) === "private").length;
+    const draftCount = tableData.filter((row) => normalizeStatus(row) === "draft").length;
+    return {
+      visible: tableData.length,
+      published,
+      private: privateCount,
+      draft: draftCount,
+    };
+  }, [tableData]);
 
   const deleteArticleSoftFirst = async (id: number) => {
     const attempts: Array<() => Promise<any>> = [
@@ -424,12 +414,19 @@ function ManageNews() {
       sortField: "title",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={showDeleted ? "fw-bold text-decoration-line-through text-muted" : "fw-bold text-primary"}>{row.title}</span>
+        <CmsModuleTitleCell
+          title={row.title}
+          href={showDeleted ? undefined : getNewsViewUrl(row)}
+          muted={showDeleted}
+        />
       ),
     },
     {
       key: "category",
       header: "Category",
+      render: (row) => (
+        <CmsModuleLabelPill>{row.category || "—"}</CmsModuleLabelPill>
+      ),
     },
     {
       key: "is_featured",
@@ -446,7 +443,7 @@ function ManageNews() {
       header: "Visibility",
       render: (row) => {
         const s = normalizeStatus(row);
-        return <span className={statusBadgeClass(s)}>{statusLabel(s)}</span>;
+        return <CmsModuleStatusBadge status={s} />;
       },
     },
     {
@@ -456,12 +453,13 @@ function ManageNews() {
       sortField: "updated_at",
       sortLabel: "Updated",
       defaultSortOrder: "desc",
+      render: (row) => <CmsModuleDate value={row.updated} />,
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           {showDeleted ? (
             <button
               className="btn btn-link p-0 text-success"
@@ -499,7 +497,7 @@ function ManageNews() {
               <RowActions row={row} />
             </>
           )}
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
@@ -508,9 +506,39 @@ function ManageNews() {
    * UI
    * ====================== */
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage News</h3>
-
+    <CmsModuleShell
+      title="Manage News"
+      description="Create and manage news articles. Filter by category, visibility, or open the trash to restore deleted articles."
+      icon="fa-solid fa-newspaper"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to News" : "View Trash"}
+          </button>
+          <CmsModuleCreateButton href="/news/create" label="Create News" />
+        </>
+      )}
+      stats={showDeleted ? undefined : [
+        { label: "Showing", value: newsStats.visible },
+        { label: "Published", value: newsStats.published, tone: "published" },
+        { label: "Private", value: newsStats.private, tone: "private" },
+        { label: "Draft", value: newsStats.draft, tone: "draft" },
+      ]}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted articles only. Restore an article to bring it back to your list.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
       <SearchBar
         placeholder="Search News"
         value={search}
@@ -548,26 +576,7 @@ function ManageNews() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/news/create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create News
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -616,11 +625,13 @@ function ManageNews() {
         initialShowDeleted={showDeleted}
         initialPerPage={perPage}
       />
-
+      )}
+    >
       <DataTable<NewsRow>
         columns={columns}
         data={tableData}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -673,7 +684,7 @@ function ManageNews() {
           setRestoreTarget(null);
         }}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Sidebar from './_Sidebar';
 import Topbar from './_Topbar2';
 import ToastHost from "@/components/UI/ToastHost";
+import { CmsHelpProvider } from "@/lib/cmsHelp/CmsHelpContext";
 import Head from "next/head";
 import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
 import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
@@ -91,6 +92,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const tabTitle = companyName;
 
   return (
+    <CmsHelpProvider>
     <div
       className={`cms-admin-layout d-flex vh-100 bg-light ${
         sidebarOpen ? "cms-admin-layout--sidebar-open" : ""
@@ -125,5 +127,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       <ToastHost />
     </div>
+    </CmsHelpProvider>
   );
 }

@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    optimizePackageImports: ["grapesjs", "grapesjs-preset-webpage", "grapesjs-blocks-basic", "grapesjs-plugin-forms"],
+  },
 	devIndicators: false,
 };
 

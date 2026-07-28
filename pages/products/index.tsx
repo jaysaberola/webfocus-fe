@@ -7,6 +7,14 @@ import { toast } from "@/lib/toast";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import SearchBar from "@/components/UI/SearchBar";
 import DataTable, { Column } from "@/components/UI/DataTable";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleLabelPill,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -20,7 +28,7 @@ export default function ManageProducts() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<any>("asc");
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
@@ -257,46 +265,49 @@ export default function ManageProducts() {
 
   return (
     <>
-      <div className="container-fluid px-4 pt-3">
-        <h3 className="mb-3">Manage Products</h3>
-        {/* bulk Actions: show when rows selected - moved below SearchBar to align with Filters/PageSize */}
+    <CmsModuleShell
+      title="Manage Products"
+      description="Manage product catalog, categories, and inventory. Open the trash to restore deleted products."
+      icon="fa-solid fa-box"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Products" : "View Trash"}
+          </button>
+          <CmsModuleCreateButton href="/products/create" label="Create Product" />
+        </>
+      )}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted products only. Restore a product to bring it back to your catalog.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
         <SearchBar
           placeholder="Search products"
           value={search}
           onChange={(v) => { setSearch(v); setCurrentPage(1); }}
           rightExtras={(
             <div className="d-flex align-items-center gap-2 flex-nowrap">
-              <button
-                type="button"
-                className="btn btn-success d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 16px", whiteSpace: "nowrap" }}
-                onClick={() => setShowAdvancedSearch(true)}
-              >
-                <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                  Advanced Search
-                </span>
-              </button>
-
-              <Link
-                href="/products/create"
-                className="btn btn-primary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 20px", whiteSpace: "nowrap" }}
-              >
-                Create Product
-              </Link>
-
+              <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedSearch(true)} />
               <Link
                 href="/products/category_create"
-                className="btn btn-outline-secondary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
+                className="btn btn-outline-secondary cms-module__toolbar-btn"
               >
                 Create Category
               </Link>
-
               <button
                 type="button"
-                className="btn btn-outline-secondary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 20px", whiteSpace: "nowrap" }}
+                className="btn btn-outline-secondary cms-module__toolbar-btn"
                 onClick={() => setShowPublicPreview((s) => !s)}
                 title="Toggle public products preview"
               >
@@ -368,7 +379,8 @@ export default function ManageProducts() {
           initialPerPage={perPage}
           initialShowDeleted={showDeleted}
         />
-
+      )}
+    >
         {showPublicPreview && (
           <div className="card mb-3">
             <div className="card-body" style={{ padding: 0 }}>
@@ -377,30 +389,27 @@ export default function ManageProducts() {
           </div>
         )}
 
-        <div className="card">
-          <div className="card-body">
-            {error && <div className="text-danger">{error}</div>}
-            <DataTable
-              columns={getColumns(categoriesMap, router, handleDelete, showDeleted, (row: any) => { setRestoreTarget(row); setShowRestoreConfirm(true); }, selectedIds, setSelectedIds, products)}
-              data={products}
-              loading={loading}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={perPage}
-              onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
-              sortBy={sortBy}
-              sortOrder={(String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc") as any}
-              onSortChange={(nextBy, nextOrder) => {
-                silentSortFetchRef.current = true;
-                setSortBy(nextBy);
-                setSortOrder(nextOrder);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
+        {error && <div className="text-danger mb-2">{error}</div>}
+        <DataTable
+          columns={getColumns(categoriesMap, router, handleDelete, showDeleted, (row: any) => { setRestoreTarget(row); setShowRestoreConfirm(true); }, selectedIds, setSelectedIds, products)}
+          data={products}
+          loading={loading}
+          {...cmsModuleTableProps}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={perPage}
+          onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
+          sortBy={sortBy}
+          sortOrder={(String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc") as any}
+          onSortChange={(nextBy, nextOrder) => {
+            silentSortFetchRef.current = true;
+            setSortBy(nextBy);
+            setSortOrder(nextOrder);
+            setCurrentPage(1);
+          }}
+        />
+    </CmsModuleShell>
       <ConfirmModal
         show={showConfirm}
         title="Delete product"
@@ -542,17 +551,31 @@ function getColumns(categoriesMap: Record<string, string>, router: any, handleDe
     },
     { key: "name", header: "Name", sortable: true, sortField: "name", render: (p) => {
         const deleted = isRowDeleted(p);
-        return <span className={deleted ? "fw-bold text-decoration-line-through text-muted" : "fw-bold"}>{p.name ?? p.title ?? p.slug}</span>;
+        return (
+          <CmsModuleTitleCell
+            title={p.name ?? p.title ?? p.slug ?? "—"}
+            muted={deleted}
+          />
+        );
       }
     },
     { key: "price", header: "Price", sortable: true, sortField: "price", defaultSortOrder: "asc", render: (p) => p.price ?? p.amount },
-    { key: "category", header: "Category", sortable: true, sortField: "category", defaultSortOrder: "asc", render: (p) => ( (p.category && (p.category.name ?? p.category.title)) ?? p.category_name ?? (p.category_id && categoriesMap[String(p.category_id)]) ?? p.category_id ?? "-" ) },
-    { key: "status", header: "Status", render: (p) => p.status ?? "-" },
+    { key: "category", header: "Category", sortable: true, sortField: "category", defaultSortOrder: "asc", render: (p) => {
+        const label = (p.category && (p.category.name ?? p.category.title)) ?? p.category_name ?? (p.category_id && categoriesMap[String(p.category_id)]) ?? p.category_id ?? "—";
+        return <CmsModuleLabelPill>{label}</CmsModuleLabelPill>;
+      }
+    },
+    { key: "status", header: "Status", render: (p) => {
+        const s = String(p.status ?? "").toLowerCase();
+        if (isRowDeleted(p)) return <CmsModuleStatusBadge status="deleted" />;
+        return <CmsModuleStatusBadge status={s || "default"} label={p.status ?? "—"} />;
+      }
+    },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (p) => (
-        <>
+        <CmsModuleRowActions>
           {showDeleted ? (
             <button
               className="btn btn-link p-0 text-success"
@@ -569,7 +592,7 @@ function getColumns(categoriesMap: Record<string, string>, router: any, handleDe
               <button className="btn btn-link p-0 text-danger" title="Delete" onClick={() => handleDelete(p.id ?? p.product_id ?? p.slug)} type="button"><i className="fas fa-trash"/></button>
             </>
           )}
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];

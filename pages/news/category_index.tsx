@@ -5,7 +5,6 @@ import AdminLayout from "@/components/Layout/AdminLayout";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import SearchBar from "@/components/UI/SearchBar";
 import { useRouter } from "next/router";
-import Link from "next/link";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import { toast } from "@/lib/toast";
 import {
@@ -15,7 +14,16 @@ import {
   postDeleteArticleCategoryByPayload,
   postMethodDeleteArticleCategory,
   restoreArticleCategory,
+  createArticleCategory,
 } from "@/services/articleService";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import CmsFormModal from "@/components/Modules/CmsFormModal";
+import { CmsSettingsField, CmsSettingsGrid } from "@/components/Modules/CmsSettingsForm";
+import {
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -28,7 +36,7 @@ function ManageCategories() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [showDeleted, setShowDeleted] = useState(false);
@@ -40,6 +48,9 @@ function ManageCategories() {
   const [restoreTarget, setRestoreTarget] = useState<NewsCategoryRow | null>(null);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
   const [recentlyDeletedCategories, setRecentlyDeletedCategories] = useState<NewsCategoryRow[]>(() => {
     try {
       if (typeof window === "undefined") return [];
@@ -387,19 +398,11 @@ function ManageCategories() {
       sortField: "name",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={showDeleted ? "fw-bold text-decoration-line-through text-muted" : "fw-bold text-primary"}>{row.name}</span>
-      ),
-    },
-    {
-      key: "slug",
-      header: "URL",
-      sortable: true,
-      sortField: "slug",
-      defaultSortOrder: "asc",
-      render: (row) => (
-        <span className="text-muted small">
-          /news/{row.slug}
-        </span>
+        <CmsModuleTitleCell
+          title={row.name}
+          subtitle={`/news/${row.slug}`}
+          muted={showDeleted}
+        />
       ),
     },
     {
@@ -414,7 +417,7 @@ function ManageCategories() {
       key: "options",
       header: "Options",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           {showDeleted ? (
             <button
               className="btn btn-link p-0 text-success"
@@ -430,7 +433,7 @@ function ManageCategories() {
           ) : (
             <>
               <button
-                className="btn btn-link p-0 me-2 text-secondary"
+                className="btn btn-link p-0 text-secondary"
                 title="Edit"
                 onClick={() =>
                   router.push(`/news/edit_category/${row.id}`)
@@ -452,18 +455,87 @@ function ManageCategories() {
               </button>
             </>
           )}
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
+
+  const categoryStats = useMemo(() => ({
+    total: categories.length,
+    articles: categories.reduce((sum, category) => sum + (category.articles_count ?? 0), 0),
+  }), [categories]);
+
+  const openCreateModal = () => {
+    setCategoryName("");
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCategoryName("");
+  };
+
+  const handleCreateCategory = async () => {
+    if (!categoryName.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+
+    try {
+      setSavingCategory(true);
+      await createArticleCategory({ name: categoryName.trim() });
+      toast.success("Category created successfully");
+      closeCreateModal();
+      fetchCategories();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to create category");
+    } finally {
+      setSavingCategory(false);
+    }
+  };
 
   /* ======================
    * UI
    * ====================== */
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage News Categories</h3>
-
+    <CmsModuleShell
+      title="Manage News Categories"
+      description="Organize news articles into categories. Open the trash to restore deleted categories."
+      icon="fa-solid fa-folder-tree"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Categories" : "View Trash"}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary cms-module__create-btn"
+            onClick={openCreateModal}
+          >
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+            Create Category
+          </button>
+        </>
+      )}
+      stats={showDeleted ? undefined : [
+        { label: "Showing", value: categoryStats.total },
+        { label: "Total News", value: categoryStats.articles, tone: "accent" },
+      ]}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted categories only. Restore a category to bring it back to your list.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
       <SearchBar
         placeholder="Search by Category"
         value={search}
@@ -484,26 +556,7 @@ function ManageCategories() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/news/category_create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create Category
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -531,11 +584,13 @@ function ManageCategories() {
         initialPerPage={perPage}
 
       />
-
+      )}
+    >
       <DataTable<NewsCategoryRow>
         columns={columns}
         data={displayRows as any}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -549,6 +604,30 @@ function ManageCategories() {
           setCurrentPage(1);
         }}
       />
+
+      <CmsFormModal
+        show={showCreateModal}
+        title="Create Category"
+        description="Add a new category to organize your news articles."
+        icon="fa-solid fa-folder-plus"
+        submitLabel={savingCategory ? "Saving..." : "Create Category"}
+        onClose={closeCreateModal}
+        onSubmit={handleCreateCategory}
+      >
+        <CmsSettingsGrid columns={1}>
+          <CmsSettingsField label="Category Name" required hint="This name appears in news filters and category listings.">
+            <input
+              type="text"
+              className="form-control"
+              value={categoryName}
+              onChange={(e) => setCategoryName(e.target.value)}
+              placeholder="e.g. Company News, Product Updates"
+              disabled={savingCategory}
+              autoFocus
+            />
+          </CmsSettingsField>
+        </CmsSettingsGrid>
+      </CmsFormModal>
 
       <ConfirmModal
         show={showDeleteConfirm && !!deleteTarget}
@@ -587,7 +666,7 @@ function ManageCategories() {
           setRestoreTarget(null);
         }}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

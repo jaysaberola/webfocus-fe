@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import DataTable, { Column } from "@/components/UI/DataTable";
+import SearchBar from "@/components/UI/SearchBar";
 import { getAuditTrails, AuditRow } from "@/services/auditService";
 import {
   looksLikeHtmlValue,
@@ -8,6 +9,9 @@ import {
   HtmlPreview,
   ImagePreview,
 } from "@/components/UI/AuditChangesModal";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import { CmsSettingsLayout, CmsSettingsSection } from "@/components/Modules/CmsSettingsForm";
+import { CmsModuleDate, cmsModuleTableProps } from "@/components/Modules/moduleTableUi";
 
 function AuditTrailsPage() {
   const [audits, setAudits] = useState<AuditRow[]>([]);
@@ -16,7 +20,7 @@ function AuditTrailsPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
 
   /* ======================
    * Fetch Audit Trails
@@ -131,7 +135,7 @@ function AuditTrailsPage() {
       width: 160,
       render: (row) =>
         row.user
-          ? `${row.user.fname ?? ""} ${row.user.lname ?? ""}` || row.user.email
+          ? `${row.user.fname ?? ""} ${row.user.lname ?? ""}`.trim() || row.user.email
           : "System",
     },
     {
@@ -161,7 +165,7 @@ function AuditTrailsPage() {
       header: "Date",
       thClassName: "text-nowrap text-center",
       tdClassName: "align-top text-center",
-      render: (row) => new Date(row.created_at).toLocaleString(),
+      render: (row) => <CmsModuleDate value={new Date(row.created_at).toLocaleString()} />,
     },
   ];
 
@@ -169,43 +173,48 @@ function AuditTrailsPage() {
    * UI
    * ====================== */
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3 text-dark">Audit Trail</h3>
-
-      <div className="row g-2 align-items-center mb-3">
-        <div className="col-12 col-md d-flex justify-content-md-end">
-          <div className="input-group input-group-sm w-100" style={{ maxWidth: 340 }}>
-            <span className="input-group-text">
-              <i className="fas fa-magnifying-glass" />
-            </span>
-            <input
-              className="form-control"
-              placeholder="Search audit logs"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <DataTable<AuditRow>
-        columns={columns}
-        data={audits}
-        loading={loading}
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-        itemsPerPage={perPage}
-        onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
-        wrapperClassName="rounded border bg-white"
-        tableClassName="table-sm table-striped table-hover align-middle"
-        stickyHeader
-        wrapperStyle={{ maxHeight: "70vh", overflowY: "auto", overflowX: "hidden" }}
-      />
-    </div>
+    <CmsModuleShell
+      title="Manage Audit Trail"
+      description="Review system activity and track changes made across the CMS."
+      icon="fa-solid fa-clock-rotate-left"
+      stats={[
+        { label: "Showing", value: audits.length },
+        { label: "Page", value: `${currentPage} / ${totalPages}` },
+      ]}
+      toolbar={(
+        <SearchBar
+          placeholder="Search audit logs"
+          value={search}
+          onChange={(value) => {
+            setSearch(value);
+            setCurrentPage(1);
+          }}
+          showDeletedToggle={false}
+        />
+      )}
+    >
+      <CmsSettingsLayout>
+        <CmsSettingsSection
+          title="Activity Log"
+          description="Search and review recent create, update, and delete actions across the CMS."
+          icon="fa-solid fa-list-check"
+        >
+          <DataTable<AuditRow>
+            columns={columns}
+            data={audits}
+            loading={loading}
+            {...cmsModuleTableProps}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={perPage}
+            onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
+            stickyHeader
+            wrapperStyle={{ maxHeight: "70vh", overflowY: "auto", overflowX: "hidden" }}
+          />
+        </CmsSettingsSection>
+      </CmsSettingsLayout>
+    </CmsModuleShell>
   );
 }
 

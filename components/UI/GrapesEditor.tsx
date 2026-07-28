@@ -8,6 +8,7 @@ import grapesjsPluginForms from "grapesjs-plugin-forms";
 import {
   cmsStudioCanvasCss,
   configureStudioCategories,
+  enhanceFoundationBlocks,
   normalizeStudioCategory,
   registerAdvancedCmsBlocks,
   resolveCmsBlockMedia,
@@ -16,12 +17,18 @@ import {
   filterBlockPanel,
   getComponentBreadcrumb,
   isEditorCanvasEmpty,
+  installCanvasInteractionGuards,
   registerStudioEditorFeatures,
 } from "./grapesStudioFeatures";
-import "codemirror/mode/xml/xml";
-import "codemirror/mode/javascript/javascript";
-import "codemirror/mode/css/css";
-import "codemirror/mode/htmlmixed/htmlmixed";
+import {
+  activateStudioTextFormatting,
+  deactivateStudioTextFormatting,
+  isEditableTextComponent,
+  mountStudioRteToolbar,
+  registerStudioRteActions,
+  runStudioRteAction,
+} from "./grapesStudioRteToolbar";
+import GrapesRteDocBar from "./GrapesRteDocBar";
 
 type GrapesEditorProps = {
   value?: string;
@@ -596,12 +603,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const jsRef = useRef<string>("");
   const emitTimerRef = useRef<number | null>(null);
   const fullscreenSenderRef = useRef<any>(null);
+  const studioHeightRef = useRef(height);
+  const isLeftSidebarHiddenRef = useRef(true);
+  const isRightSidebarHiddenRef = useRef(true);
   const leftBlocksRef = useRef<HTMLDivElement | null>(null);
   const leftLayersRef = useRef<HTMLDivElement | null>(null);
   const rightStylesRef = useRef<HTMLDivElement | null>(null);
   const rightTraitsRef = useRef<HTMLDivElement | null>(null);
   const sidebarRefreshTimeoutRef = useRef<number | null>(null);
   const blockSearchQueryRef = useRef("");
+  const rteHostRef = useRef<HTMLDivElement | null>(null);
+  const rteInstanceRef = useRef<any>(null);
+  const rteToolbarCleanupRef = useRef<(() => void) | null>(null);
   const [activeLeftPanel, setActiveLeftPanel] = useState<"blocks" | "layers">("blocks");
   const [activeRightPanel, setActiveRightPanel] = useState<"styles" | "settings">("styles");
   const [isLeftSidebarHidden, setIsLeftSidebarHidden] = useState(true);
@@ -614,9 +627,34 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const [hasSelection, setHasSelection] = useState(false);
   const [canvasEmpty, setCanvasEmpty] = useState(true);
   const [canvasZoom, setCanvasZoom] = useState(100);
+  const [textToolbarVisible, setTextToolbarVisible] = useState(false);
+  const [isShellFullscreen, setIsShellFullscreen] = useState(false);
 
   useEffect(() => {
-    const computeHeight = () => setStudioHeight(Math.max(640, window.innerHeight - 220));
+    studioHeightRef.current = studioHeight;
+  }, [studioHeight]);
+
+  useEffect(() => {
+    isLeftSidebarHiddenRef.current = isLeftSidebarHidden;
+  }, [isLeftSidebarHidden]);
+
+  useEffect(() => {
+    isRightSidebarHiddenRef.current = isRightSidebarHidden;
+  }, [isRightSidebarHidden]);
+
+  useEffect(() => {
+    document.body.classList.remove("cms-code-modal-open");
+    document.querySelectorAll("body > .gjs-mdl-container.cms-code-modal-overlay").forEach((node) => {
+      node.remove();
+    });
+  }, []);
+
+  useEffect(() => {
+    const computeHeight = () => {
+      const shell = shellRef.current;
+      if (shell && document.fullscreenElement === shell) return;
+      setStudioHeight(Math.max(640, window.innerHeight - 220));
+    };
     computeHeight();
     window.addEventListener("resize", computeHeight);
     return () => window.removeEventListener("resize", computeHeight);
@@ -624,6 +662,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
   useEffect(() => {
     if (!hostRef.current || editorRef.current) return;
+
+    let editorAlive = true;
+    const pendingTimers: number[] = [];
+    const scheduleTimer = (fn: () => void, delay: number) => {
+      const id = window.setTimeout(() => {
+        const index = pendingTimers.indexOf(id);
+        if (index >= 0) pendingTimers.splice(index, 1);
+        if (!editorAlive) return;
+        fn();
+      }, delay);
+      pendingTimers.push(id);
+    };
 
     const { body, css, js } = extractContentParts(value);
     const previewFrameMinHeight = `${Math.max(680, studioHeight - 120)}px`;
@@ -635,12 +685,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       height: "100%",
       noticeOnUnload: false,
       storageManager: false,
-      dragMode: "translate",
-      forceClass: true,
+      dragMode: "absolute",
+      forceClass: false,
       avoidInlineStyle: false,
       showOffsets: true,
       richTextEditor: {
-        actions: ["bold", "italic", "underline", "link"],
+        adjustToolbar: false,
+        actions: ["bold", "italic", "underline", "strikethrough", "link"],
       },
       plugins: [grapesjsPresetWebpage, grapesjsBlocksBasic, grapesjsPluginForms],
       deviceManager: {
@@ -653,6 +704,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       canvas: {
         styles: [],
         scrollableCanvas: true,
+        infiniteCanvas: false,
       },
       canvasCss: cmsStudioCanvasCss,
       assetManager: {
@@ -722,6 +774,26 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       },
       selectorManager: { componentFirst: true },
       panels: { defaults: [] },
+      blockManager: leftBlocksRef.current
+        ? {
+            appendTo: leftBlocksRef.current,
+          }
+        : undefined,
+      layerManager: leftLayersRef.current
+        ? {
+            appendTo: leftLayersRef.current,
+          }
+        : undefined,
+      styleManager: rightStylesRef.current
+        ? {
+            appendTo: rightStylesRef.current,
+          }
+        : undefined,
+      traitManager: rightTraitsRef.current
+        ? {
+            appendTo: rightTraitsRef.current,
+          }
+        : undefined,
       components: body || DEFAULT_STUDIO_MARKUP,
       style: css,
     });
@@ -1080,6 +1152,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     registerCmsBlocks(editor);
     registerAdvancedCmsBlocks(editor);
+    enhanceFoundationBlocks(editor);
 
     const blockSearchRef = blockSearchQueryRef;
 
@@ -1111,11 +1184,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
       };
 
-      renderInto(leftBlocksRef.current, safeRender(() => editor.BlockManager.render()));
       renderInto(leftLayersRef.current, isEditorReady ? safeRender(() => editor.LayerManager.render()) : undefined);
       syncExistingColorPropertyViews();
-      renderInto(rightStylesRef.current, safeRender(() => editor.StyleManager.render()));
-      renderInto(rightTraitsRef.current, safeRender(() => editor.TraitManager.render()));
+      if (rightStylesRef.current && !rightStylesRef.current.querySelector(".gjs-sm-sectors")) {
+        renderInto(rightStylesRef.current, safeRender(() => editor.StyleManager.render()));
+      }
+      if (rightTraitsRef.current && !rightTraitsRef.current.querySelector(".gjs-trt-traits")) {
+        renderInto(rightTraitsRef.current, safeRender(() => editor.TraitManager.render()));
+      }
+      if (leftBlocksRef.current && !leftBlocksRef.current.querySelector(".gjs-blocks-c")) {
+        renderInto(leftBlocksRef.current, safeRender(() => editor.BlockManager.render()));
+      }
       suppressNativeStyleColorInputs();
       filterBlockPanel(leftBlocksRef.current, blockSearchRef.current);
     };
@@ -1152,35 +1231,23 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       });
     };
 
+    const clearFrameWrapperInlineStyles = (
+      frameWrapper: HTMLElement,
+      frameElement: HTMLElement | null,
+    ) => {
+      ["left", "top", "right", "bottom", "width", "height", "minHeight", "maxHeight"].forEach((prop) => {
+        frameWrapper.style.removeProperty(prop);
+        frameElement?.style.removeProperty(prop);
+      });
+    };
+
     const syncFrameWrapperStyle = () => {
       const editorRoot = editor.getContainer?.() as HTMLElement | null;
       const frameWrapper = editorRoot?.querySelector?.(".gjs-frame-wrapper") as HTMLElement | null;
       const frameElement = editorRoot?.querySelector?.(".gjs-frame") as HTMLElement | null;
       if (!frameWrapper) return;
 
-      const isFullscreen = editor.Commands.isActive("fullscreen") || Boolean(document.fullscreenElement);
-      if (!isFullscreen) {
-        frameWrapper.style.removeProperty("left");
-        frameWrapper.style.removeProperty("top");
-        return;
-      }
-
-      const targetHeight = `${Math.max(900, window.innerHeight - 96)}px`;
-
-      frameWrapper.style.left = "0px";
-      frameWrapper.style.top = "15px";
-      frameWrapper.style.height = targetHeight;
-      frameWrapper.style.minHeight = targetHeight;
-
-      if (frameElement) {
-        frameElement.style.height = targetHeight;
-        frameElement.style.minHeight = targetHeight;
-      }
-    };
-
-    const queueFrameWrapperStyleSync = () => {
-      requestAnimationFrame(syncFrameWrapperStyle);
-      window.setTimeout(syncFrameWrapperStyle, 120);
+      clearFrameWrapperInlineStyles(frameWrapper, frameElement);
     };
 
     const buildContent = (ed: any) => {
@@ -1193,6 +1260,25 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
 
     registerStudioEditorFeatures(editor, buildContent);
+    const canvasInteractionGuards = installCanvasInteractionGuards(
+      editor,
+      shellRef.current,
+      () => editorAlive,
+    );
+    registerStudioRteActions(editor);
+
+    editor.on("rte:enable", (_view: unknown, rte: unknown) => {
+      rteInstanceRef.current = rte;
+    });
+    editor.on("rte:disable", () => {
+      rteInstanceRef.current = null;
+      const selected = editor.getSelected?.();
+      if (isEditableTextComponent(selected)) {
+        window.requestAnimationFrame(() => {
+          activateStudioTextFormatting(editor);
+        });
+      }
+    });
 
     const getFullscreenElement = () => {
       const fullscreenDocument = document as Document & {
@@ -1210,25 +1296,32 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       );
     };
 
-    const requestElementFullscreen = (target: HTMLElement) => {
+    const requestElementFullscreen = (target: HTMLElement): Promise<void> => {
       const fullscreenTarget = target as HTMLElement & {
         webkitRequestFullscreen?: () => Promise<void> | void;
         mozRequestFullScreen?: () => Promise<void> | void;
         msRequestFullscreen?: () => Promise<void> | void;
       };
 
+      const invoke = (request?: () => Promise<void> | void) => {
+        if (!request) return Promise.reject(new Error("Fullscreen API unavailable"));
+        return Promise.resolve(request.call(fullscreenTarget));
+      };
+
       if (fullscreenTarget.requestFullscreen) {
-        return fullscreenTarget.requestFullscreen();
+        return invoke(fullscreenTarget.requestFullscreen.bind(fullscreenTarget));
       }
       if (fullscreenTarget.webkitRequestFullscreen) {
-        return fullscreenTarget.webkitRequestFullscreen();
+        return invoke(fullscreenTarget.webkitRequestFullscreen.bind(fullscreenTarget));
       }
       if (fullscreenTarget.mozRequestFullScreen) {
-        return fullscreenTarget.mozRequestFullScreen();
+        return invoke(fullscreenTarget.mozRequestFullScreen.bind(fullscreenTarget));
       }
       if (fullscreenTarget.msRequestFullscreen) {
-        return fullscreenTarget.msRequestFullscreen();
+        return invoke(fullscreenTarget.msRequestFullscreen.bind(fullscreenTarget));
       }
+
+      return Promise.reject(new Error("Fullscreen API unavailable"));
     };
 
     const exitElementFullscreen = () => {
@@ -1252,7 +1345,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       }
     };
 
-    const isShellFullscreen = () => {
+    const isShellInFullscreen = () => {
       const shell = shellRef.current;
       return Boolean(shell && getFullscreenElement() === shell);
     };
@@ -1260,7 +1353,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     if (editor.Commands.has("fullscreen")) {
       editor.Commands.extend("fullscreen", {
         run(this: any, ed: any, sender: any, opts: any = {}) {
+          if (isShellInFullscreen()) {
+            ed.stopCommand("fullscreen", { sender });
+            return;
+          }
+
           fullscreenSenderRef.current = sender || null;
+          sender?.set?.("active", true);
 
           const requestedTarget = opts?.target;
           const fallbackTarget =
@@ -1271,9 +1370,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
                 : null;
 
           const targetEl = shellRef.current || fallbackTarget || ed.getContainer();
-          if (!targetEl) return;
+          if (!targetEl) {
+            ed.stopCommand("fullscreen", { sender });
+            return;
+          }
 
-          void requestElementFullscreen(targetEl as HTMLElement);
+          void requestElementFullscreen(targetEl as HTMLElement).catch(() => {
+            ed.stopCommand("fullscreen", { sender });
+          });
         },
         stop(this: any, _ed: any, sender: any) {
           const resolvedSender = sender || fullscreenSenderRef.current;
@@ -1290,9 +1394,33 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     const openCodeModal = async (ed: any) => {
         const modal = ed.Modal;
       const CodeMirror = (await import("codemirror")).default;
+      await Promise.all([
+        import("codemirror/mode/xml/xml"),
+        import("codemirror/mode/javascript/javascript"),
+        import("codemirror/mode/css/css"),
+        import("codemirror/mode/htmlmixed/htmlmixed"),
+      ]);
       const beautifyModule: any = await import("js-beautify");
       const baseEditorHeight = 300;
-      let isStretched = false;
+
+      const getCodeModalContainer = () =>
+        (shellRef.current?.querySelector(".gjs-mdl-container") ||
+          document.querySelector(".gjs-mdl-container.cms-code-modal-overlay")) as HTMLElement | null;
+
+      const syncCodeModalViewport = () => {
+        const modalContainer = getCodeModalContainer();
+        if (!modalContainer) return;
+
+        modalContainer.classList.add("cms-code-modal-overlay");
+        document.body.classList.add("cms-code-modal-open");
+        shellRef.current?.classList.add("cms-code-modal-open");
+      };
+
+      const clearCodeModalViewport = () => {
+        document.body.classList.remove("cms-code-modal-open");
+        shellRef.current?.classList.remove("cms-code-modal-open");
+        getCodeModalContainer()?.classList.remove("cms-code-modal-overlay");
+      };
 
       const resetCodeCommandState = () => {
         try {
@@ -1354,309 +1482,333 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const initialCss = formatByType(ed.getCss() || "", "css");
       const initialJs = formatByType(jsRef.current || "", "js");
 
-        const wrapper = document.createElement("div");
-        wrapper.style.display = "grid";
-        wrapper.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
-        wrapper.style.gap = "12px";
-        wrapper.style.minHeight = "320px";
-        wrapper.style.width = "100%";
-
-        const htmlCol = document.createElement("div");
-        const cssCol = document.createElement("div");
-        const jsCol = document.createElement("div");
-        htmlCol.style.minWidth = "0";
-        cssCol.style.minWidth = "0";
-        jsCol.style.minWidth = "0";
-
-        const htmlLabel = document.createElement("div");
-        htmlLabel.textContent = "HTML";
-        htmlLabel.style.fontWeight = "600";
-        htmlLabel.style.marginBottom = "6px";
-        htmlLabel.style.color = "#f3f4f6";
-
-        const cssLabel = document.createElement("div");
-        cssLabel.textContent = "CSS";
-        cssLabel.style.fontWeight = "600";
-        cssLabel.style.marginBottom = "6px";
-        cssLabel.style.color = "#f3f4f6";
-
-        const jsLabel = document.createElement("div");
-        jsLabel.textContent = "JS";
-        jsLabel.style.fontWeight = "600";
-        jsLabel.style.marginBottom = "6px";
-        jsLabel.style.color = "#f3f4f6";
-
-        const htmlInput = document.createElement("textarea");
-        htmlInput.value = initialHtml;
-        htmlInput.style.width = "100%";
-        htmlInput.style.height = "300px";
-        htmlInput.style.minHeight = "220px";
-        htmlInput.style.resize = "vertical";
-        htmlInput.style.fontFamily = "monospace";
-        htmlInput.style.fontSize = "13px";
-        htmlInput.style.padding = "10px";
-        htmlInput.style.background = "#111827";
-        htmlInput.style.color = "#e5e7eb";
-        htmlInput.style.border = "1px solid #374151";
-        htmlInput.style.borderRadius = "6px";
-        htmlInput.style.caretColor = "#93c5fd";
-
-        const cssInput = document.createElement("textarea");
-        cssInput.value = initialCss;
-        cssInput.style.width = "100%";
-        cssInput.style.height = "300px";
-        cssInput.style.minHeight = "220px";
-        cssInput.style.resize = "vertical";
-        cssInput.style.fontFamily = "monospace";
-        cssInput.style.fontSize = "13px";
-        cssInput.style.padding = "10px";
-        cssInput.style.background = "#111827";
-        cssInput.style.color = "#e5e7eb";
-        cssInput.style.border = "1px solid #374151";
-        cssInput.style.borderRadius = "6px";
-        cssInput.style.caretColor = "#93c5fd";
-
-        const jsInput = document.createElement("textarea");
-        jsInput.value = initialJs;
-        jsInput.style.width = "100%";
-        jsInput.style.height = "300px";
-        jsInput.style.minHeight = "220px";
-        jsInput.style.resize = "vertical";
-        jsInput.style.fontFamily = "monospace";
-        jsInput.style.fontSize = "13px";
-        jsInput.style.padding = "10px";
-        jsInput.style.background = "#111827";
-        jsInput.style.color = "#e5e7eb";
-        jsInput.style.border = "1px solid #374151";
-        jsInput.style.borderRadius = "6px";
-        jsInput.style.caretColor = "#93c5fd";
-
-        htmlCol.appendChild(htmlLabel);
-        htmlCol.appendChild(htmlInput);
-        cssCol.appendChild(cssLabel);
-        cssCol.appendChild(cssInput);
-        jsCol.appendChild(jsLabel);
-        jsCol.appendChild(jsInput);
-
-        wrapper.appendChild(htmlCol);
-        wrapper.appendChild(cssCol);
-        wrapper.appendChild(jsCol);
-
-        const footer = document.createElement("div");
-        footer.style.display = "flex";
-        footer.style.justifyContent = "flex-end";
-        footer.style.gap = "8px";
-        footer.style.marginTop = "12px";
-        footer.style.paddingTop = "10px";
-        footer.style.borderTop = "1px solid rgba(255,255,255,0.15)";
-        footer.style.background = "#1f1f1f";
-        footer.style.zIndex = "2";
-
-        const cancelBtn = document.createElement("button");
-        cancelBtn.type = "button";
-        cancelBtn.textContent = "Cancel";
-        cancelBtn.style.padding = "8px 14px";
-        cancelBtn.style.border = "1px solid #5f6368";
-        cancelBtn.style.background = "#2d2f33";
-        cancelBtn.style.color = "#ffffff";
-        cancelBtn.style.borderRadius = "4px";
-        cancelBtn.style.cursor = "pointer";
-        cancelBtn.onclick = () => {
-          resetCodeCommandState();
-          modal.close();
-        };
-
-        const stretchBtn = document.createElement("button");
-        stretchBtn.type = "button";
-        stretchBtn.textContent = "Stretch";
-        stretchBtn.style.padding = "8px 14px";
-        stretchBtn.style.border = "1px solid #5f6368";
-        stretchBtn.style.background = "#2d2f33";
-        stretchBtn.style.color = "#ffffff";
-        stretchBtn.style.borderRadius = "4px";
-        stretchBtn.style.cursor = "pointer";
-
-        const formatBtn = document.createElement("button");
-        formatBtn.type = "button";
-        formatBtn.textContent = "Format";
-        formatBtn.style.padding = "8px 14px";
-        formatBtn.style.border = "1px solid #5f6368";
-        formatBtn.style.background = "#2d2f33";
-        formatBtn.style.color = "#ffffff";
-        formatBtn.style.borderRadius = "4px";
-        formatBtn.style.cursor = "pointer";
-
-        const saveBtn = document.createElement("button");
-        saveBtn.type = "button";
-        saveBtn.textContent = "Save";
-        saveBtn.style.padding = "8px 14px";
-        saveBtn.style.border = "1px solid #1677ff";
-        saveBtn.style.background = "#1677ff";
-        saveBtn.style.color = "#ffffff";
-        saveBtn.style.borderRadius = "4px";
-        saveBtn.style.cursor = "pointer";
-
-        let htmlEditor: any = null;
-        let cssEditor: any = null;
-        let jsEditor: any = null;
-
-        const setEditorHeight = (editorHeight: number) => {
-          htmlInput.style.height = `${editorHeight}px`;
-          cssInput.style.height = `${editorHeight}px`;
-          jsInput.style.height = `${editorHeight}px`;
-
-          if (htmlEditor && cssEditor && jsEditor) {
-            htmlEditor.setSize("100%", editorHeight);
-            cssEditor.setSize("100%", editorHeight);
-            jsEditor.setSize("100%", editorHeight);
-            htmlEditor.refresh();
-            cssEditor.refresh();
-            jsEditor.refresh();
-          }
-        };
-
-        const applyStretch = () => {
-          const dialog = document.querySelector(".gjs-mdl-dialog") as HTMLElement | null;
-
-          if (isStretched) {
-            content.style.maxHeight = "92vh";
-            wrapper.style.gridTemplateColumns = "repeat(3, minmax(0, 1fr))";
-            stretchBtn.textContent = "Normal";
-            if (dialog) {
-              dialog.style.width = "96vw";
-              dialog.style.maxWidth = "96vw";
-            }
-            const height = Math.max(420, Math.floor(window.innerHeight * 0.6));
-            setEditorHeight(height);
-          } else {
-            content.style.maxHeight = "82vh";
-            wrapper.style.gridTemplateColumns = "repeat(auto-fit, minmax(260px, 1fr))";
-            stretchBtn.textContent = "Stretch";
-            if (dialog) {
-              dialog.style.width = "";
-              dialog.style.maxWidth = "";
-            }
-            setEditorHeight(baseEditorHeight);
-          }
-        };
-
-        stretchBtn.onclick = () => {
-          isStretched = !isStretched;
-          applyStretch();
-        };
-
-        formatBtn.onclick = () => {
-          const htmlValue = htmlEditor ? htmlEditor.getValue() : htmlInput.value || "";
-          const cssValue = cssEditor ? cssEditor.getValue() : cssInput.value || "";
-          const jsValue = jsEditor ? jsEditor.getValue() : jsInput.value || "";
-
-          const prettyHtml = formatByType(htmlValue, "html");
-          const prettyCss = formatByType(cssValue, "css");
-          const prettyJs = formatByType(jsValue, "js");
-
-          if (htmlEditor) htmlEditor.setValue(prettyHtml);
-          else htmlInput.value = prettyHtml;
-
-          if (cssEditor) cssEditor.setValue(prettyCss);
-          else cssInput.value = prettyCss;
-
-          if (jsEditor) jsEditor.setValue(prettyJs);
-          else jsInput.value = prettyJs;
-        };
-
-        saveBtn.onclick = () => {
-          const htmlValue = formatByType(
-            htmlEditor ? htmlEditor.getValue() : htmlInput.value || "",
-            "html"
-          );
-          const cssValue = formatByType(
-            cssEditor ? cssEditor.getValue() : cssInput.value || "",
-            "css"
-          );
-          const jsValue = formatByType(
-            jsEditor ? jsEditor.getValue() : jsInput.value || "",
-            "js"
-          );
-
-          jsRef.current = jsValue;
-          ed.setComponents(htmlValue);
-          ed.setStyle(cssValue);
-          const next = buildContent(ed);
-          if (next !== lastEmittedRef.current) {
-            lastEmittedRef.current = next;
-            onChange(next);
-          }
-          resetCodeCommandState();
-          modal.close();
-        };
-
-        footer.appendChild(formatBtn);
-        footer.appendChild(stretchBtn);
-        footer.appendChild(cancelBtn);
-        footer.appendChild(saveBtn);
-
-        const content = document.createElement("div");
-        content.style.display = "flex";
-        content.style.flexDirection = "column";
-        content.style.maxHeight = "82vh";
-        content.style.overflow = "auto";
-        content.style.paddingBottom = "2px";
-        content.style.background = "#1f1f1f";
-        content.appendChild(wrapper);
-        content.appendChild(footer);
-
-        modal.setTitle("Code");
-        modal.setContent(content);
-        modal.open();
-
-        const modalModel = modal.getModel?.();
-        if (modalModel) {
-          const onModalChange = () => {
-            const isOpen = modalModel.get?.("open");
-            if (!isOpen) {
-              resetCodeCommandState();
-              modalModel.off?.("change:open", onModalChange);
-            }
-          };
-          modalModel.on?.("change:open", onModalChange);
+      const createButton = (
+        label: string,
+        className: string,
+        iconClass?: string,
+        onClick?: () => void,
+      ) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = className;
+        if (iconClass) {
+          button.innerHTML = `<i class="${iconClass}" aria-hidden="true"></i><span>${label}</span>`;
+        } else {
+          button.textContent = label;
         }
+        if (onClick) button.onclick = onClick;
+        return button;
+      };
 
-        requestAnimationFrame(() => {
-          const editorOptions = {
-            theme: "material-darker",
-            lineNumbers: true,
-            lineWrapping: true,
-            indentUnit: 2,
-            tabSize: 2,
-          };
+      const modalRoot = document.createElement("div");
+      modalRoot.className = "cms-code-modal";
 
-          htmlEditor = CodeMirror.fromTextArea(htmlInput, {
-            ...editorOptions,
-            mode: "htmlmixed",
-          });
-          cssEditor = CodeMirror.fromTextArea(cssInput, {
-            ...editorOptions,
-            mode: "css",
-          });
-          jsEditor = CodeMirror.fromTextArea(jsInput, {
-            ...editorOptions,
-            mode: "javascript",
-          });
+      const toolbar = document.createElement("div");
+      toolbar.className = "cms-code-modal__toolbar";
 
-          htmlEditor.setSize("100%", baseEditorHeight);
-          cssEditor.setSize("100%", baseEditorHeight);
-          jsEditor.setSize("100%", baseEditorHeight);
+      const toolbarCopy = document.createElement("div");
+      toolbarCopy.className = "cms-code-modal__intro";
+      toolbarCopy.innerHTML = `
+        <div class="cms-code-modal__eyebrow">Advanced editing</div>
+        <p class="cms-code-modal__hint">Edit HTML structure, CSS styles, and page scripts. Use Format before saving for cleaner code.</p>
+      `;
 
-          htmlEditor.getWrapperElement().style.borderRadius = "6px";
-          cssEditor.getWrapperElement().style.borderRadius = "6px";
-          jsEditor.getWrapperElement().style.borderRadius = "6px";
+      const toolbarActions = document.createElement("div");
+      toolbarActions.className = "cms-code-modal__toolbar-actions";
 
+      const tabList = document.createElement("div");
+      tabList.className = "cms-code-modal__tabs";
+      tabList.setAttribute("role", "tablist");
+      tabList.setAttribute("aria-label", "Code editor panels");
+
+      const panels = document.createElement("div");
+      panels.className = "cms-code-modal__panels";
+
+      const panelConfig = [
+        { id: "html", label: "HTML", icon: "fa-solid fa-code", hint: "Page markup" },
+        { id: "css", label: "CSS", icon: "fa-solid fa-palette", hint: "Stylesheet rules" },
+        { id: "js", label: "JavaScript", icon: "fa-solid fa-bolt", hint: "Page scripts" },
+      ] as const;
+
+      const htmlInput = document.createElement("textarea");
+      htmlInput.value = initialHtml;
+      const cssInput = document.createElement("textarea");
+      cssInput.value = initialCss;
+      const jsInput = document.createElement("textarea");
+      jsInput.value = initialJs;
+
+      const inputMap: Record<(typeof panelConfig)[number]["id"], HTMLTextAreaElement> = {
+        html: htmlInput,
+        css: cssInput,
+        js: jsInput,
+      };
+
+      let activeTab: (typeof panelConfig)[number]["id"] = "html";
+      const tabButtons: Partial<Record<(typeof panelConfig)[number]["id"], HTMLButtonElement>> = {};
+      const panelElements: Partial<Record<(typeof panelConfig)[number]["id"], HTMLElement>> = {};
+
+      const setActiveTab = (nextTab: (typeof panelConfig)[number]["id"]) => {
+        activeTab = nextTab;
+        panelConfig.forEach(({ id }) => {
+          tabButtons[id]?.setAttribute("aria-selected", id === nextTab ? "true" : "false");
+          tabButtons[id]?.classList.toggle("is-active", id === nextTab);
+          panelElements[id]?.classList.toggle("is-active", id === nextTab);
+        });
+      };
+
+      panelConfig.forEach(({ id, label, icon, hint }) => {
+        const tabButton = document.createElement("button");
+        tabButton.type = "button";
+        tabButton.className = `cms-code-modal__tab cms-code-modal__tab--${id}${id === activeTab ? " is-active" : ""}`;
+        tabButton.setAttribute("role", "tab");
+        tabButton.setAttribute("aria-selected", id === activeTab ? "true" : "false");
+        tabButton.innerHTML = `<i class="${icon}" aria-hidden="true"></i><span>${label}</span>`;
+        tabButton.onclick = () => setActiveTab(id);
+        tabButtons[id] = tabButton;
+        tabList.appendChild(tabButton);
+
+        const panel = document.createElement("section");
+        panel.className = `cms-code-modal__panel cms-code-modal__panel--${id}${id === activeTab ? " is-active" : ""}`;
+        panel.dataset.panel = id;
+
+        const panelHeader = document.createElement("div");
+        panelHeader.className = "cms-code-modal__panel-head";
+        panelHeader.innerHTML = `
+          <div class="cms-code-modal__panel-title">
+            <i class="${icon}" aria-hidden="true"></i>
+            <div>
+              <strong>${label}</strong>
+              <span>${hint}</span>
+            </div>
+          </div>
+        `;
+
+        const panelBody = document.createElement("div");
+        panelBody.className = "cms-code-modal__panel-body";
+        panelBody.appendChild(inputMap[id]);
+
+        panel.appendChild(panelHeader);
+        panel.appendChild(panelBody);
+        panelElements[id] = panel;
+        panels.appendChild(panel);
+      });
+
+      const footer = document.createElement("div");
+      footer.className = "cms-code-modal__footer";
+
+      const footerMeta = document.createElement("div");
+      footerMeta.className = "cms-code-modal__footer-meta";
+      footerMeta.textContent = "Changes apply to the current page after Save.";
+
+      const footerActions = document.createElement("div");
+      footerActions.className = "cms-code-modal__footer-actions";
+
+      let htmlEditor: any = null;
+      let cssEditor: any = null;
+      let jsEditor: any = null;
+      let isStretched = true;
+      let isExpanded = false;
+
+      const getCodeModalChromeHeight = (dialog: HTMLElement | null) => {
+        const header = dialog?.querySelector(".gjs-mdl-header") as HTMLElement | null;
+        const toolbarEl = modalRoot.querySelector(".cms-code-modal__toolbar") as HTMLElement | null;
+        const tabsEl = modalRoot.querySelector(".cms-code-modal__tabs") as HTMLElement | null;
+        const footerEl = modalRoot.querySelector(".cms-code-modal__footer") as HTMLElement | null;
+        const panelHeads = modalRoot.querySelectorAll(".cms-code-modal__panel-head");
+        let panelHeadHeight = 0;
+        panelHeads.forEach((node) => {
+          panelHeadHeight = Math.max(panelHeadHeight, (node as HTMLElement).offsetHeight || 0);
+        });
+
+        return (
+          (header?.offsetHeight || 52) +
+          (toolbarEl?.offsetHeight || 88) +
+          (tabsEl?.offsetHeight || 0) +
+          (footerEl?.offsetHeight || 56) +
+          panelHeadHeight +
+          72
+        );
+      };
+
+      const getCodeModalEditorHeight = (dialog: HTMLElement | null) => {
+        const chromeHeight = getCodeModalChromeHeight(dialog);
+        const viewportPadding = isExpanded ? 40 : 56;
+        const available = window.innerHeight - chromeHeight - viewportPadding;
+        const maxByMode = isExpanded
+          ? Math.floor(window.innerHeight * 0.52)
+          : isStretched
+            ? Math.floor(window.innerHeight * 0.42)
+            : baseEditorHeight;
+
+        return Math.max(220, Math.min(available, maxByMode));
+      };
+
+      const stretchBtn = createButton("Stacked layout", "cms-code-modal__btn cms-code-modal__btn--ghost", "fa-solid fa-up-right-and-down-left-from-center");
+      const expandBtn = createButton("Expand", "cms-code-modal__btn cms-code-modal__btn--ghost", "fa-solid fa-expand");
+      const formatBtn = createButton("Format code", "cms-code-modal__btn cms-code-modal__btn--ghost", "fa-solid fa-wand-magic-sparkles");
+      const cancelBtn = createButton("Cancel", "cms-code-modal__btn cms-code-modal__btn--ghost");
+      const saveBtn = createButton("Save changes", "cms-code-modal__btn cms-code-modal__btn--primary", "fa-solid fa-floppy-disk");
+
+      cancelBtn.onclick = () => {
+        clearCodeModalViewport();
+        resetCodeCommandState();
+        modal.close();
+      };
+
+      const setEditorHeight = (editorHeight: number) => {
+        [htmlInput, cssInput, jsInput].forEach((input) => {
+          input.style.height = `${editorHeight}px`;
+        });
+
+        if (htmlEditor && cssEditor && jsEditor) {
+          htmlEditor.setSize("100%", editorHeight);
+          cssEditor.setSize("100%", editorHeight);
+          jsEditor.setSize("100%", editorHeight);
           htmlEditor.refresh();
           cssEditor.refresh();
           jsEditor.refresh();
+        }
+      };
 
-          applyStretch();
+      const applyLayout = () => {
+        const dialog = (getCodeModalContainer()?.querySelector(".gjs-mdl-dialog") ||
+          document.querySelector(".gjs-mdl-dialog")) as HTMLElement | null;
+        modalRoot.classList.toggle("is-wide", isStretched);
+        modalRoot.classList.toggle("is-expanded", isExpanded);
+        panels.classList.toggle("cms-code-modal__panels--wide", isStretched);
+        panels.classList.toggle("cms-code-modal__panels--stacked", !isStretched);
+
+        stretchBtn.querySelector("span")!.textContent = isStretched ? "Stacked layout" : "Wide layout";
+        expandBtn.querySelector("span")!.textContent = isExpanded ? "Compact" : "Expand";
+
+        if (dialog) {
+          const dialogWidth = isExpanded
+            ? Math.min(window.innerWidth * 0.98, 1600)
+            : isStretched
+              ? Math.min(window.innerWidth * 0.96, 1400)
+              : Math.min(window.innerWidth * 0.92, 960);
+
+          dialog.classList.toggle("cms-code-modal-dialog--expanded", isExpanded);
+          dialog.classList.add("cms-code-modal-dialog");
+          dialog.style.width = `${Math.round(dialogWidth)}px`;
+          dialog.style.maxWidth = isExpanded ? "98vw" : isStretched ? "96vw" : "92vw";
+          dialog.style.minWidth = "320px";
+          dialog.style.maxHeight = `calc(100vh - ${isExpanded ? 32 : 48}px)`;
+        }
+
+        const height = getCodeModalEditorHeight(dialog);
+        setEditorHeight(height);
+      };
+
+      stretchBtn.onclick = () => {
+        isStretched = !isStretched;
+        if (isStretched) isExpanded = false;
+        applyLayout();
+      };
+
+      expandBtn.onclick = () => {
+        isExpanded = !isExpanded;
+        if (isExpanded) isStretched = true;
+        applyLayout();
+      };
+
+      formatBtn.onclick = () => {
+        const htmlValue = htmlEditor ? htmlEditor.getValue() : htmlInput.value || "";
+        const cssValue = cssEditor ? cssEditor.getValue() : cssInput.value || "";
+        const jsValue = jsEditor ? jsEditor.getValue() : jsInput.value || "";
+
+        const prettyHtml = formatByType(htmlValue, "html");
+        const prettyCss = formatByType(cssValue, "css");
+        const prettyJs = formatByType(jsValue, "js");
+
+        if (htmlEditor) htmlEditor.setValue(prettyHtml);
+        else htmlInput.value = prettyHtml;
+
+        if (cssEditor) cssEditor.setValue(prettyCss);
+        else cssInput.value = prettyCss;
+
+        if (jsEditor) jsEditor.setValue(prettyJs);
+        else jsInput.value = prettyJs;
+      };
+
+      saveBtn.onclick = () => {
+        const htmlValue = formatByType(htmlEditor ? htmlEditor.getValue() : htmlInput.value || "", "html");
+        const cssValue = formatByType(cssEditor ? cssEditor.getValue() : cssInput.value || "", "css");
+        const jsValue = formatByType(jsEditor ? jsEditor.getValue() : jsInput.value || "", "js");
+
+        jsRef.current = jsValue;
+        ed.setComponents(htmlValue);
+        ed.setStyle(cssValue);
+        const next = buildContent(ed);
+        if (next !== lastEmittedRef.current) {
+          lastEmittedRef.current = next;
+          onChange(next);
+        }
+        resetCodeCommandState();
+        clearCodeModalViewport();
+        modal.close();
+      };
+
+      toolbarActions.append(formatBtn, stretchBtn, expandBtn);
+      toolbar.append(toolbarCopy, toolbarActions);
+
+      footerActions.append(cancelBtn, saveBtn);
+      footer.append(footerMeta, footerActions);
+
+      modalRoot.append(toolbar, tabList, panels, footer);
+
+      modal.setTitle("Custom Code Editor");
+      modal.setContent(modalRoot);
+      modal.open();
+      syncCodeModalViewport();
+
+      const modalModel = modal.getModel?.();
+      const onWindowResize = () => applyLayout();
+      if (modalModel) {
+        const onModalChange = () => {
+          const isOpen = modalModel.get?.("open");
+          if (!isOpen) {
+            window.removeEventListener("resize", onWindowResize);
+            clearCodeModalViewport();
+            resetCodeCommandState();
+            modalModel.off?.("change:open", onModalChange);
+          }
+        };
+        modalModel.on?.("change:open", onModalChange);
+      }
+      window.addEventListener("resize", onWindowResize);
+
+      requestAnimationFrame(() => {
+        syncCodeModalViewport();
+
+        const editorOptions = {
+          theme: "material-darker",
+          lineNumbers: true,
+          lineWrapping: true,
+          indentUnit: 2,
+          tabSize: 2,
+        };
+
+        htmlEditor = CodeMirror.fromTextArea(htmlInput, {
+          ...editorOptions,
+          mode: "htmlmixed",
         });
+        cssEditor = CodeMirror.fromTextArea(cssInput, {
+          ...editorOptions,
+          mode: "css",
+        });
+        jsEditor = CodeMirror.fromTextArea(jsInput, {
+          ...editorOptions,
+          mode: "javascript",
+        });
+
+        [htmlEditor, cssEditor, jsEditor].forEach((editorInstance) => {
+          const wrapper = editorInstance.getWrapperElement();
+          wrapper.classList.add("cms-code-modal__codemirror");
+        });
+
+        applyLayout();
+      });
     };
 
     editor.Commands.add("cms:open-code", {
@@ -1671,6 +1823,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     });
 
     const forceBindCodeButtons = () => {
+      if (!editorAlive || !editor.Panels?.getButton) return;
+
       const panelIds = ["options", "views"];
       const buttonIds = ["open-code", "cms-open-code"];
 
@@ -1755,6 +1909,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
 
     const removeGrapesTopPanels = () => {
+      if (!editorAlive || !editor.Panels?.removePanel) return;
+
       ["commands", "options", "views", "devices-c"].forEach((panelId) => {
         try {
           editor.Panels.removePanel(panelId);
@@ -1818,34 +1974,80 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       setActiveDevice(STUDIO_DEVICE_KEYS[current] || "desktop");
     };
 
-    const panels = editor.Panels.getPanels();
-    panels.forEach((panel: any) => {
-      const buttons = panel.get("buttons");
-      if (!buttons) return;
-      buttons.forEach((btn: any) => {
-        const cmd = btn.get("command");
-        const id = btn.get("id");
-        if (cmd === "core:open-code" || id === "open-code") {
-          btn.set("command", "cms:open-code");
-          btn.set("togglable", false);
-          btn.set("active", false);
-        }
+    if (editor.Panels?.getPanels) {
+      const panels = editor.Panels.getPanels();
+      panels.forEach((panel: any) => {
+        const buttons = panel.get("buttons");
+        if (!buttons) return;
+        buttons.forEach((btn: any) => {
+          const cmd = btn.get("command");
+          const id = btn.get("id");
+          if (cmd === "core:open-code" || id === "open-code") {
+            btn.set("command", "cms:open-code");
+            btn.set("togglable", false);
+            btn.set("active", false);
+          }
+        });
       });
-    });
+    }
 
     forceBindCodeButtons();
 
     const syncEditorChromeState = () => {
+      if (!editorAlive) return;
       removeGrapesTopPanels();
       hideLegacyViewsUi();
-      forceBindCodeButtons();
       syncStudioDeviceState();
+    };
+
+    const refreshCanvasLayout = () => {
+      if (!editorAlive || canvasInteractionGuards.isDragging()) return;
+      hideLegacyViewsUi();
+      syncFrameWrapperStyle();
+
+      const isFs = isShellInFullscreen() || editor.Commands.isActive("fullscreen");
+      const previewMin = isFs ? "auto" : `${Math.max(680, studioHeightRef.current - 120)}px`;
+
+      try {
+        (["desktop", "tablet", "mobile"] as const).forEach((id) => {
+          editor.DeviceManager?.get?.(id)?.set?.("minHeight", previewMin);
+        });
+      } catch {
+        // ignore device update errors
+      }
+
+      const fitCanvas = () => {
+        if (!editorAlive) return;
+        try {
+          editor.refresh?.({ tools: true });
+          const zoom = Number(editor.Canvas?.getZoom?.() || 100);
+          const gap = 0;
+          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap, zoom });
+          canvasInteractionGuards.rememberViewport();
+          if (canvasInteractionGuards.isDragging()) {
+            canvasInteractionGuards.pinViewport();
+          }
+        } catch {
+          // ignore canvas fit errors
+        }
+      };
+
+      requestAnimationFrame(fitCanvas);
+      scheduleTimer(fitCanvas, 120);
+    };
+
+    const queueCanvasLayoutRefresh = () => {
+      requestAnimationFrame(() => {
+        if (!editorAlive) return;
+        refreshCanvasLayout();
+      });
+      scheduleTimer(refreshCanvasLayout, 120);
     };
 
     const syncInitialStudioState = () => {
       syncEditorChromeState();
       applyProductShowcaseTopSpacing();
-      queueFrameWrapperStyleSync();
+      queueCanvasLayoutRefresh();
       mountStudioPanels();
       syncBlockCategories();
     };
@@ -1858,7 +2060,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         setIsRightSidebarHidden(true);
         editor.setDevice("Desktop");
         hideLegacyViewsUi();
-        queueFrameWrapperStyleSync();
+        queueCanvasLayoutRefresh();
         mountStudioPanels();
         syncBlockCategories();
         syncStudioDeviceState();
@@ -1867,24 +2069,28 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       }
     };
 
-    const handleFrameWrapperRefresh = () => {
-      queueFrameWrapperStyleSync();
-    };
-
     const handleBrowserFullscreenChange = () => {
-      handleFrameWrapperRefresh();
+      if (!editorAlive) return;
 
-      if (!isShellFullscreen() && editor.Commands.isActive("fullscreen")) {
-        editor.Commands.stop("fullscreen", {
+      const fs = isShellInFullscreen();
+      setIsShellFullscreen(fs);
+      queueCanvasLayoutRefresh();
+
+      if (!fs && editor.Commands.isActive("fullscreen")) {
+        editor.stopCommand("fullscreen", {
           sender: fullscreenSenderRef.current || undefined,
         });
       }
     };
 
-    requestAnimationFrame(syncEditorChromeState);
-    setTimeout(syncEditorChromeState, 80);
-    setTimeout(syncEditorChromeState, 240);
-    handleFrameWrapperRefresh();
+    requestAnimationFrame(() => {
+      if (!editorAlive) return;
+      syncEditorChromeState();
+    });
+    scheduleTimer(syncEditorChromeState, 80);
+    scheduleTimer(syncEditorChromeState, 240);
+    handleBrowserFullscreenChange();
+    queueCanvasLayoutRefresh();
 
     let canvasStyleObserver: MutationObserver | null = null;
     const attachCanvasStyleObserver = () => {
@@ -1907,13 +2113,16 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editor.on("load", syncInitialStudioState);
     editor.on("load", syncStudioDefaults);
     editor.on("change:device", syncStudioDeviceState);
-    editor.on("load", handleFrameWrapperRefresh);
-    editor.on("change:device", handleFrameWrapperRefresh);
-    editor.on("command:run:fullscreen", handleFrameWrapperRefresh);
-    editor.on("command:stop:fullscreen", handleFrameWrapperRefresh);
+    editor.on("load", refreshCanvasLayout);
+    editor.on("change:device", refreshCanvasLayout);
+    editor.on("command:run:fullscreen", refreshCanvasLayout);
+    editor.on("command:stop:fullscreen", refreshCanvasLayout);
     editor.on("canvas:zoom", handleCanvasZoomChange);
-    window.addEventListener("resize", handleFrameWrapperRefresh);
+    window.addEventListener("resize", refreshCanvasLayout);
     document.addEventListener("fullscreenchange", handleBrowserFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleBrowserFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleBrowserFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleBrowserFullscreenChange);
 
     const ensureUrlTraits = (component: any) => {
       if (!component) return;
@@ -1987,6 +2196,21 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     const handleComponentDeselected = () => {
       setHasSelection(false);
       setSelectionLabel("");
+      setTextToolbarVisible(false);
+      deactivateStudioTextFormatting(editor);
+    };
+
+    const handleTextComponentSelected = (component: any) => {
+      if (!isEditableTextComponent(component)) {
+        setTextToolbarVisible(false);
+        deactivateStudioTextFormatting(editor);
+        return;
+      }
+
+      setTextToolbarVisible(true);
+      window.requestAnimationFrame(() => {
+        activateStudioTextFormatting(editor);
+      });
     };
 
     editor.on("component:selected", (component: any) => {
@@ -1995,6 +2219,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       setSelectionLabel(getComponentBreadcrumb(component));
       setIsRightSidebarHidden(false);
       setActiveRightPanel("styles");
+      handleTextComponentSelected(component);
 
       const tagName = String(component?.get?.("tagName") || "").toLowerCase();
       if (["a", "button", "video", "iframe"].includes(tagName)) {
@@ -2067,7 +2292,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       syncCanvasEmptyState();
       syncCanvasZoomState();
       try {
-        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: 100 });
+        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom: 100 });
       } catch {
         // ignore
       }
@@ -2077,6 +2302,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editor.on("load", handleEditorReady);
 
     return () => {
+      editorAlive = false;
+      pendingTimers.forEach((id) => window.clearTimeout(id));
+      pendingTimers.length = 0;
+
       try {
         if (emitTimerRef.current !== null) {
           window.clearTimeout(emitTimerRef.current);
@@ -2091,15 +2320,21 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         editor.off("component:remove", syncCanvasEmptyState);
         editor.off("component:update", syncCanvasEmptyState);
         editor.off("change:device", syncStudioDeviceState);
-        editor.off("load", handleFrameWrapperRefresh);
-        editor.off("change:device", handleFrameWrapperRefresh);
-        editor.off("command:run:fullscreen", handleFrameWrapperRefresh);
-        editor.off("command:stop:fullscreen", handleFrameWrapperRefresh);
+        editor.off("load", refreshCanvasLayout);
+        editor.off("change:device", refreshCanvasLayout);
+        editor.off("command:run:fullscreen", refreshCanvasLayout);
+        editor.off("command:stop:fullscreen", refreshCanvasLayout);
         editor.off("canvas:zoom", handleCanvasZoomChange);
         canvasStyleObserver?.disconnect();
         canvasStyleObserver = null;
-        window.removeEventListener("resize", handleFrameWrapperRefresh);
+        window.removeEventListener("resize", refreshCanvasLayout);
         document.removeEventListener("fullscreenchange", handleBrowserFullscreenChange);
+        document.removeEventListener("webkitfullscreenchange", handleBrowserFullscreenChange);
+        document.removeEventListener("mozfullscreenchange", handleBrowserFullscreenChange);
+        document.removeEventListener("MSFullscreenChange", handleBrowserFullscreenChange);
+        rteToolbarCleanupRef.current?.();
+        rteToolbarCleanupRef.current = null;
+        canvasInteractionGuards.cleanup();
         editor.destroy();
       } catch {
         // ignore destroy errors
@@ -2128,6 +2363,15 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     const editor = editorRef.current;
     if (!editor) return;
     try {
+      const shell = shellRef.current;
+      const isFs = Boolean(shell && document.fullscreenElement === shell);
+      if (!isFs) {
+        const previewMin = `${Math.max(680, studioHeight - 120)}px`;
+        (["desktop", "tablet", "mobile"] as const).forEach((id) => {
+          editor.DeviceManager?.get?.(id)?.set?.("minHeight", previewMin);
+        });
+      }
+
       editor.setConfig?.({ height: "100%" });
       editor.refresh?.({ tools: true });
       requestAnimationFrame(() => {
@@ -2148,7 +2392,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             canvas.style.overflow = "auto";
           }
           const zoom = Number(editor.Canvas?.getZoom?.() || 100);
-          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom });
+          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom });
         } catch {
           // ignore
         }
@@ -2170,7 +2414,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         const zoom = Number(editor.Canvas?.getZoom?.() || 100);
         editor.Canvas?.fitViewport?.({
           ignoreHeight: true,
-          gap: isLeftSidebarHidden && isRightSidebarHidden ? 12 : 20,
+          gap: 0,
           zoom,
         });
       } catch {
@@ -2205,6 +2449,65 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     filterBlockPanel(leftBlocksRef.current, blockSearch);
   }, [blockSearch]);
 
+  useEffect(() => {
+    const editor = editorRef.current;
+    const host = rteHostRef.current;
+    if (!editor || !host || !editorReady) return;
+
+    rteToolbarCleanupRef.current?.();
+    rteToolbarCleanupRef.current = mountStudioRteToolbar(editor, host);
+
+    return () => {
+      rteToolbarCleanupRef.current?.();
+      rteToolbarCleanupRef.current = null;
+    };
+  }, [editorReady]);
+
+  const handleDocMenuAction = (action: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    if (action.startsWith("device:")) {
+      const deviceKey = action.replace("device:", "") as StudioDeviceKey;
+      if (STUDIO_DEVICE_LABELS[deviceKey]) {
+        editor.setDevice?.(STUDIO_DEVICE_LABELS[deviceKey]);
+        setActiveDevice(deviceKey);
+      }
+      return;
+    }
+
+    if (action.startsWith("rte:")) {
+      handleDocRteAction(action.replace(/^rte:/, ""));
+      return;
+    }
+
+    editor.runCommand?.(action);
+    if (action === "cms:canvas-zoom-in" || action === "cms:canvas-zoom-out" || action === "cms:canvas-fit") {
+      window.setTimeout(() => {
+        try {
+          setCanvasZoom(Math.round(Number(editor.Canvas?.getZoom?.() || 100)));
+        } catch {
+          // ignore
+        }
+      }, 60);
+    }
+  };
+
+  const handleDocRteAction = (action: string) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    activateStudioTextFormatting(editor);
+
+    if (action.startsWith("formatBlock:")) {
+      const tag = action.split(":")[1] || "p";
+      rteInstanceRef.current?.exec?.("formatBlock", `<${tag}>`);
+      return;
+    }
+
+    runStudioRteAction(editor, action);
+  };
+
   const runEditorCommand = (command: string) => {
     editorRef.current?.runCommand?.(command);
     if (command === "cms:canvas-zoom-in" || command === "cms:canvas-zoom-out" || command === "cms:canvas-fit") {
@@ -2225,6 +2528,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     }
   };
 
+  const toggleShellFullscreen = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    if (isShellFullscreen || editor.Commands?.isActive?.("fullscreen")) {
+      editor.stopCommand?.("fullscreen");
+      return;
+    }
+
+    editor.runCommand?.("fullscreen");
+  };
+
   const syncCanvasEmptyStateFromEditor = () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -2234,9 +2549,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   return (
     <div
       ref={shellRef}
-      className={`cms-grapes-shell${isLeftSidebarHidden ? " cms-grapes-shell--left-hidden" : ""}${isRightSidebarHidden ? " cms-grapes-shell--right-hidden" : ""}`}
+      className={`cms-grapes-shell${isLeftSidebarHidden ? " cms-grapes-shell--left-hidden" : ""}${isRightSidebarHidden ? " cms-grapes-shell--right-hidden" : ""}${isShellFullscreen ? " cms-grapes-shell--fullscreen-active" : ""}`}
+      data-cms-tour="grapes-shell"
     >
-      <div className="cms-grapes-studio-bar">
+      <div className="cms-grapes-studio-bar" data-cms-tour="grapes-studio-bar">
         <div className="cms-grapes-studio-bar__brand">
           <i className="fa-solid fa-wand-magic-sparkles" />
           <span>Visual Builder</span>
@@ -2359,12 +2675,12 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           </button>
           <button
             type="button"
-            className="cms-grapes-studio-btn"
-            title="Fullscreen"
+            className={`cms-grapes-studio-btn${isShellFullscreen ? " is-active" : ""}`}
+            title={isShellFullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
             disabled={!editorReady}
-            onClick={() => editorRef.current?.runCommand?.("fullscreen")}
+            onClick={toggleShellFullscreen}
           >
-            <i className="fa-solid fa-expand" />
+            <i className={`fa-solid ${isShellFullscreen ? "fa-compress" : "fa-expand"}`} />
           </button>
           <button
             type="button"
@@ -2377,15 +2693,23 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           </button>
         </div>
       </div>
+
+      <GrapesRteDocBar
+        editorReady={editorReady}
+        textToolbarVisible={textToolbarVisible}
+        rteHostRef={rteHostRef}
+        onMenuAction={handleDocMenuAction}
+        onRteAction={handleDocRteAction}
+      />
+
       {selectionLabel && (
         <div className="cms-grapes-selection-bar">
           <i className="fa-solid fa-crosshairs" />
           <span>{selectionLabel}</span>
-          <span className="cms-grapes-selection-bar__hint">Double-click text to edit inline</span>
         </div>
       )}
       <div className="cms-grapes-shell__workspace">
-        <aside className={`cms-grapes-sidebar cms-grapes-sidebar--left${isLeftSidebarHidden ? " is-hidden" : ""}`}>
+        <aside className={`cms-grapes-sidebar cms-grapes-sidebar--left${isLeftSidebarHidden ? " is-hidden" : ""}`} data-cms-tour="grapes-blocks">
           <div className="cms-grapes-sidebar__toolbar">
             <button
               type="button"
@@ -2397,6 +2721,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             <button
               type="button"
               className={`cms-grapes-sidebar__tab${activeLeftPanel === "layers" ? " is-active" : ""}`}
+              data-cms-tour="grapes-layers-tab"
               onClick={() => setActiveLeftPanel("layers")}
             >
               Layers
@@ -2424,7 +2749,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           />
         </aside>
 
-        <div className="cms-grapes-shell__host-wrap">
+        <div className="cms-grapes-shell__host-wrap" data-cms-tour="grapes-canvas">
           <div ref={hostRef} className="cms-grapes-shell__host" />
           {editorReady && canvasEmpty && (
             <div className="cms-grapes-empty-guide">
@@ -2459,7 +2784,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           )}
         </div>
 
-        <aside className={`cms-grapes-sidebar cms-grapes-sidebar--right${isRightSidebarHidden ? " is-hidden" : ""}`}>
+        <aside
+          className={`cms-grapes-sidebar cms-grapes-sidebar--right${isRightSidebarHidden ? " is-hidden" : ""}`}
+          data-cms-tour="grapes-styles"
+        >
           <div className="cms-grapes-sidebar__toolbar">
             <button
               type="button"
@@ -2511,7 +2839,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-shell {
           --cms-left-sidebar-width: 320px;
           --cms-right-sidebar-width: 300px;
-          --cms-canvas-padding: 32px;
+          --cms-canvas-padding: 0px;
           --cms-grapes-accent: #6366f1;
           --cms-grapes-accent-dark: #4f46e5;
           position: relative;
@@ -2622,9 +2950,158 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-studio-bar__zoom {
           min-width: 42px;
           text-align: center;
-          font-size: 11px;
+          font-size: 12px;
           font-weight: 700;
+          color: #cbd5e1;
+        }
+
+        .cms-grapes-doc-bar {
+          display: flex;
+          align-items: center;
+          min-height: 38px;
+          background: #fff;
+          border-bottom: 1px solid #e2e8f0;
+          flex-shrink: 0;
+        }
+
+        .cms-grapes-doc-bar.is-rte-mode {
+          padding: 4px 10px;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+
+        .cms-grapes-doc-bar__menus {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 2px 8px;
+          padding: 4px 10px;
+          width: 100%;
+        }
+
+        .cms-grapes-doc-bar__hint {
+          margin-left: auto;
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        .cms-grapes-doc-bar__menu {
+          position: relative;
+        }
+
+        .cms-grapes-doc-bar__menu-btn {
+          border: 0;
+          background: transparent;
+          color: #334155;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 5px 10px;
+          border-radius: 6px;
+          cursor: pointer;
+        }
+
+        .cms-grapes-doc-bar__menu-btn:hover:not(:disabled),
+        .cms-grapes-doc-bar__menu-btn.is-open {
+          background: #eef2ff;
+          color: #4338ca;
+        }
+
+        .cms-grapes-doc-bar__dropdown {
+          position: absolute;
+          top: calc(100% + 4px);
+          left: 0;
+          z-index: 40;
+          min-width: 220px;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+          padding: 6px;
+        }
+
+        .cms-grapes-doc-bar__dropdown-item {
+          width: 100%;
+          border: 0;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 8px 10px;
+          border-radius: 8px;
+          font-size: 12px;
+          color: #334155;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .cms-grapes-doc-bar__dropdown-item:hover:not(:disabled) {
+          background: #f1f5f9;
+        }
+
+        .cms-grapes-doc-bar__dropdown-item:disabled {
+          opacity: 0.55;
+          cursor: default;
+        }
+
+        .cms-grapes-doc-bar__shortcut {
+          font-size: 11px;
           color: #94a3b8;
+        }
+
+        .cms-grapes-rte-host {
+          display: none;
+          align-items: center;
+          flex: 1 1 auto;
+          min-width: 0;
+        }
+
+        .cms-grapes-rte-host.is-active {
+          display: flex;
+        }
+
+        .cms-grapes-rte-host__actions {
+          display: inline-flex;
+          flex-wrap: nowrap;
+          align-items: center;
+          gap: 4px;
+          width: max-content;
+          max-width: none;
+        }
+
+        .cms-grapes-rte-host__btn,
+        .cms-grapes-rte-host__actions .gjs-rte-action,
+        .cms-grapes-rte-host__actions span {
+          flex: 0 0 auto;
+          width: auto !important;
+          min-width: 28px;
+          height: 28px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          background: #fff;
+          color: #334155;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 12px;
+          padding: 0 6px;
+          box-sizing: border-box;
+        }
+
+        .cms-grapes-rte-host__actions select.cms-gjs-rte-format,
+        .cms-grapes-rte-host__actions .cms-gjs-rte-format {
+          height: 28px;
+          min-width: 108px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 12px;
+          padding: 0 8px;
+          background: #fff;
+        }
+
+        .cms-grapes-shell .gjs-rte-toolbar {
+          display: none !important;
         }
 
         .cms-grapes-selection-bar {
@@ -2783,39 +3260,83 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell:fullscreen,
-        .cms-grapes-shell:-webkit-full-screen {
+        .cms-grapes-shell:-webkit-full-screen,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active {
+          display: flex;
+          flex-direction: column;
           width: 100vw;
           height: 100vh;
           max-width: none;
           border: 0;
           border-radius: 0;
           box-shadow: none;
+          overflow: hidden;
         }
 
         .cms-grapes-shell:fullscreen .cms-grapes-shell__workspace,
         .cms-grapes-shell:-webkit-full-screen .cms-grapes-shell__workspace,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-shell__workspace {
+          flex: 1 1 auto;
+          min-height: 0 !important;
+          height: auto !important;
+        }
+
         .cms-grapes-shell:fullscreen .cms-grapes-sidebar,
         .cms-grapes-shell:-webkit-full-screen .cms-grapes-sidebar,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-sidebar {
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        .cms-grapes-shell:fullscreen .cms-grapes-shell__host-wrap,
+        .cms-grapes-shell:-webkit-full-screen .cms-grapes-shell__host-wrap,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-shell__host-wrap,
         .cms-grapes-shell:fullscreen .cms-grapes-shell__host,
         .cms-grapes-shell:-webkit-full-screen .cms-grapes-shell__host,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-shell__host,
         .cms-grapes-shell:fullscreen .gjs-editor,
-        .cms-grapes-shell:-webkit-full-screen .gjs-editor {
-          height: 100vh !important;
-          min-height: 100vh !important;
+        .cms-grapes-shell:-webkit-full-screen .gjs-editor,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .gjs-editor,
+        .cms-grapes-shell:fullscreen .cms-grapes-shell__host .gjs-editor-cont,
+        .cms-grapes-shell:-webkit-full-screen .cms-grapes-shell__host .gjs-editor-cont,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-shell__host .gjs-editor-cont {
+          height: 100% !important;
+          min-height: 0 !important;
+          max-height: none !important;
+        }
+
+        .cms-grapes-shell:fullscreen .gjs-cv-canvas__frames,
+        .cms-grapes-shell:-webkit-full-screen .gjs-cv-canvas__frames,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .gjs-cv-canvas__frames {
+          min-height: auto;
+        }
+
+        .cms-grapes-shell:fullscreen .gjs-cv-canvas,
+        .cms-grapes-shell:-webkit-full-screen .gjs-cv-canvas,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .gjs-cv-canvas {
+          overflow: auto !important;
+          overscroll-behavior: auto;
+        }
+
+        .cms-grapes-shell:fullscreen .cms-grapes-shell__host-wrap,
+        .cms-grapes-shell:-webkit-full-screen .cms-grapes-shell__host-wrap,
+        .cms-grapes-shell.cms-grapes-shell--fullscreen-active .cms-grapes-shell__host-wrap {
+          overflow: hidden;
+          min-height: 0;
         }
 
         .cms-grapes-shell.cms-grapes-shell--left-hidden {
           --cms-left-sidebar-width: 0px;
-          --cms-canvas-padding: 20px;
+          --cms-canvas-padding: 0px;
         }
 
         .cms-grapes-shell.cms-grapes-shell--right-hidden {
           --cms-right-sidebar-width: 0px;
-          --cms-canvas-padding: 20px;
+          --cms-canvas-padding: 0px;
         }
 
         .cms-grapes-shell.cms-grapes-shell--left-hidden.cms-grapes-shell--right-hidden {
-          --cms-canvas-padding: 12px;
+          --cms-canvas-padding: 0px;
         }
 
         .cms-grapes-shell__workspace {
@@ -3002,7 +3523,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           position: relative;
           height: 100% !important;
           min-height: 0 !important;
-          background: #cbd5e1;
+          background: #0f172a;
           overflow: hidden;
         }
 
@@ -3032,16 +3553,42 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           width: auto !important;
           height: auto !important;
           transition: right 220ms ease;
-          background-color: #d1dae6;
-          background-image: radial-gradient(circle at 1px 1px, rgba(100, 116, 139, 0.35) 1px, transparent 0);
-          background-size: 20px 20px;
-          padding: var(--cms-canvas-padding);
+          background-color: #0f172a;
+          background-image: none;
+          padding: 0;
           box-sizing: border-box;
           overflow: auto !important;
+          overscroll-behavior: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .cms-grapes-shell.cms-grapes-shell--dragging .gjs-cv-canvas {
+          user-select: none;
         }
 
         .cms-grapes-shell .gjs-cv-canvas__frames {
           min-height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+          width: 100%;
+        }
+
+        .cms-grapes-shell .gjs-frame-wrapper {
+          margin: 0 auto;
+          flex: 0 0 auto;
+          width: 100%;
+          max-width: 100%;
+          border-radius: 0;
+          overflow: visible !important;
+          border: 0;
+          box-shadow: none;
+          background: #ffffff;
+        }
+
+        .cms-grapes-shell .gjs-frame {
+          width: 100% !important;
+          display: block;
         }
 
         .cms-grapes-shell .gjs-pn-commands,
@@ -3063,14 +3610,6 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           line-height: 0 !important;
           padding: 0 !important;
           margin: 0 !important;
-        }
-
-        .cms-grapes-shell .gjs-frame-wrapper {
-          border-radius: 8px;
-          overflow: visible !important;
-          border: 1px solid rgba(15, 23, 42, 0.12);
-          box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
-          background: #ffffff;
         }
 
         .cms-grapes-shell .gjs-pn-panel {
@@ -3204,7 +3743,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           border-radius: 10px;
           color: #e2e8f0;
           box-shadow: none;
+          cursor: grab;
+          touch-action: none;
           transition: background-color 120ms ease, border-color 120ms ease;
+        }
+
+        .cms-grapes-shell .gjs-block:active {
+          cursor: grabbing;
         }
 
         .cms-grapes-shell .gjs-block:hover {
@@ -3695,31 +4240,351 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           }
         }
 
-        .cms-grapes-shell .gjs-mdl-dialog {
-          max-width: min(96vw, 1400px);
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay,
+        .gjs-mdl-container.cms-code-modal-overlay {
+          position: fixed !important;
+          inset: 0 !important;
+          z-index: 100000 !important;
+          display: flex !important;
+          align-items: flex-start !important;
+          justify-content: center !important;
+          overflow-x: hidden !important;
+          overflow-y: auto !important;
+          padding: max(20px, env(safe-area-inset-top, 0px)) 16px 24px !important;
+          background: rgba(2, 6, 23, 0.78) !important;
+          backdrop-filter: blur(6px);
+        }
+
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog,
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          transform: none !important;
+          margin: 0 auto !important;
+          width: min(96vw, 1400px);
+          min-width: 320px;
           border-radius: 24px;
           overflow: hidden;
           box-shadow: 0 34px 90px rgba(15, 23, 42, 0.32);
+          display: flex;
+          flex-direction: column;
+          max-height: calc(100vh - 40px);
         }
 
-        .cms-grapes-shell .gjs-mdl-header {
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header,
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header {
+          flex-shrink: 0;
           padding: 14px 18px;
           background: #08101f;
           color: #ffffff;
           border-bottom: 1px solid rgba(148, 163, 184, 0.16);
         }
 
-        .cms-grapes-shell .gjs-mdl-content {
-          background: #111827;
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content,
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content {
+          background: #0b1220;
           color: #ffffff;
+          padding: 0;
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: auto;
         }
 
-        .cms-grapes-shell .CodeMirror {
+        .cms-grapes-shell.cms-code-modal-open,
+        body.cms-code-modal-open .cms-grapes-shell {
+          overflow: visible;
+        }
+
+        body.cms-code-modal-open {
+          overflow: hidden;
+        }
+
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded {
+          max-height: calc(100vh - 24px) !important;
+        }
+
+        .cms-grapes-shell .cms-code-modal,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          min-height: 480px;
+          padding: 18px;
+          background:
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
+            linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+        }
+
+        .cms-grapes-shell .cms-code-modal__toolbar,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__toolbar {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .cms-grapes-shell .cms-code-modal__intro,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__intro {
+          max-width: 560px;
+        }
+
+        .cms-grapes-shell .cms-code-modal__eyebrow,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__eyebrow {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #93c5fd;
+          margin-bottom: 6px;
+        }
+
+        .cms-grapes-shell .cms-code-modal__hint,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__hint {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.6;
+          color: #94a3b8;
+        }
+
+        .cms-grapes-shell .cms-code-modal__toolbar-actions,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__toolbar-actions,
+        .cms-grapes-shell .cms-code-modal__footer-actions,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .cms-grapes-shell .cms-code-modal__tabs,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tabs {
+          display: none;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .cms-grapes-shell .cms-code-modal__tab,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.72);
+          color: #cbd5e1;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .cms-grapes-shell .cms-code-modal__tab.is-active,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab.is-active {
+          background: #2563eb;
+          border-color: #2563eb;
+          color: #fff;
+          box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+        }
+
+        .cms-grapes-shell .cms-code-modal__panels,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 14px;
+          min-height: 0;
+          flex: 1 1 auto;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          min-height: 0;
+          border: 1px solid rgba(148, 163, 184, 0.16);
+          border-radius: 18px;
+          overflow: hidden;
+          background: rgba(15, 23, 42, 0.88);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .cms-grapes-shell .cms-code-modal__panels--stacked,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked {
+          grid-template-columns: 1fr;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel {
+          display: none;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active {
+          display: flex;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panels--wide,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide,
+        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panels,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panels {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panel,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panel,
+        .cms-grapes-shell .cms-code-modal__panels--wide .cms-code-modal__panel,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide .cms-code-modal__panel {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-head,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+          background: rgba(8, 16, 31, 0.92);
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-title,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-title i,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title i {
+          width: 34px;
+          height: 34px;
+          border-radius: 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.06);
+          color: #e2e8f0;
+          flex-shrink: 0;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel--html .cms-code-modal__panel-title i,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--html .cms-code-modal__panel-title i {
+          color: #fb7185;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel--css .cms-code-modal__panel-title i,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--css .cms-code-modal__panel-title i {
+          color: #60a5fa;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel--js .cms-code-modal__panel-title i,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--js .cms-code-modal__panel-title i {
+          color: #fbbf24;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-title strong,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title strong {
+          display: block;
+          font-size: 14px;
+          color: #f8fafc;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-title span,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title span {
+          display: block;
+          font-size: 12px;
+          color: #94a3b8;
+        }
+
+        .cms-grapes-shell .cms-code-modal__panel-body,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body {
+          min-height: 0;
+          padding: 10px;
+          flex: 1 1 auto;
+          overflow: hidden;
+        }
+
+        .cms-grapes-shell .cms-code-modal__codemirror,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__codemirror,
+        .cms-grapes-shell .cms-code-modal__panel-body .CodeMirror,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body .CodeMirror {
+          height: 100% !important;
+          min-height: 220px;
+          max-height: 100%;
+          border-radius: 12px !important;
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .cms-grapes-shell .cms-code-modal__footer,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          padding-top: 4px;
+          border-top: 1px solid rgba(148, 163, 184, 0.12);
+        }
+
+        .cms-grapes-shell .cms-code-modal__footer-meta,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-meta {
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        .cms-grapes-shell .cms-code-modal__btn,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          min-height: 40px;
+          padding: 0 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: rgba(15, 23, 42, 0.88);
+          color: #e2e8f0;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+
+        .cms-grapes-shell .cms-code-modal__btn:hover,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn:hover {
+          border-color: rgba(148, 163, 184, 0.34);
+          background: rgba(30, 41, 59, 0.96);
+        }
+
+        .cms-grapes-shell .cms-code-modal__btn--primary,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+          border-color: #2563eb;
+          color: #fff;
+          box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+        }
+
+        .cms-grapes-shell .cms-code-modal__btn--primary:hover,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary:hover {
+          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        }
+
+        .cms-grapes-shell .CodeMirror,
+        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror {
           background: #0b1220;
           color: #e2e8f0;
         }
 
-        .cms-grapes-shell .CodeMirror-gutters {
+        .cms-grapes-shell .CodeMirror-gutters,
+        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror-gutters {
           background: #08101f;
           border-right: 1px solid rgba(148, 163, 184, 0.14);
         }
@@ -3748,6 +4613,32 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         @media (max-width: 1100px) {
+          .cms-grapes-shell .cms-code-modal__tabs,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tabs {
+            display: flex;
+          }
+
+          .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panels,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panels,
+          .cms-grapes-shell .cms-code-modal__panels--wide,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide {
+            grid-template-columns: 1fr;
+          }
+
+          .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panel,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panel,
+          .cms-grapes-shell .cms-code-modal__panels--wide .cms-code-modal__panel,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide .cms-code-modal__panel {
+            display: none;
+          }
+
+          .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panel.is-active,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panel.is-active,
+          .cms-grapes-shell .cms-code-modal__panels--wide .cms-code-modal__panel.is-active,
+          .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide .cms-code-modal__panel.is-active {
+            display: flex;
+          }
+
           .cms-grapes-shell__workspace {
             display: flex;
             flex-direction: column;
@@ -3789,7 +4680,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           }
 
           .cms-grapes-shell .gjs-cv-canvas {
-            padding: 16px;
+            padding: 0;
           }
         }
       `}</style>

@@ -27,12 +27,96 @@ export const cmsStudioCanvasCss = `
     max-width: 100%;
   }
 
-  a {
-    color: inherit;
-  }
-
   section, header, footer, main {
     position: relative;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin: 0 0 0.5em;
+    line-height: 1.2;
+    color: #0f172a;
+  }
+
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.5rem; }
+  h4 { font-size: 1.25rem; }
+
+  p {
+    margin: 0 0 1em;
+    color: #475569;
+    line-height: 1.7;
+  }
+
+  a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  blockquote {
+    margin: 0;
+    padding: 20px;
+    border-radius: 12px;
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    color: #334155;
+  }
+
+  input, textarea, select, button {
+    font: inherit;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="password"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    color: #0f172a;
+  }
+
+  button,
+  input[type="submit"],
+  input[type="button"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+    border: 0;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  form {
+    display: grid;
+    gap: 14px;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+  }
+
+  hr {
+    margin: 24px 0;
+    border: none;
+    border-top: 1px solid #e2e8f0;
   }
 `;
 
@@ -447,5 +531,201 @@ export const registerAdvancedCmsBlocks = (editor: any) => {
         </div>
       </section>
     `,
+  });
+};
+
+const FOUNDATION_BLOCK_STYLES: Record<string, string> = {
+  text: `
+    <section style="padding:48px 24px;background:#fff;">
+      <div style="max-width:900px;margin:0 auto;">
+        <p style="margin:0;font-size:18px;line-height:1.8;color:#475569;">Insert your text here. Click to edit this paragraph and replace it with your own content.</p>
+      </div>
+    </section>
+  `,
+  "text-basic": `
+    <section style="padding:48px 24px;background:#fff;">
+      <div style="max-width:900px;margin:0 auto;">
+        <h2 style="margin:0 0 12px;font-size:32px;line-height:1.2;">Section heading</h2>
+        <p style="margin:0;font-size:18px;line-height:1.8;color:#475569;">Add a short description or supporting copy for this section.</p>
+      </div>
+    </section>
+  `,
+  link: `
+    <section style="padding:32px 24px;text-align:center;">
+      <a href="#" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:999px;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;">Click here</a>
+    </section>
+  `,
+  "link-block": `
+    <section style="padding:32px 24px;text-align:center;">
+      <a href="#" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 22px;border-radius:999px;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;">Learn more</a>
+    </section>
+  `,
+  quote: `
+    <section style="padding:48px 24px;background:#f8fafc;">
+      <div style="max-width:820px;margin:0 auto;">
+        <blockquote style="margin:0;padding:28px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 16px 36px rgba(15,23,42,.06);">
+          <p style="margin:0 0 14px;font-size:22px;line-height:1.6;color:#334155;">“A polished quote block for testimonials, reviews, or featured statements.”</p>
+          <strong style="color:#0f172a;">Author name</strong>
+        </blockquote>
+      </div>
+    </section>
+  `,
+  image: `
+    <section style="padding:40px 24px;">
+      <div style="max-width:980px;margin:0 auto;">
+        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200" alt="Featured image" style="width:100%;border-radius:16px;object-fit:cover;min-height:280px;display:block;box-shadow:0 20px 44px rgba(15,23,42,.12);" />
+      </div>
+    </section>
+  `,
+  video: `
+    <section style="padding:40px 24px;">
+      <div style="max-width:980px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 20px 44px rgba(15,23,42,.12);">
+        <div style="position:relative;padding-top:56.25%;background:#0f172a;">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:600;">Video placeholder</div>
+        </div>
+      </div>
+    </section>
+  `,
+  map: `
+    <section style="padding:24px;">
+      <div style="max-width:1000px;margin:0 auto;">
+        <iframe src="https://www.google.com/maps?q=Manila&output=embed" style="width:100%;height:320px;border:0;border-radius:12px;" loading="lazy" allowfullscreen></iframe>
+      </div>
+    </section>
+  `,
+  column1: `
+    <section style="padding:40px 24px;">
+      <div style="max-width:1100px;margin:0 auto;padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Single column content</div>
+    </section>
+  `,
+  column2: `
+    <section style="padding:40px 24px;">
+      <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 1</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 2</div>
+      </div>
+    </section>
+  `,
+  column3: `
+    <section style="padding:40px 24px;">
+      <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;">
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 1</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 2</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 3</div>
+      </div>
+    </section>
+  `,
+  "column3-7": `
+    <section style="padding:40px 24px;">
+      <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;">
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 1</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 2</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 3</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 4</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 5</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 6</div>
+        <div style="padding:24px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:120px;">Column 7</div>
+      </div>
+    </section>
+  `,
+  form: `
+    <section style="padding:48px 24px;background:#f8fafc;">
+      <form style="max-width:640px;margin:0 auto;padding:28px;border-radius:24px;background:#fff;border:1px solid #e2e8f0;display:grid;gap:14px;box-shadow:0 20px 44px rgba(15,23,42,.08);">
+        <h3 style="margin:0 0 4px;font-size:28px;">Contact us</h3>
+        <p style="margin:0 0 8px;color:#64748b;">Send a message and we will get back to you shortly.</p>
+        <input type="text" placeholder="Full name" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+        <input type="email" placeholder="Email address" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+        <textarea placeholder="Your message" rows="5" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;resize:vertical;"></textarea>
+        <button type="submit" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Send message</button>
+      </form>
+    </section>
+  `,
+  input: `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Field label</label>
+        <input type="text" placeholder="Enter text" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+      </div>
+    </section>
+  `,
+  textarea: `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Message</label>
+        <textarea placeholder="Enter your message" rows="5" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;resize:vertical;"></textarea>
+      </div>
+    </section>
+  `,
+  select: `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Choose an option</label>
+        <select style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;">
+          <option>Option one</option>
+          <option>Option two</option>
+          <option>Option three</option>
+        </select>
+      </div>
+    </section>
+  `,
+  button: `
+    <section style="padding:32px 24px;text-align:center;">
+      <button type="button" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Button</button>
+    </section>
+  `,
+  label: `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;">
+        <label style="display:block;font-weight:700;color:#0f172a;font-size:16px;">Field label</label>
+      </div>
+    </section>
+  `,
+  checkbox: `
+    <section style="padding:32px 24px;">
+      <label style="max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px;color:#334155;font-weight:600;">
+        <input type="checkbox" style="width:18px;height:18px;" />
+        <span>I agree to the terms and conditions</span>
+      </label>
+    </section>
+  `,
+  radio: `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:10px;">
+        <label style="display:flex;align-items:center;gap:10px;color:#334155;font-weight:600;"><input type="radio" name="choice" style="width:18px;height:18px;" /> Option one</label>
+        <label style="display:flex;align-items:center;gap:10px;color:#334155;font-weight:600;"><input type="radio" name="choice" style="width:18px;height:18px;" /> Option two</label>
+      </div>
+    </section>
+  `,
+};
+
+const getBlockCategoryId = (block: any) => {
+  const category = block?.get?.("category");
+  if (!category) return "";
+  if (typeof category === "string") return category;
+  return String(category.get?.("id") || category.get?.("label") || "");
+};
+
+export const enhanceFoundationBlocks = (editor: any) => {
+  const bm = editor.BlockManager;
+  if (!bm?.getAll) return;
+
+  bm.getAll().forEach((block: any) => {
+    const id = String(block.get("id") || "");
+    const styledContent = FOUNDATION_BLOCK_STYLES[id];
+    if (styledContent) {
+      block.set("content", styledContent);
+      return;
+    }
+
+    const categoryId = getBlockCategoryId(block);
+    if (categoryId !== "Basic" && categoryId !== "Forms") return;
+
+    const currentContent = String(block.get("content") || "");
+    if (currentContent.includes("style=")) return;
+
+    block.set(
+      "content",
+      `<section style="padding:32px 24px;"><div style="max-width:900px;margin:0 auto;padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;">${currentContent}</div></section>`,
+    );
   });
 };

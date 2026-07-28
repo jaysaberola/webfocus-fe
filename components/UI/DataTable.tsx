@@ -1,5 +1,6 @@
 import { ReactNode, useMemo, useState, useEffect } from "react";
 import type { CSSProperties } from "react";
+import { DEFAULT_CMS_TABLE_PAGE_SIZE } from "@/components/Modules/moduleTableUi";
 
 type SortOrder = "asc" | "desc";
 
@@ -61,7 +62,7 @@ export default function DataTable<T>({
   currentPage,
   totalPages,
   onPageChange,
-  itemsPerPage = 10,
+  itemsPerPage = DEFAULT_CMS_TABLE_PAGE_SIZE,
   onItemsPerPageChange,
   sortBy,
   sortOrder,
@@ -197,7 +198,7 @@ export default function DataTable<T>({
       <select
         value={selectedItemsPerPage}
         onChange={(e) => {
-          const v = Number(e.target.value) || 10;
+          const v = Number(e.target.value) || DEFAULT_CMS_TABLE_PAGE_SIZE;
           setSelectedItemsPerPage(v);
           if (!isServerPaginated) setClientPage(1);
           if (isServerPaginated && typeof onItemsPerPageChange === "function") onItemsPerPageChange(v);
@@ -306,7 +307,7 @@ export default function DataTable<T>({
       </div>
 
       {shouldRenderPaginationBlock && (
-        <div className="dt-footer">
+        <div className="dt-footer" data-cms-tour="module-pagination">
           <div>{showBottomEntries && entriesControl}</div>
 
           <nav aria-label="Pagination">

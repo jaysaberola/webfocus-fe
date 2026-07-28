@@ -8,7 +8,13 @@ import { OptionItem, getOptions } from "@/services/optionService";
 import { toast } from "@/lib/toast";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import { useRouter } from "next/router";
-import Link from "next/link";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleDate,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -21,7 +27,7 @@ function ManageAlbums() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("updated_at");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showDeleted, setShowDeleted] = useState<boolean>(false);
@@ -168,14 +174,10 @@ function ManageAlbums() {
       sortField: "name",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={showDeleted || isRowDeleted(row) ? "fw-bold text-decoration-line-through text-muted" : "fw-bold text-primary"}>
-          {row.name}
-          {(showDeleted || isRowDeleted(row)) && (
-            <span className="badge bg-danger ms-2" style={{ fontSize: 11, verticalAlign: "middle" }}>
-              Deleted
-            </span>
-          )}
-        </span>
+        <CmsModuleTitleCell
+          title={row.name}
+          muted={showDeleted || isRowDeleted(row)}
+        />
       ),
     },
     {
@@ -191,12 +193,13 @@ function ManageAlbums() {
       sortable: true,
       sortField: "updated_at",
       defaultSortOrder: "desc",
+      render: (row) => <CmsModuleDate value={row.updated_at} />,
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           {showDeleted || isRowDeleted(row) ? (
             <button
               className="btn btn-link p-0 text-success"
@@ -234,9 +237,7 @@ function ManageAlbums() {
               </button>
             </>
           )}
-
-
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
@@ -369,9 +370,33 @@ function ManageAlbums() {
    * UI
    * ====================== */
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Albums</h3>
-
+    <CmsModuleShell
+      title="Manage Albums"
+      description="Manage banner albums and slideshow settings. Open the trash to restore deleted albums."
+      icon="fa-solid fa-images"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Albums" : "View Trash"}
+          </button>
+          <CmsModuleCreateButton href="/banners/create" label="Create Album" />
+        </>
+      )}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted albums only. Restore an album to bring it back to your list.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
       <SearchBar
         placeholder="Search by Album"
         value={search}
@@ -400,26 +425,7 @@ function ManageAlbums() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/banners/create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create Album
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -447,11 +453,13 @@ function ManageAlbums() {
           setCurrentPage(1);
         }}
       />
-
+      )}
+    >
       <DataTable<AlbumRow>
         columns={columns}
         data={albums}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -601,7 +609,7 @@ function ManageAlbums() {
         onConfirm={confirmBulkRestore}
         onCancel={() => setShowBulkRestoreConfirm(false)}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

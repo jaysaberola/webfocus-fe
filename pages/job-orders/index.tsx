@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import { toast } from "@/lib/toast";
 import { deleteJobOrder, getJobOrder, getJobOrders, JobOrder } from "@/services/jobOrderService";
+import CmsModuleShell, { CmsModuleCreateButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleDate,
+  CmsModuleLabelPill,
+  CmsModuleRowActions,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 const sources = ["", "Roces Branch", "Tandang Sora Head Office"];
 const deliveryTypes = ["", "Door-to-door", "Pickup", "Store delivery"];
@@ -21,7 +27,7 @@ function ManageJobOrders() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [detailOrder, setDetailOrder] = useState<JobOrder | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<JobOrder | null>(null);
@@ -102,27 +108,34 @@ function ManageJobOrders() {
     { key: "total_quantity", header: "Qty", sortable: true, render: (row) => Number(row.total_quantity || 0).toFixed(1) },
     { key: "total", header: "Price", sortable: true, render: (row) => money(row.total || 0) },
     { key: "source", header: "Source", minWidth: 160 },
-    { key: "category", header: "Category", render: (row) => row.category || "-" },
-    { key: "date_needed", header: "Date Needed", minWidth: 150, render: (row) => formatDateTime(row.date_needed) },
+    { key: "category", header: "Category", render: (row) => <CmsModuleLabelPill>{row.category || "—"}</CmsModuleLabelPill> },
+    { key: "date_needed", header: "Date Needed", minWidth: 150, render: (row) => <CmsModuleDate value={formatDateTime(row.date_needed)} /> },
     { key: "status", header: "Status", minWidth: 120 },
     {
       key: "action",
-      header: "Action",
+      header: "Actions",
       minWidth: 140,
       render: (row) => (
-        <div className="btn-group btn-group-sm">
-          <button className="btn btn-secondary" type="button" onClick={() => openDetails(row)}>Details</button>
-          <button className="btn btn-danger" type="button" onClick={() => remove(row)}>Delete</button>
-        </div>
+        <CmsModuleRowActions>
+          <button className="btn btn-link p-0 text-secondary" type="button" title="Details" onClick={() => openDetails(row)}>
+            <i className="fas fa-eye" />
+          </button>
+          <button className="btn btn-link p-0 text-danger" type="button" title="Delete" onClick={() => remove(row)}>
+            <i className="fas fa-trash" />
+          </button>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4">Manage Job Orders</h3>
-
-      <div className="jo-filter-grid mb-3">
+    <CmsModuleShell
+      title="Manage Job Orders"
+      description="Search, filter, and manage job orders across branches and delivery types."
+      icon="fa-solid fa-clipboard-list"
+      actions={<CmsModuleCreateButton href="/job-orders/create" label="Create Job Order" />}
+      toolbar={(
+      <div className="jo-filter-grid">
         <select className="form-select" value={source} onChange={(e) => setSource(e.target.value)}>
           <option value="">Source</option>
           {sources.filter(Boolean).map((item) => <option key={item} value={item}>{item}</option>)}
@@ -141,19 +154,19 @@ function ManageJobOrders() {
         </select>
         <input type="date" className="form-control" aria-label="Start Date Needed" value={neededStart} onChange={(e) => setNeededStart(e.target.value)} />
         <input type="date" className="form-control" aria-label="End Date Needed" value={neededEnd} onChange={(e) => setNeededEnd(e.target.value)} />
-        <Link className="btn btn-primary" href="/job-orders/create">Create a Job Order</Link>
       </div>
-
+      )}
+    >
       <DataTable<JobOrder>
         columns={columns}
         data={orders}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
         itemsPerPage={perPage}
         onItemsPerPageChange={(n) => { setPerPage(n); setCurrentPage(1); }}
-        wrapperStyle={{ borderRadius: 4 }}
       />
 
       {detailOrder && (
@@ -204,7 +217,7 @@ function ManageJobOrders() {
           }
         }
       `}</style>
-    </div>
+    </CmsModuleShell>
   );
 }
 

@@ -7,6 +7,9 @@ import "@/styles/dashboard.css";
 import "@/styles/admin-table.css";
 import "@/styles/admin-modal.css";
 import "@/styles/admin-no-hover.css";
+import "@/styles/admin-page-editor.css";
+import "@/styles/admin-module.css";
+import "@/styles/admin-help.css";
 // Public-folder admin CSS (custom.css, admin.css) is loaded via <link> when on admin routes.
 
 import type { AppProps } from "next/app";
@@ -18,7 +21,6 @@ import FreshchatWidget from "@/components/Layout/FreshchatWidget";
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
 import { ADMIN_FONT_HREF, ADMIN_STYLESHEETS, isAdminSiteRoute } from "@/lib/adminRoute";
 import { isLightweightPublicPage } from "@/lib/publicLegacyScripts";
-// LoadingProvider removed to disable global loading overlay
 
 type AppPropsWithLayout = AppProps & {
   Component: AppProps["Component"] & {
@@ -32,28 +34,33 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const enableCfAnalytics = process.env.NEXT_PUBLIC_ENABLE_CF_ANALYTICS === "true";
   const showFreshchat = isPublicSiteRoute(router.pathname);
   const lightweightPublic = isLightweightPublicPage(router.pathname);
-  const isPublic = isPublicSiteRoute(router.pathname);
   const isAdmin = isAdminSiteRoute(router.pathname);
 
   React.useEffect(() => {
-    if (isPublic) return;
-    import("bootstrap");
-  }, [isPublic]);
+    if (!isAdmin) return;
+
+    const hrefs = [...ADMIN_STYLESHEETS, ADMIN_FONT_HREF];
+    const injected: HTMLLinkElement[] = [];
+
+    hrefs.forEach((href) => {
+      if (document.querySelector(`link[rel="stylesheet"][href="${href}"]`)) return;
+
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+      injected.push(link);
+    });
+
+    return () => {
+      injected.forEach((link) => link.remove());
+    };
+  }, [isAdmin]);
 
   return (
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {isAdmin ? (
-          <>
-            {ADMIN_STYLESHEETS.map((href) => (
-              <link key={href} rel="stylesheet" href={href} />
-            ))}
-            <link rel="preconnect" href="https://fonts.googleapis.com" />
-            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <link href={ADMIN_FONT_HREF} rel="stylesheet" />
-          </>
-        ) : null}
       </Head>
 
       <Layout {...pageProps}>
@@ -71,7 +78,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
         ) : null}
 
         <Script src="/js/bootstrap.bundle.min.js" strategy="afterInteractive" />
-        {!lightweightPublic ? (
+        {isAdmin ? null : !lightweightPublic ? (
           <>
             <Script src="/js/flatpickr.min.js" strategy="afterInteractive" />
             <Script src="/js/glightbox.min.js" strategy="afterInteractive" />

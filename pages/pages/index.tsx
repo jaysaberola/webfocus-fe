@@ -1,15 +1,24 @@
 import AdminLayout from "@/components/Layout/AdminLayout";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import SearchBar from "@/components/UI/SearchBar";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { getPages, getPageById, restorePage, deletePage, postDeletePage, postMethodDeletePage, postDeleteByPayload, updatePageStatus, updatePage } from "@/services/pageService";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import { toast } from "@/lib/toast";
 import { useRouter } from "next/router";
-import Link from "next/link";
 import { isDefaultProtectedPage } from "@/lib/defaultPages";
 import { buildPublicPageFullUrl, buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
 import { TableOptionsMenu, TableRowActions } from "@/components/UI/TableRowActions";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleLabelPill,
+  CmsModuleDate,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  CmsModuleSortHeader,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 interface PageRow {
   id: number;
@@ -36,7 +45,7 @@ export default function ManagePages() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [showDeleted, setShowDeleted] = useState(false);
   const [sortBy, setSortBy] = useState<string>('modified');
   const [sortOrder, setSortOrder] = useState<string>('desc');
@@ -76,27 +85,6 @@ export default function ManagePages() {
     applySort({ sortBy: normalizedField, sortOrder: defaultOrder });
   };
 
-  const SortHeader = ({ label, field, defaultOrder }: { label: string; field: string; defaultOrder: 'asc' | 'desc' }) => {
-    const active = sortBy === field;
-    const iconClass = !active
-      ? 'fas fa-sort text-muted'
-      : (sortOrder === 'asc' ? 'fas fa-sort-up' : 'fas fa-sort-down');
-
-    return (
-      <button
-        type="button"
-        className="btn btn-link p-0 text-decoration-none d-inline-flex align-items-center gap-1"
-        style={{ color: 'inherit', fontWeight: 600 }}
-        onClick={() => toggleSortField(field, defaultOrder)}
-        aria-label={`Sort by ${label}`}
-        title={`Sort by ${label}`}
-      >
-        <span>{label}</span>
-        <i className={iconClass} />
-      </button>
-    );
-  };
-
   const isRowDeleted = (row: PageRow) => {
     if (row.deleted_at) return true;
     if (row.is_deleted) return true;
@@ -119,36 +107,6 @@ export default function ManagePages() {
     if (raw === "draft") return "draft";
     if (raw === "deleted") return "deleted";
     return raw;
-  };
-
-  const statusBadgeClass = (status: string) => {
-    switch (status) {
-      case "published":
-        return "badge bg-success";
-      case "private":
-        return "badge bg-secondary";
-      case "draft":
-        return "badge bg-info text-dark";
-      case "deleted":
-        return "badge bg-danger";
-      default:
-        return "badge bg-light text-dark border";
-    }
-  };
-
-  const statusLabel = (status: string) => {
-    switch (status) {
-      case "published":
-        return "Published";
-      case "private":
-        return "Private";
-      case "draft":
-        return "Draft";
-      case "deleted":
-        return "Deleted";
-      default:
-        return status ? status.charAt(0).toUpperCase() + status.slice(1) : "—";
-    }
   };
 
   const getPageViewUrl = (row: PageRow) => {
@@ -600,46 +558,39 @@ export default function ManagePages() {
     },
     {
       key: "title",
-      header: <SortHeader label="Title" field="title" defaultOrder="asc" />,
+      header: <CmsModuleSortHeader label="Title" active={sortBy === "title"} sortOrder={sortOrder} onClick={() => toggleSortField("title", "asc")} />,
       render: (row: any) => (
-        <div>
-          {showDeleted || isRowDeleted(row) ? (
-            <div className="d-flex align-items-center gap-2">
-              <span className="fw-bold text-muted" style={{ textDecoration: "line-through" }}>
-                {row.title}
-              </span>
-            </div>
-          ) : (
-            <a
-              href={getPageViewUrl(row)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary fw-bold"
-            >
-              {row.title}
-            </a>
-          )}
-
-          <div style={{ fontSize: "0.8rem", color: "#6c757d" }}>
-            {getPageViewHint(row)}
-          </div>
-        </div>
+        <CmsModuleTitleCell
+          title={row.title}
+          href={showDeleted || isRowDeleted(row) ? undefined : getPageViewUrl(row)}
+          subtitle={getPageViewHint(row)}
+          muted={showDeleted || isRowDeleted(row)}
+        />
       ),
     },
-    { key: "label", header: "Label" },
+    {
+      key: "label",
+      header: "Label",
+      render: (row: any) => (
+        <CmsModuleLabelPill>{row.label || "—"}</CmsModuleLabelPill>
+      ),
+    },
     {
       key: "visibility",
       header: "Visibility",
       render: (row: any) => {
         const s = normalizePageStatus(row);
-        return <span className={statusBadgeClass(s)}>{statusLabel(s)}</span>;
+        return <CmsModuleStatusBadge status={s} />;
       },
     },
-    { key: "lastModified", header: <SortHeader label="Last Modified" field="modified" defaultOrder="desc" /> },
+    { key: "lastModified", header: <CmsModuleSortHeader label="Last Modified" active={sortBy === "modified"} sortOrder={sortOrder} onClick={() => toggleSortField("modified", "desc")} />, render: (row: any) => (
+      <CmsModuleDate value={row.lastModified} />
+    ) },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row: any) => (
+        <CmsModuleRowActions>
         <TableRowActions>
           {showDeleted ? (
             <button
@@ -685,6 +636,7 @@ export default function ManagePages() {
             </>
           )}
         </TableRowActions>
+        </CmsModuleRowActions>
       ),
     },
   ];
@@ -744,28 +696,60 @@ export default function ManagePages() {
   }
 
 
+  const pageStats = useMemo(() => {
+    const published = pages.filter((row) => normalizePageStatus(row) === "published").length;
+    const privateCount = pages.filter((row) => normalizePageStatus(row) === "private").length;
+    const draftCount = pages.filter((row) => normalizePageStatus(row) === "draft").length;
+    return {
+      visible: pages.length,
+      published,
+      private: privateCount,
+      draft: draftCount,
+      trashHint: recentlyDeletedPages.length,
+    };
+  }, [pages, recentlyDeletedPages.length]);
+
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Pages</h3>
-
-      {showDeleted && (
-        <div className="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
-          <div>
-            <strong>Trash view:</strong> showing deleted pages only.
-          </div>
-          <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowDeleted(false)}>
-            Back to list
+    <CmsModuleShell
+      title="Manage Pages"
+      description="Create, organize, and publish website pages. Search by title, filter visibility, or open the trash to restore deleted pages."
+      icon="fa-solid fa-file-lines"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Pages" : "View Trash"}
           </button>
-        </div>
+          <CmsModuleCreateButton href="/pages/create" label="Create Page" />
+        </>
       )}
-
-      <SearchBar
-        placeholder="Search by Title"
-        value={search}
-        onChange={(value: string) => {
-          setSearch(value);
-          setCurrentPage(1);
-        }}
+      stats={showDeleted ? undefined : [
+        { label: "Showing", value: pageStats.visible },
+        { label: "Published", value: pageStats.published, tone: "published" },
+        { label: "Private", value: pageStats.private, tone: "private" },
+        { label: "In Trash", value: pageStats.trashHint || 0, tone: "trash" },
+      ]}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted pages only. Restore a page to bring it back to your site list.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
+        <SearchBar
+          placeholder="Search pages by title..."
+          value={search}
+          onChange={(value: string) => {
+            setSearch(value);
+            setCurrentPage(1);
+          }}
           leftExtras={null}
           actionsMenu={(
             <>
@@ -799,45 +783,28 @@ export default function ManagePages() {
             </>
           )}
           rightExtras={(
-            <div className="d-flex align-items-center gap-2">
-              <button
-                type="button"
-                className="btn btn-success d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: '10px 18px', whiteSpace: 'nowrap' }}
-                onClick={() => setShowAdvancedModal(true)}
-              >
-                <span style={{ lineHeight: 1, textAlign: 'center', display: 'inline-block' }}>
-                  Advanced Search
-                </span>
-              </button>
-
-              <Link
-                href="/pages/create"
-                className="btn btn-primary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: '10px 24px', whiteSpace: 'nowrap' }}
-              >
-                Create a Page
-              </Link>
-            </div>
+            <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
           )}
-        filtersOpen={showAdvancedModal}
-        onFiltersOpenChange={(open) => {
+          filtersOpen={showAdvancedModal}
+          onFiltersOpenChange={(open) => {
             if (!open) setShowAdvancedModal(false);
           }}
           externalOpenAsModal={true}
           advancedSearchUpdatesInput={false}
-        onAdvancedSearch={(values) => setAdvancedSearchValues(values)}
-        onApplyFilters={handleApplyFilters}
-        initialShowDeleted={showDeleted}
-        initialPerPage={perPage}
-        initialSortBy={sortBy}
-        initialSortOrder={sortOrder}
-      />
-
+          onAdvancedSearch={(values) => setAdvancedSearchValues(values)}
+          onApplyFilters={handleApplyFilters}
+          initialShowDeleted={showDeleted}
+          initialPerPage={perPage}
+          initialSortBy={sortBy}
+          initialSortOrder={sortOrder}
+        />
+      )}
+    >
       <DataTable<PageRow>
         columns={columns}
         data={pages}
         loading={isLoading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -897,9 +864,7 @@ export default function ManagePages() {
         onConfirm={doBulkDelete}
         onCancel={() => setBulkDeleteModalOpen(false)}
       />
-
-
-    </div>
+    </CmsModuleShell>
   );
 }
 

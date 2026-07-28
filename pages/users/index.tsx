@@ -1,12 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import SearchBar from "@/components/UI/SearchBar";
-import { getUsers, toggleUserActive, UserRow } from "@/services/userService";
+import { getUsers, toggleUserActive, UserRow, createUser } from "@/services/userService";
+import { fetchRoles, Role } from "@/services/roleService";
 import { useRouter } from "next/router";
 import { toast } from "@/lib/toast";
-import Link from "next/link";
 import { TableRowActions } from "@/components/UI/TableRowActions";
+import CmsModuleShell, { CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import CmsFormModal from "@/components/Modules/CmsFormModal";
+import { CmsSettingsField, CmsSettingsGrid } from "@/components/Modules/CmsSettingsForm";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleRowActions,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -19,7 +27,7 @@ function ManageUsers() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<string>("asc");
   const [showInactiveOnly, setShowInactiveOnly] = useState<boolean>(false);
@@ -28,6 +36,14 @@ function ManageUsers() {
   const silentSortFetchRef = useRef(false);
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
 
   const sortRowsClientSide = (rows: UserRow[], sortByKey: string, order: string) => {
     const direction = String(order).toLowerCase() === "asc" ? 1 : -1;
@@ -141,6 +157,65 @@ function ManageUsers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, currentPage, perPage, sortBy, sortOrder, showInactiveOnly]);
 
+  const userStats = useMemo(() => {
+    const active = users.filter((u) => isActiveUser(u)).length;
+    const inactive = users.filter((u) => !isActiveUser(u)).length;
+    return { visible: users.length, active, inactive };
+  }, [users]);
+
+  const resetCreateForm = () => {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setRole("");
+  };
+
+  const openCreateModal = async () => {
+    resetCreateForm();
+    setShowCreateModal(true);
+
+    if (roles.length === 0) {
+      try {
+        setLoadingRoles(true);
+        const loadedRoles = await fetchRoles();
+        setRoles(loadedRoles);
+      } catch {
+        toast.error("Failed to load roles");
+      } finally {
+        setLoadingRoles(false);
+      }
+    }
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    resetCreateForm();
+  };
+
+  const handleCreateUser = async () => {
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !role) {
+      toast.error("All fields are required");
+      return;
+    }
+
+    try {
+      setSavingUser(true);
+      await createUser({
+        fname: firstName.trim(),
+        lname: lastName.trim(),
+        email: email.trim(),
+        role,
+      });
+      toast.success("User created successfully");
+      closeCreateModal();
+      fetchUsers();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to create user");
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
   const columns: Column<UserRow>[] = [
     {
       key: "select",
@@ -188,15 +263,17 @@ function ManageUsers() {
       sortField: "status",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={`badge ${row.status === "Active" ? "bg-success" : "bg-secondary"}`}>
-          {row.status}
-        </span>
+        <CmsModuleStatusBadge
+          status={isActiveUser(row) ? "active" : "inactive"}
+          label={row.status}
+        />
       ),
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
+        <CmsModuleRowActions>
         <TableRowActions>
           <button
             className="btn btn-link p-0 text-secondary"
@@ -226,14 +303,32 @@ function ManageUsers() {
             <i className={`fas ${isActiveUser(row) ? "fa-toggle-on" : "fa-toggle-off"}`} />
           </button>
         </TableRowActions>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Users</h3>
-
+    <CmsModuleShell
+      title="Manage Users"
+      description="View and manage admin user accounts. Activate or deactivate users, or filter to show inactive accounts only."
+      icon="fa-solid fa-users"
+      actions={(
+        <button
+          type="button"
+          className="btn btn-primary cms-module__create-btn"
+          onClick={openCreateModal}
+        >
+          <i className="fa-solid fa-plus" aria-hidden="true" />
+          Create User
+        </button>
+      )}
+      stats={[
+        { label: "Showing", value: userStats.visible },
+        { label: "Active", value: userStats.active, tone: "published" },
+        { label: "Inactive", value: userStats.inactive, tone: "private" },
+      ]}
+      toolbar={(
       <SearchBar
         placeholder="Search users"
         value={search}
@@ -262,26 +357,7 @@ function ManageUsers() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/users/create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create User
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -319,11 +395,13 @@ function ManageUsers() {
         initialShowDeleted={showInactiveOnly}
         showDeletedLabel="Show inactive only"
       />
-
+      )}
+    >
       <DataTable<UserRow>
         columns={columns}
         data={users}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -338,7 +416,68 @@ function ManageUsers() {
           setCurrentPage(1);
         }}
       />
-    </div>
+
+      <CmsFormModal
+        show={showCreateModal}
+        title="Create User"
+        description="Add a new admin user account and assign a role."
+        icon="fa-solid fa-user-plus"
+        submitLabel={savingUser ? "Creating..." : "Create User"}
+        onClose={closeCreateModal}
+        onSubmit={handleCreateUser}
+      >
+        <CmsSettingsGrid columns={2}>
+          <CmsSettingsField label="First Name" required>
+            <input
+              type="text"
+              className="form-control"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              disabled={savingUser}
+              autoFocus
+            />
+          </CmsSettingsField>
+          <CmsSettingsField label="Last Name" required>
+            <input
+              type="text"
+              className="form-control"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last name"
+              disabled={savingUser}
+            />
+          </CmsSettingsField>
+          <CmsSettingsField label="Email" required span={2}>
+            <input
+              type="email"
+              className="form-control"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="user@example.com"
+              disabled={savingUser}
+            />
+          </CmsSettingsField>
+          <CmsSettingsField label="Role" required span={2} hint="Controls what this user can access in the admin portal.">
+            <select
+              className="form-select"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              disabled={savingUser || loadingRoles || roles.length === 0}
+            >
+              <option value="">
+                {loadingRoles ? "Loading roles..." : "Select role"}
+              </option>
+              {roles.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </CmsSettingsField>
+        </CmsSettingsGrid>
+      </CmsFormModal>
+    </CmsModuleShell>
   );
 }
 

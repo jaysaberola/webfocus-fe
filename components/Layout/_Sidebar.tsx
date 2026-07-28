@@ -64,8 +64,8 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
         {
           label: "Banners", icon: "fa-solid fa-images", href: "/banners",
           children: [
-            { label: "Manage Home Banner", href: "/banners/home" },
-            { label: "Manage Subpage Banners", href: "/banners" },
+            { label: "Manage Home Banners", href: "/banners/home" },
+            { label: "Manage Albums", href: "/banners" },
             { label: "Create an Album", href: "/banners/create" },
           ],
         },
@@ -82,30 +82,28 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
           children: [
             { label: "Manage News", href: "/news" },
             { label: "Create News", href: "/news/create" },
-            { label: "Manage Categories", href: "/news/category_index" },
-            { label: "Create a Category", href: "/news/category_create" },
+            { label: "Manage News Categories", href: "/news/category_index" },
           ],
         },
         {
           label: "Settings", icon: "fa-solid fa-gear", href: "/settings",
           children: [
-            { label: "Account Settings", href: "/settings/account" },
-            { label: "Website Settings", href: "/settings/website" },
-            { label: "Audit Trail", href: "/settings/audit" },
+            { label: "Manage Account Settings", href: "/settings/account" },
+            { label: "Manage Website Settings", href: "/settings/website" },
+            { label: "Manage Audit Trail", href: "/settings/audit" },
           ],
         },
         {
           label: "Users", icon: "fa-solid fa-users", href: "/users",
           children: [
             { label: "Manage Users", href: "/users" },
-            { label: "Create a User", href: "/users/create" },
           ],
         },
         {
           label: "Account Management", icon: "fa-solid fa-user-shield", href: "/account-management",
           children: [
-            { label: "Roles", href: "/account-management/roles" },
-            { label: "Access Rights", href: "/account-management/access_rights" },
+            { label: "Manage Roles", href: "/account-management/roles" },
+            { label: "Manage Access Rights", href: "/account-management/access_rights" },
           ],
         },
       ],
@@ -200,6 +198,7 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
                     key={item.href}
                     href={item.href}
                     onClick={onClose}
+                    data-cms-tour={`nav${item.href}`}
                     className={`sb-single-link${isActive(item.href) ? " sb-active" : ""}`}
                   >
                     <i className={`${item.icon} sb-nav-icon`} />
@@ -227,6 +226,7 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
                           key={child.href}
                           href={child.href}
                           onClick={onClose}
+                          data-cms-tour={`nav${child.href}`}
                           className={`sb-child-link${isActive(child.href) ? " sb-active" : ""}`}
                         >
                           <span className="sb-child-dot" />

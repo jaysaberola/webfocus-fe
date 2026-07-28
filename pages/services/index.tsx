@@ -8,6 +8,14 @@ import ConfirmModal from "@/components/UI/ConfirmModal";
 import SearchBar from "@/components/UI/SearchBar";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import { getServices, deleteService, restoreService, bulkDeleteServices, bulkUpdateServiceStatus, updateService } from "@/services/serviceService";
+import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleLabelPill,
+  CmsModuleRowActions,
+  CmsModuleTitleCell,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
@@ -46,7 +54,7 @@ export default function ManageServices() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [sortBy, setSortBy] = useState<string | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<any>("asc");
   const [showDeleted, setShowDeleted] = useState(false);
@@ -264,7 +272,9 @@ export default function ManageServices() {
       key: "name",
       header: "Name",
       sortable: true,
-      render: (row) => <strong>{row.name ?? row.title ?? "—"}</strong>,
+      render: (row) => (
+        <CmsModuleTitleCell title={row.name ?? row.title ?? "—"} />
+      ),
     },
     {
       key: "category",
@@ -273,7 +283,8 @@ export default function ManageServices() {
       render: (row) => {
         const direct = row?.category && (row.category.name ?? row.category.title);
         const fallback = row?.category_name ?? (row?.category_id && categoriesMap[String(row.category_id)]) ?? row?.category_id ?? "";
-        return String(direct ?? fallback ?? "") || "—";
+        const label = String(direct ?? fallback ?? "") || "—";
+        return <CmsModuleLabelPill>{label}</CmsModuleLabelPill>;
       },
     },
     {
@@ -286,30 +297,35 @@ export default function ManageServices() {
       key: "status",
       header: "Status",
       render: (row) => {
-        if (isRowDeleted(row)) return <span className="badge bg-danger">Deleted</span>;
-        const s = (row.status ?? "").toLowerCase();
-        const cls = s === "active" ? "bg-success" : s === "inactive" ? "bg-secondary" : "bg-light text-dark";
-        return <span className={`badge ${cls}`}>{row.status || "—"}</span>;
+        if (isRowDeleted(row)) return <CmsModuleStatusBadge status="deleted" />;
+        const s = String(row.status ?? "").toLowerCase();
+        return <CmsModuleStatusBadge status={s || "default"} label={row.status || "—"} />;
       },
     },
     {
       key: "action",
-      header: "Action",
+      header: "Actions",
       minWidth: 140,
       render: (row) => {
         const id = row.id ?? row.service_id;
         if (isRowDeleted(row)) {
           return (
-            <button className="btn btn-sm btn-outline-success" type="button" onClick={() => { setRestoreTarget(row); setShowRestoreConfirm(true); }}>
-              Restore
-            </button>
+            <CmsModuleRowActions>
+              <button className="btn btn-link p-0 text-success" type="button" title="Restore" onClick={() => { setRestoreTarget(row); setShowRestoreConfirm(true); }}>
+                <i className="fas fa-trash-restore" />
+              </button>
+            </CmsModuleRowActions>
           );
         }
         return (
-          <div className="btn-group btn-group-sm">
-            <button className="btn btn-secondary" type="button" onClick={() => router.push(`/services/edit/${id}`)}>Edit</button>
-            <button className="btn btn-danger" type="button" onClick={() => { setPendingDeleteId(id); setShowConfirm(true); }}>Delete</button>
-          </div>
+          <CmsModuleRowActions>
+            <button className="btn btn-link p-0 text-secondary" title="Edit" onClick={() => router.push(`/services/edit/${id}`)} type="button">
+              <i className="fas fa-edit" />
+            </button>
+            <button className="btn btn-link p-0 text-danger" title="Delete" onClick={() => { setPendingDeleteId(id); setShowConfirm(true); }} type="button">
+              <i className="fas fa-trash" />
+            </button>
+          </CmsModuleRowActions>
         );
       },
     },
@@ -317,33 +333,43 @@ export default function ManageServices() {
 
   return (
     <>
-      <div className="container-fluid px-4 pt-3">
-        <h3 className="mb-3">Manage Services</h3>
+    <CmsModuleShell
+      title="Manage Services"
+      description="Manage service offerings and categories. Open the trash to restore deleted services."
+      icon="fa-solid fa-briefcase"
+      actions={(
+        <>
+          <button
+            type="button"
+            className={`btn btn-sm ${showDeleted ? "btn-warning" : "btn-outline-secondary"}`}
+            onClick={() => {
+              setShowDeleted(!showDeleted);
+              setCurrentPage(1);
+            }}
+          >
+            <i className={`fa-solid ${showDeleted ? "fa-list" : "fa-trash-can"} me-2`} aria-hidden="true" />
+            {showDeleted ? "Back to Services" : "View Trash"}
+          </button>
+          <CmsModuleCreateButton href="/services/create" label="Create Service" />
+        </>
+      )}
+      trashBanner={showDeleted ? (
+        <CmsModuleTrashBanner
+          message={<><strong>Trash view</strong> — deleted services only. Restore a service to bring it back to your catalog.</>}
+          onBack={() => setShowDeleted(false)}
+        />
+      ) : undefined}
+      toolbar={(
         <SearchBar
           placeholder="Search services"
           value={search}
           onChange={(v) => { setSearch(v); setCurrentPage(1); }}
           rightExtras={(
             <div className="d-flex align-items-center gap-2 flex-nowrap">
-              <button
-                type="button"
-                className="btn btn-success d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 16px", whiteSpace: "nowrap" }}
-                onClick={() => setShowAdvancedSearch(true)}
-              >
-                Advanced Search
-              </button>
-              <Link
-                href="/services/create"
-                className="btn btn-primary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 20px", whiteSpace: "nowrap" }}
-              >
-                Create Service
-              </Link>
+              <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedSearch(true)} />
               <Link
                 href="/services/category_create"
-                className="btn btn-outline-secondary d-flex align-items-center justify-content-center"
-                style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
+                className="btn btn-outline-secondary cms-module__toolbar-btn"
               >
                 Create Category
               </Link>
@@ -396,31 +422,29 @@ export default function ManageServices() {
           initialPerPage={perPage}
           initialShowDeleted={showDeleted}
         />
-
-        <div className="card">
-          <div className="card-body">
-            {error && <div className="text-danger mb-2">{error}</div>}
-            <DataTable
-              columns={columns}
-              data={services}
-              loading={loading}
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-              itemsPerPage={perPage}
-              onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
-              sortBy={sortBy}
-              sortOrder={(String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc") as any}
-              onSortChange={(nextBy, nextOrder) => {
-                silentSortFetchRef.current = true;
-                setSortBy(nextBy);
-                setSortOrder(nextOrder);
-                setCurrentPage(1);
-              }}
-            />
-          </div>
-        </div>
-      </div>
+      )}
+    >
+        {error && <div className="text-danger mb-2">{error}</div>}
+        <DataTable
+          columns={columns}
+          data={services}
+          loading={loading}
+          {...cmsModuleTableProps}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          itemsPerPage={perPage}
+          onItemsPerPageChange={(n: number) => { setPerPage(n); setCurrentPage(1); }}
+          sortBy={sortBy}
+          sortOrder={(String(sortOrder).toLowerCase() === "asc" ? "asc" : "desc") as any}
+          onSortChange={(nextBy, nextOrder) => {
+            silentSortFetchRef.current = true;
+            setSortBy(nextBy);
+            setSortOrder(nextOrder);
+            setCurrentPage(1);
+          }}
+        />
+    </CmsModuleShell>
 
       <ConfirmModal
         show={showConfirm}

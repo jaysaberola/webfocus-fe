@@ -15,6 +15,14 @@ import {
   serializeMenuTree,
 } from "@/components/MenuBuilder/treeUtils";
 import { buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import {
+  CmsSettingsField,
+  CmsSettingsFooter,
+  CmsSettingsGrid,
+  CmsSettingsLayout,
+  CmsSettingsSection,
+} from "@/components/Modules/CmsSettingsForm";
 
 function CreateMenu() {
   const [menuName, setMenuName] = useState("");
@@ -78,6 +86,11 @@ function CreateMenu() {
       return;
     }
 
+    if (tree.length === 0) {
+      toast.error("Add at least one menu item");
+      return;
+    }
+
     try {
       await createMenu({
         name: menuName,
@@ -94,68 +107,64 @@ function CreateMenu() {
   };
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4">Create Menu</h3>
-
-      {loadingPages && <div className="text-muted">Loading pages...</div>}
-
-      <div className="mb-3">
-        <label className="form-label">
-          Menu Name <span className="text-danger">*</span>
-        </label>
-        <input
-          type="text"
-          className="form-control"
-          value={menuName}
-          onChange={(e) => setMenuName(e.target.value)}
-        />
-      </div>
-
-      <div className="row">
-        <div className="col-md-4">
-          <PagesPanel
-            pages={pages}
-            checked={checked}
-            onToggle={togglePage}
-            onAdd={addPages}
-          />
-
-          <CustomUrlPanel
-            onAdd={(item) =>
-              setTree((prev) => [...prev, item])
-            }
-          />
-        </div>
-
-        <div className="col-md-8">
-          <StructurePanel
-            flatItems={flatItems}
-            onChange={handleStructureChange}
-          />
-        </div>
-      </div>
-
-      <div className="btn-group mt-3">
-        <button
-          className="btn btn-primary"
-          onClick={saveMenu}
-          disabled={!menuName.trim() || tree.length === 0}
+    <CmsModuleShell
+      title="Create a Menu"
+      description="Build a navigation menu by adding pages, custom links, and organizing the structure with drag and drop."
+      icon="fa-solid fa-bars"
+      stats={[
+        { label: "Menu Name", value: menuName.trim() || "Untitled" },
+        { label: "Menu Items", value: flatItems.length, tone: "accent" },
+        { label: "Pages Available", value: pages.length },
+      ]}
+    >
+      <CmsSettingsLayout>
+        <CmsSettingsSection
+          title="Menu Details"
+          description="Give your menu a name before adding items."
+          icon="fa-solid fa-pen-to-square"
         >
-          Save Menu
-        </button>
-        <button
-          className="btn btn-outline-secondary"
-          type="button"
-          onClick={() => window.history.back()}
-        >
-          Cancel
-        </button>
-      </div>
+          <CmsSettingsGrid columns={1}>
+            <CmsSettingsField label="Menu Name" required>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="e.g. Main Navigation"
+                value={menuName}
+                onChange={(e) => setMenuName(e.target.value)}
+              />
+            </CmsSettingsField>
+          </CmsSettingsGrid>
+        </CmsSettingsSection>
 
-      <pre className="mt-4 bg-dark text-white p-3">
-        {JSON.stringify(tree, null, 2)}
-      </pre>
-    </div>
+        {loadingPages ? (
+          <div className="text-muted py-3">Loading pages...</div>
+        ) : (
+          <div className="cms-create-grid">
+            <div className="d-flex flex-column gap-3">
+              <PagesPanel
+                pages={pages}
+                checked={checked}
+                onToggle={togglePage}
+                onAdd={addPages}
+              />
+              <CustomUrlPanel onAdd={(item) => setTree((prev) => [...prev, item])} />
+            </div>
+
+            <StructurePanel flatItems={flatItems} onChange={handleStructureChange} />
+          </div>
+        )}
+
+        <CmsSettingsFooter onSave={saveMenu} saveLabel="Save Menu">
+          <button
+            type="button"
+            className="btn btn-outline-secondary cms-module__toolbar-btn"
+            onClick={() => router.push("/menu")}
+          >
+            Cancel
+          </button>
+        </CmsSettingsFooter>
+      </CmsSettingsLayout>
+    </CmsModuleShell>
   );
 }
 

@@ -21,7 +21,7 @@ function PresetPage() {
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
 
   const [sortBy, setSortBy] = useState<string>("name");

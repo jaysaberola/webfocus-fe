@@ -1,12 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import SearchBar from "@/components/UI/SearchBar";
 import { getCustomers, toggleCustomerActive, CustomerRow } from "@/services/customerService";
 import { useRouter } from "next/router";
 import { toast } from "@/lib/toast";
-import Link from "next/link";
 import { readCustomerListCache, writeCustomerDetailCache, writeCustomerListCache } from "@/lib/customerCache";
+import CmsModuleShell, { CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
+import {
+  CmsModuleStatusBadge,
+  CmsModuleDate,
+  CmsModuleRowActions,
+  cmsModuleTableProps,
+} from "@/components/Modules/moduleTableUi";
 
 type AdvancedSearchValues = Record<string, string>;
 
@@ -21,7 +27,7 @@ function ManageCustomers() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(() => listCache?.currentPage ?? 1);
   const [totalPages, setTotalPages] = useState(() => listCache?.totalPages ?? 1);
-  const [perPage, setPerPage] = useState(() => listCache?.perPage ?? 10);
+  const [perPage, setPerPage] = useState(() => listCache?.perPage ?? 5);
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<string>("asc");
   const [showInactiveOnly, setShowInactiveOnly] = useState<boolean>(false);
@@ -217,6 +223,12 @@ function ManageCustomers() {
     setSelectedIds([]);
   }, [search, currentPage, perPage, sortBy, sortOrder, showInactiveOnly]);
 
+  const customerStats = useMemo(() => {
+    const active = customers.filter((c) => isActiveCustomer(c)).length;
+    const inactive = customers.filter((c) => !isActiveCustomer(c)).length;
+    return { visible: customers.length, active, inactive };
+  }, [customers]);
+
   const columns: Column<CustomerRow>[] = [
     {
       key: "select",
@@ -266,7 +278,9 @@ function ManageCustomers() {
       sortable: true,
       sortField: "created_at",
       defaultSortOrder: "desc",
-      render: (row) => row.date_registered ?? (row.created_at ? new Date(row.created_at).toLocaleDateString() : ""),
+      render: (row) => (
+        <CmsModuleDate value={row.date_registered ?? (row.created_at ? new Date(row.created_at).toLocaleDateString() : "")} />
+      ),
     },
     {
       key: "status",
@@ -275,16 +289,17 @@ function ManageCustomers() {
       sortField: "status",
       defaultSortOrder: "asc",
       render: (row) => (
-        <span className={`badge ${row.status === "Active" ? "bg-success" : "bg-secondary"}`}>
-          {row.status}
-        </span>
+        <CmsModuleStatusBadge
+          status={isActiveCustomer(row) ? "active" : "inactive"}
+          label={row.status}
+        />
       ),
     },
     {
       key: "options",
-      header: "Options",
+      header: "Actions",
       render: (row) => (
-        <>
+        <CmsModuleRowActions>
           <button
             className="btn btn-link p-0 me-2 text-secondary"
             title="View"
@@ -318,15 +333,23 @@ function ManageCustomers() {
           >
             <i className={`fas ${isActiveCustomer(row) ? "fa-toggle-on" : "fa-toggle-off"}`} />
           </button>
-        </>
+        </CmsModuleRowActions>
       ),
     },
   ];
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-3">Manage Customers</h3>
-
+    <CmsModuleShell
+      title="Manage Customers"
+      description="View and manage customer accounts. Activate or deactivate customers, or filter to show inactive accounts only."
+      icon="fa-solid fa-user-group"
+      actions={<CmsModuleCreateButton href="/customers/create" label="Create Customer" />}
+      stats={[
+        { label: "Showing", value: customerStats.visible },
+        { label: "Active", value: customerStats.active, tone: "published" },
+        { label: "Inactive", value: customerStats.inactive, tone: "private" },
+      ]}
+      toolbar={(
       <SearchBar
         placeholder="Search customers"
         value={search}
@@ -355,26 +378,7 @@ function ManageCustomers() {
           </>
         )}
         rightExtras={(
-          <div className="d-flex align-items-center gap-2">
-            <button
-              type="button"
-              className="btn btn-success d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 18px", whiteSpace: "nowrap" }}
-              onClick={() => setShowAdvancedModal(true)}
-            >
-              <span style={{ lineHeight: 1, textAlign: "center", display: "inline-block" }}>
-                Advanced Search
-              </span>
-            </button>
-
-            <Link
-              href="/customers/create"
-              className="btn btn-primary d-flex align-items-center justify-content-center"
-              style={{ height: 40, padding: "10px 24px", whiteSpace: "nowrap" }}
-            >
-              Create Customer
-            </Link>
-          </div>
+          <CmsModuleAdvancedSearchButton onClick={() => setShowAdvancedModal(true)} />
         )}
         filtersOpen={showAdvancedModal}
         onFiltersOpenChange={(open) => {
@@ -412,11 +416,13 @@ function ManageCustomers() {
         initialShowDeleted={showInactiveOnly}
         showDeletedLabel="Show inactive only"
       />
-
+      )}
+    >
       <DataTable<CustomerRow>
         columns={columns}
         data={customers}
         loading={loading}
+        {...cmsModuleTableProps}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={setCurrentPage}
@@ -431,7 +437,7 @@ function ManageCustomers() {
           setCurrentPage(1);
         }}
       />
-    </div>
+    </CmsModuleShell>
   );
 }
 

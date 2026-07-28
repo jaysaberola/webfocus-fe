@@ -11,6 +11,7 @@ import {
 import { axiosInstance } from "@/services/axios";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import Tooltip from "@/components/UI/Tooltip";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
 
 // Extend BannerForm to include order property
 interface BannerForm extends BaseBannerForm {
@@ -157,6 +158,8 @@ function HomeBanner() {
   const [localPreviews, setLocalPreviews] = useState<Record<number, string>>({});
   const dragIndexRef = React.useRef<number | null>(null);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [mediaPreviewIndex, setMediaPreviewIndex] = useState<number | null>(null);
+  const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
 
   const [isDraggingCrop, setIsDraggingCrop] = useState(false);
   const [cropRect, setCropRect] = useState<{x:number,y:number,w:number,h:number}>({x:0,y:0,w:0,h:0});
@@ -203,6 +206,13 @@ function HomeBanner() {
     getOptions({ type: "animation", field_type: "exit" })
       .then((res: any) => setExitOptions(res.data.data));
   }, []);
+
+  useEffect(() => {
+    setSelectedSlideIndex((prev) => {
+      if (banners.length === 0) return 0;
+      return Math.min(prev, banners.length - 1);
+    });
+  }, [banners.length]);
 
 
   const loadAlbum = async () => {
@@ -385,6 +395,7 @@ function HomeBanner() {
         is_active: true,
         order: prev.length + idx,
       }));
+      setSelectedSlideIndex(prev.length);
       return [...prev, ...newBanners];
     });
 
@@ -406,7 +417,16 @@ function HomeBanner() {
   };
 
   const handleRemoveBanner = (index: number) => {
-    setBanners((prev) => prev.filter((_, i) => i !== index));
+    setBanners((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      setSelectedSlideIndex((sel) => {
+        if (next.length === 0) return 0;
+        if (index < sel) return sel - 1;
+        if (index === sel) return Math.min(sel, next.length - 1);
+        return sel;
+      });
+      return next;
+    });
   };
 
   const handleDragStart = (index: number, e: React.DragEvent) => {
@@ -437,8 +457,14 @@ function HomeBanner() {
       const next = [...prev];
       const [moved] = next.splice(from, 1);
       next.splice(index, 0, moved);
-      // update explicit order fields to match new positions
       return next.map((b, i) => ({ ...b, order: i }));
+    });
+
+    setSelectedSlideIndex((sel) => {
+      if (sel === from) return index;
+      if (from < sel && index >= sel) return sel - 1;
+      if (from > sel && index <= sel) return sel + 1;
+      return sel;
     });
 
     setDraggingIndex(null);
@@ -1021,211 +1047,338 @@ function HomeBanner() {
    * UI
    * ====================== */
   const selectedBanner = resizeIndex !== null && banners[resizeIndex] ? banners[resizeIndex] : null;
+  const mediaPreviewBanner =
+    mediaPreviewIndex !== null && banners[mediaPreviewIndex] ? banners[mediaPreviewIndex] : null;
+  const activeSlideIndex = banners.length === 0 ? 0 : Math.min(selectedSlideIndex, banners.length - 1);
+  const activeBanner = banners[activeSlideIndex] ?? null;
 
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4 d-flex align-items-center gap-2">
-        Edit Home Banner
-        <Tooltip text="Manage homepage banner images, text overlays, animations, and ordering." />
-      </h3>
-
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Album Name
-          <Tooltip text="This album stores all banners used on the homepage slider." />
-        </label>
-        <input className="form-control" value="Home Banner" readOnly />
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition In
-          <Tooltip text="Animation used when a banner enters the screen." />
-        </label>
-        <select
-          className="form-control"
-          value={transitionIn}
-          onChange={(e) => setTransitionIn(e.target.value)}
-        >
-          {entranceOptions.map(opt => (
-            <option key={opt.id} value={opt.id}>
-              {opt.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition Out
-          <Tooltip text="Animation used when a banner leaves the screen." />
-        </label>
-        <select
-          className="form-control"
-          value={transitionOut}
-          onChange={(e) => setTransitionOut(e.target.value)}
-        >
-          {exitOptions.map(opt => (
-            <option key={opt.id} value={opt.id}>
-              {opt.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition Duration (seconds)
-          <Tooltip text="How long each banner stays visible before switching to the next." />
-        </label>
-        <input
-          type="range"
-          className="form-range"
-          min={1}
-          max={10}
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-        />
-        <small className="text-muted">{duration}s</small>
-      </div>
-
-      {/* Banner Type */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Banner Type
-          <Tooltip text="Choose whether this homepage slider uses image or video banner uploads." />
-        </label>
-        <div className="form-check">
-          <input
-            type="radio"
-            className="form-check-input"
-            id="imageBanner"
-            checked={bannerType === "image"}
-            onChange={() => setBannerType("image")}
-          />
-          <label className="form-check-label" htmlFor="imageBanner">
-            Image
-          </label>
-        </div>
-        <div className="form-check">
-          <input
-            type="radio"
-            className="form-check-input"
-            id="videoBanner"
-            checked={bannerType === "video"}
-            onChange={() => setBannerType("video")}
-          />
-          <label className="form-check-label" htmlFor="videoBanner">
-            Video
-          </label>
-        </div>
-      </div>
-
-      {/* Upload Media */}
-      <div className="mb-4">
-        <label className="form-label d-flex align-items-center">
-          {bannerType === "video" ? "Banner Videos" : "Banner Images"}
-          <Tooltip text={bannerType === "video" ? "Upload videos to display in the homepage slider. Videos autoplay, loop, and stay muted on the public site." : "Upload images to display in the homepage slider. You can reorder banners by dragging them."} />
-        </label>
-        <div className="d-flex gap-2 align-items-center justify-content-between flex-wrap">
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            onClick={() => document.getElementById("imageUpload")?.click()}
-          >
-            {bannerType === "video" ? "Upload Videos" : "Upload Images"}
-            <Tooltip text={bannerType === "video" ? "Upload one or multiple videos to add new banners." : "Upload one or multiple images to add new banners."} />
-          </button>
-
+    <CmsModuleShell
+      className="home-banner-editor"
+      title="Manage Home Banners"
+      description="Configure the homepage slider, upload slides, and edit overlay text."
+      icon="fa-solid fa-images"
+      actions={(
+        <>
           <button
             type="button"
             className="btn btn-outline-secondary"
             onClick={() => setShowPublicPreview((s) => !s)}
           >
-            {showPublicPreview ? "Hide public view" : "Show public view"}
-            <Tooltip text="Preview how the homepage banner appears on the public website." />
+            <i className={`fa ${showPublicPreview ? "fa-eye-slash" : "fa-eye"} me-1`} />
+            {showPublicPreview ? "Hide Preview" : "Preview Site"}
           </button>
-        </div>
-
-        <input
-          id="imageUpload"
-          type="file"
-          className="d-none"
-          multiple
-          accept={bannerType === "video" ? "video/*" : "image/*"}
-          onChange={handleImageUpload}
-        />
-      </div>
-
+          <button type="button" className="btn btn-primary cms-module__create-btn" onClick={handleSave}>
+            <i className="fa fa-save me-1" />
+            Save Changes
+          </button>
+        </>
+      )}
+    >
       {showPublicPreview && (
-        <div className="card mb-4">
-          <div className="card-body" style={{ padding: 0 }}>
-            <iframe
-              src="/public/home"
-              style={{ width: "100%", height: 650, border: 0 }}
-              title="Public homepage preview"
-            />
+        <div className="home-banner-preview-panel">
+          <div className="home-banner-preview-panel__header">
+            Public homepage preview
           </div>
+          <iframe
+            src="/public/home"
+            style={{ width: "100%", height: 650, border: 0, display: "block" }}
+            title="Public homepage preview"
+          />
         </div>
       )}
 
-      {/* Banners */}
-      <div className="row mb-4">
-        {banners.map((banner, index) => (
-          <div key={index} className="col-md-4 mb-4">
+      <div className="row g-4 align-items-start">
+        <div className="col-lg-4 col-xl-3">
+          <div className="home-banner-settings">
+            <div className="home-banner-settings__header">
+              <h5>Slider Settings</h5>
+            </div>
+            <div className="home-banner-settings__body d-flex flex-column gap-3">
+              <div>
+                <label className="form-label d-flex align-items-center">
+                  Album Name
+                  <Tooltip text="This album stores all banners used on the homepage slider." />
+                </label>
+                <input className="form-control" value="Home Banner" readOnly />
+              </div>
+
+              <div>
+                <label className="form-label d-flex align-items-center">
+                  Transition In
+                  <Tooltip text="Animation used when a banner enters the screen." />
+                </label>
+                <select
+                  className="form-select"
+                  value={transitionIn}
+                  onChange={(e) => setTransitionIn(e.target.value)}
+                >
+                  {entranceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label d-flex align-items-center">
+                  Transition Out
+                  <Tooltip text="Animation used when a banner leaves the screen." />
+                </label>
+                <select
+                  className="form-select"
+                  value={transitionOut}
+                  onChange={(e) => setTransitionOut(e.target.value)}
+                >
+                  {exitOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label d-flex align-items-center">
+                  Slide Duration
+                  <Tooltip text="How long each banner stays visible before switching to the next." />
+                </label>
+                <div className="home-banner-settings__duration">
+                  <input
+                    type="range"
+                    className="form-range flex-grow-1"
+                    min={1}
+                    max={10}
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                  />
+                  <span className="home-banner-settings__duration-value">{duration}s</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label d-flex align-items-center">
+                  Banner Type
+                  <Tooltip text="Choose whether this homepage slider uses image or video banner uploads." />
+                </label>
+                <div className="home-banner-type-toggle" role="group" aria-label="Banner type">
+                  <button
+                    type="button"
+                    className={`home-banner-type-toggle__btn ${bannerType === "image" ? "is-active" : ""}`}
+                    onClick={() => setBannerType("image")}
+                  >
+                    <i className="fa fa-image" aria-hidden="true" />
+                    Image
+                  </button>
+                  <button
+                    type="button"
+                    className={`home-banner-type-toggle__btn ${bannerType === "video" ? "is-active" : ""}`}
+                    onClick={() => setBannerType("video")}
+                  >
+                    <i className="fa fa-video" aria-hidden="true" />
+                    Video
+                  </button>
+                </div>
+              </div>
+
+              <div className="home-banner-upload">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => document.getElementById("imageUpload")?.click()}
+                >
+                  <i className="fa fa-upload me-1" />
+                  {bannerType === "video" ? "Upload Videos" : "Upload Images"}
+                </button>
+                <span className="home-banner-upload__hint">
+                  {bannerType === "video"
+                    ? "MP4/WebM videos autoplay muted on the public site."
+                    : "Upload one or more images. Drag slides to reorder."}
+                </span>
+                <input
+                  id="imageUpload"
+                  type="file"
+                  className="d-none"
+                  multiple
+                  accept={bannerType === "video" ? "video/*" : "image/*"}
+                  onChange={handleImageUpload}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-8 col-xl-9">
+          <div className="home-banner-slides__header">
+            <h5>
+              Slides
+              <span className="home-banner-slides__count">{banners.length}</span>
+            </h5>
+            <span className="home-banner-slides__hint">
+              <i className="fa fa-grip-lines me-1" aria-hidden="true" />
+              Select a slide to edit · drag thumbnails to reorder
+            </span>
+          </div>
+
+          {banners.length === 0 ? (
+            <div className="home-banner-empty">
+              <div><i className="fa fa-images" aria-hidden="true" /></div>
+              <p>No slides yet</p>
+              <small>Upload {bannerType === "video" ? "videos" : "images"} using the panel on the left.</small>
+            </div>
+          ) : (
+            <div className="home-banner-workspace">
+              <div className="home-banner-filmstrip" role="tablist" aria-label="Slides">
+                {banners.map((banner, index) => (
+                  <div
+                    key={index}
+                    className={`home-banner-filmstrip__item cms-banner-card ${
+                      activeSlideIndex === index ? "is-active" : ""
+                    } ${banner.is_active === false ? "is-hidden-slide" : ""} ${
+                      draggingIndex === index ? "is-dragging" : ""
+                    }`}
+                    onClick={() => setSelectedSlideIndex(index)}
+                    onDragOver={(e) => handleDragOver(index, e)}
+                    onDrop={(e) => handleDrop(index, e)}
+                    role="tab"
+                    aria-selected={activeSlideIndex === index}
+                    title={banner.title || `Slide ${index + 1}`}
+                  >
+                    <div
+                      className="cms-banner-drag-handle cms-banner-drag-handle--filmstrip"
+                      title="Drag to reorder"
+                      aria-label="Drag to reorder"
+                      draggable
+                      onClick={(e) => e.stopPropagation()}
+                      onDragStart={(e) => handleDragStart(index, e)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <i className="fa-solid fa-grip-lines" />
+                    </div>
+                    <div className="home-banner-filmstrip__thumb">
+                      {bannerMediaType(banner) === "video" ? (
+                        <video
+                          src={banner.preview}
+                          muted
+                          playsInline
+                          draggable={false}
+                          onDragStart={(e) => e.preventDefault()}
+                        />
+                      ) : (
+                        <img
+                          src={banner.preview}
+                          alt={banner.alt || "Banner"}
+                          draggable={false}
+                          onDragStart={(e) => e.preventDefault()}
+                        />
+                      )}
+                    </div>
+                    <div className="home-banner-filmstrip__label">
+                      <span className="home-banner-filmstrip__number">{index + 1}</span>
+                      <span className="home-banner-filmstrip__title">
+                        {(banner.title || "Untitled").toString()}
+                      </span>
+                    </div>
+                    {banner.is_active === false && (
+                      <span className="home-banner-filmstrip__hidden" aria-label="Hidden slide">
+                        <i className="fa fa-eye-slash" aria-hidden="true" />
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {activeBanner && (() => {
+                const index = activeSlideIndex;
+                const banner = activeBanner;
+                return (
+              <div className="home-banner-slide-editor">
+                <div className="home-banner-slide-editor__nav">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    disabled={index <= 0}
+                    onClick={() => setSelectedSlideIndex(index - 1)}
+                  >
+                    <i className="fa fa-chevron-left me-1" />
+                    Previous
+                  </button>
+                  <span className="home-banner-slide-editor__position">
+                    Slide {index + 1} of {banners.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    disabled={index >= banners.length - 1}
+                    onClick={() => setSelectedSlideIndex(index + 1)}
+                  >
+                    Next
+                    <i className="fa fa-chevron-right ms-1" />
+                  </button>
+                </div>
+
+          <div
+            className={`home-banner-slide cms-banner-card ${
+              banner.is_active === false ? "is-hidden-slide" : ""
+            }`}
+          >
             <div
-              className={`card h-100 cms-banner-card ${
-                draggingIndex === index ? "cms-banner-card--dragging" : ""
-              }`}
-              onDragOver={(e) => handleDragOver(index, e)}
-              onDrop={(e) => handleDrop(index, e)}
+              className="home-banner-slide__media"
+              role="button"
+              tabIndex={0}
+              title="Click to view full image"
+              onClick={() => setMediaPreviewIndex(index)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setMediaPreviewIndex(index);
+                }
+              }}
             >
-              <div
-                className="cms-banner-drag-handle"
-                title="Drag to reorder"
-                aria-label="Drag to reorder"
-                draggable
-                onDragStart={(e) => handleDragStart(index, e)}
-                onDragEnd={handleDragEnd}
-              >
-                <i className="fa-solid fa-grip-lines" />
+              <div className="home-banner-slide__badges">
+                <span className="home-banner-slide__badge">Slide {index + 1}</span>
+                {banner.is_active === false && (
+                  <span className="home-banner-slide__badge home-banner-slide__badge--hidden">
+                    <i className="fa fa-eye-slash" aria-hidden="true" />
+                    Hidden
+                  </span>
+                )}
               </div>
 
               {bannerMediaType(banner) === "video" ? (
                 <video
                   src={banner.preview}
-                  className="card-img-top"
                   muted
                   loop
                   playsInline
                   controls
                   draggable={false}
+                  onClick={(e) => e.stopPropagation()}
                   onDragStart={(e) => e.preventDefault()}
-                  style={{ height: "200px", objectFit: "cover" }}
                 />
               ) : (
                 <img
                   src={banner.preview}
-                  className="card-img-top"
-                  alt="Banner"
+                  alt={banner.alt || "Banner"}
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
-                  style={{ height: "200px", objectFit: "cover" }}
                 />
               )}
 
-              <div className="card-body">
-                {/* Simple font preview (family/size/bold) */}
-                <div
-                  className="mb-3"
-                  style={{
-                    border: "1px dashed rgba(0,0,0,0.18)",
-                    background: "rgba(248,249,250,0.9)",
-                    borderRadius: 10,
-                    padding: 12,
-                    textAlign: "center",
-                  }}
-                >
+              <span className="home-banner-slide__media-zoom">
+                <i className="fa fa-magnifying-glass-plus" aria-hidden="true" />
+                View full size
+              </span>
+            </div>
+
+            <div className="home-banner-slide__body">
+                <details className="home-banner-typography home-banner-slide__preview-wrap">
+                  <summary className="home-banner-typography__summary">
+                    Text overlay preview
+                    <i className="fa fa-chevron-down" aria-hidden="true" />
+                  </summary>
+                <div className="home-banner-slide__preview">
                   <div
                     style={{
                       ...(banner.description_font ? ({ fontFamily: banner.description_font } as const) : {}),
@@ -1286,8 +1439,10 @@ function HomeBanner() {
                     {(banner.button_text || "Button").toString()}
                   </span>
                 </div>
+                </details>
 
-                <div className="mb-2">
+                <div className="home-banner-slide__fields">
+                <div className="home-banner-slide__field home-banner-slide__field--full">
                   <label className="form-label d-flex align-items-center">
                     Title
                     <Tooltip text="Main headline displayed on top of the banner image." />
@@ -1301,13 +1456,76 @@ function HomeBanner() {
                   />
                 </div>
 
-                <div className="mb-2">
+                <div className="home-banner-slide__field home-banner-slide__field--full">
+                  <label className="form-label d-flex align-items-center">
+                    Description
+                    <Tooltip text="Short supporting text displayed under the banner title." />
+                  </label>
+                  <textarea
+                    className="form-control"
+                    value={banner.description || ""}
+                    onChange={(e) =>
+                      updateBanner(index, "description", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="home-banner-slide__field">
+                  <label className="form-label d-flex align-items-center">
+                    Button Text
+                    <Tooltip text="Text displayed on the banner call-to-action button." />
+                  </label>
+                  <input
+                    className="form-control"
+                    value={banner.button_text || ""}
+                    onChange={(e) =>
+                      updateBanner(index, "button_text", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="home-banner-slide__field">
+                  <label className="form-label d-flex align-items-center">
+                    URL
+                    <Tooltip text="Destination link when the banner button is clicked." />
+                  </label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    value={banner.url || ""}
+                    onChange={(e) =>
+                      updateBanner(index, "url", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="home-banner-slide__field home-banner-slide__field--full">
+                  <label className="form-label d-flex align-items-center">
+                    Alt Text
+                    <Tooltip text="Accessibility description of the image for screen readers and SEO." />
+                  </label>
+                  <input
+                    className="form-control"
+                    value={banner.alt || ""}
+                    onChange={(e) =>
+                      updateBanner(index, "alt", e.target.value)
+                    }
+                  />
+                </div>
+
+                <details className="home-banner-typography">
+                  <summary className="home-banner-typography__summary">
+                    Typography
+                    <i className="fa fa-chevron-down" aria-hidden="true" />
+                  </summary>
+                  <div className="home-banner-typography__content">
+                <div>
                   <label className="form-label d-flex align-items-center">
                     Title Font
                     <Tooltip text="Choose the font style and size used for the banner title." />
                   </label>
-                  <div className="d-flex gap-2 align-items-center flex-nowrap" style={{ width: "100%" }}>
-                    <div className="position-relative" style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  <div className="home-banner-font-row">
+                    <div className="home-banner-font-row__family">
                       <select
                         className="form-control pe-5"
                         value={banner.title_font || ""}
@@ -1336,7 +1554,7 @@ function HomeBanner() {
                       />
                     </div>
 
-                    <div style={{ width: 140, flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__size">
                       <div className="input-group">
                         <input
                           type="number"
@@ -1363,7 +1581,7 @@ function HomeBanner() {
                       </div>
                     </div>
 
-                    <div className="form-check mb-0" style={{ flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__bold form-check mb-0">
                       <input
                         className="form-check-input"
                         type="checkbox"
@@ -1381,27 +1599,13 @@ function HomeBanner() {
                   </div>
                 </div>
 
-                <div className="mb-2">
-                  <label className="form-label d-flex align-items-center">
-                    Description
-                    <Tooltip text="Short supporting text displayed under the banner title." />
-                  </label>
-                  <textarea
-                    className="form-control"
-                    value={banner.description || ""}
-                    onChange={(e) =>
-                      updateBanner(index, "description", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="mb-2">
+                <div>
                   <label className="form-label d-flex align-items-center">
                     Description Font
                     <Tooltip text="Font styling for the banner description text." />
                   </label>
-                  <div className="d-flex gap-2 align-items-center flex-nowrap" style={{ width: "100%" }}>
-                    <div className="position-relative" style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  <div className="home-banner-font-row">
+                    <div className="home-banner-font-row__family">
                       <select
                         className="form-control pe-5"
                         value={banner.description_font || ""}
@@ -1434,7 +1638,7 @@ function HomeBanner() {
                       />
                     </div>
 
-                    <div style={{ width: 140, flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__size">
                       <div className="input-group">
                         <input
                           type="number"
@@ -1461,7 +1665,7 @@ function HomeBanner() {
                       </div>
                     </div>
 
-                    <div className="form-check mb-0" style={{ flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__bold form-check mb-0">
                       <input
                         className="form-check-input"
                         type="checkbox"
@@ -1476,27 +1680,13 @@ function HomeBanner() {
                   </div>
                 </div>
 
-                <div className="mb-2">
-                  <label className="form-label d-flex align-items-center">
-                    Button Text
-                    <Tooltip text="Text displayed on the banner call-to-action button." />
-                  </label>
-                  <input
-                    className="form-control"
-                    value={banner.button_text || ""}
-                    onChange={(e) =>
-                      updateBanner(index, "button_text", e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className="mb-2">
+                <div>
                   <label className="form-label d-flex align-items-center">
                     Button Font
                     <Tooltip text="Font styling used for the banner button label." />
                   </label>
-                  <div className="d-flex gap-2 align-items-center flex-nowrap" style={{ width: "100%" }}>
-                    <div className="position-relative" style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  <div className="home-banner-font-row">
+                    <div className="home-banner-font-row__family">
                       <select
                         className="form-control pe-5"
                         value={banner.button_font || ""}
@@ -1525,7 +1715,7 @@ function HomeBanner() {
                       />
                     </div>
 
-                    <div style={{ width: 140, flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__size">
                       <div className="input-group">
                         <input
                           type="number"
@@ -1552,7 +1742,7 @@ function HomeBanner() {
                       </div>
                     </div>
 
-                    <div className="form-check mb-0" style={{ flex: "0 0 auto" }}>
+                    <div className="home-banner-font-row__bold form-check mb-0">
                       <input
                         className="form-check-input"
                         type="checkbox"
@@ -1566,72 +1756,104 @@ function HomeBanner() {
                     </div>
                   </div>
                 </div>
-
-                <div className="mb-2">
-                  <label className="form-label d-flex align-items-center">
-                    URL
-                    <Tooltip text="Destination link when the banner button is clicked." />
-                  </label>
-                  <input
-                    type="url"
-                    className="form-control"
-                    value={banner.url || ""}
-                    onChange={(e) =>
-                      updateBanner(index, "url", e.target.value)
-                    }
-                  />
+                  </div>
+                </details>
                 </div>
 
-                <div className="mb-2">
-                  <label className="form-label d-flex align-items-center">
-                    Alt Text
-                    <Tooltip text="Accessibility description of the image for screen readers and SEO." />
-                  </label>
-                  <input
-                    className="form-control"
-                    value={banner.alt || ""}
-                    onChange={(e) =>
-                      updateBanner(index, "alt", e.target.value)
-                    }
-                  />
-                </div>
-
-                <button
-                  className="btn btn-outline-danger btn-sm mt-2"
-                  onClick={() => handleRemoveBanner(index)}
-                >
-                  <i className="fa fa-trash"></i> Remove
-                </button>
-                <button
-                  className="btn btn-outline-secondary btn-sm mt-2 ms-2"
-                  onClick={() => updateBanner(index, "is_active", !(banner.is_active !== false))}
-                  title={banner.is_active === false ? "Show in homepage banner" : "Hide from homepage banner"}
-                >
-                  <i className={`fa ${banner.is_active === false ? "fa-eye-slash" : "fa-eye"}`}></i>{" "}
-                  {banner.is_active === false ? "Hidden" : "Visible"}
-                </button>
-                {bannerMediaType(banner) !== "video" && (
+                <div className="home-banner-slide__actions">
+                  {bannerMediaType(banner) !== "video" && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => openResizeModal(index)}
+                    >
+                      <i className="fa fa-crop me-1" />
+                      Crop Image
+                    </button>
+                  )}
                   <button
-                    className="btn btn-outline-secondary btn-sm mt-2 ms-2"
-                    onClick={() => openResizeModal(index)}
+                    type="button"
+                    className="btn btn-outline-secondary btn-sm"
+                    onClick={() => updateBanner(index, "is_active", !(banner.is_active !== false))}
+                    title={banner.is_active === false ? "Show in homepage banner" : "Hide from homepage banner"}
                   >
-                    <i className="fa fa-edit"></i> Edit
+                    <i className={`fa ${banner.is_active === false ? "fa-eye-slash" : "fa-eye"} me-1`} />
+                    {banner.is_active === false ? "Show Slide" : "Hide Slide"}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger btn-sm ms-auto"
+                    onClick={() => handleRemoveBanner(index)}
+                  >
+                    <i className="fa fa-trash me-1" />
+                    Remove
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+              </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Media lightbox */}
+      {mediaPreviewBanner && (
+        <div
+          className="home-banner-media-lightbox"
+          onClick={() => setMediaPreviewIndex(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Banner preview"
+        >
+          <div
+            className="home-banner-media-lightbox__dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="home-banner-media-lightbox__header">
+              <h5>
+                Slide {(mediaPreviewIndex ?? 0) + 1} preview
+                {mediaPreviewBanner.title ? ` — ${mediaPreviewBanner.title}` : ""}
+              </h5>
+              <button
+                type="button"
+                className="btn btn-sm btn-light"
+                onClick={() => setMediaPreviewIndex(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="home-banner-media-lightbox__frame">
+              {bannerMediaType(mediaPreviewBanner) === "video" ? (
+                <video
+                  src={mediaPreviewBanner.preview}
+                  muted
+                  loop
+                  playsInline
+                  controls
+                  autoPlay
+                />
+              ) : (
+                <img
+                  src={mediaPreviewBanner.preview}
+                  alt={mediaPreviewBanner.alt || "Banner preview"}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Resize Modal */}
       {selectedBanner && (
-        <div className="position-fixed top-0 start-0 w-100 h-100" style={{background: 'rgba(0,0,0,0.5)', zIndex: 2000}}>
-          <div className="d-flex align-items-center justify-content-center h-100">
-            <div className="card" style={{width: 560}}>
-              <div className="card-body">
-                <h5 className="card-title">Crop / Resize Banner Image</h5>
-
+        <div className="home-banner-crop-modal">
+          <div className="home-banner-crop-modal__dialog">
+            <div className="home-banner-crop-modal__header">
+              <h5>Crop Banner Image</h5>
+            </div>
+            <div className="home-banner-crop-modal__body">
                 <div className="mb-3">
                   <label className="form-label d-flex align-items-center">
                     Crop Area
@@ -1705,7 +1927,7 @@ function HomeBanner() {
                     </div>
                   </div>
                 )}
-                <div className="d-flex gap-2">
+                <div className="d-flex gap-2 flex-wrap">
                   <button
                     type="button"
                     className="btn btn-outline-secondary"
@@ -1722,28 +1944,22 @@ function HomeBanner() {
                     onChange={handleReplaceSelectedImage}
                   />
                   <button
+                    type="button"
                     className="btn btn-primary"
                     onClick={performCrop}
                     disabled={isResizing || (cropRect.w <= 0 && cropRect.h <= 0)}
                   >
-                    {isResizing ? 'Processing...' : 'Apply Crop'}
+                    {isResizing ? "Processing..." : "Apply Crop"}
                   </button>
-                  <button className="btn btn-secondary" onClick={closeResizeModal} disabled={isResizing}>Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={closeResizeModal} disabled={isResizing}>
+                    Cancel
+                  </button>
                 </div>
-              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Actions */}
-      <div className="d-flex gap-2">
-        <button className="btn btn-primary" onClick={handleSave}>
-          Update Album
-          <Tooltip text="Save all banner changes including text, images, order, and animation settings." />
-        </button>
-      </div>
-    </div>
+    </CmsModuleShell>
   );
 }
 

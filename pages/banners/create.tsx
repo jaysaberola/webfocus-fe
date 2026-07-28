@@ -5,7 +5,16 @@ import { BannerForm } from "@/schemas/banner";
 import { OptionItem, getOptions } from "@/services/optionService";
 import { createAlbum } from "@/services/albumService";
 import { toast } from "@/lib/toast";
-import Tooltip from "@/components/UI/Tooltip";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import {
+  CmsSettingsChoicePills,
+  CmsSettingsField,
+  CmsSettingsFooter,
+  CmsSettingsGrid,
+  CmsSettingsLayout,
+  CmsSettingsSection,
+  CmsSettingsUploadZone,
+} from "@/components/Modules/CmsSettingsForm";
 
 type BannerType = "image" | "video";
 
@@ -27,6 +36,8 @@ function CreateAlbum() {
 
   const [entranceOptions, setEntranceOptions] = useState<OptionItem[]>([]);
   const [exitOptions, setExitOptions] = useState<OptionItem[]>([]);
+  const [mediaDragOver, setMediaDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isVideoBanner = (banner: BannerForm) => {
     if (banner.media_type === "video") return true;
     if (banner.image instanceof File && banner.image.type.startsWith("video/")) return true;
@@ -47,10 +58,7 @@ function CreateAlbum() {
   /* ======================
    * Image upload
    * ====================== */
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
+  const appendMediaFiles = (files: FileList | File[]) => {
     const newBanners: BannerForm[] = Array.from(files).map((file) => ({
       image: file,
       preview: URL.createObjectURL(file),
@@ -58,9 +66,24 @@ function CreateAlbum() {
     }));
 
     setBanners((prev) => [...prev, ...newBanners]);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    appendMediaFiles(files);
 
     // allow re-selecting same file
     e.target.value = "";
+  };
+
+  const handleMediaDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setMediaDragOver(false);
+    if (event.dataTransfer.files?.length) {
+      appendMediaFiles(event.dataTransfer.files);
+    }
   };
 
   const handleRemoveBanner = (index: number) => {
@@ -161,240 +184,185 @@ function CreateAlbum() {
    * UI
    * ====================== */
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4 d-flex align-items-center gap-2">
-        Create an Album
-        <Tooltip text="Create a new banner album containing multiple images that rotate as a slideshow." />
-      </h3>
-
-      {/* Album Name */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Album Name <span className="text-danger">*</span>
-          <Tooltip text="Name used to identify this banner album inside the CMS." />
-        </label>
-        <input
-          className="form-control"
-          placeholder="Enter album name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-
-      {/* Transition In */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition In <span className="text-danger">*</span>
-          <Tooltip text="Animation used when a banner appears on screen." />
-        </label>
-        <select
-          className="form-control"
-          value={transitionIn}
-          onChange={(e) => setTransitionIn(e.target.value)}
+    <CmsModuleShell
+      title="Create an Album"
+      description="Create a banner album with slideshow transitions and multiple image or video slides."
+      icon="fa-solid fa-images"
+      stats={[
+        { label: "Album", value: name.trim() || "Untitled" },
+        { label: "Slides", value: banners.length, tone: "accent" },
+        { label: "Type", value: bannerType === "video" ? "Video" : "Image" },
+        { label: "Duration", value: `${duration}s` },
+      ]}
+    >
+      <CmsSettingsLayout>
+        <CmsSettingsSection
+          title="Album Settings"
+          description="Name the album and configure slideshow transitions."
+          icon="fa-solid fa-sliders"
         >
-          <option value="">Select transition</option>
-          {entranceOptions.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Transition Out */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition Out <span className="text-danger">*</span>
-          <Tooltip text="Animation used when the banner disappears before the next one shows." />
-        </label>
-        <select
-          className="form-control"
-          value={transitionOut}
-          onChange={(e) => setTransitionOut(e.target.value)}
-        >
-          <option value="">Select transition</option>
-          {exitOptions.map((opt) => (
-            <option key={opt.id} value={opt.id}>
-              {opt.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Duration */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Transition Duration (seconds) <span className="text-danger">*</span>
-          <Tooltip text="How long each banner stays visible before switching to the next." />
-        </label>
-        <input
-          type="range"
-          className="form-range"
-          min={1}
-          max={10}
-          value={duration}
-          onChange={(e) => setDuration(Number(e.target.value))}
-        />
-        <small className="text-muted">{duration}s</small>
-      </div>
-
-      {/* Banner Type */}
-      <div className="mb-3">
-        <label className="form-label d-flex align-items-center">
-          Banner Type <span className="text-danger">*</span>
-          <Tooltip text="Choose whether this album uses image or video banner uploads." />
-        </label>
-        <div className="form-check">
-          <input
-            type="radio"
-            className="form-check-input"
-            id="imageBanner"
-            checked={bannerType === "image"}
-            onChange={() => setBannerType("image")}
-          />
-          <label className="form-check-label" htmlFor="imageBanner">
-            Image
-          </label>
-        </div>
-        <div className="form-check">
-          <input
-            type="radio"
-            className="form-check-input"
-            id="videoBanner"
-            checked={bannerType === "video"}
-            onChange={() => setBannerType("video")}
-          />
-          <label className="form-check-label" htmlFor="videoBanner">
-            Video
-          </label>
-        </div>
-      </div>
-
-      {/* Upload Media */}
-      <div className="mb-4">
-        <label className="form-label d-flex align-items-center">
-          {bannerType === "video" ? "Album Videos" : "Album Images"} <span className="text-danger">*</span>
-          <Tooltip text={bannerType === "video" ? "Upload one or more videos that will appear in this banner album slideshow." : "Upload one or more images that will appear in this banner album slideshow."} />
-        </label>
-        <button
-          type="button"
-          className="btn btn-outline-secondary d-block"
-          onClick={() => document.getElementById("imageUpload")?.click()}
-        >
-          {bannerType === "video" ? "Upload Videos" : "Upload Images"}
-          <Tooltip text={bannerType === "video" ? "Select multiple videos from your device to add to this banner album." : "Select multiple images from your device to add to this banner album."} />
-        </button>
-
-        <input
-          id="imageUpload"
-          type="file"
-          className="d-none"
-          multiple
-          accept={bannerType === "video" ? "video/*" : "image/*"}
-          onChange={handleImageUpload}
-        />
-      </div>
-
-      {/* Preview banners */}
-      {banners.length > 0 && (
-        <div className="row mb-4">
-          {banners.map((banner, index) => (
-            <div key={index} className="col-md-4 mb-4">
-              <div
-                className={`card h-100 cms-banner-card ${draggingIndex === index ? "cms-banner-card--dragging" : ""}`}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(index, e)}
+          <CmsSettingsGrid columns={2}>
+            <CmsSettingsField label="Album Name" required span={2}>
+              <input
+                className="form-control"
+                placeholder="Enter album name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </CmsSettingsField>
+            <CmsSettingsField label="Transition In" required>
+              <select
+                className="form-select"
+                value={transitionIn}
+                onChange={(e) => setTransitionIn(e.target.value)}
               >
-                <div
-                  className="cms-banner-drag-handle"
-                  title="Drag to reorder"
-                  aria-label="Drag to reorder"
-                  draggable
-                  onDragStart={(e) => handleDragStart(index, e)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <i className="fa-solid fa-grip-lines" />
-                </div>
+                <option value="">Select transition</option>
+                {entranceOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.name}
+                  </option>
+                ))}
+              </select>
+            </CmsSettingsField>
+            <CmsSettingsField label="Transition Out" required>
+              <select
+                className="form-select"
+                value={transitionOut}
+                onChange={(e) => setTransitionOut(e.target.value)}
+              >
+                <option value="">Select transition</option>
+                {exitOptions.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.name}
+                  </option>
+                ))}
+              </select>
+            </CmsSettingsField>
+            <CmsSettingsField label="Transition Duration" required hint={`Each slide stays visible for ${duration} seconds.`}>
+              <input
+                type="range"
+                className="form-range"
+                min={1}
+                max={10}
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+              />
+            </CmsSettingsField>
+            <CmsSettingsChoicePills
+              label="Banner Type"
+              value={bannerType}
+              onChange={setBannerType}
+              options={[
+                { value: "image", label: "Image", icon: "fa-solid fa-image" },
+                { value: "video", label: "Video", icon: "fa-solid fa-video" },
+              ]}
+            />
+          </CmsSettingsGrid>
+        </CmsSettingsSection>
 
-                {isVideoBanner(banner) ? (
-                  <video
-                    src={banner.preview}
-                    className="card-img-top"
-                    muted
-                    loop
-                    playsInline
-                    controls
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    style={{ height: 200, objectFit: "cover" }}
-                  />
-                ) : (
-                  <img
-                    src={banner.preview}
-                    className="card-img-top"
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    style={{ height: 200, objectFit: "cover" }}
-                  />
-                )}
-
-                <div className="card-body">
-                  <div className="mb-2">
-                    <label className="form-label d-flex align-items-center">
-                      Title
-                      <Tooltip text="Headline text displayed on top of the banner image." />
-                    </label>
-                    <input
-                      className="form-control"
-                      value={banner.title || ""}
-                      onChange={(e) =>
-                        updateBanner(index, "title", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="mb-2">
-                    <label className="form-label d-flex align-items-center">
-                      Description
-                      <Tooltip text="Optional supporting text displayed below the banner title." />
-                    </label>
-                    <textarea
-                      className="form-control"
-                      value={banner.description || ""}
-                      onChange={(e) =>
-                        updateBanner(index, "description", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <button
-                    className="btn btn-outline-danger btn-sm mt-2"
-                    onClick={() => handleRemoveBanner(index)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="d-flex gap-2">
-        <button className="btn btn-primary" onClick={handleSave}>
-          Save Album
-          <Tooltip text="Save this album and its banners to the system." />
-        </button>
-        <button
-          className="btn btn-outline-secondary"
-          onClick={() => router.back()}
+        <CmsSettingsSection
+          title={bannerType === "video" ? "Album Videos" : "Album Images"}
+          description="Upload one or more files. Drag slides to reorder them."
+          icon="fa-solid fa-photo-film"
         >
-          Cancel
-          <Tooltip text="Discard changes and return to the album list." />
-        </button>
-      </div>
-    </div>
+          <CmsSettingsUploadZone
+            label={bannerType === "video" ? "Drop videos here or browse files" : "Drop images here or browse files"}
+            hint={bannerType === "video" ? "MP4, WebM, or other supported video formats" : "JPG, PNG, or other supported image formats"}
+            accept={bannerType === "video" ? "video/*" : "image/*"}
+            multiple
+            dragOver={mediaDragOver}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setMediaDragOver(true);
+            }}
+            onDragLeave={() => setMediaDragOver(false)}
+            onDrop={handleMediaDrop}
+            onBrowse={() => fileInputRef.current?.click()}
+            inputRef={fileInputRef}
+            onInputChange={handleImageUpload}
+          />
+
+          {banners.length > 0 && (
+            <div className="row g-3 mt-3">
+              {banners.map((banner, index) => (
+                <div key={index} className="col-md-6 col-xl-4">
+                  <div
+                    className={`card h-100 cms-banner-card ${draggingIndex === index ? "cms-banner-card--dragging" : ""}`}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(index, e)}
+                  >
+                    <div
+                      className="cms-banner-drag-handle"
+                      title="Drag to reorder"
+                      aria-label="Drag to reorder"
+                      draggable
+                      onDragStart={(e) => handleDragStart(index, e)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <i className="fa-solid fa-grip-lines" />
+                    </div>
+
+                    {isVideoBanner(banner) ? (
+                      <video
+                        src={banner.preview}
+                        className="card-img-top"
+                        muted
+                        loop
+                        playsInline
+                        controls
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                        style={{ height: 200, objectFit: "cover" }}
+                      />
+                    ) : (
+                      <img
+                        src={banner.preview}
+                        className="card-img-top"
+                        alt=""
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                        style={{ height: 200, objectFit: "cover" }}
+                      />
+                    )}
+
+                    <div className="card-body">
+                      <CmsSettingsField label="Title">
+                        <input
+                          className="form-control"
+                          value={banner.title || ""}
+                          onChange={(e) => updateBanner(index, "title", e.target.value)}
+                        />
+                      </CmsSettingsField>
+                      <CmsSettingsField label="Description">
+                        <textarea
+                          className="form-control"
+                          rows={2}
+                          value={banner.description || ""}
+                          onChange={(e) => updateBanner(index, "description", e.target.value)}
+                        />
+                      </CmsSettingsField>
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger btn-sm mt-2"
+                        onClick={() => handleRemoveBanner(index)}
+                      >
+                        Remove slide
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CmsSettingsSection>
+
+        <CmsSettingsFooter onSave={handleSave} saveLabel="Save Album">
+          <button type="button" className="btn btn-outline-secondary cms-module__toolbar-btn" onClick={() => router.back()}>
+            Cancel
+          </button>
+        </CmsSettingsFooter>
+      </CmsSettingsLayout>
+    </CmsModuleShell>
   );
 }
 

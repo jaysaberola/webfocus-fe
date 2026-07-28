@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { DEFAULT_CMS_TABLE_PAGE_SIZE } from "@/components/Modules/moduleTableUi";
 
 export type AdvancedSearchField = {
   name: string;
@@ -111,7 +112,7 @@ export default function SearchBar({
   const [sortBy, setSortBy] = useState<string>(initialSortBy ?? "modified");
   const [sortOrder, setSortOrder] = useState<string>(initialSortOrder ?? "desc");
   const [showDeleted, setShowDeleted] = useState<boolean>(initialShowDeleted ?? false);
-  const [perPage, setPerPage] = useState<number>(initialPerPage ?? 10);
+  const [perPage, setPerPage] = useState<number>(initialPerPage ?? DEFAULT_CMS_TABLE_PAGE_SIZE);
   const [advancedValues, setAdvancedValues] = useState<AdvancedSearchValues>({});
   const advancedFieldNames = advancedFields.map((field) => field.name).join("|");
 
@@ -226,7 +227,7 @@ export default function SearchBar({
   };
 
   const resetFilters = () => {
-    const next = { sortBy: "modified", sortOrder: "desc", showDeleted: false, perPage: 10 };
+    const next = { sortBy: "modified", sortOrder: "desc", showDeleted: false, perPage: DEFAULT_CMS_TABLE_PAGE_SIZE };
     setSortBy(next.sortBy);
     setSortOrder(next.sortOrder);
     setShowDeleted(next.showDeleted);
@@ -237,36 +238,36 @@ export default function SearchBar({
   };
 
   return (
-    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-      <div className="d-flex align-items-center flex-wrap gap-2" style={{ position: "relative" }}>
-          <div>
-            {showFiltersButton && (
-              <button
-                ref={filtersBtnRef}
-                className={`btn btn-outline-secondary me-2 dropdown-toggle${showFilters ? " show" : ""}`}
-                onClick={handleFiltersClick}
-                aria-expanded={showFilters}
-                aria-haspopup="true"
-                type="button"
-              >
-                Filters
-              </button>
-            )}
+    <div className="cms-search-bar d-flex align-items-center flex-wrap gap-2" data-cms-tour="module-search">
+      <div className="cms-search-bar__left d-flex align-items-center flex-wrap gap-2">
+        {showFiltersButton && (
+          <button
+            ref={filtersBtnRef}
+            className={`btn btn-outline-secondary dropdown-toggle${showFilters ? " show" : ""}`}
+            data-cms-tour="module-filters"
+            onClick={handleFiltersClick}
+            aria-expanded={showFilters}
+            aria-haspopup="true"
+            type="button"
+          >
+            Filters
+          </button>
+        )}
 
-            {showActionsButton && (
-              <button
-                ref={btnRef}
-                className={`btn btn-outline-secondary dropdown-toggle${showMenu ? " show" : ""}`}
-                onClick={handleActionsClick}
-                aria-expanded={showMenu}
-                aria-haspopup="true"
-                type="button"
-                disabled={!actionsMenu}
-              >
-                Actions
-              </button>
-            )}
-          </div>
+        {showActionsButton && (
+          <button
+            ref={btnRef}
+            className={`btn btn-outline-secondary dropdown-toggle${showMenu ? " show" : ""}`}
+            data-cms-tour="module-actions"
+            onClick={handleActionsClick}
+            aria-expanded={showMenu}
+            aria-haspopup="true"
+            type="button"
+            disabled={!actionsMenu}
+          >
+            Actions
+          </button>
+        )}
 
         {leftExtras}
 
@@ -419,7 +420,7 @@ export default function SearchBar({
       </div>
 
       {showSearchInput && (
-        <div className="d-flex align-items-center gap-2">
+        <div className="cms-search-bar__right d-flex align-items-center gap-2 ms-auto">
           <input
             type="text"
             className="form-control"

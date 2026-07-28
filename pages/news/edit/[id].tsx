@@ -2,7 +2,7 @@
 
 import AdminLayout from "@/components/Layout/AdminLayout";
 import { useEffect, useState } from "react";
-import TinyEditor from "@/components/UI/Editor";
+import dynamic from "next/dynamic";
 import { toast } from "@/lib/toast";
 import {
   updateArticle,
@@ -11,6 +11,11 @@ import {
   ArticleCategory,
 } from "@/services/articleService";
 import { useRouter } from "next/router";
+
+const TinyEditor = dynamic(() => import("@/components/UI/Editor"), {
+  ssr: false,
+  loading: () => <div className="p-4 text-muted">Loading editor...</div>,
+});
 
 export default function EditNews() {
   const router = useRouter();

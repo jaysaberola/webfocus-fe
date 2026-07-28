@@ -117,7 +117,7 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
 
   const fitCanvas = () => {
     try {
-      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: 100 });
+      editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom: 100 });
     } catch {
       // ignore
     }
@@ -129,7 +129,7 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
       const current = Number(canvas?.getZoom?.() || 100);
       const next = Math.max(40, Math.min(160, current + delta));
       if (next === current) return;
-      canvas?.fitViewport?.({ ignoreHeight: true, gap: 20, zoom: next });
+      canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom: next });
     } catch {
       // ignore
     }
@@ -176,4 +176,97 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
     if (editor.Keymaps?.get?.(keys)) return;
     editor.Keymaps?.add?.(keys, cmd);
   });
+}
+
+export function installCanvasInteractionGuards(
+  editor: any,
+  shellEl: HTMLElement | null,
+  isEditorAlive: () => boolean,
+) {
+  let dragging = false;
+
+  const getCanvasElement = () => editor.Canvas?.getElement?.() as HTMLElement | undefined;
+
+  const pinCanvasScroll = () => {
+    if (!isEditorAlive() || !dragging) return;
+
+    try {
+      const canvas = getCanvasElement();
+      if (canvas && (canvas.scrollTop !== 0 || canvas.scrollLeft !== 0)) {
+        canvas.scrollTop = 0;
+        canvas.scrollLeft = 0;
+      }
+    } catch {
+      // ignore scroll pin errors
+    }
+  };
+
+  const onCanvasScroll = () => {
+    if (dragging) pinCanvasScroll();
+  };
+
+  const onDragStart = () => {
+    if (!isEditorAlive()) return;
+    dragging = true;
+    shellEl?.classList.add("cms-grapes-shell--dragging");
+    pinCanvasScroll();
+  };
+
+  const onDragEnd = () => {
+    dragging = false;
+    shellEl?.classList.remove("cms-grapes-shell--dragging");
+    pinCanvasScroll();
+  };
+
+  const preventCanvasPan = () => {
+    if (dragging) pinCanvasScroll();
+  };
+
+  if (!editor.Commands.has("core:canvas-move")) {
+    editor.Commands.add("core:canvas-move", { run() {}, stop() {} });
+  } else {
+    editor.Commands.extend("core:canvas-move", { run() {}, stop() {} });
+  }
+
+  const attachCanvasListeners = () => {
+    const canvasEl = getCanvasElement();
+    if (!canvasEl || canvasEl.dataset.cmsScrollPinned === "true") return;
+    canvasEl.dataset.cmsScrollPinned = "true";
+    canvasEl.addEventListener("scroll", onCanvasScroll, { passive: true });
+  };
+
+  const detachCanvasListeners = () => {
+    const canvasEl = getCanvasElement();
+    if (!canvasEl) return;
+    delete canvasEl.dataset.cmsScrollPinned;
+    canvasEl.removeEventListener("scroll", onCanvasScroll);
+  };
+
+  attachCanvasListeners();
+
+  editor.on("sorter:drag:start", onDragStart);
+  editor.on("sorter:drag:end", onDragEnd);
+  editor.on("block:drag:start", onDragStart);
+  editor.on("block:drag:stop", onDragEnd);
+  editor.on("canvas:move", preventCanvasPan);
+  editor.on("canvas:move:end", preventCanvasPan);
+  editor.on("load", () => {
+    attachCanvasListeners();
+  });
+
+  return {
+    isDragging: () => dragging,
+    pinViewport: pinCanvasScroll,
+    rememberViewport: () => {},
+    cleanup: () => {
+      onDragEnd();
+      detachCanvasListeners();
+      editor.off("sorter:drag:start", onDragStart);
+      editor.off("sorter:drag:end", onDragEnd);
+      editor.off("block:drag:start", onDragStart);
+      editor.off("block:drag:stop", onDragEnd);
+      editor.off("canvas:move", preventCanvasPan);
+      editor.off("canvas:move:end", preventCanvasPan);
+    },
+  };
 }

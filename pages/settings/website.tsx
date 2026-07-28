@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useMemo } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import { useEffect } from "react";
 import dynamic from "next/dynamic";
@@ -11,8 +11,21 @@ import {
   DEFAULT_PRIVACY_TITLE,
 } from "@/lib/defaultPrivacyContent";
 import { notifyWebsiteSettingsUpdated, storeWebsiteSettings } from "@/lib/websiteSettings";
+import CmsModuleShell from "@/components/Modules/CmsModuleShell";
+import {
+  CmsSettingsChoicePills,
+  CmsSettingsField,
+  CmsSettingsFileField,
+  CmsSettingsFooter,
+  CmsSettingsGrid,
+  CmsSettingsLayout,
+  CmsSettingsSection,
+} from "@/components/Modules/CmsSettingsForm";
 
-const GrapesEditor = dynamic(() => import("@/components/UI/GrapesEditor"), { ssr: false });
+const GrapesEditor = dynamic(() => import("@/components/UI/GrapesEditor"), {
+  ssr: false,
+  loading: () => <div className="p-4 text-muted">Loading visual builder...</div>,
+});
 
 type TabKey = "website" | "contact" | "social" | "privacy";
 
@@ -268,381 +281,314 @@ function WebsiteSettingsPage() {
 
 
 
+  const activeSocialCount = useMemo(
+    () => socials.filter((social) => social.name && social.media_account).length,
+    [socials]
+  );
+
+  const websiteTabLabels: Record<TabKey, string> = {
+    website: "Website",
+    contact: "Contact",
+    social: "Social Media",
+    privacy: "Data Privacy",
+  };
+
   return (
-    <div className="container-fluid px-4 pt-3">
-      <h3 className="mb-4">Website Settings</h3>
-
-      <div className="card">
-        {/* Tabs */}
-        <div className="card-header bg-white border-0 pb-0">
-          <ul className="nav nav-tabs">
-            <li className="nav-item">
-              <button
-                className={`nav-link ${activeTab === "website" ? "active" : ""}`}
-                onClick={() => setActiveTab("website")}
-              >
-                Website
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${activeTab === "contact" ? "active" : ""}`}
-                onClick={() => setActiveTab("contact")}
-              >
-                Contact
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${activeTab === "social" ? "active" : ""}`}
-                onClick={() => setActiveTab("social")}
-              >
-                Social Media
-              </button>
-            </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${activeTab === "privacy" ? "active" : ""}`}
-                onClick={() => setActiveTab("privacy")}
-              >
-                Data Privacy
-              </button>
-            </li>
-          </ul>
+    <CmsModuleShell
+      title="Manage Website Settings"
+      description="Configure your public website details, contact information, social links, and data privacy content."
+      icon="fa-solid fa-globe"
+      stats={[
+        { label: "Company", value: companyName || websiteName || "—" },
+        { label: "Navigation", value: navAlignment, tone: "accent" },
+        { label: "Social Links", value: activeSocialCount },
+        { label: "Section", value: websiteTabLabels[activeTab] },
+      ]}
+      toolbar={(
+        <div className="cms-settings-tabs" role="tablist" aria-label="Website settings sections">
+          {([
+            ["website", "fa-solid fa-globe", "Website"],
+            ["contact", "fa-solid fa-address-book", "Contact"],
+            ["social", "fa-solid fa-share-nodes", "Social Media"],
+            ["privacy", "fa-solid fa-shield", "Data Privacy"],
+          ] as const).map(([key, icon, label]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === key}
+              className={`cms-settings-tabs__btn${activeTab === key ? " is-active" : ""}`}
+              onClick={() => setActiveTab(key)}
+            >
+              <i className={icon} aria-hidden="true" />
+              {label}
+            </button>
+          ))}
         </div>
-
-        <div className="card-body">
-          {/* =======================
-             WEBSITE TAB
-          ======================= */}
+      )}
+    >
+      <div className="cms-settings-panel">
+        <CmsSettingsLayout>
           {activeTab === "website" && (
-            <div style={{ maxWidth: 600 }}>
-              <div className="mb-3">
-                <label className="form-label">Company Name *</label>
-                <input
-                  className="form-control"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Website Name *</label>
-                <input
-                  className="form-control"
-                  value={websiteName}
-                  onChange={(e) => setWebsiteName(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Copyright Year *</label>
-                <input
-                  className="form-control"
-                  value={copyright}
-                  onChange={(e) => setCopyright(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Logo</label>
-
-                {logoPreview && (
-                  <div className="mb-2">
-                    <img
-                      src={logoPreview}
-                      alt="Website Logo"
-                      style={{
-                        maxHeight: 100,
-                        maxWidth: "100%",
-                        border: "1px solid #e1e5ee",
-                        padding: 6,
-                        borderRadius: 4,
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="input-group">
-                  <input className="form-control" value={logoName} readOnly />
-                  <label className="input-group-text">
-                    Browse
-                    <input
-                      type="file"
-                      hidden
-                      accept=".png,.jpg,.jpeg,.svg"
-                      onChange={handleLogoChange}
-                    />
-                  </label>
-                </div>
-
-                <small className="text-muted">
-                  PNG, JPG, SVG • Max 1MB
-                </small>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Favicon</label>
-
-                {faviconPreview && (
-                  <div className="mb-2">
-                    <img
-                      src={faviconPreview}
-                      alt="Website Favicon"
-                      style={{
-                        height: 48,
-                        width: 48,
-                        border: "1px solid #e1e5ee",
-                        padding: 6,
-                        borderRadius: 4,
-                      }}
-                    />
-                  </div>
-                )}
-
-                <div className="input-group">
-                  <input className="form-control" value={faviconName} readOnly />
-                  <label className="input-group-text">
-                    Browse
-                    <input
-                      type="file"
-                      hidden
-                      accept=".ico,.png"
-                      onChange={handleFaviconChange}
-                    />
-                  </label>
-                </div>
-
-                <small className="text-muted">
-                  128×128 ICO • Max 100KB
-                </small>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Google Analytics Code</label>
-                <textarea
-                  rows={3}
-                  className="form-control"
-                  value={analytics}
-                  onChange={(e) => setAnalytics(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Google Map</label>
-                <textarea
-                  rows={4}
-                  className="form-control"
-                  value={googleMap}
-                  onChange={(e) => setGoogleMap(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="form-label">Google reCaptcha Site Key *</label>
-                <textarea
-                  rows={2}
-                  className="form-control"
-                  value={recaptcha}
-                  onChange={(e) => setRecaptcha(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="form-label">Navigation Alignment</label>
-                <div className="d-flex gap-2">
-                  {(['left', 'center', 'right'] as const).map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      className={`btn ${navAlignment === opt ? 'btn-primary' : 'btn-outline-secondary'}`}
-                      onClick={() => setNavAlignment(opt)}
-                    >
-                      {opt === 'left' && '⬅ Left'}
-                      {opt === 'center' && '↔ Center'}
-                      {opt === 'right' && '➡ Right'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={saveWebsite}
+            <>
+              <CmsSettingsSection
+                title="General Information"
+                description="Basic website identity shown across the public site."
+                icon="fa-solid fa-building"
               >
-                Save Settings
-              </button>
+                <CmsSettingsGrid columns={2}>
+                  <CmsSettingsField label="Company Name" required>
+                    <input
+                      className="form-control"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Website Name" required>
+                    <input
+                      className="form-control"
+                      value={websiteName}
+                      onChange={(e) => setWebsiteName(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Copyright Year" required>
+                    <input
+                      className="form-control"
+                      value={copyright}
+                      onChange={(e) => setCopyright(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                </CmsSettingsGrid>
+              </CmsSettingsSection>
 
-            </div>
-          )}
-
-          {/* =======================
-             CONTACT TAB
-          ======================= */}
-          {activeTab === "contact" && (
-            <div style={{ maxWidth: 600 }}>
-              <div className="mb-3">
-                <label className="form-label">Company Address *</label>
-                <textarea
-                  className="form-control"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Mobile Number *</label>
-                <input
-                  className="form-control"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Fax Number</label>
-                <input
-                  className="form-control"
-                  value={fax}
-                  onChange={(e) => setFax(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Telephone Number *</label>
-                <input
-                  className="form-control"
-                  value={telephone}
-                  onChange={(e) => setTelephone(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="form-label">Email Address *</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                />
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={handleSaveContact}
+              <CmsSettingsSection
+                title="Branding"
+                description="Upload your logo and favicon for the public website."
+                icon="fa-solid fa-image"
               >
-                Save Settings
-              </button>
-            </div>
-          )}
-
-          {/* =======================
-             SOCIAL MEDIA TAB
-          ======================= */}
-          {activeTab === "social" && (
-            <div style={{ maxWidth: 600 }}>
-              <p className="text-muted mb-3">
-                Add your social media links
-              </p>
-
-              {socials.map((social, index) => (
-                <div className="d-flex gap-2 mb-2" key={index}>
-                  <select
-                    className="form-control"
-                    value={social.name}
-                    onChange={(e) =>
-                      handleSocialChange(index, "name", e.target.value)
-                    }
-                  >
-                    <option value="">Choose</option>
-                    <option value="facebook">Facebook</option>
-                    <option value="twitter">Twitter</option>
-                    <option value="instagram">Instagram</option>
-                    <option value="youtube">Youtube</option>
-                    <option value="linkedin">LinkedIn</option>
-                    <option value="google">Google</option>
-                  </select>
-
-                  <input
-                    className="form-control"
-                    placeholder="URL"
-                    value={social.media_account}
-                    onChange={(e) =>
-                      handleSocialChange(index, "media_account", e.target.value)
-                    }
+                <CmsSettingsGrid columns={2}>
+                  <CmsSettingsFileField
+                    label="Logo"
+                    previewUrl={logoPreview}
+                    fileName={logoName}
+                    hint="PNG, JPG, SVG • Max 1MB"
+                    accept=".png,.jpg,.jpeg,.svg"
+                    onChange={handleLogoChange}
+                    previewVariant="logo"
                   />
+                  <CmsSettingsFileField
+                    label="Favicon"
+                    previewUrl={faviconPreview}
+                    fileName={faviconName}
+                    hint="128×128 ICO or PNG • Max 100KB"
+                    accept=".ico,.png"
+                    onChange={handleFaviconChange}
+                    previewVariant="favicon"
+                  />
+                </CmsSettingsGrid>
+              </CmsSettingsSection>
 
-                  <button
-                    className="btn btn-outline-danger"
-                    onClick={() => removeSocialRow(index)}
-                    disabled={socials.length === 1}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-
-              <button
-                className="btn btn-outline-primary mb-3"
-                onClick={addSocialRow}
+              <CmsSettingsSection
+                title="Integrations"
+                description="Analytics, maps, and security keys used on the public site."
+                icon="fa-solid fa-plug"
               >
-                + Add
-              </button>
+                <CmsSettingsGrid columns={1}>
+                  <CmsSettingsField label="Google Analytics Code" hint="Paste your tracking snippet or measurement ID.">
+                    <textarea
+                      rows={3}
+                      className="form-control"
+                      value={analytics}
+                      onChange={(e) => setAnalytics(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Google Map" hint="Embed code or map URL for your contact page.">
+                    <textarea
+                      rows={4}
+                      className="form-control"
+                      value={googleMap}
+                      onChange={(e) => setGoogleMap(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Google reCaptcha Site Key" required>
+                    <textarea
+                      rows={2}
+                      className="form-control"
+                      value={recaptcha}
+                      onChange={(e) => setRecaptcha(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                </CmsSettingsGrid>
+              </CmsSettingsSection>
 
-              <br />
-
-              <button
-                className="btn btn-primary"
-                onClick={handleSaveSocials}
+              <CmsSettingsSection
+                title="Navigation"
+                description="Choose how the main menu is aligned on the public site."
+                icon="fa-solid fa-bars"
               >
-                Save Settings
-              </button>
-            </div>
+                <CmsSettingsChoicePills
+                  label="Navigation Alignment"
+                  value={navAlignment}
+                  onChange={setNavAlignment}
+                  options={[
+                    { value: "left", label: "Left", icon: "fa-solid fa-align-left" },
+                    { value: "center", label: "Center", icon: "fa-solid fa-align-center" },
+                    { value: "right", label: "Right", icon: "fa-solid fa-align-right" },
+                  ]}
+                />
+              </CmsSettingsSection>
+
+              <CmsSettingsFooter onSave={saveWebsite} saveLabel="Save Website Settings" />
+            </>
           )}
 
-          {/* =======================
-             DATA PRIVACY TAB
-          ======================= */}
+          {activeTab === "contact" && (
+            <>
+              <CmsSettingsSection
+                title="Contact Details"
+                description="Company contact information shown on the public website."
+                icon="fa-solid fa-address-book"
+              >
+                <CmsSettingsGrid columns={2}>
+                  <CmsSettingsField label="Company Address" required span={2}>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Mobile Number" required>
+                    <input
+                      className="form-control"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Telephone Number" required>
+                    <input
+                      className="form-control"
+                      value={telephone}
+                      onChange={(e) => setTelephone(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Fax Number">
+                    <input
+                      className="form-control"
+                      value={fax}
+                      onChange={(e) => setFax(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Email Address" required>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                </CmsSettingsGrid>
+              </CmsSettingsSection>
+
+              <CmsSettingsFooter onSave={handleSaveContact} saveLabel="Save Contact Settings" />
+            </>
+          )}
+
+          {activeTab === "social" && (
+            <>
+              <CmsSettingsSection
+                title="Social Media Links"
+                description="Add links to your social profiles for the public website."
+                icon="fa-solid fa-share-nodes"
+              >
+                {socials.map((social, index) => (
+                  <div className="cms-settings-social-row" key={index}>
+                    <select
+                      className="form-select"
+                      value={social.name}
+                      onChange={(e) => handleSocialChange(index, "name", e.target.value)}
+                    >
+                      <option value="">Choose platform</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="twitter">Twitter</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="youtube">Youtube</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="google">Google</option>
+                    </select>
+
+                    <input
+                      className="form-control"
+                      placeholder="https://..."
+                      value={social.media_account}
+                      onChange={(e) => handleSocialChange(index, "media_account", e.target.value)}
+                    />
+
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger cms-settings-social-row__remove"
+                      onClick={() => removeSocialRow(index)}
+                      disabled={socials.length === 1}
+                      title="Remove link"
+                    >
+                      <i className="fa-solid fa-trash" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </CmsSettingsSection>
+
+              <CmsSettingsFooter onSave={handleSaveSocials} saveLabel="Save Social Links">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary cms-module__toolbar-btn"
+                  onClick={addSocialRow}
+                >
+                  <i className="fa-solid fa-plus me-1" aria-hidden="true" />
+                  Add Link
+                </button>
+              </CmsSettingsFooter>
+            </>
+          )}
+
           {activeTab === "privacy" && (
-            <div>
-              <div className="mb-3">
-                <label className="form-label">Page Title *</label>
-                <input
-                  className="form-control"
-                  value={privacyTitle}
-                  onChange={(e) => setPrivacyTitle(e.target.value)}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Pop-up Content *</label>
-                <textarea
-                  rows={3}
-                  className="form-control"
-                  value={privacyPopup}
-                  onChange={(e) => setPrivacyPopup(e.target.value)}
-                />
-                <small className="text-muted">
-                  Short summary shown in consent areas. The full policy opens in a modal on the public site.
-                </small>
-              </div>
-
-              <div className="mb-4">
-                <label className="form-label">Content *</label>
-                <GrapesEditor value={privacyContent} onChange={setPrivacyContent} height={640} />
-              </div>
-
-              <button
-                className="btn btn-primary"
-                onClick={handleSavePrivacy}
+            <>
+              <CmsSettingsSection
+                title="Data Privacy Page"
+                description="Configure the consent popup and full privacy policy content."
+                icon="fa-solid fa-shield"
               >
-                Save Settings
-              </button>
-            </div>
+                <CmsSettingsGrid columns={1}>
+                  <CmsSettingsField label="Page Title" required>
+                    <input
+                      className="form-control"
+                      value={privacyTitle}
+                      onChange={(e) => setPrivacyTitle(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField
+                    label="Pop-up Content"
+                    required
+                    hint="Short summary shown in consent areas. The full policy opens in a modal on the public site."
+                  >
+                    <textarea
+                      rows={3}
+                      className="form-control"
+                      value={privacyPopup}
+                      onChange={(e) => setPrivacyPopup(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField label="Policy Content" required span={2}>
+                    <GrapesEditor value={privacyContent} onChange={setPrivacyContent} height={640} />
+                  </CmsSettingsField>
+                </CmsSettingsGrid>
+              </CmsSettingsSection>
+
+              <CmsSettingsFooter onSave={handleSavePrivacy} saveLabel="Save Privacy Settings" />
+            </>
           )}
-        </div>
+        </CmsSettingsLayout>
       </div>
-    </div>
+    </CmsModuleShell>
   );
 }
 

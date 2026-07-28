@@ -2,8 +2,9 @@
 
 import AdminLayout from '@/components/Layout/AdminLayout';
 import api from '@/lib/axios';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import CmsModuleShell from '@/components/Modules/CmsModuleShell';
 
 const DISK = 'public' as const;
 
@@ -359,41 +360,50 @@ export default function FileManagerPage() {
   };
 
   const previewUrl = preview ? getFileUrl(preview) : '';
+  const folderCount = useMemo(() => sorted.filter((file) => file.isDirectory).length, [sorted]);
+  const fileCount = useMemo(() => sorted.filter((file) => !file.isDirectory).length, [sorted]);
 
   return (
-    <div className="bg-light" style={{ minHeight: '100vh' }}>
-
-      {/* ── Header ── */}
-      <div className="bg-white border-bottom px-4 py-3 d-flex align-items-center justify-content-between shadow-sm">
-        <div className="d-flex align-items-center gap-2">
-          <span style={{ fontSize: 22 }}>📁</span>
-          <h5 className="mb-0 fw-bold">File Manager</h5>
-        </div>
-        <div className="btn-group btn-group-sm" role="group">
+    <CmsModuleShell
+      title="Manage Files"
+      description="Browse, upload, and organize files in your storage."
+      icon="fa-solid fa-folder-open"
+      actions={(
+        <div className="btn-group cms-file-manager__view-toggle" role="group" aria-label="View mode">
           <button
             type="button"
-            className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
-            onClick={() => setViewMode('grid')}>
-            ⊞ Grid
+            className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
+            onClick={() => setViewMode('grid')}
+          >
+            <i className="fa-solid fa-grip me-1" aria-hidden="true" />
+            Grid
           </button>
           <button
             type="button"
-            className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
-            onClick={() => setViewMode('list')}>
-            ☰ List
+            className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
+            onClick={() => setViewMode('list')}
+          >
+            <i className="fa-solid fa-list me-1" aria-hidden="true" />
+            List
           </button>
         </div>
-      </div>
-
-      {/* ── Toolbar ── */}
-      <div className="bg-white border-bottom px-4 py-2 d-flex align-items-center gap-2 flex-wrap">
+      )}
+      stats={[
+        { label: 'Items', value: sorted.length },
+        { label: 'Folders', value: folderCount, tone: 'accent' },
+        { label: 'Files', value: fileCount },
+        { label: 'Selected', value: selected.size },
+      ]}
+      toolbar={(
+        <div className="cms-file-manager__toolbar d-flex align-items-center gap-2 flex-wrap">
         {/* Breadcrumbs */}
-        <nav className="d-flex align-items-center gap-1 flex-grow-1 flex-wrap" style={{ minWidth: 180 }}>
+        <nav className="cms-file-manager__breadcrumbs d-flex align-items-center gap-1 flex-grow-1 flex-wrap">
           <button
             type="button"
             className="btn btn-sm btn-link text-decoration-none p-1 text-secondary fw-medium"
             onClick={() => navigate('')}>
-            🏠 Home
+            <i className="fa-solid fa-house me-1" aria-hidden="true" />
+            Home
           </button>
           {breadcrumbs.map((crumb, i) => {
             const path  = breadcrumbs.slice(0, i + 1).join('/');
@@ -412,11 +422,10 @@ export default function FileManagerPage() {
           })}
         </nav>
 
-        <div className="vr" />
+        <div className="vr d-none d-md-block" />
 
         <select
-          className="form-select form-select-sm"
-          style={{ width: 'auto' }}
+          className="form-select form-select-sm cms-file-manager__sort"
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}>
           <option value="name">Sort: Name</option>
@@ -424,45 +433,48 @@ export default function FileManagerPage() {
           <option value="date">Sort: Date</option>
         </select>
 
-        <button type="button" className="btn btn-sm btn-outline-secondary"
+        <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
           onClick={() => setCreatingFolder(true)}>
-          + New Folder
+          <i className="fa-solid fa-folder-plus me-1" aria-hidden="true" />
+          New Folder
         </button>
 
-        <button type="button" className="btn btn-sm btn-primary"
+        <button type="button" className="btn btn-sm btn-primary cms-module__toolbar-btn"
           onClick={() => fileInputRef.current?.click()}>
-          ↑ Upload
+          <i className="fa-solid fa-upload me-1" aria-hidden="true" />
+          Upload
         </button>
 
         {singleSelectedFile && !singleSelectedFile.isDirectory && (
-          <button type="button" className="btn btn-sm btn-outline-secondary"
+          <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
             onClick={() => handlePreview(singleSelectedFile)}>
             Preview
           </button>
         )}
 
         {selectedDownloadableFiles.length > 0 && (
-          <button type="button" className="btn btn-sm btn-outline-secondary"
+          <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
             onClick={handleDownloadSelected}>
             Download ({selectedDownloadableFiles.length})
           </button>
         )}
 
         {selected.size > 0 && (
-          <button type="button" className="btn btn-sm btn-outline-danger"
+          <button type="button" className="btn btn-sm btn-outline-danger cms-module__toolbar-btn"
             onClick={() => setConfirmDelete(true)}>
-            🗑 Delete ({selected.size})
+            Delete ({selected.size})
           </button>
         )}
 
-        <div className="vr" />
+        <div className="vr d-none d-md-block" />
 
-        <button type="button" className="btn btn-sm btn-outline-secondary"
+        <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
           onClick={() => fetchContent(currentPath)} title="Refresh">
-          ↻
+          <i className="fa-solid fa-rotate-right" aria-hidden="true" />
         </button>
-      </div>
-
+        </div>
+      )}
+    >
       {/* ── Upload Progress ── */}
       {uploading && (
         <div className="px-4 py-2 bg-primary bg-opacity-10 border-bottom border-primary border-opacity-25">
@@ -498,7 +510,7 @@ export default function FileManagerPage() {
 
       {/* ── Content area ── */}
       <div
-        className="p-4"
+        className="cms-file-manager__content"
         style={{
           minHeight: 'calc(100vh - 160px)',
           border: dragOver ? '2.5px dashed #0d6efd' : '2.5px solid transparent',
@@ -529,7 +541,7 @@ export default function FileManagerPage() {
 
         /* Grid view */
         ) : viewMode === 'grid' ? (
-          <div className="row g-3">
+          <div className="cms-file-manager__grid row g-3">
             {sorted.map((file) => (
               <div key={file.path} className="col-6 col-sm-4 col-md-3 col-xl-2">
                 <div
@@ -616,16 +628,16 @@ export default function FileManagerPage() {
 
         /* List view */
         ) : (
-          <div className="card border shadow-sm">
+          <div className="cms-table-wrap">
             <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light">
+              <table className="dt-enhanced-table mb-0">
+                <thead>
                   <tr>
                     <th style={{ width: 44 }}></th>
                     <th>Name</th>
                     <th style={{ width: 100 }} className="text-end">Size</th>
                     <th style={{ width: 150 }} className="text-end">Modified</th>
-                    <th style={{ width: 230 }}></th>
+                    <th style={{ width: 230 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -864,7 +876,7 @@ export default function FileManagerPage() {
     </div>,
     document.body
   )}
-    </div>
+    </CmsModuleShell>
   );
 }
 

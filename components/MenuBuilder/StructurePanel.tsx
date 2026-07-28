@@ -50,10 +50,13 @@ export default function StructurePanel({
   };
 
   return (
-    <div className="border rounded p-3">
-      <h6>Structure</h6>
-      <small className="text-muted">
-        Drag up/down to reorder. Drag right to create sub-menu.
+    <div className="cms-menu-panel cms-menu-panel--structure" data-cms-tour="menu-panel-structure">
+      <div className="cms-menu-panel__header">
+        <h6>Menu Structure</h6>
+        <span className="cms-menu-panel__count">{flatItems.length} items</span>
+      </div>
+      <small className="text-muted d-block mb-3">
+        Drag up/down to reorder. Drag right to create a sub-menu.
       </small>
 
       <div className="mt-3">

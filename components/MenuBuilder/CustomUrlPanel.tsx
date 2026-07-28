@@ -30,8 +30,10 @@ export default function CustomUrlPanel({ onAdd }: Props) {
   };
 
   return (
-    <div className="border rounded p-3 mt-3">
-      <h6>Custom URL</h6>
+    <div className="cms-menu-panel mt-3" data-cms-tour="menu-panel-custom">
+      <div className="cms-menu-panel__header">
+        <h6>Custom URL</h6>
+      </div>
 
       <div className="mb-2">
         <input
@@ -65,11 +67,13 @@ export default function CustomUrlPanel({ onAdd }: Props) {
       </div>
 
       <button
-        className="btn btn-success btn-sm w-100"
+        className="btn btn-primary btn-sm w-100"
         onClick={handleAdd}
         disabled={!label || !url}
+        type="button"
       >
-        + ADD
+        <i className="fa-solid fa-plus me-1" aria-hidden="true" />
+        Add Link
       </button>
     </div>
   );

@@ -7,6 +7,7 @@ import { getCurrentUserCached, initialsForUser, resolveAvatarUrl, subscribeCurre
 import { getWebsiteSettingsCached, resolveWebsiteAssetUrl, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import type { User } from "@/services/accountService";
 import { logout } from "@/services/authService";
+import { useCmsHelp } from "@/lib/cmsHelp/CmsHelpContext";
 
 type TopbarProps = {
   onToggleSidebar?: () => void;
@@ -17,8 +18,10 @@ type TopbarProps = {
 
 export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidden = false, isMobile = false }: TopbarProps) {
   const router = useRouter();
+  const { openHelp } = useCmsHelp();
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
-  const dropdownRef = React.useRef<any>(null);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const [logoUrl, setLogoUrl] = React.useState<string | undefined>(undefined);
   const [logoFailed, setLogoFailed] = React.useState(false);
@@ -61,29 +64,25 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
   const initials = React.useMemo(() => initialsForUser(currentUser), [currentUser]);
 
   React.useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!menuOpen) return;
 
-    const init = async () => {
-      try {
-        const mod = await import('bootstrap');
-        const Dropdown = (mod as any).Dropdown;
-        const el = document.getElementById('userDropdown');
-        if (el && Dropdown) {
-          dropdownRef.current = new Dropdown(el);
-        }
-      } catch (err) {
-        // ignore
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
       }
     };
 
-    init();
-
-    return () => {
-      try {
-        dropdownRef.current && dropdownRef.current.dispose && dropdownRef.current.dispose();
-      } catch (e) {}
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
     };
-  }, []);
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   const handleLogout = () => {
     setShowLogoutConfirm(false);
@@ -128,50 +127,59 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
           )}
         </div>
 
-        <div className="d-flex align-items-center gap-2">
-        <div className="dropdown">
+        <div className="cms-topbar__user-menu-wrap" ref={menuRef}>
           <button
-            className="btn p-0 border-0 rounded-circle overflow-hidden d-flex align-items-center justify-content-center cms-topbar__user-btn"
             type="button"
-            id="userDropdown"
-            aria-expanded="false"
-            style={{ lineHeight: 0 }}
-            onClick={() => dropdownRef.current?.toggle && dropdownRef.current.toggle()}
+            className="cms-topbar__user-btn"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            aria-label="User menu"
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt="Avatar"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-            ) : (
-              <span style={{ color: "#fff", fontWeight: 800, fontSize: "0.85rem", letterSpacing: 0.5 }}>
-                {initials}
-              </span>
-            )}
+            <span className="cms-topbar__user-avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="" />
+              ) : (
+                <span className="cms-topbar__user-initials">{initials}</span>
+              )}
+            </span>
           </button>
 
-          <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-            <li>
-              <Link href="/settings/account" className="dropdown-item">
-                Account Settings
+          {menuOpen ? (
+            <div className="cms-topbar__user-menu" role="menu" aria-label="User menu">
+              <Link
+                href="/settings/account"
+                className="cms-topbar__user-menu-item"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+              >
+                Account
               </Link>
-            </li>
-            <li>
-              <Link href="" className="dropdown-item">
+              <button
+                type="button"
+                className="cms-topbar__user-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openHelp();
+                }}
+              >
                 Help
-              </Link>
-            </li>
-            <li>
-              <hr className="dropdown-divider" />
-            </li>
-            <li>
-              <button className="dropdown-item" onClick={() => setShowLogoutConfirm(true)}>
+              </button>
+              <hr className="cms-topbar__user-menu-divider" />
+              <button
+                type="button"
+                className="cms-topbar__user-menu-item cms-topbar__user-menu-item--logout"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setShowLogoutConfirm(true);
+                }}
+              >
                 Logout
-            </button>
-          </li>
-        </ul>
-        </div>
+              </button>
+            </div>
+          ) : null}
         </div>
         </div>
       </nav>
