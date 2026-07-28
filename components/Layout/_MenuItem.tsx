@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PublicMenuItem } from "@/services/publicPageService";
+import { useRouter } from "next/router";
+import type { PublicMenuItem } from "@/services/publicPageService";
 import { resolvePublicMenuHref } from "@/lib/publicMenuLinks";
+import { prefetchPublicRoute } from "@/lib/prefetchPublicRoute";
 
 export default function MenuItem({
   item,
@@ -14,7 +16,19 @@ export default function MenuItem({
   isMobile?: boolean;
   onNavigate?: () => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [pressed, setPressed] = useState(false);
+
+  useEffect(() => {
+    const reset = () => setPressed(false);
+    router.events.on("routeChangeComplete", reset);
+    router.events.on("routeChangeError", reset);
+    return () => {
+      router.events.off("routeChangeComplete", reset);
+      router.events.off("routeChangeError", reset);
+    };
+  }, [router]);
 
   const href = resolvePublicMenuHref(item);
   const isInternal = item.type === "page";
@@ -41,7 +55,7 @@ export default function MenuItem({
 
   const normalizePath = (url: string) => {
     try {
-      return new URL(url).pathname;
+      return new URL(url, "http://local").pathname;
     } catch {
       return url;
     }
@@ -51,10 +65,16 @@ export default function MenuItem({
   const isCurrent =
     isInternal &&
     (currentPath === hrefPath ||
-      currentPath.startsWith(hrefPath + "/"));
+      currentPath.startsWith(hrefPath + "/") ||
+      (hrefPath !== "/" && currentPath.split("?")[0] === hrefPath));
 
   const handleLinkClick = () => {
+    setPressed(true);
     if (isMobile) onNavigate?.();
+  };
+
+  const handlePrefetch = () => {
+    if (isInternal) prefetchPublicRoute(router, href);
   };
 
   const handleToggleClick = (e: React.MouseEvent) => {
@@ -65,13 +85,22 @@ export default function MenuItem({
 
   return (
     <li
-      className={`menu-item ${isCurrent ? "current" : ""} ${
-        open ? "open" : ""
+      className={`menu-item ${isCurrent ? "current" : ""} ${open ? "open" : ""} ${
+        pressed ? "menu-item--pressed" : ""
       }`}
     >
       <div className="menu-row">
         {isInternal ? (
-          <Link href={href} className="menu-link" onClick={handleLinkClick}>
+          <Link
+            href={href}
+            className="menu-link"
+            prefetch
+            scroll
+            onClick={handleLinkClick}
+            onMouseEnter={handlePrefetch}
+            onFocus={handlePrefetch}
+            onTouchStart={handlePrefetch}
+          >
             <span>{item.label}</span>
             {item.label.toLowerCase().includes("news") && (
               <span className="menu-link__dot" aria-hidden="true" />

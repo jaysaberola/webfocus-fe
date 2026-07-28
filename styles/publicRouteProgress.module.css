@@ -1,0 +1,38 @@
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%);
+  transition: opacity 0.12s ease;
+}
+
+.barActive {
+  opacity: 1;
+  animation: publicRouteProgress 0.7s ease-out forwards;
+}
+
+@keyframes publicRouteProgress {
+  0% {
+    transform: scaleX(0.08);
+  }
+  35% {
+    transform: scaleX(0.55);
+  }
+  100% {
+    transform: scaleX(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barActive {
+    animation: none;
+    transform: scaleX(0.75);
+  }
+}

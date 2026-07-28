@@ -6,6 +6,7 @@ import { PublicAlbum } from "@/services/publicPageService";
 import ToastHost from "@/components/UI/ToastHost";
 import PublicCartDrawer from "@/components/Cart/PublicCartDrawer";
 import PrivacyConsentBanner from "@/components/Layout/PrivacyConsentBanner";
+import PublicRouteProgress from "@/components/Layout/PublicRouteProgress";
 import { PublicCartDrawerProvider } from "@/components/Cart/PublicCartDrawerContext";
 import Head from "next/head";
 import { useEffect, useState } from "react";
@@ -89,6 +90,7 @@ export default function LandingPageLayout({
           ) : null}
         </Head>
 
+        <PublicRouteProgress />
         <LandingTopbar />
 
         {!hideBanner && (

@@ -50,6 +50,17 @@ body {
   pointer-events: none;
 }
 
+.nav-list :global(.menu-link) {
+  border-radius: 999px;
+  transition: background-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
+}
+
+.nav-list :global(.menu-link:active),
+.nav-list :global(.menu-item--pressed > .menu-row > .menu-link) {
+  transform: scale(0.97);
+  background: rgba(37, 99, 235, 0.1);
+}
+
 /* Home CMS scroll reveal — opacity only to avoid layout shift */
 .public-page-content .wsi-reveal {
   opacity: 0;

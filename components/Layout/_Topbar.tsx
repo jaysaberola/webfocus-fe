@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import Menu from "./_Menu";
 import HeaderSearch from "./HeaderSearch";
 import SignInDropdown from "@/components/Auth/SignInDropdown";
@@ -9,10 +10,12 @@ import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
 import { useStoredPublicAuthState } from "@/lib/publicAuthState";
+import { CORE_PUBLIC_ROUTES, prefetchPublicRoutes } from "@/lib/prefetchPublicRoute";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
 
 export default function LandingTopbar() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
@@ -22,6 +25,10 @@ export default function LandingTopbar() {
   const unreadNotifications = usePortalUnreadCount(isCustomerLoggedIn);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
+
+  useEffect(() => {
+    prefetchPublicRoutes(router, CORE_PUBLIC_ROUTES);
+  }, [router]);
 
   useEffect(() => {
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
@@ -71,7 +78,7 @@ export default function LandingTopbar() {
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
       <div className={styles["topbar-inner"]}>
         <div className={styles.left}>
-          <Link href="/public/home" className={styles.brand} onClick={closeMobileMenu} aria-label="WebFocus Solutions, Inc.">
+          <Link href="/public/home" className={styles.brand} onClick={closeMobileMenu} aria-label="WebFocus Solutions, Inc." prefetch>
             {!logoFailed ? (
               <img
                 src={LOGO_SRC}

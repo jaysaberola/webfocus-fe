@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { getActiveMenu, PublicMenu } from "@/services/publicPageService";
+import type { PublicMenu } from "@/services/publicPageService";
+import {
+  collectPublicMenuHrefs,
+  getActiveMenuCached,
+  readStoredPublicMenu,
+} from "@/lib/publicMenuCache";
+import { prefetchPublicRoutes } from "@/lib/prefetchPublicRoute";
 import MenuItem from "./_MenuItem";
 
 const NAV_SKELETON_LABELS = ["Home", "About Us", "Services", "News"];
@@ -13,13 +19,26 @@ export default function Menu({
   onNavigate?: () => void;
 }) {
   const router = useRouter();
-  const [menu, setMenu] = useState<PublicMenu | null>(null);
+  const [menu, setMenu] = useState<PublicMenu | null>(() => readStoredPublicMenu());
 
   useEffect(() => {
-    getActiveMenu()
-      .then((res) => setMenu(res.data.data))
-      .catch(() => setMenu(null));
-  }, []);
+    let alive = true;
+
+    getActiveMenuCached()
+      .then((data) => {
+        if (!alive || !data) return;
+        setMenu(data);
+        prefetchPublicRoutes(router, collectPublicMenuHrefs(data.items));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setMenu((current) => current ?? readStoredPublicMenu());
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [router]);
 
   if (!menu) {
     return (
