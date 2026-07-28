@@ -2,24 +2,25 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   fetchCurrentCustomer,
-  getStoredCustomer,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { getCurrentUserCached } from "@/lib/currentUser";
 import { isAdminLikeUser } from "@/lib/userRoles";
-import { scheduleIdleTask } from "@/lib/publicAuthState";
+import { scheduleIdleTask, useStoredPublicAuthState } from "@/lib/publicAuthState";
 
 export function useCustomerPortalAuth() {
   const router = useRouter();
-  const [customer, setCustomer] = useState<PublicCustomer | null>(() =>
-    typeof window === "undefined" ? null : getStoredCustomer()
-  );
-  const [loading, setLoading] = useState(() => {
-    if (typeof window === "undefined") return true;
-    if (!readStoredAuthToken()) return false;
-    return !getStoredCustomer();
-  });
+  const { customer: storedCustomer } = useStoredPublicAuthState();
+  const [customer, setCustomer] = useState<PublicCustomer | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (storedCustomer) {
+      setCustomer(storedCustomer);
+      setLoading(false);
+    }
+  }, [storedCustomer]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -62,14 +63,8 @@ export function useCustomerPortalAuth() {
           if (alive) setLoading(false);
         });
 
-    const cachedCustomer = getStoredCustomer();
-    if (cachedCustomer) {
-      setCustomer(cachedCustomer);
-      setLoading(false);
-      const cancelIdle = scheduleIdleTask(() => {
-        verifySession();
-      }, 1500);
-
+    if (storedCustomer) {
+      const cancelIdle = scheduleIdleTask(verifySession, 1500);
       return () => {
         alive = false;
         cancelIdle();
@@ -81,7 +76,7 @@ export function useCustomerPortalAuth() {
     return () => {
       alive = false;
     };
-  }, [router.isReady, router.asPath]);
+  }, [router.isReady, router.asPath, storedCustomer]);
 
   return { customer, loading, setCustomer };
 }

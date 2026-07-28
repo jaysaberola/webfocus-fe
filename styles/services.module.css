@@ -212,6 +212,7 @@
 .introTab_amber.introTabActive .introTabIcon { background: #ea580c; color: #fff; }
 
 .tabContent {
+  min-height: 28rem;
   animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1334,6 +1335,7 @@
   position: relative;
   overflow: hidden;
   aspect-ratio: 400 / 260;
+  background: #e2e8f0;
 }
 
 .templateCatalogImage {

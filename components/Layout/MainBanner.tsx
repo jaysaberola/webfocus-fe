@@ -406,7 +406,7 @@ export default function MainBanner({ album }: MainBannerProps) {
                   sizes="100vw"
                   fetchPriority={index === 0 && isActive ? "high" : "auto"}
                   loading={index === 0 ? "eager" : "lazy"}
-                  decoding={index === 0 ? "sync" : "async"}
+                  decoding={index === 0 ? "async" : "async"}
                 />
               )}
             </div>

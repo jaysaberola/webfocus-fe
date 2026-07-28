@@ -2,14 +2,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   fetchCurrentCustomer,
+  storeCustomer,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
-import type { User } from "@/services/accountService";
 import { customerDisplayName } from "@/lib/customerPortal/mockData";
-import { getCurrentUserCached, resolveAvatarUrl } from "@/lib/currentUser";
+import { getCurrentUserCached, notifyCurrentUserUpdated, resolveAvatarUrl } from "@/lib/currentUser";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { isAdminLikeUser } from "@/lib/userRoles";
-import { readStoredPublicAuthState, scheduleIdleTask } from "@/lib/publicAuthState";
+import { scheduleIdleTask, useStoredPublicAuthState } from "@/lib/publicAuthState";
 import { signOutAdminAndStayOnSite, signOutCustomerAndStayOnSite } from "@/lib/publicSignOut";
 import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/signInDropdown.module.css";
@@ -20,36 +20,14 @@ type SignInDropdownProps = {
   onNavigate?: () => void;
 };
 
-function readInitialAuthState() {
-  return readStoredPublicAuthState();
-}
-
 export default function SignInDropdown({ buttonClassName, chevronClassName, onNavigate }: SignInDropdownProps) {
-  const initialAuth = readInitialAuthState();
+  const { customer, adminUser } = useStoredPublicAuthState();
   const [open, setOpen] = useState(false);
-  const [customer, setCustomer] = useState<PublicCustomer | null>(initialAuth.customer);
-  const [adminUser, setAdminUser] = useState<User | null>(initialAuth.adminUser);
   const rootRef = useRef<HTMLDivElement>(null);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
-    const syncFromStorage = () => {
-      const next = readStoredPublicAuthState();
-      setCustomer(next.customer);
-      setAdminUser(next.adminUser);
-    };
-
-    window.addEventListener("public-customer-updated", syncFromStorage);
-    window.addEventListener("cms4:user-updated", syncFromStorage);
-    window.addEventListener("storage", syncFromStorage);
-
-    if (!readStoredAuthToken()) {
-      return () => {
-        window.removeEventListener("public-customer-updated", syncFromStorage);
-        window.removeEventListener("cms4:user-updated", syncFromStorage);
-        window.removeEventListener("storage", syncFromStorage);
-      };
-    }
+    if (!readStoredAuthToken()) return;
 
     let alive = true;
 
@@ -57,35 +35,27 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
       fetchCurrentCustomer({ silent: true })
         .then((user) => {
           if (!alive) return;
-          setCustomer(user);
-          setAdminUser(null);
+          storeCustomer(user, { notify: true });
         })
         .catch(async () => {
           if (!alive) return;
-          setCustomer(null);
+          storeCustomer(null, { notify: true });
 
           try {
             const user = await getCurrentUserCached();
             if (isAdminLikeUser(user)) {
-              setAdminUser(user);
-              return;
+              notifyCurrentUserUpdated();
             }
           } catch {
             // ignore
           }
-
-          setAdminUser(null);
         });
     };
 
     const cancelIdle = scheduleIdleTask(refreshSession, 2500);
-
     return () => {
       alive = false;
       cancelIdle();
-      window.removeEventListener("public-customer-updated", syncFromStorage);
-      window.removeEventListener("cms4:user-updated", syncFromStorage);
-      window.removeEventListener("storage", syncFromStorage);
     };
   }, []);
 
@@ -142,9 +112,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           onClick={() => setOpen((value) => !value)}
         >
           <span className={styles.avatar}>{adminInitial}</span>
-          <span className={styles.loggedInName} suppressHydrationWarning>
-            {adminDisplayName}
-          </span>
+          <span className={styles.loggedInName}>{adminDisplayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
         {open && (
@@ -188,18 +156,16 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           onClick={() => setOpen((value) => !value)}
         >
           <span className={styles.avatar}>
-            {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" /> : initial}
+            {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" width={24} height={24} /> : initial}
           </span>
-          <span className={styles.loggedInName} suppressHydrationWarning>
-            {displayName}
-          </span>
+          <span className={styles.loggedInName}>{displayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
         {open && (
           <div className={styles.accountPanel} role="menu" aria-label="Account menu">
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
-                {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" /> : initial}
+                {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" width={40} height={40} /> : initial}
               </span>
               <div className={styles.accountMeta}>
                 <p className={styles.accountName}>{displayName}</p>

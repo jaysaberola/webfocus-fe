@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { useState } from "react";
-import Image from "next/image";
 import {
   TEMPLATE_GROUPS,
   WEBDESIGN_PACKAGES,
@@ -60,11 +59,13 @@ export default function ServicesWebDesignTab() {
                       aria-label={`Preview ${template.label} template`}
                     >
                       <div className={styles.templateCatalogImageWrap}>
-                        <Image
+                        <img
                           src={template.image}
                           alt={template.alt}
                           width={400}
                           height={260}
+                          loading="lazy"
+                          decoding="async"
                           className={styles.templateCatalogImage}
                         />
                         <span className={styles.templateCatalogPreview}>Preview</span>

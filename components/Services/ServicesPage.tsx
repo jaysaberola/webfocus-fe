@@ -1,19 +1,11 @@
-import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import ServicesIntro, { type ServiceTab } from "./ServicesIntro";
 import ServicesHostingTab from "./ServicesHostingTab";
+import ServicesWebDesignTab from "./ServicesWebDesignTab";
+import ServicesDomainsTab from "./ServicesDomainsTab";
+import ServicesDmsTab from "./ServicesDmsTab";
 import styles from "@/styles/services.module.css";
-
-const ServicesWebDesignTab = dynamic(() => import("./ServicesWebDesignTab"), {
-  loading: () => null,
-});
-const ServicesDomainsTab = dynamic(() => import("./ServicesDomainsTab"), {
-  loading: () => null,
-});
-const ServicesDmsTab = dynamic(() => import("./ServicesDmsTab"), {
-  loading: () => null,
-});
 
 const TAB_QUERY_MAP: Record<string, ServiceTab> = {
   hosting: "hosting",

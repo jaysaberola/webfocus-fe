@@ -8,8 +8,7 @@ import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
-import { readStoredAuthToken } from "@/lib/authToken";
-import { isPublicSiteUserLoggedIn, readStoredPublicAuthState } from "@/lib/publicAuthState";
+import { useStoredPublicAuthState } from "@/lib/publicAuthState";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
 
@@ -17,37 +16,22 @@ export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
-  const [isLoggedIn, setIsLoggedIn] = useState(() =>
-    typeof window === "undefined" ? false : isPublicSiteUserLoggedIn()
-  );
-  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(() =>
-    typeof window === "undefined" ? false : Boolean(readStoredAuthToken() && readStoredPublicAuthState().customer)
-  );
+  const { customer, adminUser } = useStoredPublicAuthState();
+  const isLoggedIn = Boolean(customer || adminUser);
+  const isCustomerLoggedIn = Boolean(customer);
   const unreadNotifications = usePortalUnreadCount(isCustomerLoggedIn);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
-    const refreshAuth = () => {
-      const auth = readStoredPublicAuthState();
-      setIsLoggedIn(Boolean(auth.customer || auth.adminUser));
-      setIsCustomerLoggedIn(Boolean(readStoredAuthToken() && auth.customer));
-    };
 
     refreshCart();
-    refreshAuth();
     window.addEventListener("public-cart-updated", refreshCart);
     window.addEventListener("storage", refreshCart);
-    window.addEventListener("public-customer-updated", refreshAuth);
-    window.addEventListener("storage", refreshAuth);
-    window.addEventListener("cms4:user-updated", refreshAuth);
     return () => {
       window.removeEventListener("public-cart-updated", refreshCart);
       window.removeEventListener("storage", refreshCart);
-      window.removeEventListener("public-customer-updated", refreshAuth);
-      window.removeEventListener("storage", refreshAuth);
-      window.removeEventListener("cms4:user-updated", refreshAuth);
     };
   }, []);
 
