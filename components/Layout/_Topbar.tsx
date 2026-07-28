@@ -9,25 +9,20 @@ import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
 import { readStoredAuthToken } from "@/lib/authToken";
-import { readStoredCurrentUser } from "@/lib/currentUser";
-import { getStoredCustomer } from "@/services/publicCustomerService";
-import { isAdminLikeUser } from "@/lib/userRoles";
+import { isPublicSiteUserLoggedIn, readStoredPublicAuthState } from "@/lib/publicAuthState";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
-
-function isPublicSiteUserLoggedIn() {
-  if (!readStoredAuthToken()) return false;
-  if (getStoredCustomer()) return true;
-  const admin = readStoredCurrentUser();
-  return Boolean(admin && isAdminLikeUser(admin));
-}
 
 export default function LandingTopbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartItemsCount, setCartItemsCount] = useState(0);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(() =>
+    typeof window === "undefined" ? false : isPublicSiteUserLoggedIn()
+  );
+  const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(() =>
+    typeof window === "undefined" ? false : Boolean(readStoredAuthToken() && readStoredPublicAuthState().customer)
+  );
   const unreadNotifications = usePortalUnreadCount(isCustomerLoggedIn);
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
@@ -35,10 +30,9 @@ export default function LandingTopbar() {
   useEffect(() => {
     const refreshCart = () => setCartItemsCount(cartCount(readPublicCart()));
     const refreshAuth = () => {
-      const loggedIn = isPublicSiteUserLoggedIn();
-      const customerLoggedIn = Boolean(readStoredAuthToken() && getStoredCustomer());
-      setIsLoggedIn(loggedIn);
-      setIsCustomerLoggedIn(customerLoggedIn);
+      const auth = readStoredPublicAuthState();
+      setIsLoggedIn(Boolean(auth.customer || auth.adminUser));
+      setIsCustomerLoggedIn(Boolean(readStoredAuthToken() && auth.customer));
     };
 
     refreshCart();
@@ -102,6 +96,7 @@ export default function LandingTopbar() {
                 width={130}
                 height={30}
                 decoding="async"
+                fetchPriority="high"
                 onError={() => setLogoFailed(true)}
               />
             ) : (

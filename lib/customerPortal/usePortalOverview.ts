@@ -17,7 +17,7 @@ export function usePortalOverview() {
   const [stats, setStats] = useState<PortalOverviewStats>(EMPTY_STATS);
   const [alerts, setAlerts] = useState<PortalOverviewAlert[]>([]);
   const [services, setServices] = useState<PortalServiceStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

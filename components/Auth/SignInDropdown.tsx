@@ -2,14 +2,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   fetchCurrentCustomer,
-  getStoredCustomer,
-  PublicCustomer,
+  type PublicCustomer,
 } from "@/services/publicCustomerService";
-import { User } from "@/services/accountService";
+import type { User } from "@/services/accountService";
 import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import { getCurrentUserCached, resolveAvatarUrl } from "@/lib/currentUser";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { isAdminLikeUser } from "@/lib/userRoles";
+import { readStoredPublicAuthState, scheduleIdleTask } from "@/lib/publicAuthState";
 import { signOutAdminAndStayOnSite, signOutCustomerAndStayOnSite } from "@/lib/publicSignOut";
 import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/signInDropdown.module.css";
@@ -20,56 +20,71 @@ type SignInDropdownProps = {
   onNavigate?: () => void;
 };
 
+function readInitialAuthState() {
+  return readStoredPublicAuthState();
+}
+
 export default function SignInDropdown({ buttonClassName, chevronClassName, onNavigate }: SignInDropdownProps) {
+  const initialAuth = readInitialAuthState();
   const [open, setOpen] = useState(false);
-  const [customer, setCustomer] = useState<PublicCustomer | null>(null);
-  const [adminUser, setAdminUser] = useState<User | null>(null);
+  const [customer, setCustomer] = useState<PublicCustomer | null>(initialAuth.customer);
+  const [adminUser, setAdminUser] = useState<User | null>(initialAuth.adminUser);
   const rootRef = useRef<HTMLDivElement>(null);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
   useEffect(() => {
     const syncFromStorage = () => {
-      if (!readStoredAuthToken()) {
-        setCustomer(null);
-        setAdminUser(null);
-        return;
-      }
-      setCustomer(getStoredCustomer());
+      const next = readStoredPublicAuthState();
+      setCustomer(next.customer);
+      setAdminUser(next.adminUser);
     };
 
-    syncFromStorage();
+    window.addEventListener("public-customer-updated", syncFromStorage);
+    window.addEventListener("cms4:user-updated", syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
 
-    if (!readStoredAuthToken()) return;
+    if (!readStoredAuthToken()) {
+      return () => {
+        window.removeEventListener("public-customer-updated", syncFromStorage);
+        window.removeEventListener("cms4:user-updated", syncFromStorage);
+        window.removeEventListener("storage", syncFromStorage);
+      };
+    }
 
     let alive = true;
-    fetchCurrentCustomer({ silent: true, force: true })
-      .then((user) => {
-        if (!alive) return;
-        setCustomer(user);
-        setAdminUser(null);
-      })
-      .catch(async () => {
-        if (!alive) return;
-        setCustomer(null);
 
-        try {
-          const user = await getCurrentUserCached({ force: true });
-          if (isAdminLikeUser(user)) {
-            setAdminUser(user);
-            return;
+    const refreshSession = () => {
+      fetchCurrentCustomer({ silent: true })
+        .then((user) => {
+          if (!alive) return;
+          setCustomer(user);
+          setAdminUser(null);
+        })
+        .catch(async () => {
+          if (!alive) return;
+          setCustomer(null);
+
+          try {
+            const user = await getCurrentUserCached();
+            if (isAdminLikeUser(user)) {
+              setAdminUser(user);
+              return;
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
-        }
 
-        setAdminUser(null);
-      });
+          setAdminUser(null);
+        });
+    };
 
-    window.addEventListener("public-customer-updated", syncFromStorage);
-    window.addEventListener("storage", syncFromStorage);
+    const cancelIdle = scheduleIdleTask(refreshSession, 2500);
+
     return () => {
       alive = false;
+      cancelIdle();
       window.removeEventListener("public-customer-updated", syncFromStorage);
+      window.removeEventListener("cms4:user-updated", syncFromStorage);
       window.removeEventListener("storage", syncFromStorage);
     };
   }, []);
@@ -127,7 +142,9 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           onClick={() => setOpen((value) => !value)}
         >
           <span className={styles.avatar}>{adminInitial}</span>
-          <span className={styles.loggedInName}>{adminDisplayName}</span>
+          <span className={styles.loggedInName} suppressHydrationWarning>
+            {adminDisplayName}
+          </span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
         {open && (
@@ -173,7 +190,9 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           <span className={styles.avatar}>
             {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" /> : initial}
           </span>
-          <span className={styles.loggedInName}>{displayName}</span>
+          <span className={styles.loggedInName} suppressHydrationWarning>
+            {displayName}
+          </span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
         {open && (

@@ -44,6 +44,13 @@
   font-size: var(--cp-text-base);
 }
 
+.loadingHint {
+  composes: customerPortal;
+  margin: 0;
+  font-size: var(--cp-text-sm);
+  color: var(--cp-slate-500);
+}
+
 .tabNav {
   composes: customerPortal;
   display: flex;

@@ -3,6 +3,7 @@ import {
   fetchPortalUnreadNotificationCount,
   PORTAL_NOTIFICATIONS_UPDATED_EVENT,
 } from "@/services/customerPortalService";
+import { scheduleIdleTask } from "@/lib/publicAuthState";
 
 export function usePortalUnreadCount(enabled: boolean) {
   const [count, setCount] = useState(0);
@@ -25,12 +26,14 @@ export function usePortalUnreadCount(enabled: boolean) {
         });
     };
 
-    refresh();
+    const cancelIdle = scheduleIdleTask(refresh, 3000);
+
     window.addEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refresh);
     window.addEventListener("public-customer-updated", refresh);
 
     return () => {
       cancelled = true;
+      cancelIdle();
       window.removeEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refresh);
       window.removeEventListener("public-customer-updated", refresh);
     };
