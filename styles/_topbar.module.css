@@ -364,10 +364,16 @@
   border: 1px solid rgba(15, 23, 42, 0.14);
   background: #ffffff;
   color: #334155;
+  flex-shrink: 0;
   text-decoration: none;
   cursor: pointer;
   padding: 0;
   transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.notify-btnReserved {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .cart-btn:hover,

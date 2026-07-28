@@ -165,26 +165,32 @@ export default function LandingTopbar() {
               </span>
             </button>
 
-            {isLoggedIn ? (
-              <Link
-                href="/public/dashboard?tab=notification"
-                className={styles["notify-btn"]}
-                aria-label={
-                  unreadNotifications > 0
+            <Link
+              href={isLoggedIn ? "/public/dashboard?tab=notification" : "/public/login"}
+              className={`${styles["notify-btn"]}${isLoggedIn ? "" : ` ${styles["notify-btnReserved"]}`}`}
+              aria-label={
+                isLoggedIn
+                  ? unreadNotifications > 0
                     ? `Notifications (${unreadNotifications} unread)`
                     : "Notifications"
-                }
-                title="Notifications"
+                  : "Notifications"
+              }
+              aria-hidden={!isLoggedIn}
+              tabIndex={isLoggedIn ? 0 : -1}
+              title="Notifications"
+              prefetch={isLoggedIn}
+              onClick={(event) => {
+                if (!isLoggedIn) event.preventDefault();
+              }}
+            >
+              <i className="fa-regular fa-bell" aria-hidden="true" />
+              <span
+                className={`${styles["cart-badge"]}${unreadNotifications > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
+                aria-hidden={unreadNotifications <= 0}
               >
-                <i className="fa-regular fa-bell" aria-hidden="true" />
-                <span
-                  className={`${styles["cart-badge"]}${unreadNotifications > 0 ? "" : ` ${styles["cart-badgeHidden"]}`}`}
-                  aria-hidden={unreadNotifications <= 0}
-                >
-                  {unreadNotifications > 0 ? unreadNotifications : 0}
-                </span>
-              </Link>
-            ) : null}
+                {unreadNotifications > 0 ? unreadNotifications : 0}
+              </span>
+            </Link>
           </div>
 
           <button

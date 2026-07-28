@@ -96,8 +96,10 @@ export default function MainBanner({ album }: MainBannerProps) {
 
   const [visibilityOverrides, setVisibilityOverrides] = useState<
     Record<string, { is_active?: boolean }>
-  >({});
-  const [fontOverrides, setFontOverrides] = useState<Record<string, any>>({});
+  >(() => readJsonStorage(HOME_BANNER_VISIBILITY_STORAGE_KEY, {}));
+  const [fontOverrides, setFontOverrides] = useState<Record<string, any>>(() =>
+    readJsonStorage(HOME_BANNER_FONT_STORAGE_KEY, {})
+  );
 
   useEffect(() => {
     setVisibilityOverrides(readJsonStorage(HOME_BANNER_VISIBILITY_STORAGE_KEY, {}));

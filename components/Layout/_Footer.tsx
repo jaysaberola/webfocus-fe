@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getFooter, PublicFooter } from "@/services/publicPageService";
+import type { PublicFooter } from "@/services/publicPageService";
+import { getFooterCached, useStoredPublicFooter } from "@/lib/publicFooterCache";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 
 function buildFooterHtml(footer: PublicFooter | null) {
@@ -19,13 +20,25 @@ function buildFooterHtml(footer: PublicFooter | null) {
 }
 
 export default function LandingFooter() {
-  const [footer, setFooter] = useState<PublicFooter | null>(null);
+  const cachedFooter = useStoredPublicFooter();
+  const [fetchedFooter, setFetchedFooter] = useState<PublicFooter | null>(null);
+  const footer = fetchedFooter ?? cachedFooter;
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    getFooter()
-      .then((res) => setFooter(res.data.data))
-      .catch(() => setFooter(null));
+    let alive = true;
+
+    getFooterCached()
+      .then((data) => {
+        if (alive && data) setFetchedFooter(data);
+      })
+      .catch(() => {
+        if (!alive) return;
+      });
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const html = useMemo(() => buildFooterHtml(footer), [footer]);
@@ -47,13 +60,13 @@ export default function LandingFooter() {
     });
   }, [html]);
 
-  if (!html) return null;
+  if (!html) {
+    return <footer className="public-site-footer-host public-site-footer-host--placeholder" aria-hidden="true" />;
+  }
 
   return (
-    <div
-      ref={contentRef}
-      className="public-site-footer-host"
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+    <footer className="public-site-footer-host">
+      <div ref={contentRef} dangerouslySetInnerHTML={{ __html: html }} />
+    </footer>
   );
 }

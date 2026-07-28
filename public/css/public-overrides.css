@@ -38,6 +38,16 @@ body {
   padding-bottom: 0 !important;
 }
 
+.public-site-main.pt-0 {
+  min-height: calc(100dvh - 80px);
+}
+
+.public-site-footer-host--placeholder {
+  min-height: 220px;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 /* Reserve nav width while the menu API loads */
 .nav-list :global(.menu-link--skeleton) {
   display: inline-flex;

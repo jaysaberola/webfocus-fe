@@ -18,16 +18,6 @@
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 16px 40px rgba(15, 23, 42, 0.07);
   overflow: hidden;
-  animation: introShellIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@keyframes introShellIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 .introAccent {
@@ -213,7 +203,6 @@
 
 .tabContent {
   min-height: 28rem;
-  animation: fadeIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -313,6 +302,7 @@
 
 .hostingSectionHead {
   margin-bottom: 1rem;
+  min-height: 3rem;
 }
 
 .hostingSectionTitle {
@@ -334,8 +324,13 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-items: stretch;
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.serviceCardGridStable {
+  contain: layout style;
 }
 
 .serviceCardGrid .serviceCard,
@@ -374,7 +369,12 @@
   border-radius: 14px;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
   overflow: hidden;
-  min-height: 100%;
+  min-height: 252px;
+}
+
+.serviceCardBodySpacer {
+  flex: 1 1 auto;
+  min-height: 3.5rem;
 }
 
 .serviceCardTop {

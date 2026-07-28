@@ -4,7 +4,7 @@ import type { PublicMenu } from "@/services/publicPageService";
 import {
   collectPublicMenuHrefs,
   getActiveMenuCached,
-  readStoredPublicMenu,
+  useStoredPublicMenu,
 } from "@/lib/publicMenuCache";
 import { prefetchPublicRoutes } from "@/lib/prefetchPublicRoute";
 import MenuItem from "./_MenuItem";
@@ -19,7 +19,9 @@ export default function Menu({
   onNavigate?: () => void;
 }) {
   const router = useRouter();
-  const [menu, setMenu] = useState<PublicMenu | null>(() => readStoredPublicMenu());
+  const cachedMenu = useStoredPublicMenu();
+  const [fetchedMenu, setFetchedMenu] = useState<PublicMenu | null>(null);
+  const menu = fetchedMenu ?? cachedMenu;
 
   useEffect(() => {
     let alive = true;
@@ -27,12 +29,11 @@ export default function Menu({
     getActiveMenuCached()
       .then((data) => {
         if (!alive || !data) return;
-        setMenu(data);
+        setFetchedMenu(data);
         prefetchPublicRoutes(router, collectPublicMenuHrefs(data.items));
       })
       .catch(() => {
         if (!alive) return;
-        setMenu((current) => current ?? readStoredPublicMenu());
       });
 
     return () => {

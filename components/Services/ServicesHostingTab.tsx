@@ -13,6 +13,13 @@ import {
   type PublicHostingAddon,
   type PublicHostingPlan,
 } from "@/services/publicHostingService";
+import {
+  readCachedHostingPlans,
+  readCachedHostingTypeAddons,
+  readCachedUniversalHostingAddons,
+  readPublicHostingCache,
+  storePublicHostingCache,
+} from "@/lib/publicHostingCache";
 import { useServiceCart } from "./useServiceCart";
 import { serviceCardGridClass } from "./serviceCardGridClass";
 import styles from "@/styles/services.module.css";
@@ -56,28 +63,37 @@ function mapFallbackUniversalAddons(): PublicHostingAddon[] {
   }));
 }
 
+function initialPlans(type: HostingPlanType) {
+  return mapFallbackPlans(type);
+}
+
+function initialTypeAddons(type: HostingPlanType) {
+  return mapFallbackAddons(type);
+}
+
+function initialUniversalAddons() {
+  return mapFallbackUniversalAddons();
+}
+
 export default function ServicesHostingTab() {
   const [hostingType, setHostingType] = useState<HostingPlanType>("cloud");
-  const [plans, setPlans] = useState<PublicHostingPlan[]>(() => mapFallbackPlans("cloud"));
-  const [typeAddons, setTypeAddons] = useState<PublicHostingAddon[]>(() => mapFallbackAddons("cloud"));
-  const [universalAddons, setUniversalAddons] = useState<PublicHostingAddon[]>(() =>
-    mapFallbackUniversalAddons()
-  );
-  const [refreshing, setRefreshing] = useState(false);
-  const [usingFallback, setUsingFallback] = useState(true);
+  const [plans, setPlans] = useState<PublicHostingPlan[]>(() => initialPlans("cloud"));
+  const [typeAddons, setTypeAddons] = useState<PublicHostingAddon[]>(() => initialTypeAddons("cloud"));
+  const [universalAddons, setUniversalAddons] = useState<PublicHostingAddon[]>(() => initialUniversalAddons());
   const { addToCart } = useServiceCart();
 
   useEffect(() => {
     let cancelled = false;
 
-    setPlans(mapFallbackPlans(hostingType));
-    setTypeAddons(mapFallbackAddons(hostingType));
-    setUniversalAddons(mapFallbackUniversalAddons());
-    setUsingFallback(true);
+    const cachedPlans = readCachedHostingPlans(hostingType);
+    const cachedTypeAddons = readCachedHostingTypeAddons(hostingType);
+    const cachedUniversalAddons = readCachedUniversalHostingAddons();
+
+    setPlans(cachedPlans ?? initialPlans(hostingType));
+    setTypeAddons(cachedTypeAddons ?? initialTypeAddons(hostingType));
+    setUniversalAddons(cachedUniversalAddons ?? initialUniversalAddons());
 
     async function loadCatalog() {
-      setRefreshing(true);
-
       try {
         const [planRows, addonRows, universalRows] = await Promise.all([
           getPublicHostingPlans(hostingType),
@@ -87,15 +103,27 @@ export default function ServicesHostingTab() {
 
         if (cancelled) return;
 
-        if (planRows.length) setPlans(planRows);
-        if (addonRows.length) setTypeAddons(addonRows);
-        if (universalRows.length) setUniversalAddons(universalRows);
-        setUsingFallback(false);
+        const nextPlans = planRows.length ? planRows : initialPlans(hostingType);
+        const nextTypeAddons = addonRows.length ? addonRows : initialTypeAddons(hostingType);
+        const nextUniversalAddons = universalRows.length ? universalRows : initialUniversalAddons();
+
+        setPlans(nextPlans);
+        setTypeAddons(nextTypeAddons);
+        setUniversalAddons(nextUniversalAddons);
+
+        const existing = readPublicHostingCache() ?? {
+          plans: {},
+          typeAddons: {},
+          universalAddons: [],
+        };
+
+        storePublicHostingCache({
+          plans: { ...existing.plans, [hostingType]: nextPlans },
+          typeAddons: { ...existing.typeAddons, [hostingType]: nextTypeAddons },
+          universalAddons: nextUniversalAddons,
+        });
       } catch {
         if (cancelled) return;
-        setUsingFallback(true);
-      } finally {
-        if (!cancelled) setRefreshing(false);
       }
     }
 
@@ -133,13 +161,6 @@ export default function ServicesHostingTab() {
         </section>
 
         <section className={styles.hostingContent}>
-          {refreshing ? <p className={styles.hostingLoading}>Updating live catalog...</p> : null}
-          {usingFallback ? (
-            <p className={styles.hostingFallbackNote}>
-              Showing cached hosting catalog while the live catalog reloads.
-            </p>
-          ) : null}
-
           <div className={styles.hostingSectionHead}>
             <h3 className={styles.hostingSectionTitle}>{sectionTitle} Plans</h3>
             <p className={styles.hostingSectionHint}>
@@ -147,7 +168,7 @@ export default function ServicesHostingTab() {
             </p>
           </div>
 
-          <div className={serviceCardGridClass(plans.length)}>
+          <div className={`${serviceCardGridClass(plans.length)} ${styles.serviceCardGridStable}`}>
             {plans.map((plan) => (
               <article key={plan.slug} className={styles.serviceCard}>
                 <div className={styles.serviceCardTop}>
@@ -191,7 +212,7 @@ export default function ServicesHostingTab() {
               </p>
             </div>
 
-            <div className={serviceCardGridClass(typeAddons.length)}>
+            <div className={`${serviceCardGridClass(typeAddons.length)} ${styles.serviceCardGridStable}`}>
               {typeAddons.map((addon) => (
                 <article key={addon.slug} className={styles.serviceCard}>
                   <div className={styles.serviceCardTop}>
@@ -206,7 +227,9 @@ export default function ServicesHostingTab() {
                     <div className={styles.serviceCardBody}>
                       <p className={styles.serviceCardDesc}>{addon.desc}</p>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className={styles.serviceCardBodySpacer} aria-hidden="true" />
+                  )}
                   <button
                     type="button"
                     className={`${styles.serviceCardBtn} ${styles.serviceCardBtnNavy}`}
@@ -231,7 +254,7 @@ export default function ServicesHostingTab() {
               </p>
             </div>
 
-            <div className={serviceCardGridClass(universalAddons.length)}>
+            <div className={`${serviceCardGridClass(universalAddons.length)} ${styles.serviceCardGridStable}`}>
               {universalAddons.map((addon) => (
                 <article key={addon.slug} className={styles.serviceCard}>
                   <div className={styles.serviceCardTop}>
