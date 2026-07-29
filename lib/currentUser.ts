@@ -1,4 +1,5 @@
 import { accountService, User } from "@/services/accountService";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 
 export const CURRENT_USER_STORAGE_KEY = "cms4.currentUser.v1";
 export const CURRENT_USER_UPDATED_EVENT = "cms4:user-updated";
@@ -76,21 +77,7 @@ export function subscribeCurrentUserUpdated(cb: () => void): () => void {
 }
 
 export function resolveAvatarUrl(avatar?: string | null): string | undefined {
-  const s = (avatar ?? "").toString().trim();
-  if (!s) return undefined;
-
-  if (s.startsWith("data:")) return s;
-  if (s.startsWith("http://") || s.startsWith("https://")) return s;
-
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  if (!base) return undefined;
-
-  if (s.startsWith("/storage/")) return `${base}${s}`;
-  if (s.startsWith("storage/")) return `${base}/${s}`;
-  if (s.startsWith("/uploads/")) return `${base}${s}`;
-  if (s.startsWith("uploads/")) return `${base}/${s}`;
-
-  return `${base}/storage/${s.replace(/^\.\/?/, "")}`;
+  return resolveStorageAssetUrl(avatar);
 }
 
 export function initialsForUser(user: Partial<User> | null | undefined): string {

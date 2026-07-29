@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { getPagesSwitcherListCached, type PageSwitcherItem } from "@/lib/pagesListCache";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  getPagesSwitcherListCached,
+  getPagesSwitcherListCachedSync,
+  prefetchPagesSwitcherList,
+  type PageSwitcherItem,
+} from "@/lib/pagesListCache";
 
 export type { PageSwitcherItem };
 
@@ -12,34 +17,45 @@ type PageSwitcherProps = {
 export default function PageSwitcher({ currentPageId, currentTitle, onSelect }: PageSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [pages, setPages] = useState<PageSwitcherItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [pages, setPages] = useState<PageSwitcherItem[]>(() => getPagesSwitcherListCachedSync() ?? []);
+  const [refreshing, setRefreshing] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open || loaded) return;
-
     let alive = true;
-    setLoading(true);
+
+    prefetchPagesSwitcherList();
     getPagesSwitcherListCached()
       .then((rows) => {
-        if (!alive) return;
-        setPages(rows);
-        setLoaded(true);
+        if (alive) setPages(rows);
       })
       .catch(() => {
-        if (!alive) return;
-        setPages([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) setPages((current) => (current.length ? current : []));
       });
 
     return () => {
       alive = false;
     };
-  }, [open, loaded]);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let alive = true;
+    setRefreshing(true);
+
+    getPagesSwitcherListCached()
+      .then((rows) => {
+        if (alive) setPages(rows);
+      })
+      .finally(() => {
+        if (alive) setRefreshing(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,13 +78,31 @@ export default function PageSwitcher({ currentPageId, currentTitle, onSelect }: 
     };
   }, [open]);
 
+  const displayPages = useMemo(() => {
+    if (!currentPageId || pages.some((page) => page.id === currentPageId)) {
+      return pages;
+    }
+
+    return [
+      {
+        id: currentPageId,
+        title: currentTitle || "Untitled page",
+        label: "",
+        visibility: "Published",
+      },
+      ...pages,
+    ];
+  }, [pages, currentPageId, currentTitle]);
+
   const filtered = query.trim()
-    ? pages.filter((page) => {
+    ? displayPages.filter((page) => {
         const needle = query.trim().toLowerCase();
         const haystack = `${page.title} ${page.label} ${page.slug || ""}`.toLowerCase();
         return haystack.includes(needle);
       })
-    : pages;
+    : displayPages;
+
+  const showLoading = open && refreshing && displayPages.length === 0;
 
   const handleSelect = (pageId: number) => {
     setOpen(false);
@@ -102,10 +136,15 @@ export default function PageSwitcher({ currentPageId, currentTitle, onSelect }: 
               autoFocus
               onChange={(event) => setQuery(event.target.value)}
             />
+            {refreshing && displayPages.length > 0 ? (
+              <span className="page-switcher__refresh-indicator" aria-hidden="true">
+                <i className="fa-solid fa-rotate" />
+              </span>
+            ) : null}
           </div>
 
           <div className="page-switcher__list">
-            {loading ? (
+            {showLoading ? (
               <div className="page-switcher__empty">Loading pages...</div>
             ) : filtered.length ? (
               filtered.map((page) => {

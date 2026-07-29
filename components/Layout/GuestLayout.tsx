@@ -12,6 +12,7 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import { getHeroPreloadImage } from "@/lib/heroBanner";
 import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import SiteFavicon from "@/components/Layout/SiteFavicon";
 
 interface LandingPageLayoutProps {
   children: React.ReactNode;
@@ -89,6 +90,7 @@ export default function LandingPageLayout({
             <link rel="preload" as="image" href={heroPreloadImage} fetchPriority="high" />
           ) : null}
         </Head>
+        <SiteFavicon />
 
         <PublicRouteProgress />
         <LandingTopbar />

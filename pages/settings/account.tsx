@@ -4,7 +4,7 @@ import AdminLayout from "@/components/Layout/AdminLayout";
 import { useEffect } from "react";
 import { accountService } from "@/services/accountService";
 import { toast } from "@/lib/toast";
-import { notifyCurrentUserUpdated, storeCurrentUser } from "@/lib/currentUser";
+import { notifyCurrentUserUpdated, resolveAvatarUrl, storeCurrentUser } from "@/lib/currentUser";
 import CmsModuleShell from "@/components/Modules/CmsModuleShell";
 import {
   CmsSettingsField,
@@ -41,8 +41,8 @@ function AccountSettingsPage() {
   const avatarUrl = avatarFile
     ? URL.createObjectURL(avatarFile)
     : avatarFileName && avatarFileName !== "300x300 w.jpg"
-    ? `${process.env.NEXT_PUBLIC_API_URL}/storage/${avatarFileName}`
-    : undefined;
+      ? resolveAvatarUrl(avatarFileName)
+      : undefined;
 
 
 

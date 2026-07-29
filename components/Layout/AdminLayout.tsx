@@ -6,6 +6,7 @@ import { CmsHelpProvider } from "@/lib/cmsHelp/CmsHelpContext";
 import Head from "next/head";
 import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
 import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import SiteFavicon from "@/components/Layout/SiteFavicon";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -101,6 +102,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       <Head>
         <title>{tabTitle}</title>
       </Head>
+      <SiteFavicon />
 
       <div className="cms-sidebar-overlay" onClick={closeSidebar} />
 

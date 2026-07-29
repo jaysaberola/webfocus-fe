@@ -10,6 +10,7 @@ import { isDefaultProtectedPage } from "@/lib/defaultPages";
 import PageEditorToolbar from "@/components/Pages/PageEditorToolbar";
 import PageEditorSettingsPanel from "@/components/Pages/PageEditorSettingsPanel";
 import { getAlbumsCached, getMenusCached, scheduleIdleTask } from "@/lib/referenceDataCache";
+import { prefetchPagesSwitcherList, invalidatePagesSwitcherListCache } from "@/lib/pagesListCache";
 
 const TinyEditor = dynamic(() => import("@/components/UI/Editor"), {
   ssr: false,
@@ -178,6 +179,7 @@ function EditPage() {
 
   useEffect(() => {
     const cancel = scheduleIdleTask(() => {
+      prefetchPagesSwitcherList();
       Promise.all([getAlbumsCached(), getMenusCached()])
         .then(([albumRows, menuRows]) => {
           setAlbums(albumRows);
@@ -232,6 +234,8 @@ function EditPage() {
       });
 
       setSavedSnapshot(buildSnapshot());
+      invalidatePagesSwitcherListCache();
+      prefetchPagesSwitcherList();
       toast.success("Page updated successfully");
     } catch (error: any) {
       console.error(error);

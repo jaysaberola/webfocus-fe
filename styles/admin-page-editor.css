@@ -173,6 +173,17 @@
   font-size: 14px;
 }
 
+.page-switcher__refresh-indicator {
+  color: var(--pe-muted);
+  font-size: 12px;
+  animation: page-switcher-spin 0.8s linear infinite;
+}
+
+@keyframes page-switcher-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .page-switcher__list {
   max-height: 320px;
   overflow: auto;

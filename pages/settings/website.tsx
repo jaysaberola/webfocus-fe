@@ -10,7 +10,7 @@ import {
   DEFAULT_PRIVACY_POPUP,
   DEFAULT_PRIVACY_TITLE,
 } from "@/lib/defaultPrivacyContent";
-import { notifyWebsiteSettingsUpdated, storeWebsiteSettings } from "@/lib/websiteSettings";
+import { notifyWebsiteSettingsUpdated, resolveWebsiteAssetUrl, storeWebsiteSettings } from "@/lib/websiteSettings";
 import CmsModuleShell from "@/components/Modules/CmsModuleShell";
 import {
   CmsSettingsChoicePills,
@@ -141,12 +141,12 @@ function WebsiteSettingsPage() {
       setPrivacyContent(privacyHtml || DEFAULT_PRIVACY_HTML);
 
       if (data.company_logo) {
-        setLogoPreview(`${process.env.NEXT_PUBLIC_API_URL}/storage/${data.company_logo}`);
+        setLogoPreview(resolveWebsiteAssetUrl(data.company_logo) ?? null);
         setLogoName(String(data.company_logo));
       }
 
       if (data.website_favicon) {
-        setFaviconPreview(`${process.env.NEXT_PUBLIC_API_URL}/storage/${data.website_favicon}`);
+        setFaviconPreview(resolveWebsiteAssetUrl(data.website_favicon) ?? null);
         setFaviconName(String(data.website_favicon));
       }
 

@@ -34,6 +34,11 @@ export const websiteService = {
     }
   },
 
+  async getPublicBranding() {
+    const { data } = await axiosInstance.get("/public/branding");
+    return data ?? {};
+  },
+
   /* ======================
      WEBSITE TAB
   ====================== */

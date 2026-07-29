@@ -51,6 +51,7 @@ function getPublicAuthSnapshot(): PublicAuthState {
           customerLname: next.customer?.lname ?? null,
           adminId: next.adminUser?.id ?? null,
           adminEmail: next.adminUser?.email ?? null,
+          adminAvatar: next.adminUser?.avatar ?? null,
         })
       : "empty";
 

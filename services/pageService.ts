@@ -32,6 +32,12 @@ export const getPages = (
   });
 };
 
+export const getPagesSwitcherList = (options?: { silent?: boolean }) => {
+  return axiosInstance.get("/pages-switcher", {
+    headers: options?.silent ? { "X-No-Loading": true } : undefined,
+  });
+};
+
 export const restorePage = async (id: number) => {
   // Backends vary a lot on restore routes (Laravel soft-deletes, custom actions, etc.).
   // Try a small set of common conventions before giving up.

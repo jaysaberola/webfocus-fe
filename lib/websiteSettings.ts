@@ -87,3 +87,37 @@ export function subscribeWebsiteSettingsUpdated(cb: () => void): () => void {
 export function resolveWebsiteAssetUrl(path?: string | null): string | undefined {
   return resolveStorageAssetUrl(path);
 }
+
+export function resolveWebsiteFaviconUrl(settings?: WebsiteSettings | null): string | undefined {
+  return resolveWebsiteAssetUrl(settings?.website_favicon ?? null);
+}
+
+let publicBrandingInflight: Promise<WebsiteSettings> | null = null;
+
+export async function getPublicBrandingCached(opts?: { force?: boolean }): Promise<WebsiteSettings> {
+  const force = opts?.force === true;
+
+  if (!force) {
+    const stored = readStoredWebsiteSettings();
+    if (stored?.website_favicon || stored?.company_logo) return stored;
+  }
+
+  if (!publicBrandingInflight) {
+    publicBrandingInflight = websiteService
+      .getPublicBranding()
+      .then((branding) => {
+        const merged = {
+          ...(readStoredWebsiteSettings() ?? {}),
+          ...branding,
+        };
+        storeWebsiteSettings(merged);
+        return merged;
+      })
+      .catch(() => readStoredWebsiteSettings() ?? {})
+      .finally(() => {
+        publicBrandingInflight = null;
+      });
+  }
+
+  return publicBrandingInflight;
+}

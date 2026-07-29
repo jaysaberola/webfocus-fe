@@ -42,7 +42,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           storeCustomer(null, { notify: true });
 
           try {
-            const user = await getCurrentUserCached();
+            const user = await getCurrentUserCached({ force: true });
             if (isAdminLikeUser(user)) {
               notifyCurrentUserUpdated();
             }
@@ -100,6 +100,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
   const customerAvatarUrl = resolveAvatarUrl(customer?.avatar);
   const adminDisplayName = customerDisplayName(adminUser?.fname, adminUser?.lname) || "Admin User";
   const adminInitial = (adminDisplayName.charAt(0) || "A").toUpperCase();
+  const adminAvatarUrl = resolveAvatarUrl(adminUser?.avatar);
 
   if (adminUser) {
     return (
@@ -111,14 +112,18 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className={styles.avatar}>{adminInitial}</span>
+          <span className={styles.avatar}>
+            {adminAvatarUrl ? <img src={adminAvatarUrl} alt="" width={24} height={24} /> : adminInitial}
+          </span>
           <span className={styles.loggedInName}>{adminDisplayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
         {open && (
           <div className={styles.accountPanel} role="menu" aria-label="Admin menu">
             <div className={styles.accountHeader}>
-              <span className={styles.avatarLarge}>{adminInitial}</span>
+              <span className={styles.avatarLarge}>
+                {adminAvatarUrl ? <img src={adminAvatarUrl} alt="" width={40} height={40} /> : adminInitial}
+              </span>
               <div className={styles.accountMeta}>
                 <p className={styles.accountName}>{adminDisplayName}</p>
                 <p className={styles.accountEmail}>{adminUser.email}</p>
