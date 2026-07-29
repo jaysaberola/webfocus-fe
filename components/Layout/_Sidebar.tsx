@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getCurrentUserCached, initialsForUser, resolveAvatarUrl, subscribeCurrentUserUpdated } from "@/lib/currentUser";
+import { getCurrentUserCached, initialsForUser, readStoredCurrentUser, resolveAvatarUrl, subscribeCurrentUserUpdated } from "@/lib/currentUser";
 import type { User } from "@/services/accountService";
-
 type SidebarProps = {
   isOpen?: boolean;
   isMobile?: boolean;
@@ -14,8 +13,8 @@ type SidebarProps = {
 export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarProps) {
   const pathname = usePathname();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [userLoaded, setUserLoaded] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => readStoredCurrentUser());
+  const [userLoaded, setUserLoaded] = useState(() => readStoredCurrentUser() != null);
 
   const refreshUser = async (opts?: { force?: boolean }) => {
     try {
@@ -43,6 +42,15 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const collapseAllMenus = () => setOpenMenus({});
+
+  const handleSingleNavClick =
+    (item: { href: string; collapseMenus?: boolean }) => () => {
+      onClose?.();
+      if (item.collapseMenus) {
+        collapseAllMenus();
+      }
+    };
   const menuSections = [
     {
       label: "Portals",
@@ -53,14 +61,8 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
     {
       label: "CMS",
       items: [
-        { label: "Dashboard", icon: "fa-solid fa-house", href: "/dashboard" },
-        {
-          label: "Pages", icon: "fa-solid fa-file-lines", href: "/pages",
-          children: [
-            { label: "Manage Pages", href: "/pages" },
-            { label: "Create a Page", href: "/pages/create" },
-          ],
-        },
+        { label: "Dashboard", icon: "fa-solid fa-house", href: "/dashboard", collapseMenus: true },
+        { label: "Pages", icon: "fa-solid fa-file-lines", href: "/pages" },
         {
           label: "Banners", icon: "fa-solid fa-images", href: "/banners",
           children: [
@@ -70,18 +72,11 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
           ],
         },
         { label: "Files", icon: "fa-solid fa-folder-open", href: "/files" },
-        {
-          label: "Menu", icon: "fa-solid fa-bars", href: "/menu",
-          children: [
-            { label: "Manage Menu", href: "/menu" },
-            { label: "Create a Menu", href: "/menu/create" },
-          ],
-        },
+        { label: "Menu", icon: "fa-solid fa-bars", href: "/menu" },
         {
           label: "News", icon: "fa-solid fa-newspaper", href: "/news",
           children: [
             { label: "Manage News", href: "/news" },
-            { label: "Create News", href: "/news/create" },
             { label: "Manage News Categories", href: "/news/category_index" },
           ],
         },
@@ -93,12 +88,7 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
             { label: "Manage Audit Trail", href: "/settings/audit" },
           ],
         },
-        {
-          label: "Users", icon: "fa-solid fa-users", href: "/users",
-          children: [
-            { label: "Manage Users", href: "/users" },
-          ],
-        },
+        { label: "Users", icon: "fa-solid fa-users", href: "/users" },
         {
           label: "Account Management", icon: "fa-solid fa-user-shield", href: "/account-management",
           children: [
@@ -111,17 +101,14 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
   ];
 
   useEffect(() => {
-    setOpenMenus((prev) => {
-      const next = { ...prev };
-      menuSections.flatMap((section: any) => section.items).forEach((item: any) => {
-        if (item.children?.some((child: any) => isPathActive(child.href))) {
-          next[item.href] = true;
-        }
-      });
-      return next;
+    const next: Record<string, boolean> = {};
+    menuSections.flatMap((section: any) => section.items).forEach((item: any) => {
+      if (item.children?.some((child: any) => isPathActive(child.href))) {
+        next[item.href] = true;
+      }
     });
+    setOpenMenus(next);
   }, [pathname]);
-
   const sidebarWidth = width != null
     ? (typeof width === "number" ? `${width}px` : width)
     : undefined;
@@ -197,9 +184,9 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={onClose}
+                    onClick={handleSingleNavClick(item)}
                     data-cms-tour={`nav${item.href}`}
-                    className={`sb-single-link${isActive(item.href) ? " sb-active" : ""}`}
+                    className={`sb-single-link${isPathActive(item.href) ? " sb-active" : ""}`}
                   >
                     <i className={`${item.icon} sb-nav-icon`} />
                     <span className="sb-nav-label">{item.label}</span>

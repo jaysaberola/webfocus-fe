@@ -1,12 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import Sidebar from './_Sidebar';
 import Topbar from './_Topbar2';
 import ToastHost from "@/components/UI/ToastHost";
-import { CmsHelpProvider } from "@/lib/cmsHelp/CmsHelpContext";
 import Head from "next/head";
 import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
-import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
+
+const CmsHelpProvider = dynamic(
+  () => import("@/lib/cmsHelp/CmsHelpContext").then((mod) => mod.CmsHelpProvider),
+  { ssr: false }
+);
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -68,7 +73,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     });
   }, [isMobile]);
 
-  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string | null>(() => {
+    const stored = readStoredWebsiteSettings();
+    return stored ? (stored as any)?.company_name || null : null;
+  });
   useEffect(() => {
     let alive = true;
 

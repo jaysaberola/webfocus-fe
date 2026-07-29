@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuditRow, getAuditTrails } from "@/services/auditService";
+import { scheduleIdleTask } from "@/lib/referenceDataCache";
 import Tooltip from "@/components/UI/Tooltip";
 
 type AuditEventFilter = "all" | "created" | "updated" | "deleted" | "restored";
@@ -146,6 +147,20 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
   }, [eventFilter]);
 
   useEffect(() => {
+    let mounted = true;
+    const cancel = scheduleIdleTask(() => {
+      if (mounted) void fetchActivity({ page: 1, silent: false });
+    }, 400);
+
+    return () => {
+      mounted = false;
+      cancel();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (currentPage === 1) return;
     fetchActivity({ page: currentPage, silent: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);

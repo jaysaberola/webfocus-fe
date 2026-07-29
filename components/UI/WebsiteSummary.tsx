@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { websiteService } from "@/services/websiteService";
-import { getWebsiteSettingsCached } from "@/lib/websiteSettings";
+import { getWebsiteSettingsCached, readStoredWebsiteSettings } from "@/lib/websiteSettings";
 import { scheduleIdleTask } from "@/lib/referenceDataCache";
 import { getUsers } from "@/services/userService";
 import { getPages } from "@/services/pageService";
@@ -32,9 +32,9 @@ type WebsiteSettingsSnapshot = {
 };
 
 export default function WebsiteSummary({ stats, loading = false, compact = false }: WebsiteSummaryProps) {
-  const [settings, setSettings] = useState<WebsiteSettingsSnapshot | null>(null);
+  const [settings, setSettings] = useState<WebsiteSettingsSnapshot | null>(() => readStoredWebsiteSettings());
   const [socialCount, setSocialCount] = useState<number | null>(null);
-  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(() => readStoredWebsiteSettings() == null);
   const [usersTotal, setUsersTotal] = useState<number | null>(null);
 
   const [breakdownLoading, setBreakdownLoading] = useState(true);

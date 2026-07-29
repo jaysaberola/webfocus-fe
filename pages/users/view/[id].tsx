@@ -3,8 +3,7 @@ import AdminLayout from "@/components/Layout/AdminLayout";
 import { useRouter } from "next/router";
 import { getUser } from "@/services/userService";
 import { toast } from "@/lib/toast";
-
-const INITIAL_LIMIT = 10;
+import AuditLogsTable from "@/components/UI/AuditLogsTable";
 
 function ViewUser() {
   const router = useRouter();
@@ -12,7 +11,6 @@ function ViewUser() {
 
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -31,30 +29,7 @@ function ViewUser() {
     return u?.status ?? "—";
   };
 
-  const formatAuditSentence = (audit: any) => {
-    const model = audit.auditable_type ?? "record";
-    const id = audit.auditable_id ? `#${audit.auditable_id}` : "";
-    const date = audit.created_at
-      ? new Date(audit.created_at).toLocaleString()
-      : "unknown time";
-
-    switch (audit.event) {
-      case "created":
-        return `Created a new ${model} ${id} on ${date}.`;
-      case "updated":
-        return `Updated ${model} ${id} on ${date}.`;
-      case "deleted":
-        return `Deleted ${model} ${id} on ${date}.`;
-      case "restored":
-        return `Restored ${model} ${id} on ${date}.`;
-      default:
-        return `Performed "${audit.event}" on ${model} ${id} on ${date}.`;
-    }
-  };
-
   const allAudits = user?.audits ?? [];
-  const visibleAudits = showAll ? allAudits : allAudits.slice(0, INITIAL_LIMIT);
-  const hasMore = allAudits.length > INITIAL_LIMIT;
 
   return (
     <div className="container-fluid px-4 pt-3">
@@ -113,55 +88,14 @@ function ViewUser() {
 
           <div className="card">
             <div className="card-header d-flex align-items-center justify-content-between">
-              <h6 className="mb-0">Audit Logs</h6>
+              <div>
+                <h6 className="mb-0">Audit Logs</h6>
+                <small className="text-muted">Detailed activity with old and new values for each change.</small>
+              </div>
               <small className="text-muted">{allAudits.length} total</small>
             </div>
             <div className="card-body p-0">
-              {allAudits.length === 0 ? (
-                <div className="p-3 text-muted">No audit logs found.</div>
-              ) : (
-                <>
-                  <ul className="list-group list-group-flush">
-                    {visibleAudits.map((audit: any) => (
-                      <li key={audit.id} className="list-group-item d-flex align-items-start gap-3 py-3">
-                        <div className="mt-1">
-                          <span
-                            className={`badge ${
-                              audit.event === "created"
-                                ? "bg-success"
-                                : audit.event === "updated"
-                                ? "bg-primary"
-                                : audit.event === "deleted"
-                                ? "bg-danger"
-                                : "bg-secondary"
-                            }`}
-                          >
-                            {audit.event}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="text-dark">{formatAuditSentence(audit)}</div>
-                          <small className="text-muted">IP: {audit.ip_address ?? "—"}</small>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {hasMore && (
-                    <div className="p-3 text-center border-top">
-                      <button
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => setShowAll((prev) => !prev)}
-                        type="button"
-                      >
-                        {showAll
-                          ? "Show Less"
-                          : `Show More (${allAudits.length - INITIAL_LIMIT} more)`}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
+              <AuditLogsTable audits={allAudits} loading={loading} />
             </div>
           </div>
         </>

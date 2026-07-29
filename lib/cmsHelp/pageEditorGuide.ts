@@ -71,12 +71,12 @@ function buildSteps(mode: "create" | "edit"): CmsHelpStep[] {
 
   steps.push(
     {
-      title: isCreate ? "Create Page button" : "Save Page button",
+      title: "Save Page button",
       body: isCreate
-        ? "When Page Details and content look good, click Create Page to save the new page to the site."
+        ? "When Page Details and content look good, click Save Page to save the new page to the site."
         : "Click Save Page whenever you finish a round of edits. Wait for the success message.",
       details: [
-        isCreate ? "You need a Page Title before creating." : "Keyboard users: save often so you never lose work.",
+        isCreate ? "You need a Page Title before saving." : "Keyboard users: save often so you never lose work.",
         "On mobile, a floating save button appears at the bottom of the screen.",
       ],
       target: tour.pageEditorSave,

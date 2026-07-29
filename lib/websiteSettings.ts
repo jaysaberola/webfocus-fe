@@ -48,15 +48,23 @@ export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Prom
 
   if (!force) {
     const stored = readStoredWebsiteSettings();
-    if (stored) return stored;
+    if (stored) {
+      void refreshWebsiteSettings();
+      return stored;
+    }
   }
 
+  return refreshWebsiteSettings();
+}
+
+async function refreshWebsiteSettings(): Promise<WebsiteSettings> {
   if (!inflight) {
     inflight = websiteService
       .getSettings()
       .then((response: any) => {
         const settings = response?.setting ?? response ?? {};
         storeWebsiteSettings(settings);
+        notifyWebsiteSettingsUpdated();
         return settings;
       })
       .finally(() => {

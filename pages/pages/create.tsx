@@ -386,7 +386,7 @@ export default function CreatePage() {
         onClick={handleSave}
         disabled={loading}
       >
-        {loading ? "Creating..." : "Create Page"}
+        {loading ? "Saving..." : "Save Page"}
       </button>
     </div>
   );

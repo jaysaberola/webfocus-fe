@@ -10,6 +10,7 @@ type ListGuideConfig = {
   navHref: string;
   navLabel: string;
   parentMenu?: string;
+  flatNav?: boolean;
   createLabel: string;
   entityName: string;
   entitySingular: string;
@@ -47,12 +48,18 @@ export function detailedListModuleGuide(config: ListGuideConfig): CmsHelpGuide {
       {
         title: `Open ${config.navLabel} from the sidebar`,
         body: `The left sidebar is the main navigation for the entire CMS. Every module — including ${config.title} — is accessed from here.`,
-        details: [
-          `Scroll the sidebar until you find the "${parent}" section.`,
-          `If the submenu is collapsed, click "${parent}" once to expand it.`,
-          `Click "${config.navLabel}" to open the ${config.title} screen.`,
-          "Wait for the page to finish loading before using search or filters.",
-        ],
+        details: config.flatNav
+          ? [
+              `Scroll the sidebar until you find "${config.navLabel}".`,
+              `Click "${config.navLabel}" to open the ${config.title} screen.`,
+              "Wait for the page to finish loading before using search or filters.",
+            ]
+          : [
+              `Scroll the sidebar until you find the "${parent}" section.`,
+              `If the submenu is collapsed, click "${parent}" once to expand it.`,
+              `Click "${config.navLabel}" to open the ${config.title} screen.`,
+              "Wait for the page to finish loading before using search or filters.",
+            ],
         target: tour.nav(route),
         route,
         placement: "right",

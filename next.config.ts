@@ -24,8 +24,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    optimizePackageImports: ["grapesjs", "grapesjs-preset-webpage", "grapesjs-blocks-basic", "grapesjs-plugin-forms"],
+    optimizePackageImports: ["grapesjs-preset-webpage", "grapesjs-blocks-basic", "grapesjs-plugin-forms"],
   },
+  serverExternalPackages: ["pptxgenjs", "grapesjs"],
 	devIndicators: false,
 };
 

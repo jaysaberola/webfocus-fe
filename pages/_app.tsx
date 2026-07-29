@@ -1,16 +1,5 @@
-import "bootstrap/dist/css/bootstrap.min.css"; //AdminLayout
-import "@fortawesome/fontawesome-free/css/all.min.css"; //AdminLayout
-import "grapesjs/dist/css/grapes.min.css";
-import "@/styles/admin-theme.css";
-import "@/styles/admin-sidebar-v2.css";
-import "@/styles/dashboard.css";
-import "@/styles/admin-table.css";
-import "@/styles/admin-modal.css";
-import "@/styles/admin-no-hover.css";
-import "@/styles/admin-page-editor.css";
-import "@/styles/admin-module.css";
-import "@/styles/admin-help.css";
-// Public-folder admin CSS (custom.css, admin.css) is loaded via <link> when on admin routes.
+import "bootstrap/dist/css/bootstrap.min.css";
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
 import type { AppProps } from "next/app";
 import React from "react";
@@ -28,6 +17,14 @@ type AppPropsWithLayout = AppProps & {
   };
 };
 
+function isEditorRoute(pathname: string) {
+  return (
+    pathname === "/settings/website" ||
+    pathname === "/pages/create" ||
+    /^\/pages\/edit\//.test(pathname)
+  );
+}
+
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const router = useRouter();
   const Layout = Component.Layout || React.Fragment;
@@ -35,6 +32,30 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const showFreshchat = isPublicSiteRoute(router.pathname);
   const lightweightPublic = isLightweightPublicPage(router.pathname);
   const isAdmin = isAdminSiteRoute(router.pathname);
+
+  React.useEffect(() => {
+    if (!isAdmin) return;
+
+    void Promise.all([
+      import("@/styles/admin-theme.css"),
+      import("@/styles/admin-sidebar-v2.css"),
+      import("@/styles/dashboard.css"),
+      import("@/styles/admin-table.css"),
+      import("@/styles/admin-modal.css"),
+      import("@/styles/admin-no-hover.css"),
+      import("@/styles/admin-module.css"),
+      import("@/styles/admin-help.css"),
+    ]);
+  }, [isAdmin]);
+
+  React.useEffect(() => {
+    if (!isEditorRoute(router.pathname)) return;
+
+    void Promise.all([
+      import("grapesjs/dist/css/grapes.min.css"),
+      import("@/styles/admin-page-editor.css"),
+    ]);
+  }, [router.pathname]);
 
   React.useEffect(() => {
     if (!isAdmin) return;

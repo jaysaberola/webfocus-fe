@@ -27,8 +27,8 @@ export default function PageEditorToolbar({
 }: PageEditorToolbarProps) {
   const { openHelp } = useCmsHelp();
   const isCreate = mode === "create";
-  const saveLabel = isCreate ? "Create Page" : "Save Page";
-  const savingLabel = isCreate ? "Creating..." : "Saving...";
+  const saveLabel = "Save Page";
+  const savingLabel = "Saving...";
   const guideId = isCreate ? "pages-create" : "pages-edit";
 
   return (
@@ -143,7 +143,7 @@ export default function PageEditorToolbar({
           onClick={onSave}
           disabled={isSaving}
         >
-          <i className={`fa-solid ${isCreate ? "fa-plus" : "fa-floppy-disk"}`} aria-hidden="true" />
+          <i className="fa-solid fa-floppy-disk" aria-hidden="true" />
           {isSaving ? savingLabel : saveLabel}
         </button>
       </div>

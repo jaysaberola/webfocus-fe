@@ -36,19 +36,13 @@ export function notifyCurrentUserUpdated() {
 
 let inflight: Promise<User> | null = null;
 
-export async function getCurrentUserCached(opts?: { force?: boolean }): Promise<User> {
-  const force = opts?.force === true;
-
-  if (!force) {
-    const stored = readStoredCurrentUser();
-    if (stored) return stored;
-  }
-
+async function refreshCurrentUser(): Promise<User> {
   if (!inflight) {
     inflight = accountService
       .getCurrentUser()
       .then((user) => {
         storeCurrentUser(user);
+        notifyCurrentUserUpdated();
         return user;
       })
       .finally(() => {
@@ -57,6 +51,20 @@ export async function getCurrentUserCached(opts?: { force?: boolean }): Promise<
   }
 
   return inflight;
+}
+
+export async function getCurrentUserCached(opts?: { force?: boolean }): Promise<User> {
+  const force = opts?.force === true;
+
+  if (!force) {
+    const stored = readStoredCurrentUser();
+    if (stored) {
+      void refreshCurrentUser();
+      return stored;
+    }
+  }
+
+  return refreshCurrentUser();
 }
 
 export function subscribeCurrentUserUpdated(cb: () => void): () => void {

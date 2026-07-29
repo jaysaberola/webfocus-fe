@@ -87,6 +87,42 @@ function clampPosition(top: number, left: number, width: number, height: number)
   };
 }
 
+function fitTooltipInViewport(
+  style: CSSProperties,
+  tooltipHeight: number
+): CSSProperties {
+  const width =
+    typeof style.width === "number"
+      ? style.width
+      : parseFloat(String(style.width ?? TOOLTIP_MAX_WIDTH)) || TOOLTIP_MAX_WIDTH;
+  const left =
+    typeof style.left === "number"
+      ? style.left
+      : parseFloat(String(style.left ?? MARGIN)) || MARGIN;
+  const requestedTop =
+    typeof style.top === "number"
+      ? style.top
+      : parseFloat(String(style.top ?? MARGIN)) || MARGIN;
+
+  const maxAvailableHeight = window.innerHeight - MARGIN * 2;
+  const effectiveHeight = Math.min(Math.max(tooltipHeight, 220), maxAvailableHeight);
+  const clampedTop = Math.min(
+    Math.max(MARGIN, requestedTop),
+    window.innerHeight - effectiveHeight - MARGIN
+  );
+  const clampedLeft = Math.min(
+    Math.max(MARGIN, left),
+    window.innerWidth - width - MARGIN
+  );
+
+  return {
+    ...style,
+    top: clampedTop,
+    left: clampedLeft,
+    maxHeight: window.innerHeight - clampedTop - MARGIN,
+  };
+}
+
 function computeTooltipStyle(
   rect: Rect | null,
   preferred: CmsHelpStepPlacement,
@@ -104,7 +140,7 @@ function computeTooltipStyle(
       width,
       tooltipHeight
     );
-    return { top, left, maxWidth, minWidth, width };
+    return fitTooltipInViewport({ top, left, maxWidth, minWidth, width }, tooltipHeight);
   }
 
   if (isLargeTarget(rect)) {
@@ -114,14 +150,7 @@ function computeTooltipStyle(
       width,
       tooltipHeight
     );
-    return {
-      top,
-      left,
-      maxWidth,
-      minWidth,
-      width,
-      maxHeight: `calc(100vh - ${MARGIN * 2}px)`,
-    };
+    return fitTooltipInViewport({ top, left, maxWidth, minWidth, width }, tooltipHeight);
   }
 
   const placements: CmsHelpStepPlacement[] = [];
@@ -154,7 +183,10 @@ function computeTooltipStyle(
       clamped.top >= MARGIN && clamped.top + tooltipHeight <= window.innerHeight - MARGIN;
 
     if (fitsVertically) {
-      return { top: clamped.top, left: clamped.left, maxWidth, minWidth, width };
+      return fitTooltipInViewport(
+        { top: clamped.top, left: clamped.left, maxWidth, minWidth, width },
+        tooltipHeight
+      );
     }
   }
 
@@ -165,14 +197,10 @@ function computeTooltipStyle(
     tooltipHeight
   );
 
-  return {
-    top: fallback.top,
-    left: fallback.left,
-    maxWidth,
-    minWidth,
-    width,
-    maxHeight: `calc(100vh - ${MARGIN * 2}px)`,
-  };
+  return fitTooltipInViewport(
+    { top: fallback.top, left: fallback.left, maxWidth, minWidth, width },
+    tooltipHeight
+  );
 }
 
 export default function CmsHelpTourOverlay({
@@ -298,6 +326,18 @@ export default function CmsHelpTourOverlay({
     });
     return () => cancelAnimationFrame(frame);
   }, [refreshTarget, stepIndex, updateTooltipPosition]);
+
+  useEffect(() => {
+    const tooltipEl = tooltipRef.current;
+    if (!tooltipEl || !step) return;
+
+    const observer = new ResizeObserver(() => {
+      updateTooltipPosition(targetRectRef.current);
+    });
+
+    observer.observe(tooltipEl);
+    return () => observer.disconnect();
+  }, [step, stepIndex, updateTooltipPosition]);
 
   useEffect(() => {
     const onResize = () => syncLayout();

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CMS_HELP_GUIDES, CMS_HELP_GUIDE_MAP, CmsHelpGuide } from "@/lib/cmsHelp/guides";
+import { downloadUserGuidePptx } from "@/lib/cmsHelp/downloadUserGuidePptx";
 import CmsHelpStepIllustration from "@/components/Help/CmsHelpStepIllustration";
+import { toast } from "@/lib/toast";
 
 type CmsHelpAssistantProps = {
   variant: "modal" | "dock";
@@ -33,6 +35,7 @@ export default function CmsHelpAssistant({
   const [query, setQuery] = useState("");
   const [typing, setTyping] = useState(false);
   const [revealed, setRevealed] = useState(true);
+  const [downloading, setDownloading] = useState<"all" | "current" | null>(null);
 
   const guide = CMS_HELP_GUIDE_MAP[activeGuideId] ?? CMS_HELP_GUIDE_MAP.dashboard;
   const step = guide.steps[stepIndex];
@@ -74,6 +77,24 @@ export default function CmsHelpAssistant({
     }, 350);
     return () => window.clearTimeout(timer);
   }, [activeGuideId, stepIndex]);
+
+  const handleDownload = async (scope: "all" | "current") => {
+    try {
+      setDownloading(scope);
+      await downloadUserGuidePptx({
+        scope,
+        guideId: scope === "current" ? guide.id : undefined,
+      });
+      toast.success(
+        scope === "all" ? "Downloaded complete user guide presentation" : `Downloaded ${guide.title} presentation`
+      );
+    } catch (error) {
+      console.error("Failed to export user guide presentation", error);
+      toast.error("Failed to download PowerPoint presentation");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   if (variant === "dock") {
     return (
@@ -147,6 +168,24 @@ export default function CmsHelpAssistant({
             </div>
           </div>
           <div className="cms-help-assistant__header-actions">
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm"
+              disabled={downloading !== null}
+              onClick={() => handleDownload("current")}
+            >
+              <i className="fa-solid fa-file-powerpoint me-1" aria-hidden="true" />
+              {downloading === "current" ? "Preparing..." : "Download topic"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm"
+              disabled={downloading !== null}
+              onClick={() => handleDownload("all")}
+            >
+              <i className="fa-solid fa-download me-1" aria-hidden="true" />
+              {downloading === "all" ? "Preparing..." : "Download all topics"}
+            </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={onStartTour}>
               <i className="fa-solid fa-location-crosshairs me-1" aria-hidden="true" />
               Start live tour

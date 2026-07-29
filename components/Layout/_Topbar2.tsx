@@ -3,8 +3,8 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import ConfirmModal from "@/components/UI/ConfirmModal";
-import { getCurrentUserCached, initialsForUser, resolveAvatarUrl, subscribeCurrentUserUpdated } from "@/lib/currentUser";
-import { getWebsiteSettingsCached, resolveWebsiteAssetUrl, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import { getCurrentUserCached, initialsForUser, readStoredCurrentUser, resolveAvatarUrl, subscribeCurrentUserUpdated } from "@/lib/currentUser";
+import { getWebsiteSettingsCached, readStoredWebsiteSettings, resolveWebsiteAssetUrl, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import type { User } from "@/services/accountService";
 import { logout } from "@/services/authService";
 import { useCmsHelp } from "@/lib/cmsHelp/CmsHelpContext";
@@ -22,8 +22,11 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
-  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(undefined);
+  const [currentUser, setCurrentUser] = React.useState<User | null>(() => readStoredCurrentUser());
+  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(() => {
+    const stored = readStoredWebsiteSettings();
+    return stored ? resolveWebsiteAssetUrl((stored as any)?.company_logo) : undefined;
+  });
   const [logoFailed, setLogoFailed] = React.useState(false);
 
   const refreshUser = React.useCallback(async (opts?: { force?: boolean }) => {

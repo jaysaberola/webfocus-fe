@@ -1,9 +1,30 @@
 import AdminLayout from "@/components/Layout/AdminLayout";
-import WebsiteSummary from "@/components/UI/WebsiteSummary";
-import RecentActivity from "@/components/UI/RecentActivity";
 import { useEffect, useState } from "react";
-import { getDashboardStats } from "@/services/dashboardService";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { getDashboardStatsCached } from "@/lib/dashboardStatsCache";
+
+const WebsiteSummary = dynamic(() => import("@/components/UI/WebsiteSummary"), {
+  loading: () => (
+    <div className="card cms-panel shadow-sm border-0 cms-panel--compact h-100">
+      <div className="card-body p-4">
+        <div className="cms-skeleton cms-skeleton--line mb-2" aria-hidden="true" />
+        <div className="cms-skeleton cms-skeleton--line" aria-hidden="true" style={{ maxWidth: "70%" }} />
+      </div>
+    </div>
+  ),
+});
+
+const RecentActivity = dynamic(() => import("@/components/UI/RecentActivity"), {
+  loading: () => (
+    <div className="card cms-panel shadow-sm border-0 cms-panel--compact h-100">
+      <div className="card-body p-4">
+        <div className="cms-skeleton cms-skeleton--line mb-2" aria-hidden="true" />
+        <div className="cms-skeleton cms-skeleton--line" aria-hidden="true" style={{ maxWidth: "55%" }} />
+      </div>
+    </div>
+  ),
+});
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -33,24 +54,31 @@ export default function DashboardIndex() {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchStats = async () => {
       try {
-        setLoading(true);
         setError(null);
-        const res = await getDashboardStats();
+        const data = await getDashboardStatsCached();
+        if (!mounted) return;
         setStats({
-          pages: res.data.data.pages_count,
-          albums: res.data.data.albums_count,
-          news: res.data.data.news_count,
+          pages: data.pages_count,
+          albums: data.albums_count,
+          news: data.news_count,
         });
       } catch (err) {
         console.error("Failed to load dashboard stats", err);
+        if (!mounted) return;
         setError("Failed to load dashboard stats.");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
+
     fetchStats();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return (

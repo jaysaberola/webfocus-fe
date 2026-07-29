@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import CmsHelpAssistant from "@/components/Help/CmsHelpAssistant";
+import CmsHelpLauncher from "@/components/Help/CmsHelpLauncher";
 import CmsHelpTourOverlay from "@/components/Help/CmsHelpTourOverlay";
 import { CMS_HELP_GUIDE_MAP } from "@/lib/cmsHelp/guides";
 import { resolveGuideIdFromPath } from "@/lib/cmsHelp/resolveGuide";
@@ -153,6 +154,8 @@ export function CmsHelpProvider({ children }: { children: React.ReactNode }) {
           onPrev={prevStep}
         />
       ) : null}
+
+      <CmsHelpLauncher />
     </CmsHelpContext.Provider>
   );
 }
