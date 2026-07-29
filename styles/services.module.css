@@ -1758,6 +1758,242 @@
   }
 }
 
+.setupWizardOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.setupWizardBackdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: blur(2px);
+  cursor: pointer;
+}
+
+.setupWizardDialog {
+  position: relative;
+  width: min(100%, 760px);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+}
+
+.setupWizardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.setupWizardKicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.setupWizardHeader h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.setupWizardHint {
+  margin: 0.65rem 0 0;
+  color: #64748b;
+  line-height: 1.6;
+  font-size: 0.9375rem;
+}
+
+.setupWizardPackageMeta {
+  margin: 0.75rem 0 0;
+  color: #2563eb;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.setupWizardClose {
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.setupWizardClose:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.setupWizardBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.5rem 1.75rem;
+}
+
+.setupWizardChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.setupWizardChoiceCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: 180px;
+  padding: 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.setupWizardChoiceCard:hover {
+  border-color: #94a3b8;
+}
+
+.setupWizardChoiceCardActive {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.setupWizardChoiceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 1rem;
+}
+
+.setupWizardChoiceCard strong {
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.setupWizardChoiceCard span:last-child {
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.setupWizardChecklist {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.setupWizardCheckItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.setupWizardCheckItem:hover {
+  border-color: #94a3b8;
+}
+
+.setupWizardCheckItemActive {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.setupWizardCheckItem input {
+  margin-top: 0.15rem;
+  accent-color: #2563eb;
+}
+
+.setupWizardCheckItem span {
+  color: #0f172a;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.setupWizardSubsection {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.setupWizardSubsection h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.setupWizardSubsection p {
+  margin: 0.35rem 0 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.setupWizardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.75rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.setupWizardFooter .primaryBtnInline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .setupWizardHeader,
+  .setupWizardBody,
+  .setupWizardFooter {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .setupWizardChoiceGrid,
+  .setupWizardChecklist {
+    grid-template-columns: 1fr;
+  }
+
+  .setupWizardFooter {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+}
+
 .hostingLoading,
 .hostingFallbackNote {
   margin: 0 0 1rem;

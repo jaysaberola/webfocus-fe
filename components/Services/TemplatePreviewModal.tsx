@@ -21,7 +21,7 @@ type TemplatePreviewModalProps = {
   template: WebsiteTemplate | null;
   group: TemplateGroup | null;
   onClose: () => void;
-  onAddPackage?: (packageName: string, price: number, detail: string) => void;
+  onContinueSetup?: (packageName: string, price: number) => void;
 };
 
 export default function TemplatePreviewModal({
@@ -29,7 +29,7 @@ export default function TemplatePreviewModal({
   template,
   group,
   onClose,
-  onAddPackage,
+  onContinueSetup,
 }: TemplatePreviewModalProps) {
   const [viewport, setViewport] = useState("desktop" as PreviewViewport);
   const packageInfo = template ? getWebDesignPackageById(template.packageId) : undefined;
@@ -131,13 +131,13 @@ export default function TemplatePreviewModal({
             <button type="button" className={styles.secondaryBtn} onClick={onClose}>
               Close
             </button>
-            {packageInfo && onAddPackage ? (
+            {packageInfo && onContinueSetup ? (
               <button
                 type="button"
                 className={styles.primaryBtnInline}
-                onClick={() => onAddPackage(packageInfo.name, packageInfo.price, "Agency Web Design")}
+                onClick={() => onContinueSetup(packageInfo.name, packageInfo.price)}
               >
-                Add Package to Cart
+                Continue
               </button>
             ) : null}
           </div>

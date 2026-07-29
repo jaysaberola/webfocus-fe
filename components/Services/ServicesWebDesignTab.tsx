@@ -10,12 +10,21 @@ import {
 import { useServiceCart } from "./useServiceCart";
 import { serviceCardGridClass } from "./serviceCardGridClass";
 import TemplatePreviewModal from "./TemplatePreviewModal";
+import WebDesignSetupWizard from "./WebDesignSetupWizard";
 import styles from "@/styles/services.module.css";
 
+type SetupContext = {
+  packageName: string;
+  packagePrice: number;
+  templateLabel?: string;
+  templateId?: string;
+};
+
 export default function ServicesWebDesignTab() {
-  const { addToCart } = useServiceCart();
+  const { addWebDesignSetupToCart } = useServiceCart();
   const [previewTemplate, setPreviewTemplate] = useState<WebsiteTemplate | null>(null);
   const [previewGroup, setPreviewGroup] = useState<TemplateGroup | null>(null);
+  const [setupContext, setSetupContext] = useState<SetupContext | null>(null);
 
   const openPreview = (group: TemplateGroup, template: WebsiteTemplate) => {
     setPreviewGroup(group);
@@ -25,6 +34,24 @@ export default function ServicesWebDesignTab() {
   const closePreview = () => {
     setPreviewTemplate(null);
     setPreviewGroup(null);
+  };
+
+  const openSetupWizard = (context: SetupContext) => {
+    setSetupContext(context);
+  };
+
+  const closeSetupWizard = () => {
+    setSetupContext(null);
+  };
+
+  const handlePreviewContinue = (packageName: string, packagePrice: number) => {
+    openSetupWizard({
+      packageName,
+      packagePrice,
+      templateLabel: previewTemplate?.label,
+      templateId: previewTemplate?.id,
+    });
+    closePreview();
   };
 
   return (
@@ -112,7 +139,12 @@ export default function ServicesWebDesignTab() {
                   <button
                     type="button"
                     className={`${styles.serviceCardBtn} ${styles.serviceCardBtnViolet}`}
-                    onClick={() => addToCart(pkg.name, pkg.price, "Agency Web Design")}
+                    onClick={() =>
+                      openSetupWizard({
+                        packageName: pkg.name,
+                        packagePrice: pkg.price,
+                      })
+                    }
                   >
                     + ADD AGENCY PACKAGE
                   </button>
@@ -142,7 +174,20 @@ export default function ServicesWebDesignTab() {
         template={previewTemplate}
         group={previewGroup}
         onClose={closePreview}
-        onAddPackage={addToCart}
+        onContinueSetup={handlePreviewContinue}
+      />
+
+      <WebDesignSetupWizard
+        open={Boolean(setupContext)}
+        packageName={setupContext?.packageName || ""}
+        packagePrice={setupContext?.packagePrice || 0}
+        templateLabel={setupContext?.templateLabel}
+        templateId={setupContext?.templateId}
+        onClose={closeSetupWizard}
+        onComplete={(selection) => {
+          addWebDesignSetupToCart(selection);
+          closeSetupWizard();
+        }}
       />
     </div>
   );
