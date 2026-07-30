@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { readStoredCurrentUser } from "@/lib/currentUser";
-import { isAdminLikeUser } from "@/lib/userRoles";
+import { isStaffUser } from "@/lib/userRoles";
 import { getStoredCustomer, type PublicCustomer } from "@/services/publicCustomerService";
 import type { User } from "@/services/accountService";
 
@@ -30,7 +30,7 @@ function computeStoredPublicAuthState(): PublicAuthState {
   }
 
   const adminUser = readStoredCurrentUser();
-  if (adminUser && isAdminLikeUser(adminUser)) {
+  if (adminUser && isStaffUser(adminUser)) {
     return { customer: null, adminUser };
   }
 
@@ -52,6 +52,7 @@ function getPublicAuthSnapshot(): PublicAuthState {
           adminId: next.adminUser?.id ?? null,
           adminEmail: next.adminUser?.email ?? null,
           adminAvatar: next.adminUser?.avatar ?? null,
+          adminRole: next.adminUser?.role ?? null,
         })
       : "empty";
 

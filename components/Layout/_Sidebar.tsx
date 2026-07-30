@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getCurrentUserCached, initialsForUser, readStoredCurrentUser, resolveAvatarUrl, subscribeCurrentUserUpdated } from "@/lib/currentUser";
+import { getCurrentUserCached, initialsForUser, readStoredCurrentUser, resolveAvatarUrl, subscribeCurrentUserUpdated, userPermissionsLoaded } from "@/lib/currentUser";
+import { canAccessCommercePortal, CMS_NAV_ITEMS, COMMERCE_PORTAL_ITEM, filterCmsNavItems } from "@/lib/navPermissions";
+import { getRoleDisplayLabel } from "@/lib/userRoles";
 import type { User } from "@/services/accountService";
 type SidebarProps = {
   isOpen?: boolean;
@@ -32,6 +34,13 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (!userLoaded || !currentUser) return;
+    if (!userPermissionsLoaded(currentUser)) {
+      refreshUser({ force: true });
+    }
+  }, [userLoaded, currentUser]);
+
   const userInitials = useMemo(() => initialsForUser(currentUser), [currentUser]);
   const avatarUrl = useMemo(() => resolveAvatarUrl(currentUser?.avatar), [currentUser?.avatar]);
 
@@ -51,64 +60,31 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
         collapseAllMenus();
       }
     };
-  const menuSections = [
-    {
-      label: "Portals",
-      items: [
-        { label: "Commerce Control Center", icon: "fa-solid fa-store", href: "/public/commerce-admin" },
-      ],
-    },
-    {
-      label: "CMS",
-      items: [
-        { label: "Dashboard", icon: "fa-solid fa-house", href: "/dashboard", collapseMenus: true },
-        { label: "Pages", icon: "fa-solid fa-file-lines", href: "/pages" },
-        {
-          label: "Banners", icon: "fa-solid fa-images", href: "/banners",
-          children: [
-            { label: "Manage Home Banners", href: "/banners/home" },
-            { label: "Manage Albums", href: "/banners" },
-            { label: "Create an Album", href: "/banners/create" },
-          ],
-        },
-        { label: "Files", icon: "fa-solid fa-folder-open", href: "/files" },
-        { label: "Menu", icon: "fa-solid fa-bars", href: "/menu" },
-        {
-          label: "News", icon: "fa-solid fa-newspaper", href: "/news",
-          children: [
-            { label: "Manage News", href: "/news" },
-            { label: "Manage News Categories", href: "/news/category_index" },
-          ],
-        },
-        {
-          label: "Settings", icon: "fa-solid fa-gear", href: "/settings",
-          children: [
-            { label: "Manage Account Settings", href: "/settings/account" },
-            { label: "Manage Website Settings", href: "/settings/website" },
-            { label: "Manage Audit Trail", href: "/settings/audit" },
-          ],
-        },
-        { label: "Users", icon: "fa-solid fa-users", href: "/users" },
-        {
-          label: "Account Management", icon: "fa-solid fa-user-shield", href: "/account-management",
-          children: [
-            { label: "Manage Roles", href: "/account-management/roles" },
-            { label: "Manage Access Rights", href: "/account-management/access_rights" },
-          ],
-        },
-      ],
-    },
-  ];
+  const menuSections = useMemo(() => {
+    const portalItems = canAccessCommercePortal(currentUser) ? [COMMERCE_PORTAL_ITEM] : [];
+    const cmsItems = filterCmsNavItems(currentUser, CMS_NAV_ITEMS);
+
+    const sections = [];
+    if (portalItems.length > 0) {
+      sections.push({ label: "Portals", items: portalItems });
+    }
+    if (cmsItems.length > 0) {
+      sections.push({ label: "CMS", items: cmsItems });
+    }
+    return sections;
+  }, [currentUser]);
+
+  const roleLabel = useMemo(() => getRoleDisplayLabel(currentUser), [currentUser]);
 
   useEffect(() => {
     const next: Record<string, boolean> = {};
-    menuSections.flatMap((section: any) => section.items).forEach((item: any) => {
-      if (item.children?.some((child: any) => isPathActive(child.href))) {
+    menuSections.flatMap((section) => section.items).forEach((item) => {
+      if (item.children?.some((child) => isPathActive(child.href))) {
         next[item.href] = true;
       }
     });
     setOpenMenus(next);
-  }, [pathname]);
+  }, [pathname, menuSections]);
   const sidebarWidth = width != null
     ? (typeof width === "number" ? `${width}px` : width)
     : undefined;
@@ -155,7 +131,7 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
               ? `${currentUser.fname} ${currentUser.lname}`.trim()
               : userLoaded ? "User" : "Loading..."}
           </div>
-          <div className="sb-role">Admin</div>
+          <div className="sb-role">{roleLabel}</div>
         </div>
       </div>
 
@@ -168,13 +144,13 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
       </div>
 
       <nav className="sb-nav">
-        {menuSections.map((section: any) => (
+        {menuSections.map((section) => (
           <div key={section.label}>
             <div className="sb-section-label">{section.label}</div>
 
-            {section.items.map((item: any) => {
+            {section.items.map((item) => {
               const hasChildren = Boolean(item.children);
-              const childActive = hasChildren && item.children.some((c: any) => isPathActive(c.href));
+              const childActive = hasChildren && item.children!.some((c) => isPathActive(c.href));
               const parentActive = isPathActive(item.href);
               const isExpanded = !!openMenus[item.href];
               const highlightParent = parentActive || childActive || isExpanded;
@@ -208,7 +184,7 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
 
                   {isExpanded && (
                     <div className="sb-submenu">
-                      {item.children.map((child: any) => (
+                      {item.children!.map((child) => (
                         <Link
                           key={child.href}
                           href={child.href}

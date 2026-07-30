@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/router';
 import Sidebar from './_Sidebar';
 import Topbar from './_Topbar2';
 import ToastHost from "@/components/UI/ToastHost";
 import Head from "next/head";
 import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
+import { getCurrentUserCached, readStoredCurrentUser } from "@/lib/currentUser";
 import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import { COMMERCE_ADMIN_PATH, isCommerceOnlyStaffUser } from "@/lib/userRoles";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
 
 const CmsHelpProvider = dynamic(
@@ -20,6 +23,7 @@ interface AdminLayoutProps {
 const ADMIN_SIDEBAR_HIDDEN_KEY = "cms5.admin.sidebarHidden";
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -27,6 +31,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     syncAuthTokenCookieFromStorage();
+
+    const stored = readStoredCurrentUser();
+    if (stored && isCommerceOnlyStaffUser(stored)) {
+      router.replace(COMMERCE_ADMIN_PATH);
+      return;
+    }
+
+    getCurrentUserCached({ force: false }).then((user) => {
+      if (isCommerceOnlyStaffUser(user)) {
+        router.replace(COMMERCE_ADMIN_PATH);
+      }
+    }).catch(() => {
+      // ignore
+    });
 
     const media = window.matchMedia("(max-width: 991px)");
     const update = () => setIsMobile(media.matches);

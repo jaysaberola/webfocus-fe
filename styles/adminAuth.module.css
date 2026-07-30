@@ -1,0 +1,348 @@
+.page {
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #eef2f7;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+}
+
+.page h1,
+.page h2,
+.page p,
+.page ul {
+  margin: 0;
+  padding: 0;
+}
+
+.brandPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: clamp(32px, 5vw, 72px);
+  overflow: hidden;
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 107, 53, 0.18) 0%, transparent 38%),
+    radial-gradient(circle at 85% 80%, rgba(99, 102, 241, 0.24) 0%, transparent 42%),
+    linear-gradient(180deg, #12182b 0%, #0f1424 52%, #0a0e18 100%);
+}
+
+.brandInner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.logoWrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.logo {
+  display: block;
+  height: 44px;
+  width: auto;
+  max-width: 240px;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+}
+
+.brandTitle {
+  margin-bottom: 14px;
+  font-size: clamp(2rem, 3.2vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.brandLead {
+  color: rgba(226, 232, 240, 0.86);
+  font-size: 1.02rem;
+  line-height: 1.65;
+  max-width: 36ch;
+  margin: 0 auto;
+}
+
+.brandPoints {
+  margin-top: 32px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(100%, 360px);
+  align-self: center;
+}
+
+.brandPoints li {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: start;
+  column-gap: 12px;
+  color: rgba(241, 245, 249, 0.9);
+  font-size: 0.94rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.brandPoints i {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ff8c42;
+  font-size: 0.8rem;
+  margin-top: 1px;
+}
+
+.formPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 24px;
+  overflow-y: auto;
+}
+
+.formCard {
+  width: min(100%, 400px);
+  padding: 32px 32px 26px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+}
+
+.formLogoWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.formLogo {
+  height: 32px;
+  width: auto;
+  max-width: 190px;
+  object-fit: contain;
+}
+
+.formTitle {
+  margin-bottom: 8px;
+  color: #0f172a;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.formLead {
+  margin-bottom: 24px;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.alert {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.field {
+  position: relative;
+  display: block;
+  margin-bottom: 18px;
+}
+
+.fieldLabel {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  z-index: 1;
+  padding: 0 6px;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fieldLabelRequired {
+  color: #ef4444;
+}
+
+.fieldInput {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.94rem;
+  line-height: 1.4;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  appearance: none;
+}
+
+.fieldInput:focus {
+  border-color: #6366f1;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+.fieldInput:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.fieldInput:-webkit-autofill,
+.fieldInput:-webkit-autofill:hover,
+.fieldInput:-webkit-autofill:focus {
+  -webkit-text-fill-color: #0f172a;
+  box-shadow: 0 0 0 1000px #f8fafc inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.primaryBtn {
+  width: 100%;
+  min-height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.15s ease;
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.secondaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid #d1d9e0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.18s ease;
+}
+
+.secondaryLink:hover,
+.secondaryLink:focus {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.secondaryLinkDisabled {
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.customerHint {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.customerHint a {
+  color: #6366f1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.customerHint a:hover,
+.customerHint a:focus {
+  text-decoration: underline;
+}
+
+.footer {
+  width: min(100%, 400px);
+  margin-top: 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 991px) {
+  .page {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .brandPanel {
+    display: none;
+  }
+
+  .formPanel {
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  .formCard {
+    padding: 26px 20px 22px;
+  }
+
+  .formLogoWrap {
+    display: flex;
+  }
+}
+
+@media (min-width: 992px) {
+  .formLogoWrap {
+    display: none;
+  }
+}

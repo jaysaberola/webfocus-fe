@@ -7,7 +7,8 @@ import {
   COMMERCE_SERVICE_STATS,
   formatCommerceMoney,
 } from "@/lib/commerceAdmin/mockData";
-import { fetchCommerceDashboard, type CommerceDashboardData } from "@/services/commerceAdminService";
+import type { CommerceDashboardData } from "@/services/commerceAdminService";
+import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import { useCommerceDashboardWidgets } from "@/lib/commerceAdmin/useCommerceDashboardWidgets";
 import CommerceCustomizeDashboardModal from "./CommerceCustomizeDashboardModal";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -41,14 +42,22 @@ function monthlyChartGeometry() {
 export default function CommerceDashboardTab({ onTabChange }: Props) {
   const [queueView, setQueueView] = useState<QueueView>("list");
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [dashboardData, setDashboardData] = useState<CommerceDashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<CommerceDashboardData | null>(() => readCommerceDashboardCache());
   const { visibleWidgets, visibleCount, toggleWidget, resetWidgets, isVisible } =
     useCommerceDashboardWidgets();
 
   useEffect(() => {
-    fetchCommerceDashboard()
-      .then(setDashboardData)
-      .catch(() => setDashboardData(null));
+    let alive = true;
+    getCommerceDashboardCached()
+      .then((data) => {
+        if (alive) setDashboardData(data);
+      })
+      .catch(() => {
+        if (alive) setDashboardData((prev) => prev ?? null);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const newOrders = dashboardData?.newOrders ?? [];

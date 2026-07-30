@@ -1,19 +1,21 @@
+import dynamic from "next/dynamic";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
-import CommerceDashboardTab from "./CommerceDashboardTab";
-import CommerceClientsTab from "./tabs/CommerceClientsTab";
-import CommerceTransactionsTab from "./tabs/CommerceTransactionsTab";
-import CommerceApprovalsTab from "./tabs/CommerceApprovalsTab";
-import CommerceManagedTab from "./tabs/CommerceManagedTab";
-import CommerceHelpdeskTab from "./tabs/CommerceHelpdeskTab";
-import CommerceCatalogTab from "./tabs/CommerceCatalogTab";
+import styles from "@/styles/commerceAdmin.module.css";
+import Link from "next/link";
 import {
   COMMERCE_CONTRACTS,
   COMMERCE_NOTIFICATIONS,
   COMMERCE_REPORTS,
   formatCommerceMoney,
 } from "@/lib/commerceAdmin/mockData";
-import styles from "@/styles/commerceAdmin.module.css";
-import Link from "next/link";
+
+const CommerceDashboardTab = dynamic(() => import("./CommerceDashboardTab"));
+const CommerceClientsTab = dynamic(() => import("./tabs/CommerceClientsTab"));
+const CommerceTransactionsTab = dynamic(() => import("./tabs/CommerceTransactionsTab"));
+const CommerceApprovalsTab = dynamic(() => import("./tabs/CommerceApprovalsTab"));
+const CommerceManagedTab = dynamic(() => import("./tabs/CommerceManagedTab"));
+const CommerceHelpdeskTab = dynamic(() => import("./tabs/CommerceHelpdeskTab"));
+const CommerceCatalogTab = dynamic(() => import("./tabs/CommerceCatalogTab"));
 
 type Props = {
   activeTab: CommerceAdminTab;

@@ -2,10 +2,14 @@ import { isPublicSiteRoute } from "@/lib/freshchatConfig";
 
 const AUTH_ROUTES = new Set(["/", "/forgot-password", "/reset-password"]);
 
+export function isAuthRoute(pathname: string) {
+  return AUTH_ROUTES.has(pathname);
+}
+
 /** Admin CMS routes (excludes login, public site, and auth recovery pages). */
 export function isAdminSiteRoute(pathname: string) {
   if (isPublicSiteRoute(pathname)) return false;
-  if (AUTH_ROUTES.has(pathname)) return false;
+  if (isAuthRoute(pathname)) return false;
   return true;
 }
 

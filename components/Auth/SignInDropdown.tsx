@@ -8,7 +8,7 @@ import {
 import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import { getCurrentUserCached, notifyCurrentUserUpdated, resolveAvatarUrl } from "@/lib/currentUser";
 import { readStoredAuthToken } from "@/lib/authToken";
-import { isAdminLikeUser } from "@/lib/userRoles";
+import { getRoleDisplayLabel, isCmsPortalUser, isStaffUser } from "@/lib/userRoles";
 import { scheduleIdleTask, useStoredPublicAuthState } from "@/lib/publicAuthState";
 import { signOutAdminAndStayOnSite, signOutCustomerAndStayOnSite } from "@/lib/publicSignOut";
 import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
@@ -42,8 +42,8 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           storeCustomer(null, { notify: true });
 
           try {
-            const user = await getCurrentUserCached({ force: true });
-            if (isAdminLikeUser(user)) {
+            const user = await getCurrentUserCached({ force: false });
+            if (isStaffUser(user)) {
               notifyCurrentUserUpdated();
             }
           } catch {
@@ -101,6 +101,8 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
   const adminDisplayName = customerDisplayName(adminUser?.fname, adminUser?.lname) || "Admin User";
   const adminInitial = (adminDisplayName.charAt(0) || "A").toUpperCase();
   const adminAvatarUrl = resolveAvatarUrl(adminUser?.avatar);
+  const adminRoleLabel = getRoleDisplayLabel(adminUser);
+  const showCmsPortalLink = isCmsPortalUser(adminUser);
 
   if (adminUser) {
     return (
@@ -127,14 +129,17 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
               <div className={styles.accountMeta}>
                 <p className={styles.accountName}>{adminDisplayName}</p>
                 <p className={styles.accountEmail}>{adminUser.email}</p>
+                <p className={styles.accountRole}>{adminRoleLabel}</p>
               </div>
             </div>
 
             <nav className={styles.accountMenu}>
-              <Link href="/dashboard" className={styles.menuItem} role="menuitem" onClick={close}>
-                <i className="fa-solid fa-layer-group" aria-hidden="true" />
-                CMS Admin
-              </Link>
+              {showCmsPortalLink ? (
+                <Link href="/dashboard" className={styles.menuItem} role="menuitem" onClick={close}>
+                  <i className="fa-solid fa-layer-group" aria-hidden="true" />
+                  CMS Admin
+                </Link>
+              ) : null}
               <Link href="/public/commerce-admin" className={styles.menuItem} role="menuitem" onClick={close}>
                 <i className="fa-solid fa-store" aria-hidden="true" />
                 Commerce Control Center

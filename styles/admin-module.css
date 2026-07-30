@@ -1026,6 +1026,35 @@
   gap: 14px;
 }
 
+.cms-access-area-tabs {
+  margin-bottom: 10px;
+}
+
+.cms-access-area-tabs__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cms-settings-tabs__btn.is-active .cms-access-area-tabs__count {
+  background: rgba(79, 70, 229, 0.14);
+  color: #4338ca;
+}
+
+.cms-access-area-tabs__hint {
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
 .cms-access-module-card {
   border: 1px solid var(--cm-border);
   border-radius: 14px;
@@ -1061,6 +1090,17 @@
   border: 1px solid var(--cm-border);
   border-radius: 12px;
   background: #f8fafc;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cms-access-perm-row:hover {
+  background: #eef2ff;
+  border-color: rgba(79, 70, 229, 0.28);
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08);
+}
+
+.cms-access-perm-row:hover .cms-access-perm-row__label {
+  color: #312e81;
 }
 
 .cms-access-perm-row__label {
@@ -1089,6 +1129,14 @@
   font-weight: 700;
   cursor: pointer;
   user-select: none;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.cms-access-role-toggle:hover {
+  background: #f8fafc;
+  border-color: rgba(79, 70, 229, 0.24);
+  color: #4338ca;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.06);
 }
 
 .cms-access-role-toggle input {

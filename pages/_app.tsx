@@ -8,7 +8,7 @@ import Script from "next/script";
 import { useRouter } from "next/router";
 import FreshchatWidget from "@/components/Layout/FreshchatWidget";
 import { isPublicSiteRoute } from "@/lib/freshchatConfig";
-import { ADMIN_FONT_HREF, ADMIN_STYLESHEETS, isAdminSiteRoute } from "@/lib/adminRoute";
+import { ADMIN_FONT_HREF, ADMIN_STYLESHEETS, isAdminSiteRoute, isAuthRoute } from "@/lib/adminRoute";
 import { isLightweightPublicPage } from "@/lib/publicLegacyScripts";
 
 type AppPropsWithLayout = AppProps & {
@@ -32,6 +32,8 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const showFreshchat = isPublicSiteRoute(router.pathname);
   const lightweightPublic = isLightweightPublicPage(router.pathname);
   const isAdmin = isAdminSiteRoute(router.pathname);
+  const isAuth = isAuthRoute(router.pathname);
+  const loadPublicLegacyScripts = !isAdmin && !isAuth && !lightweightPublic;
 
   React.useEffect(() => {
     if (!isAdmin) return;
@@ -99,7 +101,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
         ) : null}
 
         <Script src="/js/bootstrap.bundle.min.js" strategy="afterInteractive" />
-        {isAdmin ? null : !lightweightPublic ? (
+        {loadPublicLegacyScripts ? (
           <>
             <Script src="/js/flatpickr.min.js" strategy="afterInteractive" />
             <Script src="/js/glightbox.min.js" strategy="afterInteractive" />

@@ -1,4 +1,6 @@
 import { accountService, User } from "@/services/accountService";
+import { isAdminLikeUser } from "@/lib/adminPreviewAccess";
+import { getUserPermissions } from "@/lib/userPermissions";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 
 export const CURRENT_USER_STORAGE_KEY = "cms4.currentUser.v1";
@@ -53,12 +55,21 @@ async function refreshCurrentUser(): Promise<User> {
   return inflight;
 }
 
+export function userPermissionsLoaded(user: User | null | undefined): boolean {
+  if (!user) return false;
+  if (isAdminLikeUser(user)) return true;
+  return getUserPermissions(user).length > 0;
+}
+
 export async function getCurrentUserCached(opts?: { force?: boolean }): Promise<User> {
   const force = opts?.force === true;
 
   if (!force) {
     const stored = readStoredCurrentUser();
     if (stored) {
+      if (!userPermissionsLoaded(stored)) {
+        return refreshCurrentUser();
+      }
       void refreshCurrentUser();
       return stored;
     }

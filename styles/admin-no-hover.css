@@ -55,18 +55,19 @@
 
   .cms-admin-layout .cms-metric-card:hover {
     transform: none !important;
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
-    box-shadow: var(--admin-shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.06)) !important;
+    border-color: rgba(99, 102, 241, 0.34) !important;
+    background: rgba(99, 102, 241, 0.04) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.08) !important;
   }
 
   .cms-admin-layout .cms-metric-card--pages:hover,
   .cms-admin-layout .cms-metric-card--albums:hover,
   .cms-admin-layout .cms-metric-card--news:hover {
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
+    border-color: rgba(99, 102, 241, 0.34) !important;
   }
 
   .cms-admin-layout .cms-metric-card:hover::after {
-    opacity: 0.35 !important;
+    opacity: 0.55 !important;
     transform: none !important;
   }
 
@@ -74,29 +75,31 @@
   .cms-admin-layout .cms-metric-card--albums:hover .cms-metric-card__arrow,
   .cms-admin-layout .cms-metric-card--news:hover .cms-metric-card__arrow {
     transform: none !important;
-    color: #cbd5e1 !important;
+    color: #6366f1 !important;
   }
 
   .cms-admin-layout .cms-quicklink:hover {
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
-    box-shadow: none !important;
+    border-color: rgba(99, 102, 241, 0.28) !important;
+    background: rgba(99, 102, 241, 0.04) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.06) !important;
     transform: none !important;
-    color: #334155 !important;
+    color: #312e81 !important;
   }
 
   .cms-admin-layout .cms-quicklink:hover > i:first-child {
-    background: var(--admin-accent-soft, rgba(99, 102, 241, 0.14)) !important;
-    color: var(--admin-accent, #6366f1) !important;
+    background: rgba(99, 102, 241, 0.16) !important;
+    color: #6366f1 !important;
   }
 
   .cms-admin-layout .cms-quicklink:hover .cms-quicklink__chevron {
     transform: none !important;
-    color: #cbd5e1 !important;
+    color: #6366f1 !important;
   }
 
   .cms-admin-layout .cms-expand-row:hover {
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
-    box-shadow: none !important;
+    border-color: rgba(99, 102, 241, 0.24) !important;
+    background: rgba(99, 102, 241, 0.03) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.06) !important;
   }
 
   .cms-admin-layout .cms-expand-row.is-open:hover {
@@ -111,18 +114,20 @@
 
   .cms-admin-layout .cms-summary-stat-tile:hover {
     transform: none !important;
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
-    box-shadow: var(--admin-shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.06)) !important;
+    border-color: rgba(99, 102, 241, 0.28) !important;
+    background: rgba(99, 102, 241, 0.04) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.06) !important;
   }
 
   .cms-admin-layout .cms-summary-stat-tile:hover::after {
-    opacity: 0 !important;
+    opacity: 0.45 !important;
     transform: none !important;
   }
 
   .cms-admin-layout .cms-summary-stat-tile:hover .cms-summary-stat-tile__arrow {
-    opacity: 0 !important;
+    opacity: 1 !important;
     transform: none !important;
+    color: #6366f1 !important;
   }
 
   .cms-admin-layout a.cms-dashboard__hero-stat:hover {
@@ -132,29 +137,29 @@
 
   /* Activity feed */
   .cms-admin-layout .cms-activity__item:hover {
-    border-color: var(--admin-border, rgba(15, 23, 42, 0.08)) !important;
-    box-shadow: none !important;
-    background: #fff !important;
+    border-color: rgba(99, 102, 241, 0.2) !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.05) !important;
+    background: rgba(99, 102, 241, 0.03) !important;
   }
 
   /* Data tables */
   .cms-admin-layout .dt-enhanced-table tbody tr:hover {
-    background: transparent !important;
-    box-shadow: none !important;
+    background: rgba(99, 102, 241, 0.05) !important;
+    box-shadow: inset 3px 0 0 rgba(99, 102, 241, 0.55) !important;
   }
 
   .cms-admin-layout .dt-enhanced-table tbody tr:nth-child(even):hover {
-    background: rgba(248, 250, 252, 0.55) !important;
+    background: rgba(99, 102, 241, 0.05) !important;
   }
 
   .cms-admin-layout .dt-enhanced-table tbody tr:nth-child(odd):hover {
-    background: transparent !important;
+    background: rgba(99, 102, 241, 0.05) !important;
   }
 
   .cms-admin-layout .dt-pg-btn:hover:not(:disabled):not(.is-active) {
-    background: #fff !important;
-    border-color: #e2e8f0 !important;
-    color: #475569 !important;
+    background: rgba(99, 102, 241, 0.06) !important;
+    border-color: rgba(99, 102, 241, 0.24) !important;
+    color: #4338ca !important;
     transform: none !important;
   }
 
@@ -182,19 +187,50 @@
   /* Sidebar navigation */
   .cms-admin-layout .sb-parent-btn:hover:not(.sb-active),
   .cms-admin-layout .sb-single-link:hover:not(.sb-active) {
-    background: transparent !important;
-    color: var(--admin-sidebar-text, rgba(226, 232, 240, 0.88)) !important;
-    border-color: transparent !important;
+    background: rgba(99, 102, 241, 0.16) !important;
+    color: #e0e7ff !important;
+    border-color: rgba(99, 102, 241, 0.28) !important;
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.12) !important;
   }
 
   .cms-admin-layout .sb-child-link:hover:not(.sb-active) {
-    background: transparent !important;
-    color: var(--admin-sidebar-muted, rgba(148, 163, 184, 0.72)) !important;
+    background: rgba(99, 102, 241, 0.12) !important;
+    color: #e2e8f0 !important;
+    box-shadow: inset 2px 0 0 rgba(129, 140, 248, 0.75) !important;
   }
 
   .cms-admin-layout .sb-viewsite a:hover {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-color: rgba(255, 255, 255, 0.12) !important;
-    color: rgba(203, 213, 225, 0.85) !important;
+    background: rgba(99, 102, 241, 0.12) !important;
+    border-color: rgba(129, 140, 248, 0.35) !important;
+    color: #e0e7ff !important;
+  }
+
+  /* Access rights & settings modules */
+  .cms-admin-layout .cms-access-perm-row:hover {
+    background: #eef2ff !important;
+    border-color: rgba(79, 70, 229, 0.28) !important;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08) !important;
+  }
+
+  .cms-admin-layout .cms-access-role-toggle:hover {
+    background: #f8fafc !important;
+    border-color: rgba(79, 70, 229, 0.24) !important;
+    color: #4338ca !important;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.06) !important;
+  }
+
+  .cms-admin-layout .cms-settings-tabs__btn:hover:not(.is-active) {
+    color: #4338ca !important;
+    border-color: rgba(79, 70, 229, 0.24) !important;
+    background: rgba(79, 70, 229, 0.05) !important;
+  }
+
+  .cms-admin-layout .cms-settings-section:hover {
+    border-color: rgba(79, 70, 229, 0.18) !important;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.05) !important;
+  }
+
+  .cms-admin-layout .cms-settings-section__header:hover {
+    background: linear-gradient(180deg, #eef2ff 0%, #e0e7ff 100%) !important;
   }
 }

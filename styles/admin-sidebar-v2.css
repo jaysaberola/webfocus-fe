@@ -260,10 +260,30 @@
   position: relative;
 }
 
-.sb-parent-btn:hover,
-.sb-single-link:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f1f5f9;
+.sb-parent-btn:hover:not(.sb-active),
+.sb-single-link:hover:not(.sb-active) {
+  background: rgba(99, 102, 241, 0.14);
+  border-color: rgba(99, 102, 241, 0.24);
+  color: #e0e7ff;
+  box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.1);
+}
+
+.sb-parent-btn:hover:not(.sb-active)::before,
+.sb-single-link:hover:not(.sb-active)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 52%;
+  border-radius: 0 3px 3px 0;
+  background: rgba(129, 140, 248, 0.85);
+}
+
+.sb-parent-btn:hover:not(.sb-active) .sb-nav-icon,
+.sb-single-link:hover:not(.sb-active) .sb-nav-icon {
+  color: #c7d2fe;
 }
 
 .sb-parent-btn.sb-active,
@@ -346,9 +366,10 @@
   gap: 0.5rem;
 }
 
-.sb-child-link:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #cbd5e1;
+.sb-child-link:hover:not(.sb-active) {
+  background: rgba(99, 102, 241, 0.12);
+  color: #e2e8f0;
+  box-shadow: inset 2px 0 0 rgba(129, 140, 248, 0.75);
 }
 
 .sb-child-link.sb-active {

@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/router";
-import AuthLayout from "@/components/Layout/AuthLayout";
+import AuthLayout, { AdminAuthField, AdminCustomerLoginHint } from "@/components/Layout/AuthLayout";
 import { login } from "@/services/authService";
 import { toast } from "@/lib/toast";
+import { resolveStaffLoginRedirect } from "@/lib/userRoles";
+import styles from "@/styles/adminAuth.module.css";
 
 const getLoginErrorMessage = (error: any) => {
   const data = error?.response?.data;
@@ -34,11 +36,10 @@ function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      const data = await login(email, password);
       toast.success("Login successfully.");
       const redirect = typeof router.query.redirect === "string" ? router.query.redirect : "";
-      const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "/dashboard";
-      window.location.assign(safeRedirect);
+      window.location.assign(resolveStaffLoginRedirect(data?.user, redirect));
     } catch (error: any) {
       const message = String(getLoginErrorMessage(error));
       toast.error(message);
@@ -50,65 +51,43 @@ function LoginPage() {
 
   return (
     <>
-      <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
-        Welcome to Example Site Admin Portal.
-        <br />
-        Please sign in to continue.
-      </p>
-
-      {errorMessage && (
-        <div className="alert alert-danger" role="alert">
+      {errorMessage ? (
+        <div className={styles.alert} role="alert">
           {errorMessage}
         </div>
-      )}
+      ) : null}
 
       <form onSubmit={handleLogin}>
-        {/* Email */}
-        <div className="mb-3">
-          <label className="form-label">
-            <span className="text-danger">*</span> Email
-          </label>
-          <input
-            type="email"
-            className="form-control"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={isSubmitting}
-            aria-invalid={Boolean(errorMessage)}
-            required
-          />
-        </div>
+        <AdminAuthField
+          id="admin-login-email"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          required
+          disabled={isSubmitting}
+          autoComplete="email"
+        />
 
-        {/* Password */}
-        <div className="mb-4">
-          <label className="form-label">
-            <span className="text-danger">*</span> Password
-          </label>
-          <input
-            type="password"
-            className="form-control"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isSubmitting}
-            required
-          />
-        </div>
+        <AdminAuthField
+          id="admin-login-password"
+          label="Password"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          required
+          disabled={isSubmitting}
+          autoComplete="current-password"
+        />
 
-        {/* Buttons */}
-        <div className="d-flex gap-2">
-          <button type="submit" className="btn btn-primary w-50" disabled={isSubmitting}>
-            {isSubmitting && (
-              <span
-                className="spinner-border spinner-border-sm me-2"
-                aria-hidden="true"
-              />
-            )}
-            {isSubmitting ? "Signing in..." : "Log In"}
+        <div className={styles.actions}>
+          <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+            {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
 
           <a
             href="/forgot-password"
-            className={`btn btn-info text-white w-50 ${isSubmitting ? "disabled" : ""}`}
+            className={`${styles.secondaryLink} ${isSubmitting ? styles.secondaryLinkDisabled : ""}`}
             aria-disabled={isSubmitting}
           >
             Forgot Password
@@ -116,21 +95,13 @@ function LoginPage() {
         </div>
       </form>
 
-      {/* Footer */}
-      <div
-        className="text-center text-muted mt-4"
-        style={{ fontSize: "0.75rem" }}
-      >
-        Admin Portal v1.0 · Developed by WebFocus Solutions, Inc. © 2025
-      </div>
+      <AdminCustomerLoginHint />
     </>
   );
 }
 
 LoginPage.Layout = ({ children }: { children: React.ReactNode }) => (
-  <AuthLayout title="Login" imageUrl="https://img.freepik.com/premium-photo/light-indigo-black-abstract-3d-geometric-background-design_851755-368825.jpg">
-    {children}
-  </AuthLayout>
+  <AuthLayout title="Sign In">{children}</AuthLayout>
 );
 
 export default LoginPage;

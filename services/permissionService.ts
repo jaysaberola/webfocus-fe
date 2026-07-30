@@ -7,6 +7,8 @@ import { axiosInstance } from "@/services/axios"
 export type Role = {
   id: number
   name: string
+  description?: string | null
+  label?: string
 }
 
 export type Permission = {

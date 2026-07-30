@@ -10,9 +10,11 @@ export interface User {
   email: string;
   avatar?: string;
   role?: string;
+  role_description?: string;
   user_type?: string;
   is_admin?: boolean | number;
   isAdmin?: boolean | number;
+  permissions?: string[];
   roles?: Array<string | { name?: string; role?: string }>;
 }
 
