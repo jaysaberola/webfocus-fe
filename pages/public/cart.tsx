@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
@@ -494,3 +495,18 @@ export default function PublicCartCheckoutPage() {
     </div>
   );
 }
+
+PublicCartCheckoutPage.Layout = function PublicCartLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <LandingPageLayout
+      pageData={{ title: "Your Cart", meta: { title: "Your Cart" } }}
+      layout={{ hideBanner: true, fullWidth: true, minimalFooter: true }}
+    >
+      {children}
+    </LandingPageLayout>
+  );
+};
