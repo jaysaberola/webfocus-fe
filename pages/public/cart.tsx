@@ -1,271 +1,496 @@
-import LandingPageLayout from "@/components/Layout/GuestLayout";
-
-import PublicCartCheckoutPage from "@/components/Cart/PublicCartCheckoutPage";
-
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
+import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
+import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
+import {
+  cartCount,
+  cartSubtotal,
+  clearPublicCart,
+  formatCartMoney,
+  PublicCartItem,
+  readPublicCart,
+  removePublicCartItem,
+} from "@/lib/publicCart";
+import {
+  hasCheckoutAgreementAccepted,
+  markCheckoutAgreementAccepted,
+} from "@/lib/checkoutAgreement";
+import { readStoredAuthToken } from "@/lib/authToken";
+import {
+  fetchCurrentCustomer,
+  getStoredCustomer,
+  PublicCustomer,
+} from "@/services/publicCustomerService";
+import { checkoutWithPaynamics } from "@/services/salesTransactionService";
+import { toast } from "@/lib/toast";
+import styles from "@/styles/publicCartCheckout.module.css";
 
+const TERM_OPTIONS = [
+  { label: "12 Months", months: 12 },
+  { label: "24 Months", months: 24 },
+  { label: "36 Months", months: 36 },
+];
 
-
-function CustomerCartPage() {
-
-  return <PublicCartCheckoutPage />;
-
+function getCartItemTitle(item: PublicCartItem) {
+  if (/domain/i.test(item.category || "")) {
+    return `Domain Registration ${item.name}`;
+  }
+  return item.name;
 }
 
+function getCartItemIcon(category?: string) {
+  if (/domain/i.test(category || "")) return "fa-solid fa-globe";
+  if (/hosting/i.test(category || "")) return "fa-solid fa-server";
+  if (/dms|document/i.test(category || "")) {
+    return "fa-solid fa-file-lines";
+  }
+  if (/design|web/i.test(category || "")) return "fa-solid fa-palette";
+  return "fa-solid fa-box";
+}
 
+export default function PublicCartCheckoutPage() {
+  const router = useRouter();
+  const [items, setItems] = useState<PublicCartItem[]>([]);
+  const [terms, setTerms] = useState<Record<string, number>>({});
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [customer, setCustomer] = useState<PublicCustomer | null>(null);
+  const [placingOrder, setPlacingOrder] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
 
-export function CustomerShell({ active, children }: { active: string; children: React.ReactNode }) {
+  const refreshAuth = () => {
+    const storedCustomer = getStoredCustomer();
+    setCustomer(storedCustomer);
+    setIsLoggedIn(Boolean(readStoredAuthToken() && storedCustomer));
+  };
 
-  const links = [
+  const refreshCart = () => {
+    const nextItems = readPublicCart();
+    setItems(nextItems);
+    setAgreementAccepted(hasCheckoutAgreementAccepted(nextItems));
+    setTerms((current) => {
+      const next = { ...current };
+      nextItems.forEach((item) => {
+        if (!next[item.key]) next[item.key] = 12;
+      });
+      return next;
+    });
+  };
 
-    ["account", "Manage Account", "/public/dashboard?tab=account"],
+  useEffect(() => {
+    refreshCart();
+    refreshAuth();
+    window.addEventListener("public-cart-updated", refreshCart);
+    window.addEventListener("public-customer-updated", refreshAuth);
+    window.addEventListener("storage", refreshCart);
 
-    ["cart", "My Cart", "/public/cart"],
+    return () => {
+      window.removeEventListener("public-cart-updated", refreshCart);
+      window.removeEventListener("public-customer-updated", refreshAuth);
+      window.removeEventListener("storage", refreshCart);
+    };
+  }, []);
 
-    ["orders", "Order History", "/public/dashboard?tab=orders"],
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.signin === "1" && !isLoggedIn) {
+      setSignInOpen(true);
+    }
+  }, [router.isReady, router.query.signin, isLoggedIn]);
 
-  ];
+  const itemCount = cartCount(items);
+  const subtotal = cartSubtotal(items);
+  const emptyState = items.length === 0;
+  const paymentStepActive =
+    isLoggedIn && agreementAccepted && !emptyState;
+  const checkoutBlockedByAgreement =
+    isLoggedIn && !agreementAccepted && !emptyState;
+
+  const removeItem = (key: string) => {
+    setItems(removePublicCartItem(key));
+  };
+
+  const handleReadyForCheckout = () => {
+    if (!items.length) return;
+    if (!isLoggedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    if (!agreementAccepted) {
+      setAgreementOpen(true);
+    }
+  };
+
+  const handleAgreementContinueToPayment = () => {
+    setAgreementAccepted(true);
+    setAgreementOpen(false);
+    markCheckoutAgreementAccepted(items);
+  };
+
+  const handleProceedToPaynamics = async () => {
+    if (!items.length) return;
+
+    if (!isLoggedIn) {
+      setSignInOpen(true);
+      return;
+    }
+
+    if (!agreementAccepted) {
+      setAgreementOpen(true);
+      return;
+    }
+
+    const activeCustomer = customer ?? getStoredCustomer();
+    if (!activeCustomer) {
+      setSignInOpen(true);
+      return;
+    }
+
+    const itemSummary = items
+      .map(
+        (item) =>
+          `${item.qty} x ${item.name} @ ${formatCartMoney(item.price)}`
+      )
+      .join("\n");
+
+    try {
+      setPlacingOrder(true);
+
+      const result = await checkoutWithPaynamics({
+        customer_id: activeCustomer.id,
+        customer_name:
+          `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+        customer_email: activeCustomer.email,
+        subtotal,
+        discount_total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        payment_status: "pending",
+        order_status: "pending",
+        transacted_at: new Date().toISOString(),
+        items: items.map((item) => ({
+          product_id: item.id ?? null,
+          name: item.name,
+          item_type: "product",
+          price: item.price,
+          quantity: item.qty,
+          total_price: item.price * item.qty,
+        })),
+        notes: [
+          "Customer checkout order",
+          "Payment gateway: Paynamics hosted portal",
+          "",
+          "Items:",
+          itemSummary,
+        ].join("\n"),
+      });
+
+      const redirectUrl = result?.paynamics?.redirect_url;
+      if (!redirectUrl) {
+        throw new Error("Paynamics did not return a payment portal URL.");
+      }
+
+      clearPublicCart();
+      toast.success("Redirecting to the secure Paynamics payment portal...");
+      window.location.assign(redirectUrl);
+    } catch (err: any) {
+      const validationErrors = err?.response?.data?.errors;
+      const firstValidationError = validationErrors
+        ? Object.values(validationErrors).flat().find(Boolean)
+        : null;
+
+      toast.error(
+        String(
+          firstValidationError ||
+            err?.response?.data?.message ||
+            err?.message ||
+            "Failed to open the Paynamics payment portal."
+        )
+      );
+    } finally {
+      setPlacingOrder(false);
+    }
+  };
+
+  const handleSignInSuccess = () => {
+    refreshAuth();
+    fetchCurrentCustomer({ silent: true })
+      .then(setCustomer)
+      .catch(() => undefined);
+    router.replace("/public/cart", undefined, { shallow: true });
+  };
+
+  const applyPromoCode = () => {
+    const code = promoCode.trim();
+    if (!code) {
+      toast.warning("Enter a promo code.");
+      return;
+    }
+
+    setAppliedPromo(code.toUpperCase());
+    toast.success(`Promo code "${code.toUpperCase()}" applied.`);
+  };
+
+  const closePromo = () => {
+    setPromoOpen(false);
+    setPromoCode("");
+  };
 
   return (
+    <div className={styles.page}>
+      <div className={styles.container}>
+        <header className={styles.pageHeader}>
+          <h1>Your Cart</h1>
+          <p>
+            Review your requested domains and services prior to proceeding
+            with checkout.
+          </p>
+        </header>
 
-    <div className="customer-area">
+        <LiveCheckoutProgress
+          isLoggedIn={isLoggedIn}
+          hasItems={!emptyState}
+          agreementAccepted={agreementAccepted}
+        />
 
-      <aside className="customer-sidebar">
+        <div className={styles.layout}>
+          <section className={styles.mainColumn}>
+            {emptyState ? (
+              <div className={styles.emptyCard}>
+                <p>Your shopping cart is currently empty.</p>
+                <Link
+                  href="/public/services"
+                  className={styles.browseLink}
+                >
+                  Browse Services
+                </Link>
+              </div>
+            ) : (
+              items.map((item) => {
+                const months = terms[item.key] || 12;
+                const renewalYear =
+                  new Date().getFullYear() + Math.ceil(months / 12);
 
-        <h4>MY ACCOUNT</h4>
+                return (
+                  <article key={item.key} className={styles.itemCard}>
+                    <div
+                      className={styles.itemIcon}
+                      aria-hidden="true"
+                    >
+                      <i className={getCartItemIcon(item.category)} />
+                    </div>
 
-        <nav>
+                    <div className={styles.itemBody}>
+                      <h2 className={styles.itemTitle}>
+                        {getCartItemTitle(item)}
+                      </h2>
 
-          {links.map(([key, label, href]) => (
+                      <div className={styles.termRow}>
+                        <select
+                          value={months}
+                          onChange={(event) =>
+                            setTerms((current) => ({
+                              ...current,
+                              [item.key]: Number(event.target.value),
+                            }))
+                          }
+                          aria-label={`Term for ${item.name}`}
+                        >
+                          {TERM_OPTIONS.map((option) => (
+                            <option
+                              key={option.months}
+                              value={option.months}
+                            >
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-            <Link key={key} href={href} className={active === key ? "active" : ""}>{label}</Link>
+                      <p className={styles.renewalNote}>
+                        Renews {months} months from purchase. Next renewal
+                        around {renewalYear}.
+                      </p>
+                    </div>
 
-          ))}
+                    <div className={styles.itemAside}>
+                      <strong className={styles.itemPrice}>
+                        {formatCartMoney(item.price * item.qty)}
+                      </strong>
+                      <button
+                        type="button"
+                        className={styles.removeIconBtn}
+                        aria-label={`Remove ${item.name} from cart`}
+                        onClick={() => removeItem(item.key)}
+                      >
+                        <i
+                          className="fa-regular fa-trash-can"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </section>
 
-        </nav>
+          <aside className={styles.sidebar}>
+            <div className={styles.summaryCard}>
+              <h3>Order Summary</h3>
+              <p className={styles.summaryCount}>
+                {itemCount} Item{itemCount === 1 ? "" : "s"}
+              </p>
 
-      </aside>
+              <div className={styles.summaryTotal}>
+                <span>Subtotal (PHP)</span>
+                <strong>{formatCartMoney(subtotal)}</strong>
+              </div>
 
-      <div className="customer-main">{children}</div>
+              <div className={styles.promoBlock}>
+                <button
+                  type="button"
+                  className={styles.promoLink}
+                  onClick={() => setPromoOpen(true)}
+                >
+                  Have a promo code?
+                </button>
 
+                {promoOpen && (
+                  <div className={styles.promoRow}>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(event) =>
+                        setPromoCode(event.target.value)
+                      }
+                      className={styles.promoInput}
+                      placeholder="Enter promo code"
+                      aria-label="Promo code"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className={styles.promoApplyBtn}
+                      onClick={applyPromoCode}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.promoCloseBtn}
+                      aria-label="Close promo code"
+                      onClick={closePromo}
+                    >
+                      <i
+                        className="fa-solid fa-xmark"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {appliedPromo && (
+                  <p className={styles.promoApplied}>
+                    Promo applied: {appliedPromo}
+                  </p>
+                )}
+              </div>
+
+              {isLoggedIn && !emptyState ? (
+                <div className={styles.agreementBlock}>
+                  {agreementAccepted ? (
+                    <p className={styles.agreementAccepted}>
+                      <i
+                        className="fa-solid fa-circle-check"
+                        aria-hidden="true"
+                      />
+                      Agreement accepted
+                    </p>
+                  ) : (
+                    <p className={styles.agreementPrompt}>
+                      Review and accept the policy and contract agreement
+                      before checkout.
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    className={styles.agreementLink}
+                    onClick={() => setAgreementOpen(true)}
+                  >
+                    {agreementAccepted
+                      ? "Review agreement again"
+                      : "Read policy and contract agreement"}
+                  </button>
+                </div>
+              ) : null}
+
+              {paymentStepActive ? (
+                <button
+                  type="button"
+                  className={styles.checkoutBtn}
+                  disabled={placingOrder}
+                  onClick={handleProceedToPaynamics}
+                >
+                  {placingOrder
+                    ? "Opening secure payment..."
+                    : "Proceed to Paynamics"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.checkoutBtn}
+                  disabled={emptyState || checkoutBlockedByAgreement}
+                  onClick={handleReadyForCheckout}
+                >
+                  Ready for Checkout
+                </button>
+              )}
+
+              {checkoutBlockedByAgreement ? (
+                <p className={styles.agreementHint}>
+                  Open the agreement, scroll to the end, and accept it to
+                  continue.
+                </p>
+              ) : paymentStepActive ? (
+                <p className={styles.agreementHint}>
+                  Payment details are entered securely on the Paynamics
+                  portal.
+                </p>
+              ) : null}
+            </div>
+
+            <div className={styles.trustCard}>
+              <h4>Quality You Can Trust</h4>
+              <p>
+                WebFocus Solutions, Inc. provides enterprise-grade hosting,
+                domain registration, and managed services backed by Manila
+                NOC support.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <CustomerSignInModal
+        open={signInOpen}
+        onClose={() => setSignInOpen(false)}
+        onSuccess={handleSignInSuccess}
+      />
+
+      <CheckoutAgreementModal
+        open={agreementOpen}
+        items={items}
+        onClose={() => setAgreementOpen(false)}
+        onAccept={handleAgreementContinueToPayment}
+      />
     </div>
-
   );
-
 }
-
-
-
-export function CustomerStyles() {
-
-  return (
-
-    <style jsx global>{`
-
-      .customer-area {
-
-        display: grid;
-
-        grid-template-columns: 300px minmax(0, 1fr);
-
-        gap: 24px;
-
-        padding: 28px 0 60px;
-
-      }
-
-      .customer-sidebar,
-
-      .customer-panel {
-
-        background: #fff;
-
-        border: 1px solid #d9dee8;
-
-        border-radius: 8px;
-
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-
-      }
-
-      .customer-sidebar h4 {
-
-        color: #00843d;
-
-        font-weight: 800;
-
-        padding: 22px 26px;
-
-        border-bottom: 1px solid #e2e8f0;
-
-        margin: 0;
-
-      }
-
-      .customer-sidebar nav {
-
-        padding: 18px 0;
-
-      }
-
-      .customer-sidebar a {
-
-        display: block;
-
-        color: #0f172a;
-
-        font-weight: 800;
-
-        padding: 13px 26px;
-
-        text-decoration: none;
-
-      }
-
-      .customer-sidebar a.active {
-
-        color: #f97316;
-
-        border-left: 4px solid #f97316;
-
-        padding-left: 22px;
-
-      }
-
-      .panel-title {
-
-        color: #f97316;
-
-        font-size: 18px;
-
-        font-weight: 800;
-
-        padding: 20px 26px;
-
-        border-bottom: 1px solid #e2e8f0;
-
-        text-transform: uppercase;
-
-      }
-
-      .customer-panel {
-
-        overflow: hidden;
-
-      }
-
-      .customer-area input,
-
-      .customer-area select,
-
-      .customer-area textarea {
-
-        border: 1px solid #94a3b8 !important;
-
-        border-radius: 8px !important;
-
-        background: #fff !important;
-
-        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
-
-        color: #0f172a;
-
-      }
-
-      .customer-area input:focus,
-
-      .customer-area select:focus,
-
-      .customer-area textarea:focus {
-
-        border-color: #00843d !important;
-
-        box-shadow: 0 0 0 3px rgba(0, 132, 61, 0.16);
-
-        outline: none;
-
-      }
-
-      .customer-area input:disabled {
-
-        background: #f8fafc !important;
-
-        color: #64748b;
-
-      }
-
-      .customer-btn {
-
-        display: inline-flex;
-
-        justify-content: center;
-
-        align-items: center;
-
-        min-height: 44px;
-
-        background: #00843d;
-
-        border-radius: 6px;
-
-        color: #fff !important;
-
-        font-weight: 800;
-
-        padding: 10px 18px;
-
-        text-decoration: none;
-
-        border: 0;
-
-      }
-
-      @media (max-width: 900px) {
-
-        .customer-area {
-
-          grid-template-columns: 1fr;
-
-        }
-
-      }
-
-    `}</style>
-
-  );
-
-}
-
-
-
-export const money = (value: number | string) =>
-
-  Number(value || 0).toLocaleString("en-PH", { style: "currency", currency: "PHP" });
-
-
-
-CustomerCartPage.Layout = function CustomerCartLayout({ children }: { children: React.ReactNode }) {
-
-  return (
-
-    <LandingPageLayout
-
-      pageData={{ title: "Your Cart", meta: { title: "Your Cart" } }}
-
-      layout={{ hideBanner: true, minimalFooter: true, fullWidth: true }}
-
-    >
-
-      {children}
-
-    </LandingPageLayout>
-
-  );
-
-};
-
-
-
-export default CustomerCartPage;
-
-
