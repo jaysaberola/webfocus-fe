@@ -5,7 +5,6 @@ import {
   WEBDESIGN_PACKAGES,
   type TemplateGroup,
   type WebsiteTemplate,
-  formatPeso,
 } from "@/lib/servicesCatalog";
 import { useServiceCart } from "./useServiceCart";
 import { serviceCardGridClass } from "./serviceCardGridClass";
@@ -116,40 +115,53 @@ export default function ServicesWebDesignTab() {
               </p>
             </div>
 
-            <div className={serviceCardGridClass(WEBDESIGN_PACKAGES.length)}>
-              {WEBDESIGN_PACKAGES.map((pkg) => (
-                <article key={pkg.id} className={styles.serviceCard}>
-                  <div className={styles.serviceCardTop}>
-                    <span className={`${styles.serviceCardBadge} ${styles.serviceCardBadgePurple}`}>
-                      Agency Code deployment
-                    </span>
-                    <h4 className={styles.serviceCardTitle}>{pkg.name}</h4>
-                    <p className={styles.serviceCardPrice}>
-                      {formatPeso(pkg.price)}
-                      <span> One-Off Cost</span>
-                    </p>
-                  </div>
-                  <div className={styles.serviceCardBody}>
-                    <ul className={styles.serviceCardFeatures}>
-                      {pkg.features.map((feature) => (
-                        <li key={feature}>{feature}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <button
-                    type="button"
-                    className={`${styles.serviceCardBtn} ${styles.serviceCardBtnViolet}`}
-                    onClick={() =>
-                      openSetupWizard({
-                        packageName: pkg.name,
-                        packagePrice: pkg.price,
-                      })
-                    }
-                  >
-                    + ADD AGENCY PACKAGE
-                  </button>
-                </article>
-              ))}
+            <div className={styles.agencyPlanGrid}>
+              {WEBDESIGN_PACKAGES.map((pkg, index) => {
+                const cardVariant =
+                  index === 1
+                    ? styles.agencyPlanCardFeatured
+                    : index === 2
+                      ? styles.agencyPlanCardPro
+                      : styles.agencyPlanCardStarter;
+
+                return (
+                  <article key={pkg.id} className={`${styles.agencyPlanCard} ${cardVariant}`}>
+                    <div className={styles.agencyPlanHeader}>
+                      <span className={styles.agencyPlanBadge}>Agency Code deployment</span>
+                      <h4 className={styles.agencyPlanTitle}>{pkg.name}</h4>
+                      <button
+                        type="button"
+                        className={styles.agencyPlanCta}
+                        onClick={() =>
+                          openSetupWizard({
+                            packageName: pkg.name,
+                            packagePrice: pkg.price,
+                          })
+                        }
+                      >
+                        + ADD AGENCY PACKAGE
+                      </button>
+                      <Link href="/public/contact-us" className={styles.agencyPlanCall}>
+                        <i className="fa-solid fa-phone" aria-hidden="true" />
+                        BOOK A CALL
+                      </Link>
+                    </div>
+                    <div className={styles.agencyPlanFeatures}>
+                      <p className={styles.agencyPlanFeaturesLabel}>Features:</p>
+                      <ul className={styles.agencyPlanFeaturesList}>
+                        {pkg.features.map((feature) => (
+                          <li key={feature}>
+                            <span className={styles.agencyPlanFeatureIcon} aria-hidden="true">
+                              <i className="fa-solid fa-check" />
+                            </span>
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
 

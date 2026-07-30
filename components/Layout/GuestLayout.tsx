@@ -75,6 +75,7 @@ export default function LandingPageLayout({
     layout?.hideBanner ||
     pageData?.slug === "about" ||
     pageData?.slug === "about-us" ||
+    pageData?.slug === "contact-us" ||
     pageData?.slug === "news" ||
     pageData?.slug === "services";
   const heroPreloadImage = isHomeHero ? getHeroPreloadImage(pageData?.album) : null;

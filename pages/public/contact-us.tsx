@@ -1,7 +1,19 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
-import { getPublicPageBySlug } from "@/services/publicPageService";
-import { sendContactMessage } from "@/services/publicPageService";
+import { getPublicPageBySlug, sendContactMessage } from "@/services/publicPageService";
 import { useState } from "react";
+import styles from "@/styles/contactPage.module.css";
+
+const OFFICE = {
+  addressLines: [
+    "Unit 907-909, Antel Global Corporate Center,",
+    "Julia Vargas Avenue, Ortigas Center,",
+    "Pasig City, Philippines",
+  ],
+  phone: "+63 (2) 8706-5796",
+  phoneHref: "tel:+63287065796",
+  email: "customercare@webfocus.ph",
+  mapQuery: "Antel+Global+Corporate+Center+Julia+Vargas+Avenue+Ortigas+Center+Pasig+City",
+};
 
 export default function ContactUsPage() {
   const [form, setForm] = useState({
@@ -51,146 +63,187 @@ export default function ContactUsPage() {
   };
 
   return (
-    <div className="container">
-      <div className="p-t-80 p-b-80">
+    <div className={styles.page}>
+      <div className={styles.shell}>
+        <header className={styles.intro}>
+          <div className={styles.introAccent} aria-hidden="true" />
+          <div className={styles.introGlow} aria-hidden="true" />
 
-        <div className="row">
-
-          {/* LEFT – CONTACT INFO */}
-          <div className="col-md-4 col-lg-3">
-            <div className="sidebar2 p-b-40">
-
-              <h4 className="p-b-20">Our Office</h4>
-
-              <p className="txt14 p-b-10">
-                3rd Floor, ABC Building<br />
-                J.P. Laurel Avenue, Bajada<br />
-                Davao City, Philippines
+          <div className={styles.introBody}>
+            <div className={styles.introCopy}>
+              <span className={styles.introBadge}>WebFocus Solutions, Inc.</span>
+              <h1 className={styles.introTitle}>Contact Us</h1>
+              <p className={styles.introText}>
+                Reach our Pasig office for sales inquiries, customer support, partnerships, or
+                general questions. Our team will respond as soon as possible.
               </p>
-
-              <p className="txt14 p-b-10">
-                📞 (+63) 82 295-1234<br />
-                ✉ info@yourcompany.com
-              </p>
-
-              <p className="txt14">
-                🕘 Mon – Fri<br />
-                8:00 AM – 5:00 PM
-              </p>
-
             </div>
           </div>
+        </header>
 
-          {/* RIGHT – FORM + MAP */}
-          <div className="col-md-8 col-lg-9">
+        <div className={styles.grid}>
+          <aside className={styles.infoStack}>
+            <section className={styles.infoCard} aria-label="Office information">
+              <h2 className={styles.infoCardTitle}>Our Office</h2>
 
-            {/* MAP */}
-            <div className="blo4 bo-rad-10 of-hidden m-b-40">
+              <div className={styles.infoItem}>
+                <span className={styles.infoIcon} aria-hidden="true">
+                  <i className="fa-solid fa-location-dot" />
+                </span>
+                <div className={styles.infoBody}>
+                  <span className={styles.infoLabel}>Address</span>
+                  <p className={styles.infoValue}>
+                    {OFFICE.addressLines.map((line) => (
+                      <span key={line}>
+                        {line}
+                        <br />
+                      </span>
+                    ))}
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoIcon} aria-hidden="true">
+                  <i className="fa-solid fa-phone" />
+                </span>
+                <div className={styles.infoBody}>
+                  <span className={styles.infoLabel}>Phone</span>
+                  <p className={styles.infoValue}>
+                    <a href={OFFICE.phoneHref} className={styles.infoLink}>
+                      {OFFICE.phone}
+                    </a>
+                  </p>
+                </div>
+              </div>
+
+              <div className={styles.infoItem}>
+                <span className={styles.infoIcon} aria-hidden="true">
+                  <i className="fa-solid fa-envelope" />
+                </span>
+                <div className={styles.infoBody}>
+                  <span className={styles.infoLabel}>Email</span>
+                  <p className={styles.infoValue}>
+                    <a href={`mailto:${OFFICE.email}`} className={styles.infoLink}>
+                      {OFFICE.email}
+                    </a>
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className={styles.hoursCard}>
+              <strong>Business Hours</strong>
+              <p>Monday – Friday, 8:00 AM – 5:00 PM (Philippine Standard Time)</p>
+            </section>
+          </aside>
+
+          <div className={styles.rightColumn}>
+            <section className={styles.mapCard} aria-label="Office map">
               <iframe
-                src="https://www.google.com/maps?q=Davao%20City%2C%20Philippines&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                width="100%"
-                height="300"
-                style={{ border: 0 }}
+                className={styles.mapFrame}
+                title="WebFocus office location"
+                src={`https://www.google.com/maps?q=${OFFICE.mapQuery}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                 loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
-            </div>
+            </section>
 
-            {/* FORM */}
-            <div className="blo4 p-30">
-              <h4 className="p-b-20">Send Us a Message</h4>
+            <section className={styles.formCard}>
+              <h2 className={styles.formTitle}>Send Us a Message</h2>
+              <p className={styles.formHint}>
+                Fill out the form below and our team will get back to you shortly.
+              </p>
 
-              {success && <p className="txt14 text-success p-b-10">{success}</p>}
-              {error && <p className="txt14 text-danger p-b-10">{error}</p>}
+              {success ? <p className={styles.alertSuccess}>{success}</p> : null}
+              {error ? <p className={styles.alertError}>{error}</p> : null}
 
               <form onSubmit={submit}>
-                {/* INQUIRY TYPE */}
-                <div className="row p-b-25">
-                  <div className="col-md-6">
-                    <label className="txt14 p-b-5 dis-block">Inquiry Type *</label>
-                    <div className="size30 bo2 bo-rad-10">
-                      <select
-                        className="sizefull txt14 p-l-20 p-r-20"
-                        name="inquiry_type"
-                        value={form.inquiry_type}
-                        onChange={handleChange}
-                        required
-                      >
-                        <option value="">Select inquiry type</option>
-                        <option>General Inquiry</option>
-                        <option>Customer Support</option>
-                        <option>Business Partnership</option>
-                        <option>Careers</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* NAME */}
-                <div className="row p-b-25">
-                  <div className="col-md-6">
-                    <label className="txt14 p-b-5 dis-block">First Name *</label>
-                    <div className="size30 bo2 bo-rad-10">
-                      <input
-                        className="sizefull txt14 p-l-20 p-r-20"
-                        name="first_name"
-                        value={form.first_name}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                <div className={styles.formGrid}>
+                  <div className={`${styles.field} ${styles.fieldFull}`}>
+                    <label className={styles.label} htmlFor="inquiry_type">
+                      Inquiry Type <span className={styles.required}>*</span>
+                    </label>
+                    <select
+                      id="inquiry_type"
+                      className={styles.select}
+                      name="inquiry_type"
+                      value={form.inquiry_type}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Select inquiry type</option>
+                      <option>General Inquiry</option>
+                      <option>Customer Support</option>
+                      <option>Business Partnership</option>
+                      <option>Careers</option>
+                    </select>
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="txt14 p-b-5 dis-block">Last Name *</label>
-                    <div className="size30 bo2 bo-rad-10">
-                      <input
-                        className="sizefull txt14 p-l-20 p-r-20"
-                        name="last_name"
-                        value={form.last_name}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* CONTACT */}
-                <div className="row p-b-25">
-                  <div className="col-md-6">
-                    <label className="txt14 p-b-5 dis-block">Email *</label>
-                    <div className="size30 bo2 bo-rad-10">
-                      <input
-                        type="email"
-                        className="sizefull txt14 p-l-20 p-r-20"
-                        name="email"
-                        value={form.email}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="first_name">
+                      First Name <span className={styles.required}>*</span>
+                    </label>
+                    <input
+                      id="first_name"
+                      className={styles.input}
+                      name="first_name"
+                      value={form.first_name}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="txt14 p-b-5 dis-block">Contact Number *</label>
-                    <div className="size30 bo2 bo-rad-10">
-                      <input
-                        className="sizefull txt14 p-l-20 p-r-20"
-                        name="contact_number"
-                        value={form.contact_number}
-                        onChange={handleChange}
-                        required
-                      />
-                    </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="last_name">
+                      Last Name <span className={styles.required}>*</span>
+                    </label>
+                    <input
+                      id="last_name"
+                      className={styles.input}
+                      name="last_name"
+                      value={form.last_name}
+                      onChange={handleChange}
+                      required
+                    />
                   </div>
-                </div>
 
-                {/* MESSAGE */}
-                <div className="p-b-30">
-                  <label className="txt14 p-b-5 dis-block">Message *</label>
-                  <div className="bo2 bo-rad-10">
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="email">
+                      Email <span className={styles.required}>*</span>
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      className={styles.input}
+                      name="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="contact_number">
+                      Contact Number <span className={styles.required}>*</span>
+                    </label>
+                    <input
+                      id="contact_number"
+                      className={styles.input}
+                      name="contact_number"
+                      value={form.contact_number}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
+
+                  <div className={`${styles.field} ${styles.fieldFull}`}>
+                    <label className={styles.label} htmlFor="message">
+                      Message <span className={styles.required}>*</span>
+                    </label>
                     <textarea
-                      className="sizefull txt14 p-l-20 p-r-20 p-t-15"
-                      rows={6}
+                      id="message"
+                      className={styles.textarea}
                       name="message"
                       value={form.message}
                       onChange={handleChange}
@@ -199,17 +252,11 @@ export default function ContactUsPage() {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn3 flex-c-m size31 txt11 trans-0-4"
-                  disabled={loading}
-                >
+                <button type="submit" className={styles.submitBtn} disabled={loading}>
                   {loading ? "Sending..." : "Submit Message"}
                 </button>
               </form>
-
-            </div>
-
+            </section>
           </div>
         </div>
       </div>
@@ -220,9 +267,19 @@ export default function ContactUsPage() {
 export async function getServerSideProps() {
   try {
     const res = await getPublicPageBySlug("contact-us");
-    return { props: { pageData: res.data } };
+    return {
+      props: {
+        pageData: res.data,
+        layout: { hideBanner: true, fullWidth: true },
+      },
+    };
   } catch {
-    return { notFound: true };
+    return {
+      props: {
+        pageData: { slug: "contact-us", title: "Contact Us" },
+        layout: { hideBanner: true, fullWidth: true },
+      },
+    };
   }
 }
 

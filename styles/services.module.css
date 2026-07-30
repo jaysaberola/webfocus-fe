@@ -1385,6 +1385,241 @@
   border-top: 1px solid #dde3ec;
 }
 
+/* Agency packages — WebFocus purple tier cards */
+.agencyPlanGrid {
+  --agency-accent: #7c3aed;
+  --agency-accent-dark: #6d28d9;
+  --agency-accent-soft: #ede9fe;
+  --agency-gold: #c99700;
+  --agency-gold-hover: #a67c00;
+  --agency-ink: #111827;
+  --agency-muted: #6b7280;
+
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  align-items: stretch;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.agencyPlanCard {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+}
+
+.agencyPlanCard:last-child {
+  border-right: 0;
+}
+
+.agencyPlanHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.85rem 1.4rem 1.45rem;
+  text-align: center;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.agencyPlanBadge {
+  display: block;
+  flex-shrink: 0;
+  margin-bottom: 0.7rem;
+  color: var(--agency-accent);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.agencyPlanTitle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(3 * 1.2em);
+  margin: 0 0 1.35rem;
+  color: var(--agency-ink);
+  font-size: clamp(1.25rem, 1.8vw, 1.65rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.agencyPlanCta {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  margin: 0 0 0.9rem;
+  padding: 0.92rem 1rem;
+  border: 0;
+  border-radius: 2px;
+  background: var(--agency-ink);
+  color: #ffffff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s ease, opacity 0.18s ease;
+}
+
+.agencyPlanCta:hover {
+  background: #0b1220;
+}
+
+.agencyPlanCall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  color: var(--agency-gold);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.agencyPlanCall:hover,
+.agencyPlanCall:focus {
+  color: var(--agency-gold-hover);
+  text-decoration: underline;
+}
+
+.agencyPlanFeatures {
+  flex: 1;
+  padding: 1.25rem 1.4rem 1.55rem;
+  background: #ffffff;
+}
+
+.agencyPlanFeaturesLabel {
+  margin: 0 0 0.9rem;
+  color: var(--agency-muted);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.agencyPlanFeaturesList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agencyPlanFeaturesList li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 0.68rem;
+  color: #374151;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.agencyPlanFeatureIcon {
+  flex-shrink: 0;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--agency-accent);
+  color: #ffffff;
+  font-size: 0.52rem;
+  line-height: 1;
+}
+
+.agencyPlanFeatureIcon i {
+  font-size: 0.52rem;
+  line-height: 1;
+}
+
+/* Middle card — featured purple */
+.agencyPlanCardFeatured {
+  background: linear-gradient(180deg, var(--agency-accent) 0%, var(--agency-accent-dark) 100%);
+  border-right-color: rgba(255, 255, 255, 0.12);
+}
+
+.agencyPlanCardFeatured .agencyPlanHeader {
+  border-bottom-color: rgba(255, 255, 255, 0.16);
+}
+
+.agencyPlanCardFeatured .agencyPlanBadge,
+.agencyPlanCardFeatured .agencyPlanTitle,
+.agencyPlanCardFeatured .agencyPlanFeaturesLabel {
+  color: #ffffff;
+}
+
+.agencyPlanCardFeatured .agencyPlanCta {
+  background: #ffffff;
+  color: var(--agency-ink);
+}
+
+.agencyPlanCardFeatured .agencyPlanCta:hover {
+  background: #f8fafc;
+}
+
+.agencyPlanCardFeatured .agencyPlanCall {
+  color: #fde68a;
+}
+
+.agencyPlanCardFeatured .agencyPlanCall:hover,
+.agencyPlanCardFeatured .agencyPlanCall:focus {
+  color: #fef3c7;
+}
+
+.agencyPlanCardFeatured .agencyPlanFeatures {
+  background: transparent;
+}
+
+.agencyPlanCardFeatured .agencyPlanFeaturesList li {
+  color: #ffffff;
+}
+
+.agencyPlanCardFeatured .agencyPlanFeatureIcon {
+  background: #ffffff;
+  color: var(--agency-accent-dark);
+}
+
+/* Third card — purple CTA */
+.agencyPlanCardPro .agencyPlanCta {
+  background: var(--agency-accent);
+  color: #ffffff;
+}
+
+.agencyPlanCardPro .agencyPlanCta:hover {
+  background: var(--agency-accent-dark);
+}
+
+@media (max-width: 991px) {
+  .agencyPlanGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .agencyPlanCard {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .agencyPlanCard:last-child {
+    border-bottom: 0;
+  }
+
+  .agencyPlanCardFeatured {
+    border-bottom-color: rgba(255, 255, 255, 0.16);
+  }
+}
+
 .webdesignCustomQuote {
   display: grid;
   grid-template-columns: 1fr;
