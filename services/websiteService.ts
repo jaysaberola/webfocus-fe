@@ -35,8 +35,16 @@ export const websiteService = {
   },
 
   async getPublicBranding() {
-    const { data } = await axiosInstance.get("/public/branding");
-    return data ?? {};
+    try {
+      const { data } = await axiosInstance.get("/public/branding");
+      return data ?? {};
+    } catch (err: any) {
+      console.warn(
+        "websiteService.getPublicBranding failed:",
+        err?.response?.status ?? err?.message
+      );
+      return {};
+    }
   },
 
   /* ======================

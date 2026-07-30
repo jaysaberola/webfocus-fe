@@ -4,7 +4,6 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import {
   getWebsiteSettingsCached,
-  getPublicBrandingCached,
   resolveWebsiteAssetUrl,
   subscribeWebsiteSettingsUpdated,
 } from "@/lib/websiteSettings";
@@ -17,12 +16,8 @@ export default function SiteFavicon() {
 
     const refresh = async (opts?: { force?: boolean }) => {
       try {
-        const settings = await getWebsiteSettingsCached({ force: opts?.force === true }).catch(() => null);
-        const branding = settings?.website_favicon
-          ? settings
-          : await getPublicBrandingCached({ force: opts?.force === true });
-
-        const url = resolveWebsiteAssetUrl(branding?.website_favicon ?? null);
+        const settings = await getWebsiteSettingsCached({ force: opts?.force === true });
+        const url = resolveWebsiteAssetUrl(settings?.website_favicon ?? null);
         if (alive) setFaviconUrl(url ?? null);
       } catch {
         if (alive) setFaviconUrl(null);

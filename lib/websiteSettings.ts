@@ -1,5 +1,7 @@
 import { websiteService } from "@/services/websiteService";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import { isPublicSiteRoute } from "@/lib/freshchatConfig";
+import { isAdminSiteRoute } from "@/lib/adminRoute";
 
 export type WebsiteSettings = {
   company_logo?: string | null;
@@ -43,6 +45,22 @@ export function notifyWebsiteSettingsUpdated() {
 
 let inflight: Promise<WebsiteSettings> | null = null;
 
+function shouldUsePublicBrandingEndpoint(): boolean {
+  if (typeof window === "undefined") return true;
+  const path = window.location.pathname || "";
+  if (isPublicSiteRoute(path)) return true;
+  return !isAdminSiteRoute(path);
+}
+
+async function fetchWebsiteSettings(): Promise<WebsiteSettings> {
+  if (shouldUsePublicBrandingEndpoint()) {
+    return websiteService.getPublicBranding();
+  }
+
+  const response = await websiteService.getSettings();
+  return (response as any)?.setting ?? response ?? {};
+}
+
 export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Promise<WebsiteSettings> {
   const force = opts?.force === true;
 
@@ -59,10 +77,8 @@ export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Prom
 
 async function refreshWebsiteSettings(): Promise<WebsiteSettings> {
   if (!inflight) {
-    inflight = websiteService
-      .getSettings()
-      .then((response: any) => {
-        const settings = response?.setting ?? response ?? {};
+    inflight = fetchWebsiteSettings()
+      .then((settings) => {
         storeWebsiteSettings(settings);
         notifyWebsiteSettingsUpdated();
         return settings;
