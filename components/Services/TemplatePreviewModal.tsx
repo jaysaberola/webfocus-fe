@@ -6,6 +6,12 @@ import {
   type WebsiteTemplate,
 } from "@/lib/servicesCatalog";
 import { openCanvas7TemplatePreview } from "@/lib/canvasTemplateCatalog";
+import {
+  TEMPLATE_NAV_NEXT_ICON,
+  TEMPLATE_NAV_PREV_ICON,
+  templateSlideClass,
+  type TemplateSlideDirection,
+} from "@/lib/templateNav";
 import styles from "@/styles/services.module.css";
 
 type PreviewViewport = "desktop" | "tablet" | "mobile";
@@ -22,6 +28,8 @@ type TemplatePreviewModalProps = {
   group: TemplateGroup | null;
   onClose: () => void;
   onContinueSetup?: (packageName: string, price: number) => void;
+  onNavigate?: (direction: "prev" | "next") => void;
+  slideDirection?: TemplateSlideDirection;
 };
 
 export default function TemplatePreviewModal({
@@ -30,6 +38,8 @@ export default function TemplatePreviewModal({
   group,
   onClose,
   onContinueSetup,
+  onNavigate,
+  slideDirection = "next",
 }: TemplatePreviewModalProps) {
   const [viewport, setViewport] = useState("desktop" as PreviewViewport);
   const packageInfo = template ? getWebDesignPackageById(template.packageId) : undefined;
@@ -57,6 +67,9 @@ export default function TemplatePreviewModal({
 
   if (!open || !template || !group) return null;
 
+  const templateIndex = group.templates.findIndex((item) => item.id === template.id);
+  const showNavigation = Boolean(onNavigate && group.templates.length > 1);
+
   const viewportWidth =
     viewport === "desktop" ? "100%" : viewport === "tablet" ? "834px" : "390px";
 
@@ -73,7 +86,10 @@ export default function TemplatePreviewModal({
         aria-modal="true"
         aria-labelledby="template-preview-title"
       >
-        <div className={styles.templatePreviewHeader}>
+        <div
+          key={template.id}
+          className={`${styles.templatePreviewHeader} ${templateSlideClass(styles, slideDirection)}`}
+        >
           <div>
             <p className={styles.templatePreviewKicker}>Canvas 7 · {group.title}</p>
             <h2 id="template-preview-title">{template.label}</h2>
@@ -85,6 +101,31 @@ export default function TemplatePreviewModal({
         </div>
 
         <div className={styles.templatePreviewToolbar}>
+          {showNavigation ? (
+            <div className={styles.templatePreviewNav}>
+              <button
+                type="button"
+                className={styles.templatePreviewNavBtn}
+                onClick={() => onNavigate?.("prev")}
+                aria-label="Previous template"
+              >
+                <i className={TEMPLATE_NAV_PREV_ICON} aria-hidden="true" />
+                Previous
+              </button>
+              <span className={styles.templatePreviewNavCounter}>
+                {templateIndex + 1} / {group.templates.length}
+              </span>
+              <button
+                type="button"
+                className={styles.templatePreviewNavBtn}
+                onClick={() => onNavigate?.("next")}
+                aria-label="Next template"
+              >
+                Next
+                <i className={TEMPLATE_NAV_NEXT_ICON} aria-hidden="true" />
+              </button>
+            </div>
+          ) : null}
           <div className={styles.templatePreviewDevices} role="tablist" aria-label="Preview device size">
             {DEVICE_OPTIONS.map(({ key, label, icon }) => (
               <button
@@ -110,7 +151,11 @@ export default function TemplatePreviewModal({
         </div>
 
         <div className={styles.templatePreviewFrameWrap}>
-          <div className={styles.templatePreviewFrameShell} style={{ width: viewportWidth }}>
+          <div
+            key={template.id}
+            className={`${styles.templatePreviewFrameShell} ${templateSlideClass(styles, slideDirection)}`}
+            style={{ width: viewportWidth }}
+          >
             <iframe
               key={template.previewUrl}
               title={`${template.label} Canvas 7 preview`}

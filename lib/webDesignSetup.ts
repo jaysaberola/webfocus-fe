@@ -1,4 +1,4 @@
-export type WebDesignFeaturePath = "service-checklist" | "book-appointments";
+export type WebDesignFeaturePath = "member-portal" | "online-services";
 
 export type WebDesignSetupSelection = {
   path: WebDesignFeaturePath;
@@ -8,7 +8,6 @@ export type WebDesignSetupSelection = {
   packagePrice: number;
   serviceFeatures: string[];
   paymentMethods: string[];
-  appointmentFeatures: string[];
 };
 
 export const SERVICE_CHECKLIST_ITEMS = [
@@ -25,15 +24,6 @@ export const SERVICE_CHECKLIST_ITEMS = [
   "Payment Method",
 ] as const;
 
-export const APPOINTMENT_FEATURE_ITEMS = [
-  "Online booking calendar",
-  "Service menu & duration selection",
-  "Staff or resource scheduling",
-  "Email & SMS reminders",
-  "Client account & login",
-  "Payment or deposit at booking",
-] as const;
-
 export const WEBDESIGN_PAYMENT_METHODS = [
   { id: "cc", label: "Credit / Debit Card" },
   { id: "gc", label: "GCash" },
@@ -48,18 +38,16 @@ export function formatWebDesignSetupDetail(selection: WebDesignSetupSelection): 
     parts.push(`Template: ${selection.templateLabel}`);
   }
 
-  if (selection.path === "service-checklist") {
-    parts.push(`Features: ${selection.serviceFeatures.join(", ") || "None selected"}`);
+  if (selection.path === "member-portal") {
+    parts.push("Selected website template");
+  } else {
+    parts.push(`Service checklist: ${selection.serviceFeatures.join(", ") || "None selected"}`);
     if (selection.paymentMethods.length > 0) {
       const labels = selection.paymentMethods
         .map((id) => WEBDESIGN_PAYMENT_METHODS.find((method) => method.id === id)?.label || id)
         .join(", ");
       parts.push(`Payment methods: ${labels}`);
     }
-  } else {
-    parts.push(
-      `Booking features: ${selection.appointmentFeatures.join(", ") || "None selected"}`
-    );
   }
 
   return parts.join(" · ");

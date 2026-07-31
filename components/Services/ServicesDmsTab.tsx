@@ -5,8 +5,8 @@ import styles from "@/styles/services.module.css";
 
 const MAIL_TIER_BADGES = [
   styles.serviceCardBadge,
-  `${styles.serviceCardBadge} ${styles.serviceCardBadgePurple}`,
-  `${styles.serviceCardBadge} ${styles.serviceCardBadgeGreen}`,
+  styles.serviceCardBadge,
+  styles.serviceCardBadge,
 ] as const;
 
 export default function ServicesDmsTab() {
@@ -70,7 +70,7 @@ export default function ServicesDmsTab() {
               {DMS_ENTERPRISE_PLANS.map((plan) => (
                 <article key={plan.name} className={styles.serviceCard}>
                   <div className={styles.serviceCardTop}>
-                    <span className={`${styles.serviceCardBadge} ${styles.serviceCardBadgeOrange}`}>
+                    <span className={styles.serviceCardBadge}>
                       Enterprise
                     </span>
                     <h4 className={styles.serviceCardTitle}>{plan.name}</h4>

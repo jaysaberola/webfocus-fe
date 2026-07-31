@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useState } from "react";
+import type { TemplateSlideDirection } from "@/lib/templateNav";
 import {
   TEMPLATE_GROUPS,
   WEBDESIGN_PACKAGES,
@@ -8,11 +9,13 @@ import {
 } from "@/lib/servicesCatalog";
 import { useServiceCart } from "./useServiceCart";
 import { serviceCardGridClass } from "./serviceCardGridClass";
+import TemplateCatalogCarousel from "./TemplateCatalogCarousel";
 import TemplatePreviewModal from "./TemplatePreviewModal";
 import WebDesignSetupWizard from "./WebDesignSetupWizard";
 import styles from "@/styles/services.module.css";
 
 type SetupContext = {
+  packageId?: string;
   packageName: string;
   packagePrice: number;
   templateLabel?: string;
@@ -23,6 +26,7 @@ export default function ServicesWebDesignTab() {
   const { addWebDesignSetupToCart } = useServiceCart();
   const [previewTemplate, setPreviewTemplate] = useState<WebsiteTemplate | null>(null);
   const [previewGroup, setPreviewGroup] = useState<TemplateGroup | null>(null);
+  const [previewSlideDirection, setPreviewSlideDirection] = useState<TemplateSlideDirection>("next");
   const [setupContext, setSetupContext] = useState<SetupContext | null>(null);
 
   const openPreview = (group: TemplateGroup, template: WebsiteTemplate) => {
@@ -43,8 +47,20 @@ export default function ServicesWebDesignTab() {
     setSetupContext(null);
   };
 
+  const navigatePreview = (direction: TemplateSlideDirection) => {
+    if (!previewGroup || !previewTemplate) return;
+    setPreviewSlideDirection(direction);
+    const currentIndex = previewGroup.templates.findIndex((item) => item.id === previewTemplate.id);
+    if (currentIndex < 0) return;
+    const total = previewGroup.templates.length;
+    const nextIndex =
+      direction === "next" ? (currentIndex + 1) % total : (currentIndex - 1 + total) % total;
+    setPreviewTemplate(previewGroup.templates[nextIndex]);
+  };
+
   const handlePreviewContinue = (packageName: string, packagePrice: number) => {
     openSetupWizard({
+      packageId: previewTemplate?.packageId,
       packageName,
       packagePrice,
       templateLabel: previewTemplate?.label,
@@ -67,42 +83,58 @@ export default function ServicesWebDesignTab() {
           <div className={styles.webdesignSectionHead}>
             <h3 className={styles.webdesignSectionTitle}>Website Templates</h3>
             <p className={styles.webdesignSectionHint}>
-              Browse Canvas 7 sample designs from our template library. Click any template to preview
-              the live layout before choosing your package.
+              Browse Canvas 7 portfolio sample designs for Business Starter Launch. Use previous and
+              next to explore templates, then click preview to view the live layout.
             </p>
           </div>
 
           {TEMPLATE_GROUPS.map((group) => (
             <section key={group.title} className={styles.webdesignTemplateGroup}>
               <h4 className={styles.webdesignTemplateGroupTitle}>{group.title}</h4>
-              <div className={serviceCardGridClass(group.templates.length)}>
-                {group.templates.map((template) => (
-                  <article key={template.id} className={styles.templateCatalogCard}>
-                    <button
-                      type="button"
-                      className={styles.templateCatalogButton}
-                      onClick={() => openPreview(group, template)}
-                      aria-label={`Preview ${template.label} template`}
-                    >
-                      <div className={styles.templateCatalogImageWrap}>
-                        <img
-                          src={template.image}
-                          alt={template.alt}
-                          width={400}
-                          height={260}
-                          loading="lazy"
-                          decoding="async"
-                          className={styles.templateCatalogImage}
-                        />
-                        <span className={styles.templateCatalogPreview}>Preview</span>
-                      </div>
-                      <div className={styles.templateCatalogFooter}>
-                        <h5>{template.label}</h5>
-                      </div>
-                    </button>
-                  </article>
-                ))}
-              </div>
+              {group.packageId === "design-starter" ||
+              group.packageId === "design-ecommerce" ||
+              group.packageId === "design-corporate" ? (
+                <TemplateCatalogCarousel
+                  group={group}
+                  onPreview={openPreview}
+                  counterLabel={
+                    group.packageId === "design-ecommerce"
+                      ? "eCommerce templates"
+                      : group.packageId === "design-corporate"
+                        ? "listing templates"
+                        : "portfolio templates"
+                  }
+                />
+              ) : (
+                <div className={serviceCardGridClass(group.templates.length)}>
+                  {group.templates.map((template) => (
+                    <article key={template.id} className={styles.templateCatalogCard}>
+                      <button
+                        type="button"
+                        className={styles.templateCatalogButton}
+                        onClick={() => openPreview(group, template)}
+                        aria-label={`Preview ${template.label} template`}
+                      >
+                        <div className={styles.templateCatalogImageWrap}>
+                          <img
+                            src={template.image}
+                            alt={template.alt}
+                            width={400}
+                            height={260}
+                            loading="lazy"
+                            decoding="async"
+                            className={styles.templateCatalogImage}
+                          />
+                          <span className={styles.templateCatalogPreview}>Preview</span>
+                        </div>
+                        <div className={styles.templateCatalogFooter}>
+                          <h5>{template.label}</h5>
+                        </div>
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
             </section>
           ))}
 
@@ -134,6 +166,7 @@ export default function ServicesWebDesignTab() {
                         className={styles.agencyPlanCta}
                         onClick={() =>
                           openSetupWizard({
+                            packageId: pkg.id,
                             packageName: pkg.name,
                             packagePrice: pkg.price,
                           })
@@ -187,10 +220,13 @@ export default function ServicesWebDesignTab() {
         group={previewGroup}
         onClose={closePreview}
         onContinueSetup={handlePreviewContinue}
+        onNavigate={previewGroup && previewGroup.templates.length > 1 ? navigatePreview : undefined}
+        slideDirection={previewSlideDirection}
       />
 
       <WebDesignSetupWizard
         open={Boolean(setupContext)}
+        packageId={setupContext?.packageId}
         packageName={setupContext?.packageName || ""}
         packagePrice={setupContext?.packagePrice || 0}
         templateLabel={setupContext?.templateLabel}

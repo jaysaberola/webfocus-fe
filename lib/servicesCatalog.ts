@@ -1,7 +1,6 @@
-import {
-  getCanvas7DemoUrl,
-  getCanvas7ThumbnailUrl,
-} from "@/lib/canvasTemplateCatalog";
+import { BUSINESS_STARTER_PORTFOLIO_TEMPLATES } from "@/lib/businessStarterPortfolioTemplates";
+import { CORPORATE_LISTINGS_TEMPLATES } from "@/lib/corporateListingsTemplates";
+import { ECOMMERCE_PACKAGE_TEMPLATES } from "@/lib/ecommercePackageTemplates";
 
 export type HostingPlanType = "cloud" | "shared" | "dedicated" | "baremetal";
 
@@ -165,101 +164,17 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
   {
     title: "Business Starter Launch",
     packageId: "design-starter",
-    templates: [
-      {
-        id: "recipe-website",
-        image: getCanvas7ThumbnailUrl("recipes.jpg"),
-        alt: "Recipe Website",
-        label: "Recipe Website",
-        summary: "Canvas 7 recipe magazine layout with featured dishes, categories, and editorial sections.",
-        packageId: "design-starter",
-        previewUrl: getCanvas7DemoUrl("demo-recipes.html"),
-      },
-      {
-        id: "news-blog",
-        image: getCanvas7ThumbnailUrl("blog.jpg"),
-        alt: "News Blog",
-        label: "News Blog",
-        summary: "Canvas 7 blog and magazine layout with article grids, featured posts, and sidebar widgets.",
-        packageId: "design-starter",
-        previewUrl: getCanvas7DemoUrl("demo-blog.html"),
-      },
-      {
-        id: "restaurant",
-        image: getCanvas7ThumbnailUrl("burger.jpg"),
-        alt: "Restaurant",
-        label: "Restaurant",
-        summary: "Canvas 7 restaurant layout with menu highlights, food photography, and reservation CTAs.",
-        packageId: "design-starter",
-        previewUrl: getCanvas7DemoUrl("demo-burger.html"),
-      },
-    ],
+    templates: BUSINESS_STARTER_PORTFOLIO_TEMPLATES,
   },
   {
     title: "Custom Professional Corporate",
     packageId: "design-corporate",
-    templates: [
-      {
-        id: "cleaning",
-        image: getCanvas7ThumbnailUrl("cleaner.jpg"),
-        alt: "Cleaning",
-        label: "Cleaning",
-        summary: "Canvas 7 cleaning services layout with pricing blocks, service areas, and quote forms.",
-        packageId: "design-corporate",
-        previewUrl: getCanvas7DemoUrl("demo-cleaner.html"),
-      },
-      {
-        id: "construction",
-        image: getCanvas7ThumbnailUrl("construction.jpg"),
-        alt: "Construction",
-        label: "Construction",
-        summary: "Canvas 7 construction company layout with project listings, stats, and capability sections.",
-        packageId: "design-corporate",
-        previewUrl: getCanvas7DemoUrl("demo-construction.html"),
-      },
-      {
-        id: "coworking",
-        image: getCanvas7ThumbnailUrl("coworking.jpg"),
-        alt: "Coworking",
-        label: "Coworking",
-        summary: "Canvas 7 coworking space layout with membership plans, amenities, and booking sections.",
-        packageId: "design-corporate",
-        previewUrl: getCanvas7DemoUrl("demo-coworking.html"),
-      },
-    ],
+    templates: CORPORATE_LISTINGS_TEMPLATES,
   },
   {
     title: "High-Concurrency E-Commerce Plus",
     packageId: "design-ecommerce",
-    templates: [
-      {
-        id: "hotel",
-        image: getCanvas7ThumbnailUrl("hostel.jpg"),
-        alt: "Hotel",
-        label: "Hotel",
-        summary: "Canvas 7 hostel and hotel layout with room showcases, gallery sections, and booking prompts.",
-        packageId: "design-ecommerce",
-        previewUrl: getCanvas7DemoUrl("demo-hostel.html"),
-      },
-      {
-        id: "hosting",
-        image: getCanvas7ThumbnailUrl("hosting.jpg"),
-        alt: "Hosting",
-        label: "Hosting",
-        summary: "Canvas 7 hosting provider layout with pricing tables, feature lists, and domain search.",
-        packageId: "design-ecommerce",
-        previewUrl: getCanvas7DemoUrl("demo-hosting.html"),
-      },
-      {
-        id: "yoga",
-        image: getCanvas7ThumbnailUrl("yoga.jpg"),
-        alt: "Yoga",
-        label: "Yoga",
-        summary: "Canvas 7 yoga and wellness layout with class schedules, instructors, and membership CTAs.",
-        packageId: "design-ecommerce",
-        previewUrl: getCanvas7DemoUrl("demo-yoga.html"),
-      },
-    ],
+    templates: ECOMMERCE_PACKAGE_TEMPLATES,
   },
 ];
 
@@ -269,6 +184,25 @@ export function getWebsiteTemplateById(templateId: string) {
     if (match) return { group, template: match };
   }
   return null;
+}
+
+export function getWebDesignPackageIdByName(name: string) {
+  return WEBDESIGN_PACKAGES.find((pkg) => pkg.name === name)?.id ?? null;
+}
+
+export function getTemplateGroupByPackageId(packageId: string) {
+  return TEMPLATE_GROUPS.find((group) => group.packageId === packageId) ?? null;
+}
+
+export function resolveTemplateGroupForPackage(opts: {
+  packageId?: string;
+  packageName?: string;
+}) {
+  if (opts.packageId) {
+    return getTemplateGroupByPackageId(opts.packageId);
+  }
+  const id = opts.packageName ? getWebDesignPackageIdByName(opts.packageName) : null;
+  return id ? getTemplateGroupByPackageId(id) : null;
 }
 
 export function getWebDesignPackageById(packageId: string) {

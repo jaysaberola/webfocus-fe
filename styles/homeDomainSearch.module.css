@@ -24,7 +24,7 @@
 /* ── Hero ─────────────────────────────────────────────────── */
 
 .hero {
-  background: linear-gradient(180deg, #1e4fd8 0%, #1539a8 100%);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   padding: 3.5rem 1rem 3rem;
 }
@@ -102,7 +102,7 @@
   position: absolute;
   right: 0.35rem;
   border: 0;
-  background: #1539a8;
+  background: #1d4ed8;
   color: #ffffff;
   font-weight: 600;
   padding: 0.7rem 1.35rem;
@@ -138,7 +138,7 @@
 .tldPill {
   border: 0;
   background: #ffffff;
-  color: #1539a8;
+  color: #1d4ed8;
   border-radius: 9999px;
   padding: 0.4rem 1rem;
   font-size: 0.875rem;
@@ -196,10 +196,10 @@
 .secondaryBtn {
   height: 46px;
   padding: 0 1.25rem;
-  border: 1px solid #1539a8;
+  border: 1px solid #1d4ed8;
   border-radius: 4px;
   background: #fff;
-  color: #1539a8;
+  color: #1d4ed8;
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -229,13 +229,13 @@
 
 .availabilityBannerTaken,
 .availabilityBannerUnknown {
-  background: #dbeafe;
-  color: #1539a8;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .availabilityBannerAvailable {
-  background: #dcfce7;
-  color: #166534;
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .loadingState {
@@ -271,7 +271,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  background: #16a34a;
+  background: #2563eb;
   color: #fff;
   font-size: 0.625rem;
   font-weight: 800;
@@ -347,7 +347,7 @@
 }
 
 .tabBtnActive {
-  color: #1539a8;
+  color: #1d4ed8;
   border-bottom-color: #2563eb;
 }
 
@@ -415,7 +415,7 @@
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   background: #dbeafe;
-  color: #1539a8;
+  color: #1d4ed8;
   font-size: 0.625rem;
   font-weight: 800;
   letter-spacing: 0.03em;

@@ -1097,7 +1097,7 @@
   text-transform: uppercase;
 }
 
-.available { color: #059669; }
+.available { color: #2563eb; }
 .unavailable { color: #dc2626; }
 
 .domainReference {
@@ -1149,10 +1149,13 @@
   border-radius: 9999px;
 }
 
-.badgeglobal { background: #dbeafe; color: #1e40af; }
-.badgespecialized { background: #f3e8ff; color: #6b21a8; }
-.badgelocal { background: #d1fae5; color: #065f46; }
-.badgeacademic { background: #fef3c7; color: #92400e; }
+.badgeglobal,
+.badgespecialized,
+.badgelocal,
+.badgeacademic {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
 
 .domainReferenceCard p {
   margin: 0 0 0.75rem;
@@ -1183,7 +1186,7 @@
 }
 
 .dmsHero {
-  background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   padding: 2.75rem 1.5rem 2.5rem;
 }
@@ -1240,7 +1243,7 @@
 }
 
 .webdesignHero {
-  background: linear-gradient(180deg, #7c3aed 0%, #6d28d9 100%);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
   padding: 2.75rem 1.5rem 2.5rem;
 }
@@ -1326,7 +1329,7 @@
 }
 
 .templateCatalogButton:focus-visible {
-  outline: 2px solid #7c3aed;
+  outline: 2px solid #2563eb;
   outline-offset: 4px;
   border-radius: 14px;
 }
@@ -1351,7 +1354,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(76, 29, 149, 0.55);
+  background: rgba(37, 99, 235, 0.55);
   color: #ffffff;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1374,9 +1377,61 @@
   text-align: center;
   font-size: 0.8125rem;
   font-weight: 700;
-  color: #6d28d9;
+  color: #1d4ed8;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.templateCatalogCarousel {
+  width: 100%;
+}
+
+.templateCatalogCarouselStage {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  overflow: hidden;
+}
+
+.templateCatalogCarouselStage .serviceCardGrid {
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.templateCatalogCarouselNav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+}
+
+.templateCatalogCarouselNav:hover {
+  color: #1d4ed8;
+  transform: scale(1.08);
+}
+
+.templateCatalogCarouselNav:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+.templateCatalogCarouselCounter {
+  margin: 0.85rem 0 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .webdesignPackagesSection {
@@ -1385,13 +1440,13 @@
   border-top: 1px solid #dde3ec;
 }
 
-/* Agency packages — WebFocus purple tier cards */
+/* Agency packages — blue tier cards (matches hosting) */
 .agencyPlanGrid {
-  --agency-accent: #7c3aed;
-  --agency-accent-dark: #6d28d9;
-  --agency-accent-soft: #ede9fe;
-  --agency-gold: #c99700;
-  --agency-gold-hover: #a67c00;
+  --agency-accent: #2563eb;
+  --agency-accent-dark: #1d4ed8;
+  --agency-accent-soft: #eff6ff;
+  --agency-gold: #2563eb;
+  --agency-gold-hover: #1d4ed8;
   --agency-ink: #111827;
   --agency-muted: #6b7280;
 
@@ -1544,7 +1599,7 @@
   line-height: 1;
 }
 
-/* Middle card — featured purple */
+/* Middle card — featured blue */
 .agencyPlanCardFeatured {
   background: linear-gradient(180deg, var(--agency-accent) 0%, var(--agency-accent-dark) 100%);
   border-right-color: rgba(255, 255, 255, 0.12);
@@ -1570,12 +1625,12 @@
 }
 
 .agencyPlanCardFeatured .agencyPlanCall {
-  color: #fde68a;
+  color: #bfdbfe;
 }
 
 .agencyPlanCardFeatured .agencyPlanCall:hover,
 .agencyPlanCardFeatured .agencyPlanCall:focus {
-  color: #fef3c7;
+  color: #dbeafe;
 }
 
 .agencyPlanCardFeatured .agencyPlanFeatures {
@@ -1591,7 +1646,7 @@
   color: var(--agency-accent-dark);
 }
 
-/* Third card — purple CTA */
+/* Third card — blue CTA */
 .agencyPlanCardPro .agencyPlanCta {
   background: var(--agency-accent);
   color: #ffffff;
@@ -1639,7 +1694,7 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #7c3aed;
+  color: #2563eb;
   margin-bottom: 0.5rem;
 }
 
@@ -1661,7 +1716,7 @@
   justify-content: center;
   padding: 0.875rem 1.5rem;
   border-radius: 0.75rem;
-  background: #7c3aed;
+  background: #2563eb;
   color: #ffffff;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1669,7 +1724,7 @@
 }
 
 .webdesignCustomQuoteBtn:hover {
-  background: #6d28d9;
+  background: #1d4ed8;
 }
 
 .dmsEnterpriseSection {
@@ -1854,9 +1909,55 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap;
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
+}
+
+.templatePreviewNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.templatePreviewNavBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #dbeafe;
+  background: #f8fafc;
+  color: #1e40af;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.templatePreviewNavBtn i {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.templatePreviewNavBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.templatePreviewNavBtn:active {
+  transform: scale(0.98);
+}
+
+.templatePreviewNavCounter {
+  min-width: 4.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .templatePreviewDevices {
@@ -2094,9 +2195,9 @@
 
 .setupWizardChoiceCard {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: flex-start;
-  gap: 0.65rem;
+  gap: 1rem;
   min-height: 180px;
   padding: 1.25rem;
   border: 2px solid #e2e8f0;
@@ -2118,14 +2219,24 @@
 
 .setupWizardChoiceIcon {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
+  margin-top: 0.1rem;
   border-radius: 999px;
   background: #eff6ff;
   color: #2563eb;
   font-size: 1rem;
+}
+
+.setupWizardChoiceContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
 }
 
 .setupWizardChoiceCard strong {
@@ -2133,7 +2244,7 @@
   font-size: 1rem;
 }
 
-.setupWizardChoiceCard span:last-child {
+.setupWizardChoiceDescription {
   color: #64748b;
   font-size: 0.875rem;
   line-height: 1.55;
@@ -2210,7 +2321,256 @@
   cursor: not-allowed;
 }
 
+.setupWizardTemplatePreview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.setupWizardTemplateNav {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.setupWizardTemplateNavBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #dbeafe;
+  border-radius: 0.5rem;
+  background: #f8fafc;
+  color: #1e40af;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.setupWizardTemplateNavBtn i {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.setupWizardTemplateNavBtn:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.setupWizardTemplateNavBtn:active {
+  transform: scale(0.98);
+}
+
+.setupWizardTemplateNavCounter {
+  min-width: 4.5rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.setupWizardTemplatePreviewContent {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@keyframes templateSlideInNext {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes templateSlideInPrev {
+  from {
+    opacity: 0;
+    transform: translateX(-32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.templateSlideNext {
+  animation: templateSlideInNext 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.templateSlidePrev {
+  animation: templateSlideInPrev 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .templateSlideNext,
+  .templateSlidePrev {
+    animation: none;
+  }
+}
+
+.setupWizardTemplatePicker {
+  grid-column: 1 / -1;
+}
+
+.setupWizardTemplatePickerLabel {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.setupWizardTemplatePickerGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.setupWizardTemplatePickerCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.45rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.setupWizardTemplatePickerCard span {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.setupWizardTemplatePickerCard:hover {
+  border-color: #93c5fd;
+}
+
+.setupWizardTemplatePickerCardActive {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.setupWizardTemplatePickerImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 260;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.setupWizardTemplateFrame {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.setupWizardTemplateImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 400 / 260;
+  object-fit: cover;
+}
+
+.setupWizardTemplateMeta h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+  color: #0f172a;
+}
+
+.setupWizardTemplateMeta p {
+  margin: 0 0 1rem;
+  color: #64748b;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.setupWizardTemplateGroup {
+  margin: 0 0 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.setupWizardTemplateViewBtn {
+  border: 0;
+  border-radius: 0.65rem;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 0.7rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setupWizardTemplateViewBtn:hover {
+  background: #1d4ed8;
+}
+
+.setupWizardTemplateFallback {
+  grid-column: 1 / -1;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #f8fafc;
+}
+
+.setupWizardTemplateFallback h3 {
+  margin: 0 0 0.5rem;
+  color: #0f172a;
+}
+
+.setupWizardTemplateFallback p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
 @media (max-width: 768px) {
+  .setupWizardTemplatePreview {
+    grid-template-columns: 1fr;
+  }
+
+  .setupWizardTemplatePreviewContent {
+    grid-template-columns: 1fr;
+  }
+
+  .setupWizardTemplatePickerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .templateCatalogCarouselStage {
+    gap: 0.75rem;
+  }
+
+  .templateCatalogCarouselNav {
+    font-size: 1.75rem;
+  }
+
   .setupWizardHeader,
   .setupWizardBody,
   .setupWizardFooter {

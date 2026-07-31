@@ -11,6 +11,12 @@ export function getCanvas7ThumbnailUrl(fileName: string) {
   return `${CANVAS7_THUMBNAIL_BASE}/${fileName}`;
 }
 
+/** Thumbnail or intro image using a path relative to the Canvas 7 package root. */
+export function getCanvas7IntroImageUrl(relativePath: string) {
+  const normalized = relativePath.replace(/^\//, "");
+  return `${CANVAS7_TEMPLATE_BASE}/${normalized}`;
+}
+
 export function openCanvas7TemplatePreview(previewUrl: string) {
   window.open(previewUrl, "_blank", "noopener,noreferrer");
   return true;
