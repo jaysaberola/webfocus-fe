@@ -12,6 +12,7 @@ export type CmsNavItem = {
   icon: string;
   href: string;
   collapseMenus?: boolean;
+  openInNewTab?: boolean;
   permissions?: string[];
   children?: CmsNavChild[];
 };
@@ -82,6 +83,7 @@ export const COMMERCE_PORTAL_ITEM: CmsNavItem = {
   label: "Commerce Control Center",
   icon: "fa-solid fa-store",
   href: "/public/commerce-admin",
+  openInNewTab: true,
   permissions: COMMERCE_PORTAL_PERMISSIONS,
 };
 

@@ -13,7 +13,7 @@ let inflight: Promise<CommerceDashboardData> | null = null;
 function readCache(): CachePayload | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachePayload;
     if (!parsed?.data || !parsed.cachedAt) return null;
@@ -26,7 +26,7 @@ function readCache(): CachePayload | null {
 function writeCache(data: CommerceDashboardData) {
   if (typeof window === "undefined") return;
   try {
-    sessionStorage.setItem(
+    localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
         data,

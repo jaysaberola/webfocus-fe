@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { COMMERCE_ADMIN_TABS } from "@/lib/commerceAdmin/mockData";
 import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import { canAccessCommerceTab } from "@/lib/navPermissions";
-import { scheduleIdleTask } from "@/lib/publicAuthState";
 import type { User } from "@/services/accountService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import AdminPortalNav from "./AdminPortalNav";
@@ -31,21 +30,17 @@ export default function CommerceAdminShell({ activeTab, onTabChange, userName, r
       setPendingApprovals(cached.counts.pendingApprovals);
     }
 
-    const cancel = scheduleIdleTask(() => {
-      getCommerceDashboardCached()
-        .then((data) => {
-          if (!alive) return;
-          setPendingApprovals(data.counts.pendingApprovals);
-        })
-        .catch(() => {
-          if (!alive) return;
-          setPendingApprovals(0);
-        });
-    }, 500);
+    getCommerceDashboardCached()
+      .then((data) => {
+        if (!alive) return;
+        setPendingApprovals(data.counts.pendingApprovals);
+      })
+      .catch(() => {
+        if (!alive) return;
+      });
 
     return () => {
       alive = false;
-      cancel();
     };
   }, []);
 
