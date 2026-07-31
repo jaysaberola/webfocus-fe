@@ -6,7 +6,7 @@ import {
   type CommercePaymentProofRow,
 } from "@/services/commerceAdminService";
 import {
-  approvalExpiredDate,
+  approvalDueDate,
   approvalIssuedDate,
   approvalPlanLabel,
   approvalServiceLabel,
@@ -15,6 +15,13 @@ import {
   type ApprovalFilterKey,
   type ApprovalSortKey,
 } from "@/lib/commerceAdmin/approvalHelpers";
+import {
+  approvalSortDirection,
+  isApprovalColumnSorted,
+  toggleApprovalSort,
+  type ApprovalColumnKey,
+} from "@/lib/commerceAdmin/tableSortHelpers";
+import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -121,6 +128,20 @@ export default function CommerceApprovalsTab() {
     }
   };
 
+  const handleColumnSort = (column: ApprovalColumnKey) => {
+    setSortBy((current) => toggleApprovalSort(current, column));
+  };
+
+  const renderSortableHead = (column: ApprovalColumnKey, label: string) => (
+    <SortableTableHead
+      key={column}
+      label={label}
+      active={isApprovalColumnSorted(sortBy, column)}
+      direction={approvalSortDirection(sortBy, column) ?? "asc"}
+      onClick={() => handleColumnSort(column)}
+    />
+  );
+
   const renderActionSelect = (row: CommercePaymentProofRow) => (
     <select
       className={styles.actionSelect}
@@ -160,7 +181,7 @@ export default function CommerceApprovalsTab() {
       <div className={styles.txGridMeta}>
         <span>Client: {row.client}</span>
         <span>Issued: {approvalIssuedDate(row)}</span>
-        <span>Expires: {approvalExpiredDate(row)}</span>
+        <span>Due: {approvalDueDate(row)}</span>
       </div>
       {row.fileName ? <div className={styles.approvalFileInline}>{row.fileName}</div> : null}
       <div className={styles.txGridFooter}>
@@ -237,14 +258,14 @@ export default function CommerceApprovalsTab() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Invoice #</th>
-                  <th>Service Name</th>
-                  <th>Plan</th>
-                  <th>Client</th>
-                  <th>Issued Date</th>
-                  <th>Expired Date</th>
-                  <th>Amount</th>
-                  <th>Status</th>
+                  {renderSortableHead("invoice", "Invoice #")}
+                  {renderSortableHead("service", "Service Name")}
+                  {renderSortableHead("plan", "Plan")}
+                  {renderSortableHead("client", "Client")}
+                  {renderSortableHead("issued", "Issued Date")}
+                  {renderSortableHead("due", "Due Date")}
+                  {renderSortableHead("amount", "Amount")}
+                  {renderSortableHead("status", "Status")}
                   <th className={styles.tableActionHead}>Action</th>
                 </tr>
               </thead>
@@ -263,7 +284,7 @@ export default function CommerceApprovalsTab() {
                       </td>
                       <td>{row.client}</td>
                       <td>{approvalIssuedDate(row)}</td>
-                      <td>{approvalExpiredDate(row)}</td>
+                      <td>{approvalDueDate(row)}</td>
                       <td className={styles.amountCell}>{formatCommerceMoney(row.amount)}</td>
                       <td>
                         <span className={styles.badgePending}>{row.status || "Pending Review"}</span>

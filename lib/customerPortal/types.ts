@@ -28,6 +28,7 @@ export type PortalOrder = {
   serviceName?: string;
   plan?: string;
   date: string;
+  dueDate?: string;
   expiredDate: string;
   total: number;
   status: "Active Live" | "Pending Request";

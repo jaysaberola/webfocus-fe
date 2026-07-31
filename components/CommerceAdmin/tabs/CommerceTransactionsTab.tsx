@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
+import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_LABELS,
@@ -10,6 +11,7 @@ import {
   paymentStatusLabel,
   sortTransactions,
   transactionDueDate,
+  transactionIssuedDate,
   transactionItemSummary,
   transactionOrderType,
   transactionPlanLabel,
@@ -17,6 +19,7 @@ import {
   type TxFilterKey,
   type TxSortKey,
 } from "@/lib/commerceAdmin/transactionHelpers";
+import { isTxColumnSorted, toggleTxSort, txSortDirection } from "@/lib/commerceAdmin/tableSortHelpers";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { toast } from "@/lib/toast";
 import {
@@ -110,6 +113,20 @@ export default function CommerceTransactionsTab() {
   useEffect(() => {
     if (!showAll && page > totalPages) setPage(totalPages);
   }, [page, totalPages, showAll]);
+
+  const handleColumnSort = (column: TxColumnKey) => {
+    setSortBy((current) => toggleTxSort(current, column));
+  };
+
+  const renderSortableHead = (column: TxColumnKey, label = TX_COLUMN_LABELS[column]) => (
+    <SortableTableHead
+      key={column}
+      label={label}
+      active={isTxColumnSorted(sortBy, column)}
+      direction={txSortDirection(sortBy, column) ?? "asc"}
+      onClick={() => handleColumnSort(column)}
+    />
+  );
 
   const openView = (row: SalesTransaction) => {
     setSelected(row);
@@ -311,14 +328,14 @@ export default function CommerceTransactionsTab() {
           <table className={styles.table}>
             <thead>
               <tr>
-                {columnsVisible.id ? <th>Invoice ID</th> : null}
-                {columnsVisible.items ? <th>Service Name</th> : null}
-                {columnsVisible.subscription ? <th>Plan</th> : null}
-                {columnsVisible.orderType ? <th>Order Type</th> : null}
-                {columnsVisible.date ? <th>Issued Date</th> : null}
-                {columnsVisible.expiredDate ? <th>Expired Date</th> : null}
-                {columnsVisible.amount ? <th>Amount</th> : null}
-                {columnsVisible.status ? <th>Status</th> : null}
+                {columnsVisible.id ? renderSortableHead("id") : null}
+                {columnsVisible.items ? renderSortableHead("items") : null}
+                {columnsVisible.subscription ? renderSortableHead("subscription") : null}
+                {columnsVisible.orderType ? renderSortableHead("orderType") : null}
+                {columnsVisible.date ? renderSortableHead("date") : null}
+                {columnsVisible.expiredDate ? renderSortableHead("expiredDate") : null}
+                {columnsVisible.amount ? renderSortableHead("amount") : null}
+                {columnsVisible.status ? renderSortableHead("status") : null}
                 <th className={styles.tableActionHead}>Action</th>
               </tr>
             </thead>
@@ -340,7 +357,7 @@ export default function CommerceTransactionsTab() {
                       </td>
                     ) : null}
                     {columnsVisible.orderType ? <td>{renderOrderTypeBadge(row)}</td> : null}
-                    {columnsVisible.date ? <td>{formatTxDate(row.transacted_at)}</td> : null}
+                    {columnsVisible.date ? <td>{transactionIssuedDate(row)}</td> : null}
                     {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}
                     {columnsVisible.amount ? (
                       <td className={styles.amountCell}>{formatCommerceMoney(Number(row.grand_total))}</td>
@@ -374,8 +391,8 @@ export default function CommerceTransactionsTab() {
                 </div>
                 <div>{renderOrderTypeBadge(row)}</div>
                 <div className={styles.txGridMeta}>
-                  <span>Issued: {formatTxDate(row.transacted_at)}</span>
-                  <span>Expired: {transactionDueDate(row)}</span>
+                  <span>Issued: {transactionIssuedDate(row)}</span>
+                  <span>Due: {transactionDueDate(row)}</span>
                 </div>
                 <div className={styles.txGridFooter}>
                   <strong className={styles.amountCell}>{formatCommerceMoney(Number(row.grand_total))}</strong>
@@ -460,8 +477,8 @@ export default function CommerceTransactionsTab() {
                 <DetailField label="Amount" value={formatCommerceMoney(Number(selected.grand_total))} />
                 <DetailField label="Payment Status" value={paymentStatusLabel(selected.payment_status)} />
                 <DetailField label="Order Status" value={selected.order_status} />
-                <DetailField label="Issued Date" value={formatTxDate(selected.transacted_at)} />
-                <DetailField label="Expired Date" value={transactionDueDate(selected)} />
+                <DetailField label="Issued Date" value={transactionIssuedDate(selected)} />
+                <DetailField label="Due Date" value={transactionDueDate(selected)} />
                 <DetailField label="Notes" value={selected.notes || "—"} wide />
               </div>
             ) : (

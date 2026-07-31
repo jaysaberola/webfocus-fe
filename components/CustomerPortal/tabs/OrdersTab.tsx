@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
+import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import { joinPlanNames } from "@/lib/serviceCategory";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import { fetchPortalOrders } from "@/services/customerPortalService";
@@ -20,16 +21,117 @@ const STATUS_FILTERS = [
 const SORT_OPTIONS = [
   { value: "date-desc", label: "Date Ordered (Newest)" },
   { value: "date-asc", label: "Date Ordered (Oldest)" },
+  { value: "due-desc", label: "Due Date (Latest)" },
+  { value: "due-asc", label: "Due Date (Earliest)" },
   { value: "amount-desc", label: "Amount (High to Low)" },
   { value: "amount-asc", label: "Amount (Low to High)" },
 ];
+
+type OrderSortKey =
+  | "id-asc"
+  | "id-desc"
+  | "service-asc"
+  | "service-desc"
+  | "plan-asc"
+  | "plan-desc"
+  | "amount-asc"
+  | "amount-desc"
+  | "gateway-asc"
+  | "gateway-desc"
+  | "date-asc"
+  | "date-desc"
+  | "due-asc"
+  | "due-desc"
+  | "status-asc"
+  | "status-desc";
+
+type OrderColumnKey = "id" | "service" | "plan" | "amount" | "gateway" | "date" | "due" | "status";
+
+const ORDER_SORT_ASC: Record<OrderColumnKey, OrderSortKey> = {
+  id: "id-asc",
+  service: "service-asc",
+  plan: "plan-asc",
+  amount: "amount-asc",
+  gateway: "gateway-asc",
+  date: "date-asc",
+  due: "due-asc",
+  status: "status-asc",
+};
+
+const ORDER_SORT_DESC: Record<OrderColumnKey, OrderSortKey> = {
+  id: "id-desc",
+  service: "service-desc",
+  plan: "plan-desc",
+  amount: "amount-desc",
+  gateway: "gateway-desc",
+  date: "date-desc",
+  due: "due-desc",
+  status: "status-desc",
+};
+
+function orderDueDate(order: PortalOrder) {
+  return order.dueDate ?? order.expiredDate;
+}
+
+function orderPlanLabel(order: PortalOrder) {
+  return order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name));
+}
+
+function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
+  const copy = [...rows];
+  copy.sort((a, b) => {
+    const compareText = (left: string, right: string, desc: boolean) => {
+      const result = left.localeCompare(right);
+      return desc ? -result : result;
+    };
+
+    if (sortBy.startsWith("id")) {
+      return compareText(a.id, b.id, sortBy === "id-desc");
+    }
+    if (sortBy.startsWith("service")) {
+      return compareText(a.serviceName ?? a.items[0]?.name ?? "", b.serviceName ?? b.items[0]?.name ?? "", sortBy === "service-desc");
+    }
+    if (sortBy.startsWith("plan")) {
+      return compareText(orderPlanLabel(a), orderPlanLabel(b), sortBy === "plan-desc");
+    }
+    if (sortBy.startsWith("amount")) {
+      return sortBy === "amount-desc" ? b.total - a.total : a.total - b.total;
+    }
+    if (sortBy.startsWith("gateway")) {
+      return compareText(a.gateway, b.gateway, sortBy === "gateway-desc");
+    }
+    if (sortBy.startsWith("date")) {
+      return compareText(a.date, b.date, sortBy === "date-desc");
+    }
+    if (sortBy.startsWith("due")) {
+      return compareText(orderDueDate(a), orderDueDate(b), sortBy === "due-desc");
+    }
+    if (sortBy.startsWith("status")) {
+      return compareText(a.status, b.status, sortBy === "status-desc");
+    }
+    return 0;
+  });
+  return copy;
+}
+
+function toggleOrderSort(current: OrderSortKey, column: OrderColumnKey): OrderSortKey {
+  const asc = ORDER_SORT_ASC[column];
+  const desc = ORDER_SORT_DESC[column];
+  return current === asc ? desc : asc;
+}
+
+function orderSortDirection(sortBy: OrderSortKey, column: OrderColumnKey): "asc" | "desc" | null {
+  if (sortBy === ORDER_SORT_ASC[column]) return "asc";
+  if (sortBy === ORDER_SORT_DESC[column]) return "desc";
+  return null;
+}
 
 export default function OrdersTab() {
   const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("date-desc");
+  const [sortBy, setSortBy] = useState<OrderSortKey>("date-desc");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [detailModal, setDetailModal] = useState<OrderDetailModalState>({ open: false });
@@ -67,12 +169,7 @@ export default function OrdersTab() {
       return haystack.includes(query);
     });
 
-    rows = [...rows].sort((a, b) => {
-      if (sortBy === "date-asc") return a.date.localeCompare(b.date);
-      if (sortBy === "amount-desc") return b.total - a.total;
-      if (sortBy === "amount-asc") return a.total - b.total;
-      return b.date.localeCompare(a.date);
-    });
+    rows = sortPortalOrders(rows, sortBy);
 
     return rows;
   }, [orders, statusFilter, search, sortBy, dateFrom, dateTo]);
@@ -154,7 +251,7 @@ export default function OrdersTab() {
               <select
                 className={styles.portalToolbarControl}
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value as OrderSortKey)}
                 aria-label="Sort orders"
               >
                 {SORT_OPTIONS.map((option) => (
@@ -193,14 +290,54 @@ export default function OrdersTab() {
           <table className={styles.dataTable}>
             <thead>
               <tr>
-                <th>Order #</th>
-                <th>Service Name</th>
-                <th>Plan</th>
-                <th>Amount</th>
-                <th>Payment Method</th>
-                <th>Date Ordered</th>
-                <th>Expired Date</th>
-                <th>Status</th>
+                <PortalSortableTableHead
+                  label="Order #"
+                  active={orderSortDirection(sortBy, "id") !== null}
+                  direction={orderSortDirection(sortBy, "id") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "id"))}
+                />
+                <PortalSortableTableHead
+                  label="Service Name"
+                  active={orderSortDirection(sortBy, "service") !== null}
+                  direction={orderSortDirection(sortBy, "service") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "service"))}
+                />
+                <PortalSortableTableHead
+                  label="Plan"
+                  active={orderSortDirection(sortBy, "plan") !== null}
+                  direction={orderSortDirection(sortBy, "plan") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "plan"))}
+                />
+                <PortalSortableTableHead
+                  label="Amount"
+                  active={orderSortDirection(sortBy, "amount") !== null}
+                  direction={orderSortDirection(sortBy, "amount") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "amount"))}
+                />
+                <PortalSortableTableHead
+                  label="Payment Method"
+                  active={orderSortDirection(sortBy, "gateway") !== null}
+                  direction={orderSortDirection(sortBy, "gateway") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "gateway"))}
+                />
+                <PortalSortableTableHead
+                  label="Date Ordered"
+                  active={orderSortDirection(sortBy, "date") !== null}
+                  direction={orderSortDirection(sortBy, "date") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "date"))}
+                />
+                <PortalSortableTableHead
+                  label="Due Date"
+                  active={orderSortDirection(sortBy, "due") !== null}
+                  direction={orderSortDirection(sortBy, "due") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "due"))}
+                />
+                <PortalSortableTableHead
+                  label="Status"
+                  active={orderSortDirection(sortBy, "status") !== null}
+                  direction={orderSortDirection(sortBy, "status") ?? "asc"}
+                  onClick={() => setSortBy((current) => toggleOrderSort(current, "status"))}
+                />
                 <th>Action</th>
               </tr>
             </thead>
@@ -222,7 +359,7 @@ export default function OrdersTab() {
                       <td className={styles.monoBold}>{formatPeso(order.total)}</td>
                       <td>{order.gateway}</td>
                       <td>{order.date}</td>
-                      <td>{order.expiredDate}</td>
+                      <td>{orderDueDate(order)}</td>
                       <td>
                         <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
                           {pending ? "Pending Request" : "Active Live"}
@@ -318,8 +455,8 @@ export default function OrdersTab() {
                 <span className={styles.billingModalDetailValue}>{detailModal.order.date}</span>
               </div>
               <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Expires</span>
-                <span className={styles.billingModalDetailValue}>{detailModal.order.expiredDate}</span>
+                <span className={styles.billingModalDetailLabel}>Due Date</span>
+                <span className={styles.billingModalDetailValue}>{orderDueDate(detailModal.order)}</span>
               </div>
               <div className={styles.billingModalDetailRow}>
                 <span className={styles.billingModalDetailLabel}>Status</span>

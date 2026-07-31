@@ -1,6 +1,23 @@
 import type { CommercePaymentProofRow } from "@/services/commerceAdminService";
+import { commerceDueDate, formatCommerceDate } from "@/lib/commerceAdmin/dateHelpers";
 
-export type ApprovalSortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc";
+export type ApprovalSortKey =
+  | "date-desc"
+  | "date-asc"
+  | "due-desc"
+  | "due-asc"
+  | "amount-desc"
+  | "amount-asc"
+  | "invoice-asc"
+  | "invoice-desc"
+  | "service-asc"
+  | "service-desc"
+  | "plan-asc"
+  | "plan-desc"
+  | "client-asc"
+  | "client-desc"
+  | "status-asc"
+  | "status-desc";
 export type ApprovalFilterKey = "all" | "provisioning" | "receipt";
 
 export function approvalQueueType(_row: CommercePaymentProofRow): "Receipt Verification" | "Pending Provisioning" {
@@ -18,35 +35,61 @@ export function filterApprovals(rows: CommercePaymentProofRow[], filter: Approva
 export function sortApprovals(rows: CommercePaymentProofRow[], sortBy: ApprovalSortKey) {
   const copy = [...rows];
   copy.sort((a, b) => {
+    const compareText = (left: string, right: string, desc: boolean) => {
+      const result = left.localeCompare(right);
+      return desc ? -result : result;
+    };
+
     if (sortBy.startsWith("date")) {
-      const aTime = new Date(a.submittedAt).getTime();
-      const bTime = new Date(b.submittedAt).getTime();
-      return sortBy === "date-desc" ? bTime - aTime : aTime - bTime;
+      const aIssued = approvalIssuedDate(a);
+      const bIssued = approvalIssuedDate(b);
+      return compareText(aIssued, bIssued, sortBy === "date-desc");
     }
-    const aAmount = Number(a.amount ?? 0);
-    const bAmount = Number(b.amount ?? 0);
-    return sortBy === "amount-desc" ? bAmount - aAmount : aAmount - bAmount;
+    if (sortBy.startsWith("due")) {
+      const aDue = approvalDueDate(a);
+      const bDue = approvalDueDate(b);
+      return compareText(aDue, bDue, sortBy === "due-desc");
+    }
+    if (sortBy.startsWith("amount")) {
+      const aAmount = Number(a.amount ?? 0);
+      const bAmount = Number(b.amount ?? 0);
+      return sortBy === "amount-desc" ? bAmount - aAmount : aAmount - bAmount;
+    }
+    if (sortBy.startsWith("invoice")) {
+      return compareText(
+        String(a.invoiceId || a.proofNo),
+        String(b.invoiceId || b.proofNo),
+        sortBy === "invoice-desc"
+      );
+    }
+    if (sortBy.startsWith("service")) {
+      return compareText(approvalServiceLabel(a), approvalServiceLabel(b), sortBy === "service-desc");
+    }
+    if (sortBy.startsWith("plan")) {
+      return compareText(approvalPlanLabel(a), approvalPlanLabel(b), sortBy === "plan-desc");
+    }
+    if (sortBy.startsWith("client")) {
+      return compareText(String(a.client ?? ""), String(b.client ?? ""), sortBy === "client-desc");
+    }
+    if (sortBy.startsWith("status")) {
+      return compareText(String(a.status ?? ""), String(b.status ?? ""), sortBy === "status-desc");
+    }
+    return 0;
   });
   return copy;
 }
 
 export function formatApprovalDate(value?: string | null) {
-  if (!value) return "—";
-  return String(value).slice(0, 10);
+  return formatCommerceDate(value);
 }
 
 export function approvalIssuedDate(row: CommercePaymentProofRow) {
-  return formatApprovalDate(row.issuedDate ?? row.submittedAt);
+  return formatCommerceDate(row.issuedDate);
 }
 
-export function approvalExpiredDate(row: CommercePaymentProofRow) {
-  if (row.expiredDate) return formatApprovalDate(row.expiredDate);
-  if (!row.issuedDate) return "—";
-  const base = new Date(row.issuedDate);
-  if (Number.isNaN(base.getTime())) return "—";
-  const due = new Date(base);
-  due.setDate(due.getDate() + 30);
-  return due.toISOString().slice(0, 10);
+export function approvalDueDate(row: CommercePaymentProofRow) {
+  if (row.expiredDate) return formatCommerceDate(row.expiredDate);
+  return commerceDueDate(row.issuedDate);
 }
 
 export function approvalServiceLabel(row: CommercePaymentProofRow) {

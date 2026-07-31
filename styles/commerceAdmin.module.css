@@ -609,6 +609,36 @@
   letter-spacing: 0.06em;
 }
 
+.tableSortBtn,
+.tableSortBtnActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.tableSortBtn:hover,
+.tableSortBtnActive:hover {
+  color: #64748b;
+}
+
+.tableSortBtnActive {
+  color: #2563eb;
+}
+
+.tableSortBtn i,
+.tableSortBtnActive i {
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
 .table td {
   padding: 0.85rem 0.5rem;
   border-bottom: 1px solid #f1f5f9;
