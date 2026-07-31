@@ -97,11 +97,23 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
 
   const displayName = customerDisplayName(customer?.fname, customer?.lname);
   const initial = (displayName.charAt(0) || "C").toUpperCase();
+  const [customerAvatarFailed, setCustomerAvatarFailed] = useState(false);
+  const [adminAvatarFailed, setAdminAvatarFailed] = useState(false);
+
+  useEffect(() => {
+    setCustomerAvatarFailed(false);
+  }, [customer?.avatar]);
+
+  useEffect(() => {
+    setAdminAvatarFailed(false);
+  }, [adminUser?.avatar]);
+  const adminRoleLabel = getRoleDisplayLabel(adminUser);
   const customerAvatarUrl = resolveAvatarUrl(customer?.avatar);
   const adminDisplayName = customerDisplayName(adminUser?.fname, adminUser?.lname) || "Admin User";
   const adminInitial = (adminDisplayName.charAt(0) || "A").toUpperCase();
   const adminAvatarUrl = resolveAvatarUrl(adminUser?.avatar);
-  const adminRoleLabel = getRoleDisplayLabel(adminUser);
+  const showCustomerAvatar = Boolean(customerAvatarUrl && !customerAvatarFailed);
+  const showAdminAvatar = Boolean(adminAvatarUrl && !adminAvatarFailed);
   const showCmsPortalLink = isCmsPortalUser(adminUser);
 
   if (adminUser) {
@@ -115,7 +127,17 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           onClick={() => setOpen((value) => !value)}
         >
           <span className={styles.avatar}>
-            {adminAvatarUrl ? <img src={adminAvatarUrl} alt="" width={24} height={24} /> : adminInitial}
+            {showAdminAvatar ? (
+              <img
+                src={adminAvatarUrl}
+                alt=""
+                width={24}
+                height={24}
+                onError={() => setAdminAvatarFailed(true)}
+              />
+            ) : (
+              adminInitial
+            )}
           </span>
           <span className={styles.loggedInName}>{adminDisplayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
@@ -124,7 +146,17 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           <div className={styles.accountPanel} role="menu" aria-label="Admin menu">
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
-                {adminAvatarUrl ? <img src={adminAvatarUrl} alt="" width={40} height={40} /> : adminInitial}
+                {showAdminAvatar ? (
+                  <img
+                    src={adminAvatarUrl}
+                    alt=""
+                    width={40}
+                    height={40}
+                    onError={() => setAdminAvatarFailed(true)}
+                  />
+                ) : (
+                  adminInitial
+                )}
               </span>
               <div className={styles.accountMeta}>
                 <p className={styles.accountName}>{adminDisplayName}</p>
@@ -166,7 +198,17 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           onClick={() => setOpen((value) => !value)}
         >
           <span className={styles.avatar}>
-            {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" width={24} height={24} /> : initial}
+            {showCustomerAvatar ? (
+              <img
+                src={customerAvatarUrl}
+                alt=""
+                width={24}
+                height={24}
+                onError={() => setCustomerAvatarFailed(true)}
+              />
+            ) : (
+              initial
+            )}
           </span>
           <span className={styles.loggedInName}>{displayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
@@ -175,7 +217,17 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           <div className={styles.accountPanel} role="menu" aria-label="Account menu">
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
-                {customerAvatarUrl ? <img src={customerAvatarUrl} alt="" width={40} height={40} /> : initial}
+                {showCustomerAvatar ? (
+                  <img
+                    src={customerAvatarUrl}
+                    alt=""
+                    width={40}
+                    height={40}
+                    onError={() => setCustomerAvatarFailed(true)}
+                  />
+                ) : (
+                  initial
+                )}
               </span>
               <div className={styles.accountMeta}>
                 <p className={styles.accountName}>{displayName}</p>

@@ -89,20 +89,27 @@ function wrapWithSliderControls(content: HTMLElement) {
   return wrap;
 }
 
+function isLegacyBrandSlider(section: Element) {
+  return Boolean(section.querySelector("#wsi-slider-track, .wsi-brand-grid"));
+}
+
+function isMarqueeReady(section: Element) {
+  return Boolean(
+    section.querySelector(".wsi-brand-marquee-viewport") &&
+      section.querySelector("#wsi-slider-prev"),
+  );
+}
+
 function ensureMarqueeStructure(section: Element, logos: BrandLogo[]) {
-  const existingViewport = section.querySelector(".wsi-brand-marquee-viewport");
-  if (section.querySelector("#wsi-slider-prev") && existingViewport) {
-    return existingViewport as HTMLElement;
+  if (isMarqueeReady(section) && !isLegacyBrandSlider(section)) {
+    return section.querySelector(".wsi-brand-marquee-viewport") as HTMLElement;
   }
 
-  let shell = section.querySelector(".wsi-brand-marquee-shell") as HTMLElement | null;
-  if (!shell) {
-    shell = document.createElement("div");
-    shell.className = "wsi-brand-marquee-shell";
-    shell.appendChild(buildMarqueeViewport(logos));
-  } else if (!shell.querySelector(".wsi-brand-marquee-viewport")) {
-    shell.appendChild(buildMarqueeViewport(logos));
-  }
+  delete (section as HTMLElement).dataset.marqueeMotionInit;
+
+  const shell = document.createElement("div");
+  shell.className = "wsi-brand-marquee-shell";
+  shell.appendChild(buildMarqueeViewport(logos));
 
   const wrapped = wrapWithSliderControls(shell);
   const replaceTarget =
@@ -111,9 +118,17 @@ function ensureMarqueeStructure(section: Element, logos: BrandLogo[]) {
 
   if (replaceTarget) {
     replaceTarget.replaceWith(wrapped);
+  } else {
+    const inner = section.querySelector(".wsi-clients-inner");
+    const heading = inner?.querySelector(".wsi-section-heading");
+    if (heading) {
+      heading.insertAdjacentElement("afterend", wrapped);
+    } else if (inner) {
+      inner.appendChild(wrapped);
+    }
   }
 
-  return section.querySelector(".wsi-brand-marquee-viewport") as HTMLElement;
+  return section.querySelector(".wsi-brand-marquee-viewport") as HTMLElement | null;
 }
 
 function initMarqueeMotion(section: Element, viewport: HTMLElement) {
@@ -206,5 +221,7 @@ export function initHomeBrandMarquee(root: ParentNode | null | undefined) {
   if (logos.length < 2) return;
 
   const viewport = ensureMarqueeStructure(section, logos);
+  if (!viewport) return;
+
   initMarqueeMotion(section, viewport);
 }

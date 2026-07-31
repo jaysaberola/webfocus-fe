@@ -82,6 +82,15 @@ export type CommerceServiceAdminRow = {
   transactionNo?: string | null;
 };
 
+export type CommerceNotificationAdminRow = {
+  id: number;
+  title: string;
+  desc: string;
+  date: string;
+  audience: string;
+  status: string;
+};
+
 export async function fetchCommerceDashboard() {
   const res = await axiosInstance.get("/commerce-admin/dashboard", {
     headers: { "X-No-Loading": true },
@@ -126,6 +135,19 @@ export async function fetchCommerceServices(status?: string) {
     headers: { "X-No-Loading": true },
   });
   return extractList<CommerceServiceAdminRow>(res.data.data);
+}
+
+export async function fetchCommerceNotifications() {
+  const res = await axiosInstance.get("/commerce-admin/notifications", {
+    params: { per_page: 50 },
+    headers: { "X-No-Loading": true },
+  });
+  return extractList<CommerceNotificationAdminRow>(res.data.data);
+}
+
+export async function broadcastCommerceNotification(payload: { title: string; body: string }) {
+  const res = await axiosInstance.post("/commerce-admin/notifications/broadcast", payload);
+  return res.data;
 }
 
 export { getCustomers, getSalesTransactions };

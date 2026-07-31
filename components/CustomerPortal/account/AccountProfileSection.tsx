@@ -121,6 +121,10 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     try {
       setUploadingAvatar(true);
       const updated = await uploadCustomerAvatar(file, customer);
+      setAvatarPreview((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
       onCustomerUpdate?.(updated);
       toast.success("Profile photo updated.");
     } catch (err: any) {

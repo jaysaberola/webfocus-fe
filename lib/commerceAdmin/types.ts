@@ -6,7 +6,6 @@ export type CommerceAdminTab =
   | "managed"
   | "contracts"
   | "catalog"
-  | "users"
   | "notifications"
   | "helpdesk"
   | "reports";

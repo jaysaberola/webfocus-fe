@@ -12,9 +12,10 @@ import { axiosInstance } from "@/services/axios";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import {
   BANNER_IMAGE_REQUIREMENTS_LABEL,
-  BANNER_VIDEO_MAX_BYTES,
+  BANNER_MEDIA_MAX_BYTES,
+  BANNER_MEDIA_MAX_MB,
   BANNER_VIDEO_REQUIREMENTS_LABEL,
-  formatBannerFileSize,
+  bannerMediaTooLargeMessage,
   resolveBannerMediaType,
   resolveBannerPreviewFallback,
   resolveBannerPreviewUrl,
@@ -448,14 +449,15 @@ function HomeBanner() {
           toast.error(`${file.name} is not a supported video file.`);
           continue;
         }
-        if (file.size > BANNER_VIDEO_MAX_BYTES) {
-          toast.error(
-            `${file.name} is ${formatBannerFileSize(file.size)}. Video banners must be 5 MB or smaller.`
-          );
+        if (file.size > BANNER_MEDIA_MAX_BYTES) {
+          toast.error(bannerMediaTooLargeMessage(file.name, file.size, "Video banners"));
           continue;
         }
       } else if (!file.type.startsWith("image/")) {
         toast.error(`${file.name} is not a supported image file.`);
+        continue;
+      } else if (file.size > BANNER_MEDIA_MAX_BYTES) {
+        toast.error(bannerMediaTooLargeMessage(file.name, file.size, "Image banners"));
         continue;
       }
 
@@ -493,15 +495,17 @@ function HomeBanner() {
         e.target.value = "";
         return;
       }
-      if (file.size > BANNER_VIDEO_MAX_BYTES) {
-        toast.error(
-          `${file.name} is ${formatBannerFileSize(file.size)}. Video banners must be 5 MB or smaller.`
-        );
+      if (file.size > BANNER_MEDIA_MAX_BYTES) {
+        toast.error(bannerMediaTooLargeMessage(file.name, file.size, "Video banners"));
         e.target.value = "";
         return;
       }
     } else if (!file.type.startsWith("image/")) {
       toast.error(`${file.name} is not a supported image file.`);
+      e.target.value = "";
+      return;
+    } else if (file.size > BANNER_MEDIA_MAX_BYTES) {
+      toast.error(bannerMediaTooLargeMessage(file.name, file.size, "Image banners"));
       e.target.value = "";
       return;
     }
@@ -1149,7 +1153,7 @@ function HomeBanner() {
         return;
       }
       if (status === 413) {
-        toast.error("Video file is too large for the server. Use a video under 5 MB.");
+        toast.error(`Banner file is too large for the server. Use a file under ${BANNER_MEDIA_MAX_MB} MB.`);
         return;
       }
       const message =

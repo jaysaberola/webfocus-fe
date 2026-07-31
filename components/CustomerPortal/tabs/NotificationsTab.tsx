@@ -53,7 +53,9 @@ export default function NotificationsTab() {
   const [search, setSearch] = useState("");
 
   const loadNotifications = () =>
-    fetchPortalNotifications().then(setNotifications);
+    fetchPortalNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]));
 
   useEffect(() => {
     loadNotifications().finally(() => setLoading(false));

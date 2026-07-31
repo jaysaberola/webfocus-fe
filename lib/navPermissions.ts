@@ -93,7 +93,6 @@ export const COMMERCE_TAB_PERMISSIONS: Record<CommerceAdminTab, string[]> = {
   managed: ["commerce_managed.view", "commerce_managed.manage"],
   contracts: ["commerce_contracts.view", "commerce_contracts.manage"],
   catalog: ["commerce_catalog.view", "commerce_catalog.manage", "products.manage"],
-  users: ["users.view"],
   notifications: ["commerce_notifications.view", "commerce_notifications.manage"],
   helpdesk: ["commerce_helpdesk.view", "commerce_helpdesk.create", "commerce_helpdesk.update", "commerce_helpdesk.delete"],
   reports: ["reports.view"],

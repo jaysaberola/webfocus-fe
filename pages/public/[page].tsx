@@ -4,7 +4,7 @@ import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesConten
 import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 interface PublicPageViewProps {
   pageData: PublicPage;
@@ -106,24 +106,46 @@ export default function PublicPageView({ pageData, htmlContent }: PublicPageView
     };
   }, [htmlContent, pageData?.slug]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const slug = String(pageData?.slug || "").toLowerCase();
     if (slug !== "home") return;
 
     const root = contentRef.current;
     if (!root) return;
 
-    const run = () => initHomeBrandMarquee(root);
+    let queued = false;
+    const run = () => {
+      if (queued) return;
+      queued = true;
+      window.requestAnimationFrame(() => {
+        queued = false;
+        initHomeBrandMarquee(root);
+      });
+    };
 
     run();
-    const t1 = window.setTimeout(run, 0);
-    const t2 = window.setTimeout(run, 150);
-    const t3 = window.setTimeout(run, 600);
+
+    const observer = new MutationObserver((mutations) => {
+      const shouldReinit = mutations.some((mutation) => {
+        if (mutation.type !== "childList") return false;
+        const target = mutation.target as Element;
+        return Boolean(
+          target.closest?.(".wsi-clients-section") ||
+            target.classList?.contains("public-page-content"),
+        );
+      });
+      if (shouldReinit) run();
+    });
+
+    observer.observe(root, { childList: true, subtree: true });
+
+    const t1 = window.setTimeout(run, 150);
+    const t2 = window.setTimeout(run, 600);
 
     return () => {
+      observer.disconnect();
       window.clearTimeout(t1);
       window.clearTimeout(t2);
-      window.clearTimeout(t3);
     };
   }, [htmlContent, pageData?.slug]);
 

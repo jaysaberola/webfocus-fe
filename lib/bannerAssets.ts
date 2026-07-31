@@ -4,10 +4,20 @@ export type BannerMediaType = "image" | "video";
 
 export const BANNER_IMAGE_RECOMMENDED_WIDTH = 1920;
 export const BANNER_IMAGE_RECOMMENDED_HEIGHT = 760;
-export const BANNER_VIDEO_MAX_BYTES = 5 * 1024 * 1024;
+export const BANNER_MEDIA_MAX_MB = 10;
+export const BANNER_MEDIA_MAX_BYTES = BANNER_MEDIA_MAX_MB * 1024 * 1024;
+export const BANNER_VIDEO_MAX_BYTES = BANNER_MEDIA_MAX_BYTES;
 
-export const BANNER_IMAGE_REQUIREMENTS_LABEL = `Recommended ${BANNER_IMAGE_RECOMMENDED_WIDTH} × ${BANNER_IMAGE_RECOMMENDED_HEIGHT} px · JPG, PNG, or WebP`;
-export const BANNER_VIDEO_REQUIREMENTS_LABEL = "MP4 or WebM · max 5 MB per video";
+export const BANNER_IMAGE_REQUIREMENTS_LABEL = `Recommended ${BANNER_IMAGE_RECOMMENDED_WIDTH} × ${BANNER_IMAGE_RECOMMENDED_HEIGHT} px · JPG, PNG, or WebP · max ${BANNER_MEDIA_MAX_MB} MB`;
+export const BANNER_VIDEO_REQUIREMENTS_LABEL = `MP4 or WebM · max ${BANNER_MEDIA_MAX_MB} MB per video`;
+
+export function bannerMediaTooLargeMessage(
+  fileName: string,
+  fileSize: number,
+  mediaLabel = "Banner files",
+) {
+  return `${fileName} is ${formatBannerFileSize(fileSize)}. ${mediaLabel} must be ${BANNER_MEDIA_MAX_MB} MB or smaller.`;
+}
 
 export function isVideoAssetUrl(url?: string | null) {
   return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(String(url ?? ""));

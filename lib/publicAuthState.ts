@@ -44,11 +44,12 @@ function getPublicAuthSnapshot(): PublicAuthState {
   const next = computeStoredPublicAuthState();
   const nextKey =
     next.customer || next.adminUser
-      ? JSON.stringify({
+        ? JSON.stringify({
           customerId: next.customer?.id ?? null,
           customerEmail: next.customer?.email ?? null,
           customerFname: next.customer?.fname ?? null,
           customerLname: next.customer?.lname ?? null,
+          customerAvatar: next.customer?.avatar ?? null,
           adminId: next.adminUser?.id ?? null,
           adminEmail: next.adminUser?.email ?? null,
           adminAvatar: next.adminUser?.avatar ?? null,

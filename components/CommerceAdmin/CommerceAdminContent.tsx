@@ -1,19 +1,15 @@
 import dynamic from "next/dynamic";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import styles from "@/styles/commerceAdmin.module.css";
-import Link from "next/link";
-import {
-  COMMERCE_CONTRACTS,
-  COMMERCE_NOTIFICATIONS,
-  COMMERCE_REPORTS,
-  formatCommerceMoney,
-} from "@/lib/commerceAdmin/mockData";
+import { COMMERCE_REPORTS } from "@/lib/commerceAdmin/mockData";
 
 const CommerceDashboardTab = dynamic(() => import("./CommerceDashboardTab"));
 const CommerceClientsTab = dynamic(() => import("./tabs/CommerceClientsTab"));
 const CommerceTransactionsTab = dynamic(() => import("./tabs/CommerceTransactionsTab"));
 const CommerceApprovalsTab = dynamic(() => import("./tabs/CommerceApprovalsTab"));
 const CommerceManagedTab = dynamic(() => import("./tabs/CommerceManagedTab"));
+const CommerceContractsTab = dynamic(() => import("./tabs/CommerceContractsTab"));
+const CommerceNotificationsTab = dynamic(() => import("./tabs/CommerceNotificationsTab"));
 const CommerceHelpdeskTab = dynamic(() => import("./tabs/CommerceHelpdeskTab"));
 const CommerceCatalogTab = dynamic(() => import("./tabs/CommerceCatalogTab"));
 
@@ -21,99 +17,6 @@ type Props = {
   activeTab: CommerceAdminTab;
   onTabChange: (tab: CommerceAdminTab) => void;
 };
-
-function ContractsTab() {
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <h3 className={styles.panelTitle}>Contracts & Renewals</h3>
-          <p className={styles.panelSubtitle}>Renewal pipeline mirrored from managed customer services.</p>
-        </div>
-      </div>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Contract</th>
-              <th>Client</th>
-              <th>Service</th>
-              <th>Renews</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {COMMERCE_CONTRACTS.map((row) => (
-              <tr key={row.id}>
-                <td className={styles.monoCell}>{row.id}</td>
-                <td>{row.client}</td>
-                <td>{row.service}</td>
-                <td>{row.renews}</td>
-                <td className={styles.amountCell}>{formatCommerceMoney(row.value)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function UsersTab() {
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <h3 className={styles.panelTitle}>Operator Accounts</h3>
-          <p className={styles.panelSubtitle}>CMS staff users, roles, and access rights.</p>
-        </div>
-        <Link href="/users" className={styles.primaryBtnSm}>
-          Manage Users
-        </Link>
-      </div>
-      <p className={styles.emptyState}>
-        Operator account management lives in CMS Users. Use the button above to invite admins and assign roles.
-      </p>
-    </section>
-  );
-}
-
-function NotificationsTab() {
-  return (
-    <section className={styles.panel}>
-      <div className={styles.panelHeader}>
-        <div>
-          <h3 className={styles.panelTitle}>Outbound Notifications</h3>
-          <p className={styles.panelSubtitle}>
-            Customer portal notifications are generated automatically from billing, provisioning, and support events.
-          </p>
-        </div>
-      </div>
-      <div className={styles.tableWrap}>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Audience</th>
-              <th>Sent</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {COMMERCE_NOTIFICATIONS.map((row) => (
-              <tr key={row.id}>
-                <td>{row.title}</td>
-                <td>{row.audience}</td>
-                <td>{row.sentAt}</td>
-                <td>{row.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
 
 function ReportsTab() {
   return (
@@ -149,13 +52,11 @@ export default function CommerceAdminContent({ activeTab, onTabChange }: Props) 
     case "managed":
       return <CommerceManagedTab />;
     case "contracts":
-      return <ContractsTab />;
+      return <CommerceContractsTab />;
     case "catalog":
       return <CommerceCatalogTab />;
-    case "users":
-      return <UsersTab />;
     case "notifications":
-      return <NotificationsTab />;
+      return <CommerceNotificationsTab />;
     case "helpdesk":
       return <CommerceHelpdeskTab />;
     case "reports":

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { COMMERCE_ADMIN_TABS } from "@/lib/commerceAdmin/mockData";
 import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
@@ -84,9 +83,9 @@ export default function CommerceAdminShell({ activeTab, onTabChange, userName, r
           </h2>
           <p className={styles.panelSubtitle}>Welcome back, {userName} — Active Role: {roleLabel}</p>
         </div>
-        <Link href="/public/home" className={styles.secondaryBtnSm}>
+        <a href="/public/home" target="_blank" rel="noopener noreferrer" className={styles.secondaryBtnSm}>
           View Public Site
-        </Link>
+        </a>
       </div>
     </>
   );

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
   fetchCurrentCustomer,
+  storeCustomer,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { readStoredAuthToken } from "@/lib/authToken";
@@ -78,5 +79,11 @@ export function useCustomerPortalAuth() {
     };
   }, [router.isReady, router.asPath, storedCustomer]);
 
-  return { customer, loading, setCustomer };
+  const updateCustomer = useCallback((next: PublicCustomer | null) => {
+    if (next) storeCustomer(next);
+    else storeCustomer(null);
+    setCustomer(next);
+  }, []);
+
+  return { customer, loading, setCustomer: updateCustomer };
 }

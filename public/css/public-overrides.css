@@ -129,7 +129,6 @@ body {
   }
 }
 
-.public-page-content .wsi-brand-cell img,
 .public-page-content .wsi-portfolio-card img {
   display: block;
   width: 100%;
@@ -602,9 +601,69 @@ div[class*="wh-"] {
   object-position: center;
 }
 
-/* Home client logos — auto-loop marquee with prev/next controls */
+/* Home client logos — legacy slider + auto-loop marquee (CMS may ship either) */
 .public-page-content .wsi-slider-wrap {
   max-width: 64rem;
+  margin: 0 auto;
+}
+
+.public-page-content .wsi-slider-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  padding: 0 0.5rem;
+}
+
+.public-page-content .wsi-slider-row {
+  display: flex;
+}
+
+.public-page-content .wsi-slider-slide {
+  flex: 0 0 100%;
+  width: 100%;
+}
+
+.public-page-content .wsi-brand-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: center;
+  justify-items: center;
+  padding: 0 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .public-page-content .wsi-brand-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.public-page-content .wsi-brand-grid .wsi-brand-cell,
+.public-page-content .wsi-slider-track .wsi-brand-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 5rem;
+  width: auto;
+  max-width: 100%;
+}
+
+@media (min-width: 768px) {
+  .public-page-content .wsi-brand-grid .wsi-brand-cell,
+  .public-page-content .wsi-slider-track .wsi-brand-cell {
+    height: 6rem;
+  }
+}
+
+.public-page-content .wsi-brand-grid .wsi-brand-cell img,
+.public-page-content .wsi-slider-track .wsi-brand-cell img {
+  display: block;
+  max-height: 100%;
+  max-width: 80%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   margin: 0 auto;
 }
 

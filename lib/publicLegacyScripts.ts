@@ -13,6 +13,8 @@ const LIGHTWEIGHT_PUBLIC_ROUTE_PATTERNS = [
   /^\/public\/privacy(\/|$)/,
   /^\/public\/terms(\/|$)/,
   /^\/public\/data-privacy(\/|$)/,
+  /^\/public\/dashboard(\/|$)/,
+  /^\/public\/commerce-admin(\/|$)/,
 ];
 
 export function isLightweightPublicPage(pathname: string) {

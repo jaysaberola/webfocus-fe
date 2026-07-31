@@ -65,15 +65,23 @@ export async function fetchPortalBilling(params?: {
 }
 
 export async function fetchPortalNotifications(): Promise<PortalNotification[]> {
-  const res = await axiosInstance.get("/customer/portal/notifications", { headers: silentHeaders });
-  return res.data?.data ?? [];
+  try {
+    const res = await axiosInstance.get("/customer/portal/notifications", { headers: silentHeaders });
+    return res.data?.data ?? [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchPortalUnreadNotificationCount(): Promise<number> {
-  const res = await axiosInstance.get("/customer/portal/notifications/unread-count", {
-    headers: silentHeaders,
-  });
-  return res.data?.data?.count ?? 0;
+  try {
+    const res = await axiosInstance.get("/customer/portal/notifications/unread-count", {
+      headers: silentHeaders,
+    });
+    return res.data?.data?.count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 export async function markPortalNotificationRead(id: number): Promise<void> {
