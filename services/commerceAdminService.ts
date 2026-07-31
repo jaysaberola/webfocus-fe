@@ -57,6 +57,8 @@ export type CommercePaymentProofRow = {
   amount: number;
   serviceName?: string;
   plan?: string;
+  issuedDate?: string;
+  expiredDate?: string;
 };
 
 export type CommerceTicketAdminRow = {

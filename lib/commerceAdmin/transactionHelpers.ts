@@ -2,7 +2,7 @@ import type { SalesTransaction } from "@/services/salesTransactionService";
 import {
   isAddonLineItem,
   joinPlanNames,
-  resolveServiceCategory,
+  resolveServiceCategoryFromItems,
 } from "@/lib/serviceCategory";
 
 export type TxSortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc" | "id-asc";
@@ -56,8 +56,7 @@ function primaryTransactionItem(items: ReturnType<typeof normalizeItems>[number]
 export function transactionServiceCategory(transaction: SalesTransaction) {
   const items = normalizeItems(transaction.items);
   if (!items.length) return "—";
-  const primary = primaryTransactionItem(items);
-  return resolveServiceCategory(primary.name, primary.item_type);
+  return resolveServiceCategoryFromItems(items);
 }
 
 export function transactionPlanDetail(transaction: SalesTransaction) {

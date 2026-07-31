@@ -35,6 +35,20 @@ export function formatApprovalDate(value?: string | null) {
   return String(value).slice(0, 10);
 }
 
+export function approvalIssuedDate(row: CommercePaymentProofRow) {
+  return formatApprovalDate(row.issuedDate ?? row.submittedAt);
+}
+
+export function approvalExpiredDate(row: CommercePaymentProofRow) {
+  if (row.expiredDate) return formatApprovalDate(row.expiredDate);
+  if (!row.issuedDate) return "—";
+  const base = new Date(row.issuedDate);
+  if (Number.isNaN(base.getTime())) return "—";
+  const due = new Date(base);
+  due.setDate(due.getDate() + 30);
+  return due.toISOString().slice(0, 10);
+}
+
 export function approvalServiceLabel(row: CommercePaymentProofRow) {
   return row.serviceName?.trim() || "Service";
 }

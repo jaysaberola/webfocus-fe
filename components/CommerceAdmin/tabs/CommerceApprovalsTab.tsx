@@ -6,10 +6,12 @@ import {
   type CommercePaymentProofRow,
 } from "@/services/commerceAdminService";
 import {
+  approvalExpiredDate,
+  approvalIssuedDate,
+  approvalIssuedDate,
   approvalPlanLabel,
   approvalServiceLabel,
   filterApprovals,
-  formatApprovalDate,
   sortApprovals,
   type ApprovalFilterKey,
   type ApprovalSortKey,
@@ -158,7 +160,8 @@ export default function CommerceApprovalsTab() {
       </div>
       <div className={styles.txGridMeta}>
         <span>Client: {row.client}</span>
-        <span>Issued: {formatApprovalDate(row.submittedAt)}</span>
+        <span>Issued: {approvalIssuedDate(row)}</span>
+        <span>Expires: {approvalExpiredDate(row)}</span>
       </div>
       {row.fileName ? <div className={styles.approvalFileInline}>{row.fileName}</div> : null}
       <div className={styles.txGridFooter}>
@@ -260,8 +263,8 @@ export default function CommerceApprovalsTab() {
                         <strong>{approvalPlanLabel(row)}</strong>
                       </td>
                       <td>{row.client}</td>
-                      <td>{formatApprovalDate(row.submittedAt)}</td>
-                      <td>—</td>
+                      <td>{approvalIssuedDate(row)}</td>
+                      <td>{approvalExpiredDate(row)}</td>
                       <td className={styles.amountCell}>{formatCommerceMoney(row.amount)}</td>
                       <td>
                         <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
