@@ -48,6 +48,10 @@
   transition: opacity 0.6s ease;
 }
 
+.slide:global(.animate__animated) {
+  transition: none;
+}
+
 .slideImage {
   position: absolute;
   inset: 0;

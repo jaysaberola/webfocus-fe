@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import AdminLayout from "@/components/Layout/AdminLayout";
 import { BannerForm as BaseBannerForm } from "@/schemas/banner";
 import { OptionItem, getOptions } from "@/services/optionService";
@@ -18,6 +18,7 @@ import {
   resolveBannerMediaType,
   resolveBannerPreviewFallback,
   resolveBannerPreviewUrl,
+  bannerMatchesMediaType,
 } from "@/lib/bannerAssets";
 import Tooltip from "@/components/UI/Tooltip";
 import CmsModuleShell from "@/components/Modules/CmsModuleShell";
@@ -224,11 +225,27 @@ function HomeBanner() {
   }, []);
 
   useEffect(() => {
+    setSelectedSlideIndex(0);
+    setMediaPreviewIndex(null);
+    setResizeIndex(null);
+  }, [bannerType]);
+
+  const visibleBannerEntries = useMemo(
+    () =>
+      banners
+        .map((banner, index) => ({ banner, index }))
+        .filter(({ banner }) => bannerMatchesMediaType(banner, bannerType)),
+    [banners, bannerType]
+  );
+
+  const hiddenBannerCount = banners.length - visibleBannerEntries.length;
+
+  useEffect(() => {
     setSelectedSlideIndex((prev) => {
-      if (banners.length === 0) return 0;
-      return Math.min(prev, banners.length - 1);
+      if (visibleBannerEntries.length === 0) return 0;
+      return Math.min(prev, visibleBannerEntries.length - 1);
     });
-  }, [banners.length]);
+  }, [visibleBannerEntries.length]);
 
 
   const loadAlbum = async () => {
@@ -1124,11 +1141,20 @@ function HomeBanner() {
   /* ======================
    * UI
    * ====================== */
+  const handleBannerTypeChange = (nextType: BannerType) => {
+    setBannerType(nextType);
+  };
+
   const selectedBanner = resizeIndex !== null && banners[resizeIndex] ? banners[resizeIndex] : null;
   const mediaPreviewBanner =
     mediaPreviewIndex !== null && banners[mediaPreviewIndex] ? banners[mediaPreviewIndex] : null;
-  const activeSlideIndex = banners.length === 0 ? 0 : Math.min(selectedSlideIndex, banners.length - 1);
-  const activeBanner = banners[activeSlideIndex] ?? null;
+  const activeSlideIndex =
+    visibleBannerEntries.length === 0
+      ? 0
+      : Math.min(selectedSlideIndex, visibleBannerEntries.length - 1);
+  const activeBannerEntry = visibleBannerEntries[activeSlideIndex] ?? null;
+  const activeBanner = activeBannerEntry?.banner ?? null;
+  const activeBannerIndex = activeBannerEntry?.index ?? -1;
 
   return (
     <CmsModuleShell
@@ -1238,13 +1264,13 @@ function HomeBanner() {
               <div>
                 <label className="form-label d-flex align-items-center">
                   Banner Type
-                  <Tooltip text="Choose whether this homepage slider uses image or video banner uploads." />
+                  <Tooltip text="Choose whether the homepage slider displays image slides or video slides. Each type is managed separately." />
                 </label>
                 <div className="home-banner-type-toggle" role="group" aria-label="Banner type">
                   <button
                     type="button"
                     className={`home-banner-type-toggle__btn ${bannerType === "image" ? "is-active" : ""}`}
-                    onClick={() => setBannerType("image")}
+                    onClick={() => handleBannerTypeChange("image")}
                   >
                     <i className="fa fa-image" aria-hidden="true" />
                     Image
@@ -1252,7 +1278,7 @@ function HomeBanner() {
                   <button
                     type="button"
                     className={`home-banner-type-toggle__btn ${bannerType === "video" ? "is-active" : ""}`}
-                    onClick={() => setBannerType("video")}
+                    onClick={() => handleBannerTypeChange("video")}
                   >
                     <i className="fa fa-video" aria-hidden="true" />
                     Video
@@ -1296,38 +1322,48 @@ function HomeBanner() {
         <div className="col-lg-8 col-xl-9">
           <div className="home-banner-slides__header">
             <h5>
-              Slides
-              <span className="home-banner-slides__count">{banners.length}</span>
+              {bannerType === "video" ? "Video Slides" : "Image Slides"}
+              <span className="home-banner-slides__count">{visibleBannerEntries.length}</span>
             </h5>
             <span className="home-banner-slides__hint">
               <i className="fa fa-grip-lines me-1" aria-hidden="true" />
-              Select a slide to edit · drag thumbnails to reorder
+              {bannerType === "video"
+                ? "Only video slides appear here and on the homepage while Video is selected"
+                : "Only image slides appear here and on the homepage while Image is selected"}
+              {hiddenBannerCount > 0
+                ? ` · ${hiddenBannerCount} ${bannerType === "video" ? "image" : "video"} slide${hiddenBannerCount === 1 ? "" : "s"} saved separately`
+                : ""}
             </span>
           </div>
 
-          {banners.length === 0 ? (
+          {visibleBannerEntries.length === 0 ? (
             <div className="home-banner-empty">
-              <div><i className="fa fa-images" aria-hidden="true" /></div>
-              <p>No slides yet</p>
-              <small>Upload {bannerType === "video" ? "videos" : "images"} using the panel on the left.</small>
+              <div><i className={`fa ${bannerType === "video" ? "fa-video" : "fa-images"}`} aria-hidden="true" /></div>
+              <p>No {bannerType} slides yet</p>
+              <small>
+                Upload {bannerType === "video" ? "videos" : "images"} using the panel on the left.
+                {hiddenBannerCount > 0
+                  ? ` Switch to ${bannerType === "video" ? "Image" : "Video"} to manage the other saved slides.`
+                  : ""}
+              </small>
             </div>
           ) : (
             <div className="home-banner-workspace">
               <div className="home-banner-filmstrip" role="tablist" aria-label="Slides">
-                {banners.map((banner, index) => (
+                {visibleBannerEntries.map(({ banner, index }, visibleIndex) => (
                   <div
-                    key={index}
+                    key={banner.id ?? `${bannerType}-${index}`}
                     className={`home-banner-filmstrip__item cms-banner-card ${
-                      activeSlideIndex === index ? "is-active" : ""
+                      activeSlideIndex === visibleIndex ? "is-active" : ""
                     } ${banner.is_active === false ? "is-hidden-slide" : ""} ${
                       draggingIndex === index ? "is-dragging" : ""
                     }`}
-                    onClick={() => setSelectedSlideIndex(index)}
+                    onClick={() => setSelectedSlideIndex(visibleIndex)}
                     onDragOver={(e) => handleDragOver(index, e)}
                     onDrop={(e) => handleDrop(index, e)}
                     role="tab"
-                    aria-selected={activeSlideIndex === index}
-                    title={banner.title || `Slide ${index + 1}`}
+                    aria-selected={activeSlideIndex === visibleIndex}
+                    title={banner.title || `Slide ${visibleIndex + 1}`}
                   >
                     <div
                       className="cms-banner-drag-handle cms-banner-drag-handle--filmstrip"
@@ -1360,7 +1396,7 @@ function HomeBanner() {
                       )}
                     </div>
                     <div className="home-banner-filmstrip__label">
-                      <span className="home-banner-filmstrip__number">{index + 1}</span>
+                      <span className="home-banner-filmstrip__number">{visibleIndex + 1}</span>
                       <span className="home-banner-filmstrip__title">
                         {(banner.title || "Untitled").toString()}
                       </span>
@@ -1374,8 +1410,9 @@ function HomeBanner() {
                 ))}
               </div>
 
-              {activeBanner && (() => {
-                const index = activeSlideIndex;
+              {activeBanner && activeBannerIndex >= 0 && (() => {
+                const index = activeBannerIndex;
+                const visibleIndex = activeSlideIndex;
                 const banner = activeBanner;
                 return (
               <div className="home-banner-slide-editor">
@@ -1383,20 +1420,20 @@ function HomeBanner() {
                   <button
                     type="button"
                     className="btn btn-outline-secondary btn-sm"
-                    disabled={index <= 0}
-                    onClick={() => setSelectedSlideIndex(index - 1)}
+                    disabled={visibleIndex <= 0}
+                    onClick={() => setSelectedSlideIndex(visibleIndex - 1)}
                   >
                     <i className="fa fa-chevron-left me-1" />
                     Previous
                   </button>
                   <span className="home-banner-slide-editor__position">
-                    Slide {index + 1} of {banners.length}
+                    Slide {visibleIndex + 1} of {visibleBannerEntries.length}
                   </span>
                   <button
                     type="button"
                     className="btn btn-outline-secondary btn-sm"
-                    disabled={index >= banners.length - 1}
-                    onClick={() => setSelectedSlideIndex(index + 1)}
+                    disabled={visibleIndex >= visibleBannerEntries.length - 1}
+                    onClick={() => setSelectedSlideIndex(visibleIndex + 1)}
                   >
                     Next
                     <i className="fa fa-chevron-right ms-1" />
@@ -1412,7 +1449,7 @@ function HomeBanner() {
               className="home-banner-slide__media"
               role="button"
               tabIndex={0}
-              title="Click to view full image"
+              title={bannerType === "video" ? "Click to view full video" : "Click to view full image"}
               onClick={() => setMediaPreviewIndex(index)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -1422,7 +1459,9 @@ function HomeBanner() {
               }}
             >
               <div className="home-banner-slide__badges">
-                <span className="home-banner-slide__badge">Slide {index + 1}</span>
+                <span className="home-banner-slide__badge">
+                  {bannerType === "video" ? "Video" : "Image"} {visibleIndex + 1}
+                </span>
                 {banner.is_active === false && (
                   <span className="home-banner-slide__badge home-banner-slide__badge--hidden">
                     <i className="fa fa-eye-slash" aria-hidden="true" />

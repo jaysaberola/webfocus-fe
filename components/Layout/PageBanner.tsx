@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PublicAlbum } from "@/services/publicPageService";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import { BannerMediaType, resolveBannerMediaType } from "@/lib/bannerAssets";
+import {
+  BANNER_ANIMATION_DURATION_MS,
+  bannerAnimationClasses,
+  resolveBannerSlideInterval,
+  resolveBannerTransitionClass,
+} from "@/lib/bannerTransitions";
 
 interface PageBannerProps {
   title?: string;
@@ -13,32 +20,38 @@ export default function PageBanner({
   subtitle = "",
   album,
 }: PageBannerProps) {
-  const banners = album?.banners || [];
-  const isVideoBanner = (banner: any) => {
-    const mediaType = String(banner?.media_type ?? banner?.mediaType ?? "").toLowerCase();
-    if (mediaType === "video") return true;
-    return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(String(banner?.image_url ?? ""));
-  };
+  const albumBannerType: BannerMediaType = album?.banner_type === "video" ? "video" : "image";
+  const banners = useMemo(() => {
+    return (album?.banners || []).filter((banner: any) => {
+      const mediaType = resolveBannerMediaType(
+        {
+          image_path: banner?.image_path,
+          image_url: banner?.image_url,
+          media_type: banner?.media_type ?? banner?.mediaType,
+        },
+        albumBannerType
+      );
+      return mediaType === albumBannerType;
+    });
+  }, [album?.banners, album?.banner_type, albumBannerType]);
+
+  const isVideoBanner = (banner: any) =>
+    resolveBannerMediaType(
+      {
+        image_path: banner?.image_path,
+        image_url: banner?.image_url,
+        media_type: banner?.media_type ?? banner?.mediaType,
+      },
+      albumBannerType
+    ) === "video";
   const [current, setCurrent] = useState(0);
   const [exiting, setExiting] = useState<number | null>(null);
 
   const activeBanner: any = banners[current];
   const bannerTitle = activeBanner?.title?.trim() || "";
   const bannerDescription = activeBanner?.description?.trim() || "";
-  const normalizeAnimationName = (value: any) => {
-    if (!value) return "";
-    const raw = String(value).trim();
-    if (!raw) return "";
-    return raw.replace(/^animate__/, "").replace(/[^a-zA-Z0-9_-]/g, "");
-  };
-
-  const transitionInClass = normalizeAnimationName(
-    (album as any)?.transition_in_value ?? (album as any)?.transitionInValue
-  );
-  const transitionOutClass = normalizeAnimationName(
-    (album as any)?.transition_out_value ?? (album as any)?.transitionOutValue
-  );
-  const animationDurationMs = 900;
+  const transitionInClass = resolveBannerTransitionClass(album as Record<string, unknown> | null | undefined, "in");
+  const transitionOutClass = resolveBannerTransitionClass(album as Record<string, unknown> | null | undefined, "out");
 
   const goToBanner = (next: number) => {
     if (!banners.length || next === current) return;
@@ -48,7 +61,7 @@ export default function PageBanner({
 
     window.setTimeout(() => {
       setExiting((value) => (value === outgoing ? null : value));
-    }, animationDurationMs);
+    }, BANNER_ANIMATION_DURATION_MS);
   };
 
   const titleFont =
@@ -136,10 +149,7 @@ export default function PageBanner({
         } as const)
       : undefined;
 
-  const transitionSeconds = Number(album?.transition);
-  const interval = Number.isFinite(transitionSeconds) && transitionSeconds > 0
-    ? transitionSeconds * 1000
-    : 5000;
+  const interval = resolveBannerSlideInterval(album?.transition);
 
   useEffect(() => {
     if (!banners.length) return;
@@ -165,19 +175,17 @@ export default function PageBanner({
         {banners.map((banner, index) => {
           const isActive = index === current;
           const isExiting = index === exiting;
-          const animationClass = isExiting
+          const animationName = isExiting
             ? transitionOutClass
             : isActive
               ? transitionInClass
               : "";
+          const shouldAnimate = Boolean(animationName && (isActive || isExiting));
 
           return (
             <div
               key={banner.id ?? index}
-              className={[
-                animationClass ? "animate__animated" : "",
-                animationClass ? `animate__${animationClass}` : "",
-              ].filter(Boolean).join(" ")}
+              className={bannerAnimationClasses(animationName, shouldAnimate).join(" ")}
               style={{
                 position: "absolute",
                 inset: 0,
@@ -187,7 +195,7 @@ export default function PageBanner({
                 opacity: isActive || isExiting ? 1 : 0,
                 transform: isActive ? "scale(1)" : "scale(1.02)",
                 zIndex: isExiting ? 2 : isActive ? 1 : 0,
-                ["--animate-duration" as any]: `${animationDurationMs}ms`,
+                ["--animate-duration" as any]: `${BANNER_ANIMATION_DURATION_MS}ms`,
               }}
             >
               {isVideoBanner(banner) && (

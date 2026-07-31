@@ -101,3 +101,16 @@ export function formatBannerFileSize(bytes: number) {
   }
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
+
+export function bannerMatchesMediaType(
+  banner: {
+    image_path?: string | null;
+    image_url?: string | null;
+    preview?: string | null;
+    media_type?: string | null;
+    image?: File;
+  },
+  mediaType: BannerMediaType
+) {
+  return resolveBannerMediaType(banner, mediaType) === mediaType;
+}

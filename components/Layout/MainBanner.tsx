@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PublicAlbum } from "@/services/publicPageService";
 import { resolveStorageAssetUrl, resolveStorageAssetUrlWithFallback } from "@/lib/storageAssets";
+import { BannerMediaType, resolveBannerMediaType } from "@/lib/bannerAssets";
+import {
+  BANNER_ANIMATION_DURATION_MS,
+  bannerAnimationClasses,
+  resolveBannerSlideInterval,
+  resolveBannerTransitionClass,
+} from "@/lib/bannerTransitions";
 import styles from "@/styles/mainbanner.module.css";
 
 interface MainBannerProps {
@@ -63,11 +70,17 @@ function resolveSubtitle(banner: { alt?: string; title?: string }) {
 }
 
 export default function MainBanner({ album }: MainBannerProps) {
-  const isVideoBanner = (banner: any) => {
-    const mediaType = String(banner?.media_type ?? banner?.mediaType ?? "").toLowerCase();
-    if (mediaType === "video") return true;
-    return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(String(banner?.image_url ?? ""));
-  };
+  const albumBannerType: BannerMediaType = album.banner_type === "video" ? "video" : "image";
+
+  const isVideoBanner = (banner: any) =>
+    resolveBannerMediaType(
+      {
+        image_path: banner?.image_path,
+        image_url: banner?.image_url,
+        media_type: banner?.media_type ?? banner?.mediaType,
+      },
+      albumBannerType
+    ) === "video";
 
   const toBoolean = (value: any): boolean | undefined => {
     if (typeof value === "boolean") return value;
@@ -108,6 +121,16 @@ export default function MainBanner({ album }: MainBannerProps) {
 
   const banners = useMemo(() => {
     return (album.banners || []).filter((banner: any, index: number) => {
+      const mediaType = resolveBannerMediaType(
+        {
+          image_path: banner?.image_path,
+          image_url: banner?.image_url,
+          media_type: banner?.media_type ?? banner?.mediaType,
+        },
+        albumBannerType
+      );
+      if (mediaType !== albumBannerType) return false;
+
       const keyById = banner?.id ? `id:${banner.id}` : undefined;
       const keyByOrder = typeof banner?.order !== "undefined" ? `order:${banner.order}` : undefined;
       const keyByIndex = `index:${index}`;
@@ -120,24 +143,12 @@ export default function MainBanner({ album }: MainBannerProps) {
       if (typeof local?.is_active === "boolean") return local.is_active;
       return isBannerVisible(banner);
     });
-  }, [album.banners, visibilityOverrides]);
+  }, [album.banners, album.banner_type, albumBannerType, visibilityOverrides]);
   const [current, setCurrent] = useState(0);
   const [exiting, setExiting] = useState<number | null>(null);
 
-  const normalizeAnimationName = (value: any) => {
-    if (!value) return "";
-    const raw = String(value).trim();
-    if (!raw) return "";
-    return raw.replace(/^animate__/, "").replace(/[^a-zA-Z0-9_-]/g, "");
-  };
-
-  const transitionInClass = normalizeAnimationName(
-    (album as any).transition_in_value ?? (album as any).transitionInValue
-  );
-  const transitionOutClass = normalizeAnimationName(
-    (album as any).transition_out_value ?? (album as any).transitionOutValue
-  );
-  const animationDurationMs = 900;
+  const transitionInClass = resolveBannerTransitionClass(album as Record<string, unknown>, "in");
+  const transitionOutClass = resolveBannerTransitionClass(album as Record<string, unknown>, "out");
 
   const goToBanner = (next: number) => {
     if (!banners.length || next === current) return;
@@ -147,13 +158,10 @@ export default function MainBanner({ album }: MainBannerProps) {
 
     window.setTimeout(() => {
       setExiting((value) => (value === outgoing ? null : value));
-    }, animationDurationMs);
+    }, BANNER_ANIMATION_DURATION_MS);
   };
 
-  const transitionSeconds = Number(album.transition);
-  const interval = Number.isFinite(transitionSeconds) && transitionSeconds > 0
-    ? transitionSeconds * 1000
-    : 5000;
+  const interval = resolveBannerSlideInterval(album.transition);
 
   useEffect(() => {
     if (!banners.length) return;
@@ -367,11 +375,12 @@ export default function MainBanner({ album }: MainBannerProps) {
         {banners.map((banner, index) => {
           const isActive = index === current;
           const isExiting = index === exiting;
-          const animationClass = isExiting
+          const animationName = isExiting
             ? transitionOutClass
             : isActive
               ? transitionInClass
               : "";
+          const shouldAnimate = Boolean(animationName && (isActive || isExiting));
 
           return (
             <div
@@ -381,11 +390,10 @@ export default function MainBanner({ album }: MainBannerProps) {
                 isActive ? styles.slideActive : "",
                 isActive && index === 0 ? styles.slideActivePrimary : "",
                 isExiting ? styles.slideExiting : "",
-                animationClass && index !== 0 ? "animate__animated" : "",
-                animationClass && index !== 0 ? `animate__${animationClass}` : "",
+                ...bannerAnimationClasses(animationName, shouldAnimate),
               ].filter(Boolean).join(" ")}
               style={{
-                ["--animate-duration" as any]: `${animationDurationMs}ms`,
+                ["--animate-duration" as any]: `${BANNER_ANIMATION_DURATION_MS}ms`,
               }}
             >
               {isVideoBanner(banner) ? (
