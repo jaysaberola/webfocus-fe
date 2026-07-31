@@ -3,6 +3,7 @@ import { getCustomers } from "@/services/customerService";
 import { getServices } from "@/services/serviceService";
 import { createSalesTransaction } from "@/services/salesTransactionService";
 import { toast } from "@/lib/toast";
+import { resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const ADDONS = [
@@ -58,18 +59,14 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
   const serviceTypes = useMemo(() => {
     const types = new Set<string>();
     services.forEach((service) => {
-      const type = service.category_name ?? service.category ?? service.type ?? "Service";
-      types.add(String(type));
+      types.add(resolveServiceTypeLabel(service));
     });
     return Array.from(types);
   }, [services]);
 
   const filteredPlans = useMemo(() => {
     if (!serviceType) return services;
-    return services.filter((service) => {
-      const type = service.category_name ?? service.category ?? service.type ?? "Service";
-      return String(type) === serviceType;
-    });
+    return services.filter((service) => resolveServiceTypeLabel(service) === serviceType);
   }, [serviceType, services]);
 
   useEffect(() => {

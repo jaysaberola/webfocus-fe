@@ -103,8 +103,13 @@ export default function CommerceTransactionsTab() {
   }, [processedRows, page, showAll]);
 
   const totalCount = processedRows.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const startNum = totalCount === 0 ? 0 : showAll ? 1 : (page - 1) * PAGE_SIZE + 1;
   const endNum = showAll ? totalCount : Math.min(page * PAGE_SIZE, totalCount);
+
+  useEffect(() => {
+    if (!showAll && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, showAll]);
 
   const openView = (row: SalesTransaction) => {
     setSelected(row);
@@ -386,7 +391,7 @@ export default function CommerceTransactionsTab() {
             ? `Showing all ${totalCount} items`
             : totalCount === 0
               ? "Showing 0 items"
-              : `Showing ${startNum}-${endNum} of ${totalCount} items (Default 5 sample)`}
+              : `Showing ${startNum}-${endNum} of ${totalCount} items`}
         </div>
         <div className={styles.paginationActions}>
           <button
@@ -395,7 +400,20 @@ export default function CommerceTransactionsTab() {
             disabled={page <= 1 || showAll}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
-            Previous Page
+            Previous
+          </button>
+          {!showAll ? (
+            <span className={styles.managedServicePageIndicator}>
+              {page} / {totalPages}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            disabled={showAll || page >= totalPages}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+          >
+            Next
           </button>
           <button
             type="button"

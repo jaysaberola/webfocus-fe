@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { axiosInstance } from "@/services/axios";
 import { createService, getServices } from "@/services/serviceService";
+import { resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -80,7 +81,7 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
     const types = new Set<string>(FALLBACK_TYPES);
     categories.forEach((category) => types.add(category.name));
     plans.forEach((plan) => {
-      types.add(String(plan.category_name ?? plan.category ?? plan.type ?? "Service"));
+      types.add(resolveServiceTypeLabel(plan));
     });
     return Array.from(types);
   }, [categories, plans]);
@@ -92,10 +93,7 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
 
   const filteredPlans = useMemo(() => {
     if (!serviceType) return plans;
-    return plans.filter((plan) => {
-      const type = String(plan.category_name ?? plan.category ?? plan.type ?? "Service");
-      return type === serviceType;
-    });
+    return plans.filter((plan) => resolveServiceTypeLabel(plan) === serviceType);
   }, [plans, serviceType]);
 
   useEffect(() => {

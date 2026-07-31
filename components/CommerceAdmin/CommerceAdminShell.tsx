@@ -10,12 +10,10 @@ import styles from "@/styles/commerceAdmin.module.css";
 type Props = {
   activeTab: CommerceAdminTab;
   onTabChange: (tab: CommerceAdminTab) => void;
-  userName: string;
-  roleLabel: string;
   user: User | null;
 };
 
-export default function CommerceAdminShell({ activeTab, onTabChange, userName, roleLabel, user }: Props) {
+export default function CommerceAdminShell({ activeTab, onTabChange, user }: Props) {
   const [pendingApprovals, setPendingApprovals] = useState(0);
 
   const visibleTabs = useMemo(
@@ -70,18 +68,6 @@ export default function CommerceAdminShell({ activeTab, onTabChange, userName, r
           );
         })}
       </nav>
-
-      <div className={styles.operatorBar}>
-        <div>
-          <h2 className={styles.panelTitle}>
-            {visibleTabs.find((tab) => tab.id === activeTab)?.label || visibleTabs[0]?.label || "Dashboard"}
-          </h2>
-          <p className={styles.panelSubtitle}>Welcome back, {userName} — Active Role: {roleLabel}</p>
-        </div>
-        <a href="/public/home" target="_blank" rel="noopener noreferrer" className={styles.secondaryBtnSm}>
-          View Public Site
-        </a>
-      </div>
     </>
   );
 }

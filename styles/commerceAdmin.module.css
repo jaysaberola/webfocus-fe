@@ -373,38 +373,6 @@
   position: static;
 }
 
-.operatorBar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.25rem 1.5rem;
-  background: #fff;
-  border: 1px solid var(--ca-slate-200);
-  border-radius: 1.5rem;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-}
-
-@media (min-width: 768px) {
-  .operatorBar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-}
-
-.operatorBar h2 {
-  margin: 0;
-  font-size: var(--ca-text-title);
-  font-weight: 600;
-  color: var(--ca-slate-900);
-}
-
-.operatorBar p {
-  margin: 0.25rem 0 0;
-  font-size: var(--ca-text-xs);
-  color: var(--ca-slate-500);
-}
-
 .tabStack {
   display: flex;
   flex-direction: column;
@@ -2153,6 +2121,13 @@
   align-items: flex-start;
 }
 
+.approvalFileInline {
+  margin-top: 0.2rem;
+  font-size: var(--ca-text-xs);
+  color: var(--ca-slate-500);
+  line-height: 1.35;
+}
+
 .approvalFile {
   margin: 0.65rem 0;
   font-size: var(--ca-text-sm);
@@ -2494,6 +2469,185 @@
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22);
 }
 
+.managedServiceLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.managedServiceCategoryNav {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  scrollbar-width: thin;
+}
+
+.managedServiceCategoryBtn,
+.managedServiceCategoryBtnActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 11.5rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid transparent;
+  border-radius: var(--ca-radius-lg);
+  background: transparent;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.managedServiceCategoryBtn {
+  color: var(--ca-slate-700);
+}
+
+.managedServiceCategoryBtn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.managedServiceCategoryBtnActive {
+  color: var(--ca-slate-900);
+  background: #ffffff;
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 10px 24px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.managedServiceCategoryIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
+  background: #eff6ff;
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.managedServiceCategoryBtnActive .managedServiceCategoryIcon {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.managedServiceCategoryCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.managedServiceCategoryLabel {
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: inherit;
+  line-height: 1.35;
+}
+
+.managedServiceCategoryCount {
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  color: var(--ca-slate-500);
+  line-height: 1.35;
+}
+
+.managedServiceSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.06) 0%, rgba(37, 99, 235, 0) 42%),
+    #ffffff;
+}
+
+.managedServiceSummaryLabel {
+  margin: 0 0 0.2rem;
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ca-slate-500);
+  line-height: 1.45;
+}
+
+.managedServiceSummaryTitle {
+  margin: 0;
+  font: inherit;
+  font-size: var(--ca-text-title);
+  font-weight: 600;
+  color: var(--ca-slate-900);
+  line-height: 1.35;
+}
+
+.managedServiceSummaryMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.managedServiceSummaryPage {
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  color: var(--ca-slate-500);
+  line-height: 1.45;
+}
+
+.managedServicePageIndicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--ca-radius-pill);
+  background: var(--ca-slate-100);
+  color: var(--ca-slate-700);
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.managedServiceGroupCount {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: var(--ca-radius-pill);
+  background: #eff6ff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: var(--ca-text-label);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .managedServiceGrid {
   display: grid;
   grid-template-columns: 1fr;
@@ -2519,9 +2673,11 @@
 .managedServiceCard h4,
 .discountCard h4 {
   margin: 0;
+  font: inherit;
   font-size: var(--ca-text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--ca-slate-900);
+  line-height: 1.35;
 }
 
 .managedServiceCardTop {
@@ -2535,12 +2691,15 @@
   display: inline-flex;
   align-items: center;
   padding: 0.2rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--ca-radius-pill);
   background: #eff6ff;
   color: #1d4ed8;
-  font-size: 0.625rem;
+  font: inherit;
+  font-size: var(--ca-text-label);
   font-weight: 700;
-  text-transform: uppercase;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .discountList {

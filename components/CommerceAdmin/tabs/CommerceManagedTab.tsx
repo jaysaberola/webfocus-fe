@@ -3,6 +3,7 @@ import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateManageServiceModal from "@/components/CommerceAdmin/modals/CreateManageServiceModal";
 import EditManageServiceModal from "@/components/CommerceAdmin/modals/EditManageServiceModal";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
+import { groupServicesByType, resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import { toast } from "@/lib/toast";
 import {
   Coupon,
@@ -16,8 +17,18 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 type ManagedSubTab = "services" | "discounts";
 
-function serviceTypeLabel(service: any) {
-  return String(service.category_name ?? service.category ?? service.type ?? "Service");
+const GRID_PAGE_SIZE = 6;
+const LIST_PAGE_SIZE = 8;
+
+function serviceTypeIcon(type: string) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("cloud")) return "fa-cloud";
+  if (normalized.includes("shared")) return "fa-layer-group";
+  if (normalized.includes("dedicated") || normalized.includes("bare")) return "fa-server";
+  if (normalized.includes("domain")) return "fa-globe";
+  if (normalized.includes("design")) return "fa-palette";
+  if (normalized.includes("document") || normalized.includes("dms")) return "fa-folder-open";
+  return "fa-box";
 }
 
 function serviceActive(service: any) {
@@ -33,6 +44,8 @@ function formatServiceDate(value?: string | null) {
 export default function CommerceManagedTab() {
   const [subTab, setSubTab] = useState<ManagedSubTab>("services");
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid");
+  const [activeServiceType, setActiveServiceType] = useState("");
+  const [servicePage, setServicePage] = useState(1);
   const [services, setServices] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
@@ -79,9 +92,46 @@ export default function CommerceManagedTab() {
 
   const serviceTypes = useMemo(() => {
     const types = new Set<string>();
-    services.forEach((service) => types.add(serviceTypeLabel(service)));
+    services.forEach((service) => types.add(resolveServiceTypeLabel(service)));
     return Array.from(types);
   }, [services]);
+
+  const groupedServices = useMemo(() => groupServicesByType(services), [services]);
+
+  const pageSize = viewMode === "grid" ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
+
+  const activeGroupServices = useMemo(() => {
+    if (!activeServiceType) return services;
+    const group = groupedServices.find(({ type }) => type === activeServiceType);
+    return group?.services ?? [];
+  }, [activeServiceType, groupedServices, services]);
+
+  const totalServicePages = Math.max(1, Math.ceil(activeGroupServices.length / pageSize));
+
+  const paginatedServices = useMemo(() => {
+    const start = (servicePage - 1) * pageSize;
+    return activeGroupServices.slice(start, start + pageSize);
+  }, [activeGroupServices, pageSize, servicePage]);
+
+  const serviceRangeStart = activeGroupServices.length ? (servicePage - 1) * pageSize + 1 : 0;
+  const serviceRangeEnd = Math.min(servicePage * pageSize, activeGroupServices.length);
+
+  useEffect(() => {
+    if (!groupedServices.length) {
+      setActiveServiceType("");
+      return;
+    }
+    const exists = groupedServices.some(({ type }) => type === activeServiceType);
+    if (!exists) setActiveServiceType(groupedServices[0].type);
+  }, [groupedServices, activeServiceType]);
+
+  useEffect(() => {
+    setServicePage(1);
+  }, [activeServiceType, viewMode]);
+
+  useEffect(() => {
+    if (servicePage > totalServicePages) setServicePage(totalServicePages);
+  }, [servicePage, totalServicePages]);
 
   const handleServiceAction = async (service: any, action: string) => {
     const id = service.id ?? service.service_id;
@@ -135,6 +185,114 @@ export default function CommerceManagedTab() {
       <option value="toggle">{serviceActive(service) ? "Disable Service" : "Enable Service"}</option>
       <option value="edit">Edit Service</option>
     </select>
+  );
+
+  const renderServiceGroupHeader = (type: string, count: number) => (
+    <div className={styles.managedServiceSummary}>
+      <div>
+        <p className={styles.managedServiceSummaryLabel}>Active service group</p>
+        <h4 className={styles.managedServiceSummaryTitle}>{type}</h4>
+      </div>
+      <div className={styles.managedServiceSummaryMeta}>
+        <span className={styles.managedServiceGroupCount}>
+          {count} {count === 1 ? "plan" : "plans"}
+        </span>
+        <span className={styles.managedServiceSummaryPage}>
+          Page {servicePage} of {totalServicePages}
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderServiceCategoryNav = () => (
+    <div className={styles.managedServiceCategoryNav} role="tablist" aria-label="Service categories">
+      {groupedServices.map(({ type, services: groupServices }) => {
+        const isActive = activeServiceType === type;
+        return (
+          <button
+            key={type}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            className={isActive ? styles.managedServiceCategoryBtnActive : styles.managedServiceCategoryBtn}
+            onClick={() => setActiveServiceType(type)}
+          >
+            <span className={styles.managedServiceCategoryIcon} aria-hidden="true">
+              <i className={`fa-solid ${serviceTypeIcon(type)}`} />
+            </span>
+            <span className={styles.managedServiceCategoryCopy}>
+              <span className={styles.managedServiceCategoryLabel}>{type}</span>
+              <span className={styles.managedServiceCategoryCount}>{groupServices.length} plans</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderServicePagination = () => (
+    <div className={styles.paginationBar}>
+      <div className={styles.paginationInfo}>
+        {activeGroupServices.length === 0
+          ? "Showing 0 plans"
+          : `Showing ${serviceRangeStart}-${serviceRangeEnd} of ${activeGroupServices.length} plans in ${activeServiceType}`}
+      </div>
+      <div className={styles.paginationActions}>
+        <button
+          type="button"
+          className={styles.secondaryBtnSm}
+          disabled={servicePage <= 1}
+          onClick={() => setServicePage((current) => Math.max(1, current - 1))}
+        >
+          Previous
+        </button>
+        <span className={styles.managedServicePageIndicator}>
+          {servicePage} / {totalServicePages}
+        </span>
+        <button
+          type="button"
+          className={styles.primaryBtnSm}
+          disabled={servicePage >= totalServicePages}
+          onClick={() => setServicePage((current) => Math.min(totalServicePages, current + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderServiceGridCard = (service: any) => (
+    <article key={service.id ?? service.service_id} className={styles.managedServiceCard}>
+      <div className={styles.managedServiceCardTop}>
+        <span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span>
+        <span className={serviceActive(service) ? styles.badgePaid : styles.badgeMuted}>
+          {serviceActive(service) ? "Active" : "Disabled"}
+        </span>
+      </div>
+      <h4>{service.name ?? service.title}</h4>
+      <div className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))} / yr</div>
+      <div className={styles.managedMeta}>
+        <p>Created: {formatServiceDate(service.created_at)}</p>
+        <p>Modified: {formatServiceDate(service.updated_at)}</p>
+      </div>
+      {renderServiceActionSelect(service)}
+    </article>
+  );
+
+  const renderServiceTableRow = (service: any) => (
+    <tr key={service.id ?? service.service_id}>
+      <td><strong>{service.name ?? service.title}</strong></td>
+      <td><span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span></td>
+      <td className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))}</td>
+      <td>
+        <span className={serviceActive(service) ? styles.badgePaid : styles.badgeMuted}>
+          {serviceActive(service) ? "Active" : "Disabled"}
+        </span>
+      </td>
+      <td>{formatServiceDate(service.created_at)}</td>
+      <td>{formatServiceDate(service.updated_at)}</td>
+      <td className={styles.tableActionCell}>{renderServiceActionSelect(service)}</td>
+    </tr>
   );
 
   const submitDiscount = async (event: React.FormEvent) => {
@@ -237,68 +395,49 @@ export default function CommerceManagedTab() {
 
           {loadingServices ? (
             <p className={styles.emptyState}>Loading services...</p>
-          ) : viewMode === "list" ? (
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Service Name</th>
-                    <th>Type</th>
-                    <th>Base Price</th>
-                    <th>Status</th>
-                    <th>Date create</th>
-                    <th>Date Modified</th>
-                    <th className={styles.tableActionHead}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {services.length === 0 ? (
-                    <tr>
-                      <td colSpan={7}>No services found.</td>
-                    </tr>
-                  ) : (
-                    services.map((service) => (
-                      <tr key={service.id ?? service.service_id}>
-                        <td><strong>{service.name ?? service.title}</strong></td>
-                        <td><span className={styles.typeBadge}>{serviceTypeLabel(service)}</span></td>
-                        <td className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))}</td>
-                        <td>
-                          <span className={serviceActive(service) ? styles.badgePaid : styles.badgeMuted}>
-                            {serviceActive(service) ? "Active" : "Disabled"}
-                          </span>
-                        </td>
-                        <td>{formatServiceDate(service.created_at)}</td>
-                        <td>{formatServiceDate(service.updated_at)}</td>
-                        <td className={styles.tableActionCell}>{renderServiceActionSelect(service)}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+          ) : services.length === 0 ? (
+            <p className={styles.emptyState}>No services found.</p>
           ) : (
-            <div className={styles.managedServiceGrid}>
-              {services.length === 0 ? (
-                <p className={styles.emptyState}>No services found.</p>
+            <div className={styles.managedServiceLayout}>
+              {renderServiceCategoryNav()}
+              {renderServiceGroupHeader(activeServiceType, activeGroupServices.length)}
+
+              {viewMode === "list" ? (
+                <div className={styles.tableWrap}>
+                  <table className={styles.table}>
+                    <thead>
+                      <tr>
+                        <th>Service Name</th>
+                        <th>Type</th>
+                        <th>Base Price</th>
+                        <th>Status</th>
+                        <th>Date create</th>
+                        <th>Date Modified</th>
+                        <th className={styles.tableActionHead}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedServices.length === 0 ? (
+                        <tr>
+                          <td colSpan={7}>No plans in this category.</td>
+                        </tr>
+                      ) : (
+                        paginatedServices.map(renderServiceTableRow)
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                services.map((service) => (
-                  <article key={service.id ?? service.service_id} className={styles.managedServiceCard}>
-                    <div className={styles.managedServiceCardTop}>
-                      <span className={styles.typeBadge}>{serviceTypeLabel(service)}</span>
-                      <span className={serviceActive(service) ? styles.badgePaid : styles.badgeMuted}>
-                        {serviceActive(service) ? "Active" : "Disabled"}
-                      </span>
-                    </div>
-                    <h4>{service.name ?? service.title}</h4>
-                    <div className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))} / yr</div>
-                    <div className={styles.managedMeta}>
-                      <p>Created: {formatServiceDate(service.created_at)}</p>
-                      <p>Modified: {formatServiceDate(service.updated_at)}</p>
-                    </div>
-                    {renderServiceActionSelect(service)}
-                  </article>
-                ))
+                <div className={styles.managedServiceGrid}>
+                  {paginatedServices.length === 0 ? (
+                    <p className={styles.emptyState}>No plans in this category.</p>
+                  ) : (
+                    paginatedServices.map(renderServiceGridCard)
+                  )}
+                </div>
               )}
+
+              {renderServicePagination()}
             </div>
           )}
         </section>

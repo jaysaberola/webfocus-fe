@@ -11,7 +11,7 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 export default function CommerceAdminPage() {
   const router = useRouter();
-  const { loading, user, userName, roleLabel } = useCommerceAdminAuth();
+  const { loading, user } = useCommerceAdminAuth();
   const [activeTab, setActiveTab] = useState<CommerceAdminTab>("dashboard");
 
   useEffect(() => {
@@ -55,8 +55,6 @@ export default function CommerceAdminPage() {
       <CommerceAdminShell
         activeTab={activeTab}
         onTabChange={switchTab}
-        userName={userName}
-        roleLabel={roleLabel}
         user={user}
       />
       <CommerceAdminContent activeTab={activeTab} onTabChange={switchTab} />
