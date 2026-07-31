@@ -13,6 +13,14 @@ export type WebsiteSettings = {
 export const WEBSITE_SETTINGS_STORAGE_KEY = "cms4.websiteSettings.v1";
 export const WEBSITE_SETTINGS_UPDATED_EVENT = "cms4:website-settings-updated";
 
+const REFRESH_TTL_MS = 5 * 60 * 1000;
+const RATE_LIMIT_BACKOFF_MS = 90 * 1000;
+
+let inflight: Promise<WebsiteSettings> | null = null;
+let lastFetchedAt = 0;
+let rateLimitedUntil = 0;
+let staleRefreshScheduled = false;
+
 export function readStoredWebsiteSettings(): WebsiteSettings | null {
   if (typeof window === "undefined") return null;
   try {
@@ -34,6 +42,15 @@ export function storeWebsiteSettings(settings: WebsiteSettings | null) {
   }
 }
 
+function settingsChanged(a: WebsiteSettings | null, b: WebsiteSettings | null) {
+  if (!a || !b) return true;
+  try {
+    return JSON.stringify(a) !== JSON.stringify(b);
+  } catch {
+    return true;
+  }
+}
+
 export function notifyWebsiteSettingsUpdated() {
   if (typeof window === "undefined") return;
   try {
@@ -42,8 +59,6 @@ export function notifyWebsiteSettingsUpdated() {
     // ignore
   }
 }
-
-let inflight: Promise<WebsiteSettings> | null = null;
 
 function shouldUsePublicBrandingEndpoint(): boolean {
   if (typeof window === "undefined") return true;
@@ -61,27 +76,56 @@ async function fetchWebsiteSettings(): Promise<WebsiteSettings> {
   return (response as any)?.setting ?? response ?? {};
 }
 
-export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Promise<WebsiteSettings> {
-  const force = opts?.force === true;
+function scheduleStaleRefreshIfNeeded() {
+  if (typeof window === "undefined") return;
+  if (staleRefreshScheduled || inflight) return;
 
-  if (!force) {
-    const stored = readStoredWebsiteSettings();
-    if (stored) {
-      void refreshWebsiteSettings();
-      return stored;
-    }
-  }
+  const now = Date.now();
+  if (now < rateLimitedUntil) return;
+  if (now - lastFetchedAt < REFRESH_TTL_MS) return;
 
-  return refreshWebsiteSettings();
+  staleRefreshScheduled = true;
+  window.setTimeout(() => {
+    staleRefreshScheduled = false;
+    void refreshWebsiteSettings({ background: true });
+  }, 250);
 }
 
-async function refreshWebsiteSettings(): Promise<WebsiteSettings> {
+async function refreshWebsiteSettings(opts?: {
+  force?: boolean;
+  background?: boolean;
+}): Promise<WebsiteSettings> {
+  const now = Date.now();
+  const stored = readStoredWebsiteSettings();
+
+  if (now < rateLimitedUntil) {
+    return stored ?? {};
+  }
+
+  if (!opts?.force && stored && now - lastFetchedAt < REFRESH_TTL_MS) {
+    return stored;
+  }
+
   if (!inflight) {
     inflight = fetchWebsiteSettings()
       .then((settings) => {
+        lastFetchedAt = Date.now();
+        const previous = readStoredWebsiteSettings();
         storeWebsiteSettings(settings);
-        notifyWebsiteSettingsUpdated();
+        if (settingsChanged(previous, settings)) {
+          notifyWebsiteSettingsUpdated();
+        }
         return settings;
+      })
+      .catch((err: any) => {
+        const status = err?.response?.status;
+        if (status === 429) {
+          rateLimitedUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+          if (!opts?.background) {
+            console.warn("Website settings refresh paused after rate limit (429). Using cached values.");
+          }
+        }
+        return readStoredWebsiteSettings() ?? {};
       })
       .finally(() => {
         inflight = null;
@@ -89,6 +133,18 @@ async function refreshWebsiteSettings(): Promise<WebsiteSettings> {
   }
 
   return inflight;
+}
+
+export async function getWebsiteSettingsCached(opts?: { force?: boolean }): Promise<WebsiteSettings> {
+  const force = opts?.force === true;
+  const stored = readStoredWebsiteSettings();
+
+  if (!force && stored) {
+    scheduleStaleRefreshIfNeeded();
+    return stored;
+  }
+
+  return refreshWebsiteSettings({ force });
 }
 
 export function subscribeWebsiteSettingsUpdated(cb: () => void): () => void {
@@ -126,18 +182,33 @@ export async function getPublicBrandingCached(opts?: { force?: boolean }): Promi
     if (stored?.website_favicon || stored?.company_logo) return stored;
   }
 
+  const now = Date.now();
+  if (now < rateLimitedUntil) {
+    return readStoredWebsiteSettings() ?? {};
+  }
+
   if (!publicBrandingInflight) {
     publicBrandingInflight = websiteService
       .getPublicBranding()
       .then((branding) => {
+        lastFetchedAt = Date.now();
         const merged = {
           ...(readStoredWebsiteSettings() ?? {}),
           ...branding,
         };
+        const previous = readStoredWebsiteSettings();
         storeWebsiteSettings(merged);
+        if (settingsChanged(previous, merged)) {
+          notifyWebsiteSettingsUpdated();
+        }
         return merged;
       })
-      .catch(() => readStoredWebsiteSettings() ?? {})
+      .catch((err: any) => {
+        if (err?.response?.status === 429) {
+          rateLimitedUntil = Date.now() + RATE_LIMIT_BACKOFF_MS;
+        }
+        return readStoredWebsiteSettings() ?? {};
+      })
       .finally(() => {
         publicBrandingInflight = null;
       });

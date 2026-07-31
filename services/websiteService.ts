@@ -9,6 +9,9 @@ export const websiteService = {
       const { data } = await axiosInstance.get("/website-settings");
       return data ?? {};
     } catch (err: any) {
+      if (err?.response?.status === 429) {
+        throw err;
+      }
       console.warn("websiteService.getSettings failed:", err?.response?.status ?? err?.message);
       return {
         setting: {
@@ -39,6 +42,9 @@ export const websiteService = {
       const { data } = await axiosInstance.get("/public/branding");
       return data ?? {};
     } catch (err: any) {
+      if (err?.response?.status === 429) {
+        throw err;
+      }
       console.warn(
         "websiteService.getPublicBranding failed:",
         err?.response?.status ?? err?.message

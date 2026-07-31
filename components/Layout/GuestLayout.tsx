@@ -11,7 +11,7 @@ import { PublicCartDrawerProvider } from "@/components/Cart/PublicCartDrawerCont
 import Head from "next/head";
 import { useEffect, useState } from "react";
 import { getHeroPreloadImage } from "@/lib/heroBanner";
-import { getWebsiteSettingsCached, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
+import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
 
 interface LandingPageLayoutProps {
@@ -58,7 +58,11 @@ export default function LandingPageLayout({
     };
 
     refresh({ force: false });
-    const unsub = subscribeWebsiteSettingsUpdated(() => refresh({ force: true }));
+    const unsub = subscribeWebsiteSettingsUpdated(() => {
+      const stored = readStoredWebsiteSettings();
+      if (!alive) return;
+      setCompanyName((stored as any)?.company_name || null);
+    });
     return () => {
       alive = false;
       unsub();

@@ -4,6 +4,7 @@ import Head from "next/head";
 import { useEffect, useState } from "react";
 import {
   getWebsiteSettingsCached,
+  readStoredWebsiteSettings,
   resolveWebsiteAssetUrl,
   subscribeWebsiteSettingsUpdated,
 } from "@/lib/websiteSettings";
@@ -25,7 +26,11 @@ export default function SiteFavicon() {
     };
 
     refresh({ force: false });
-    const unsub = subscribeWebsiteSettingsUpdated(() => refresh({ force: true }));
+    const unsub = subscribeWebsiteSettingsUpdated(() => {
+      const settings = readStoredWebsiteSettings();
+      const url = resolveWebsiteAssetUrl(settings?.website_favicon ?? null);
+      if (alive) setFaviconUrl(url ?? null);
+    });
 
     return () => {
       alive = false;

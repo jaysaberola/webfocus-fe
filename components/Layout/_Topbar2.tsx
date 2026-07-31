@@ -55,7 +55,10 @@ export default function Topbar({ onToggleSidebar, sidebarToggleRef, sidebarHidde
 
   React.useEffect(() => {
     refreshLogo({ force: false });
-    const unsub = subscribeWebsiteSettingsUpdated(() => refreshLogo({ force: true }));
+    const unsub = subscribeWebsiteSettingsUpdated(() => {
+      const stored = readStoredWebsiteSettings();
+      setLogoUrl(resolveWebsiteAssetUrl((stored as any)?.company_logo));
+    });
     return () => unsub();
   }, [refreshLogo]);
 

@@ -421,6 +421,11 @@ function HomeBanner() {
     } catch (err: any) {
       if (err.response?.status === 404) {
         setAlbumExists(false);
+        return;
+      }
+      if (err.response?.status === 429) {
+        toast.error("Too many requests. Please wait a minute, then refresh this page.");
+        return;
       }
     } finally {
 
@@ -1128,14 +1133,31 @@ function HomeBanner() {
       })),
     };
 
-    if (albumExists) {
-      await updateAlbum(HOME_ALBUM_ID, payload);
-    } else {
-      await createAlbum(payload);
-    }
+    try {
+      if (albumExists) {
+        await updateAlbum(HOME_ALBUM_ID, payload);
+      } else {
+        await createAlbum(payload);
+      }
 
-    await loadAlbum();
-    toast.success("Home banner updated successfully");
+      await loadAlbum();
+      toast.success("Home banner updated successfully");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 429) {
+        toast.error("Too many requests. Please wait a minute and try saving again.");
+        return;
+      }
+      if (status === 413) {
+        toast.error("Video file is too large for the server. Use a video under 5 MB.");
+        return;
+      }
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to save home banner. Please try again.";
+      toast.error(message);
+    }
   };
 
   /* ======================

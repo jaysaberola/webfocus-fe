@@ -109,7 +109,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
 
     refresh({ force: false });
-    const unsub = subscribeWebsiteSettingsUpdated(() => refresh({ force: true }));
+    const unsub = subscribeWebsiteSettingsUpdated(() => {
+      const stored = readStoredWebsiteSettings();
+      if (!alive) return;
+      setCompanyName((stored as any)?.company_name || null);
+    });
     return () => {
       alive = false;
       unsub();
