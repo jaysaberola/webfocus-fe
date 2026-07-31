@@ -21,6 +21,19 @@ export type ServiceAddon = {
   label?: string;
 };
 
+export function formatAddonDisplayName(name: string): string {
+  const cleaned = name
+    .replace(/^Add Ons_/i, "")
+    .replace(/^Shared_/i, "Shared · ")
+    .replace(/^Dedicated_/i, "Dedicated · ")
+    .replace(/^Bare Metal_/i, "Bare Metal · ")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return cleaned || name;
+}
+
 export type WebDesignPackage = {
   id: string;
   name: string;

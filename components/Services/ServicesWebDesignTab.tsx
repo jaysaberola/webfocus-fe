@@ -201,14 +201,20 @@ export default function ServicesWebDesignTab() {
           <section className={styles.webdesignCustomQuote}>
             <div className={styles.webdesignCustomQuoteCopy}>
               <span>Bespoke Enterprise Integration</span>
-              <h3>Need customized ERP billing or payment gateway loops?</h3>
+              <h3>Need customized ERP billing or payment gateway integration?</h3>
               <p>
-                Our Quezon City systems center compiles special PHP/Node frameworks to align custom
-                invoice channels directly with BIR and local standard tax regulations.
+                Our systems team builds PHP/Node service layers, REST API hooks, and invoice
+                pipelines aligned with BIR e-invoicing and local tax compliance requirements.
               </p>
             </div>
             <Link href="/public/contact-us" className={styles.webdesignCustomQuoteBtn}>
-              Technical Intake Form
+              <span className={styles.webdesignCustomQuoteBtnLabel}>Get a Quote</span>
+              <span className={styles.webdesignCustomQuoteBtnIcon} aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25">
+                  <path d="M5 12h14" />
+                  <path d="m13 6 6 6-6 6" />
+                </svg>
+              </span>
             </Link>
           </section>
         </section>

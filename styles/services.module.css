@@ -48,7 +48,7 @@
 .introCopy {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 0.65rem 1.5rem;
 }
@@ -83,13 +83,110 @@
   line-height: 1;
 }
 
-.introText {
-  margin: 0;
-  max-width: 18rem;
+.introQuoteBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+  padding: 0.9rem 1.55rem 0.9rem 1.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    linear-gradient(135deg, #021845 0%, #1d4ed8 42%, #2563eb 100%);
+  color: #ffffff;
   font-size: 0.8125rem;
-  line-height: 1.55;
-  color: #64748b;
-  text-align: right;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow:
+    0 12px 28px rgba(37, 99, 235, 0.38),
+    0 0 0 1px rgba(37, 99, 235, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  animation: introQuoteGlow 2.6s ease-in-out infinite;
+  transition:
+    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.28s ease,
+    background 0.28s ease;
+}
+
+.introQuoteBtn::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%);
+  opacity: 0.55;
+  z-index: -1;
+  filter: blur(8px);
+  transition: opacity 0.28s ease;
+}
+
+.introQuoteBtnLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.introQuoteBtnIcon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), background 0.28s ease;
+}
+
+.introQuoteBtnIcon svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.introQuoteBtn:hover,
+.introQuoteBtn:focus-visible {
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.02);
+  background: linear-gradient(135deg, #021845 0%, #1e40af 38%, #1d4ed8 100%);
+  box-shadow:
+    0 18px 36px rgba(37, 99, 235, 0.45),
+    0 0 0 1px rgba(37, 99, 235, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  text-decoration: none;
+}
+
+.introQuoteBtn:hover::before,
+.introQuoteBtn:focus-visible::before {
+  opacity: 0.85;
+}
+
+.introQuoteBtn:hover .introQuoteBtnIcon,
+.introQuoteBtn:focus-visible .introQuoteBtnIcon {
+  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+@keyframes introQuoteGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 12px 28px rgba(37, 99, 235, 0.38),
+      0 0 0 0 rgba(234, 88, 12, 0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
+
+  50% {
+    box-shadow:
+      0 16px 34px rgba(37, 99, 235, 0.48),
+      0 0 0 6px rgba(234, 88, 12, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  }
 }
 
 .introTabsShell {
@@ -211,6 +308,10 @@
     animation: none;
   }
 
+  .introQuoteBtn {
+    animation: none;
+  }
+
   .introTabActive {
     transform: none;
   }
@@ -318,6 +419,30 @@
   color: #64748b;
 }
 
+.hostingAddonsViewAll {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.hostingAddonsViewAllBtn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.55rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.hostingAddonsViewAllBtn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
 /* ── Shared service catalog cards ─────────────────────────── */
 
 .serviceCardGrid {
@@ -361,6 +486,13 @@
   min-width: 260px;
 }
 
+.serviceCardGridFour .serviceCard,
+.serviceCardGridFour .templateCatalogCard {
+  flex: 1 1 calc(25% - 0.75rem);
+  max-width: calc(25% - 0.75rem);
+  min-width: 220px;
+}
+
 .serviceCard {
   display: flex;
   flex-direction: column;
@@ -370,6 +502,10 @@
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
   overflow: hidden;
   min-height: 252px;
+}
+
+.serviceCardAddon {
+  min-height: 0;
 }
 
 .serviceCardBodySpacer {
@@ -490,7 +626,7 @@
 }
 
 .serviceCardBtn {
-  margin: 0 1.25rem 1.25rem;
+  margin: auto 1.25rem 1.25rem;
   width: calc(100% - 2.5rem);
   border: 0;
   border-radius: 10px;
@@ -529,11 +665,25 @@
   align-items: flex-start;
 }
 
+.hostingAddonTop .serviceCardTitle {
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .hostingAddonPrice {
+  flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 700;
   color: #2563eb;
   white-space: nowrap;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.universalAddonLabel {
+  display: inline-flex;
+  margin-bottom: 0.65rem;
 }
 
 .hostingFilters {
@@ -1437,6 +1587,7 @@
 .webdesignPackagesSection {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
+  padding-bottom: 0.75rem;
   border-top: 1px solid #dde3ec;
 }
 
@@ -1456,8 +1607,9 @@
   align-items: stretch;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+  margin: 0.65rem 0 0.85rem;
 }
 
 .agencyPlanCard {
@@ -1466,6 +1618,29 @@
   min-height: 100%;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
+  position: relative;
+  z-index: 0;
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: center center;
+  backface-visibility: hidden;
+  box-shadow: 0 0 0 rgba(15, 23, 42, 0);
+  transition:
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .agencyPlanCard:hover,
+  .agencyPlanCard:focus-within {
+    z-index: 3;
+    transform: translate3d(0, -4px, 0) scale(1.04);
+    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+  }
+
+  .agencyPlanCardFeatured:hover,
+  .agencyPlanCardFeatured:focus-within {
+    box-shadow: 0 26px 54px rgba(37, 99, 235, 0.32);
+  }
 }
 
 .agencyPlanCard:last-child {
@@ -1675,6 +1850,19 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .agencyPlanCard {
+    transition: box-shadow 0.25s ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .agencyPlanCard:hover,
+    .agencyPlanCard:focus-within {
+      transform: none;
+    }
+  }
+}
+
 .webdesignCustomQuote {
   display: grid;
   grid-template-columns: 1fr;
@@ -1714,17 +1902,63 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.875rem 1.5rem;
-  border-radius: 0.75rem;
-  background: #2563eb;
+  gap: 0.5rem;
+  padding: 0.9rem 1.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, #021845 0%, #1d4ed8 45%, #2563eb 100%);
   color: #ffffff;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 24px rgba(37, 99, 235, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.webdesignCustomQuoteBtnLabel {
+  position: relative;
+  z-index: 1;
+}
+
+.webdesignCustomQuoteBtnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
+}
+
+.webdesignCustomQuoteBtnIcon svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.webdesignCustomQuoteBtn:hover,
+.webdesignCustomQuoteBtn:focus-visible {
+  color: #ffffff;
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #021845 0%, #1e40af 40%, #1d4ed8 100%);
+  box-shadow:
+    0 14px 30px rgba(37, 99, 235, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
   text-decoration: none;
 }
 
-.webdesignCustomQuoteBtn:hover {
-  background: #1d4ed8;
+.webdesignCustomQuoteBtn:hover .webdesignCustomQuoteBtnIcon,
+.webdesignCustomQuoteBtn:focus-visible .webdesignCustomQuoteBtnIcon {
+  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .dmsEnterpriseSection {
@@ -1777,9 +2011,10 @@
     align-items: flex-start;
   }
 
-  .introText {
-    text-align: left;
-    max-width: none;
+  .introQuoteBtn {
+    align-self: stretch;
+    width: 100%;
+    justify-content: center;
   }
 
   .introTabs {
@@ -1788,6 +2023,15 @@
 
   .introTab {
     min-height: 5rem;
+  }
+}
+
+@media (max-width: 1199px) {
+  .serviceCardGridFour .serviceCard,
+  .serviceCardGridFour .templateCatalogCard {
+    flex: 1 1 calc(50% - 0.5rem);
+    max-width: calc(50% - 0.5rem);
+    min-width: 220px;
   }
 }
 
@@ -1804,10 +2048,12 @@
   .serviceCardGridTwo .serviceCard,
   .serviceCardGridOne .serviceCard,
   .serviceCardGridMany .serviceCard,
+  .serviceCardGridFour .serviceCard,
   .serviceCardGrid .templateCatalogCard,
   .serviceCardGridTwo .templateCatalogCard,
   .serviceCardGridOne .templateCatalogCard,
-  .serviceCardGridMany .templateCatalogCard {
+  .serviceCardGridMany .templateCatalogCard,
+  .serviceCardGridFour .templateCatalogCard {
     flex: 1 1 100%;
     max-width: 100%;
     min-width: 0;

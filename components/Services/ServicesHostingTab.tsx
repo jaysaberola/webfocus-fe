@@ -4,6 +4,7 @@ import {
   HOSTING_PLANS,
   HOSTING_TYPE_LABELS,
   UNIVERSAL_HOSTING_ADDONS,
+  formatAddonDisplayName,
   formatPeso,
   type HostingPlanType,
 } from "@/lib/servicesCatalog";
@@ -75,11 +76,16 @@ function initialUniversalAddons() {
   return mapFallbackUniversalAddons();
 }
 
+const UNIVERSAL_ADDON_PREVIEW_ROWS = 2;
+const UNIVERSAL_ADDON_PREVIEW_COLUMNS = 4;
+const UNIVERSAL_ADDON_PREVIEW_COUNT = UNIVERSAL_ADDON_PREVIEW_ROWS * UNIVERSAL_ADDON_PREVIEW_COLUMNS;
+
 export default function ServicesHostingTab() {
   const [hostingType, setHostingType] = useState<HostingPlanType>("cloud");
   const [plans, setPlans] = useState<PublicHostingPlan[]>(() => initialPlans("cloud"));
   const [typeAddons, setTypeAddons] = useState<PublicHostingAddon[]>(() => initialTypeAddons("cloud"));
   const [universalAddons, setUniversalAddons] = useState<PublicHostingAddon[]>(() => initialUniversalAddons());
+  const [showAllUniversalAddons, setShowAllUniversalAddons] = useState(false);
   const { addToCart } = useServiceCart();
 
   useEffect(() => {
@@ -134,6 +140,13 @@ export default function ServicesHostingTab() {
   }, [hostingType]);
 
   const sectionTitle = useMemo(() => HOSTING_TYPE_LABELS[hostingType], [hostingType]);
+  const hasMoreUniversalAddons = universalAddons.length > UNIVERSAL_ADDON_PREVIEW_COUNT;
+  const visibleUniversalAddons = showAllUniversalAddons
+    ? universalAddons
+    : universalAddons.slice(0, UNIVERSAL_ADDON_PREVIEW_COUNT);
+  const universalAddonGridClass = serviceCardGridClass(visibleUniversalAddons.length, {
+    columns: 4,
+  });
 
   return (
     <div className={styles.tabPanel}>
@@ -212,12 +225,14 @@ export default function ServicesHostingTab() {
               </p>
             </div>
 
-            <div className={`${serviceCardGridClass(typeAddons.length)} ${styles.serviceCardGridStable}`}>
+            <div
+              className={`${serviceCardGridClass(typeAddons.length, { columns: 4 })} ${styles.serviceCardGridStable}`}
+            >
               {typeAddons.map((addon) => (
-                <article key={addon.slug} className={styles.serviceCard}>
+                <article key={addon.slug} className={`${styles.serviceCard} ${styles.serviceCardAddon}`}>
                   <div className={styles.serviceCardTop}>
                     <div className={styles.hostingAddonTop}>
-                      <h4 className={styles.serviceCardTitle}>{addon.name}</h4>
+                      <h4 className={styles.serviceCardTitle}>{formatAddonDisplayName(addon.name)}</h4>
                       <span className={styles.hostingAddonPrice}>
                         {formatPeso(addon.price)}/{addon.billing}
                       </span>
@@ -254,21 +269,31 @@ export default function ServicesHostingTab() {
               </p>
             </div>
 
-            <div className={`${serviceCardGridClass(universalAddons.length)} ${styles.serviceCardGridStable}`}>
-              {universalAddons.map((addon) => (
-                <article key={addon.slug} className={styles.serviceCard}>
+            <div className={`${universalAddonGridClass} ${styles.serviceCardGridStable}`}>
+              {visibleUniversalAddons.map((addon) => (
+                <article key={addon.slug} className={`${styles.serviceCard} ${styles.serviceCardAddon}`}>
                   <div className={styles.serviceCardTop}>
                     {addon.label ? (
-                      <span className={`${styles.serviceCardBadge} ${styles.serviceCardBadgeOrange}`}>
+                      <span
+                        className={`${styles.serviceCardBadge} ${styles.serviceCardBadgeOrange} ${styles.universalAddonLabel}`}
+                      >
                         {addon.label}
                       </span>
                     ) : null}
-                    <h4 className={styles.serviceCardTitle}>{addon.name}</h4>
-                    <p className={styles.serviceCardPrice}>
-                      {formatPeso(addon.price)}
-                      <span> / {addon.billing}</span>
-                    </p>
+                    <div className={styles.hostingAddonTop}>
+                      <h4 className={styles.serviceCardTitle}>{formatAddonDisplayName(addon.name)}</h4>
+                      <span className={styles.hostingAddonPrice}>
+                        {formatPeso(addon.price)}/{addon.billing}
+                      </span>
+                    </div>
                   </div>
+                  {addon.desc ? (
+                    <div className={styles.serviceCardBody}>
+                      <p className={styles.serviceCardDesc}>{addon.desc}</p>
+                    </div>
+                  ) : (
+                    <div className={styles.serviceCardBodySpacer} aria-hidden="true" />
+                  )}
                   <button
                     type="button"
                     className={`${styles.serviceCardBtn} ${styles.serviceCardBtnNavy}`}
@@ -281,6 +306,18 @@ export default function ServicesHostingTab() {
                 </article>
               ))}
             </div>
+
+            {hasMoreUniversalAddons ? (
+              <div className={styles.hostingAddonsViewAll}>
+                <button
+                  type="button"
+                  className={styles.hostingAddonsViewAllBtn}
+                  onClick={() => setShowAllUniversalAddons((open) => !open)}
+                >
+                  {showAllUniversalAddons ? "Show Less" : "View All"}
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
