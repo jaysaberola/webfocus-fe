@@ -28,25 +28,65 @@ export interface SalesTransactionItem {
   total_price?: string | number | null;
 }
 
-export const getSalesTransactions = async (params?: any, options?: { silent?: boolean }) => {
+export type SalesTransactionPayload = Partial<SalesTransaction> & {
+  items?: SalesTransactionItem[];
+};
+
+export interface PaynamicsCheckoutResponse {
+  message: string;
+  data: SalesTransaction;
+  paynamics: {
+    request_id: string;
+    redirect_url: string;
+    response_code?: string;
+  };
+}
+
+export const getSalesTransactions = async (
+  params?: Record<string, unknown>,
+  options?: { silent?: boolean }
+) => {
   const res = await axiosInstance.get("/sales-transactions", {
     params,
     headers: options?.silent ? { "X-No-Loading": true } : undefined,
   });
+
   return res.data;
 };
 
-export const createSalesTransaction = async (payload: Partial<SalesTransaction> & { items?: SalesTransactionItem[] }) => {
+export const createSalesTransaction = async (
+  payload: SalesTransactionPayload
+) => {
   const res = await axiosInstance.post("/sales-transactions", payload);
+
   return res.data;
 };
 
-export const updateSalesTransaction = async (id: number, payload: Partial<SalesTransaction> & { items?: SalesTransactionItem[] }) => {
-  const res = await axiosInstance.put(`/sales-transactions/${id}`, payload);
+export const checkoutWithPaynamics = async (
+  payload: SalesTransactionPayload
+): Promise<PaynamicsCheckoutResponse> => {
+  const res = await axiosInstance.post(
+    "/public/paynamics/checkout",
+    payload
+  );
+
+  return res.data;
+};
+
+export const updateSalesTransaction = async (
+  id: number,
+  payload: SalesTransactionPayload
+) => {
+  const res = await axiosInstance.put(
+    `/sales-transactions/${id}`,
+    payload
+  );
+
   return res.data;
 };
 
 export const deleteSalesTransaction = async (id: number) => {
   const res = await axiosInstance.delete(`/sales-transactions/${id}`);
+
   return res.data;
 };
