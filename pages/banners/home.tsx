@@ -10,6 +10,15 @@ import {
 } from "@/services/albumService";
 import { axiosInstance } from "@/services/axios";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import {
+  BANNER_IMAGE_REQUIREMENTS_LABEL,
+  BANNER_VIDEO_MAX_BYTES,
+  BANNER_VIDEO_REQUIREMENTS_LABEL,
+  formatBannerFileSize,
+  resolveBannerMediaType,
+  resolveBannerPreviewFallback,
+  resolveBannerPreviewUrl,
+} from "@/lib/bannerAssets";
 import Tooltip from "@/components/UI/Tooltip";
 import CmsModuleShell from "@/components/Modules/CmsModuleShell";
 
@@ -186,12 +195,19 @@ function HomeBanner() {
     return `/api/image-proxy?url=${encodeURIComponent(rawUrl)}`;
   };
 
-  const isVideoUrl = (url?: string | null) => /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(String(url ?? ""));
-  const bannerMediaType = (banner: Partial<BannerForm> & { image_path?: string }, fallback: BannerType = bannerType): BannerType => {
-    if (banner.media_type === "video") return "video";
-    if (banner.image instanceof File && banner.image.type.startsWith("video/")) return "video";
-    if (isVideoUrl(banner.preview) || isVideoUrl(banner.image_path)) return "video";
-    return fallback;
+  const bannerMediaType = (
+    banner: Partial<BannerForm> & { image_path?: string; image_url?: string },
+    fallback: BannerType = bannerType
+  ) => resolveBannerMediaType(banner, fallback);
+
+  const handleBannerPreviewError = (
+    event: React.SyntheticEvent<HTMLImageElement>,
+    banner: Partial<BannerForm> & { image_path?: string; image_url?: string; preview?: string }
+  ) => {
+    const fallback = resolveBannerPreviewFallback(banner, event.currentTarget.src);
+    if (fallback) {
+      event.currentTarget.src = fallback;
+    }
   };
 
 
@@ -245,9 +261,23 @@ function HomeBanner() {
 
       setBanners(
         album.banners.map((b: any, i: number) => {
-          const serverPreview = resolveStorageAssetUrl(b.image_path) ?? "";
-          const mediaType: BannerType = isVideoUrl(b.image_path) || b.media_type === "video" ? "video" : loadedBannerType;
-          const resolvedPreview = mediaType === "video" ? serverPreview : toProxiedImageUrl(serverPreview);
+          const mediaType = resolveBannerMediaType(
+            {
+              image_path: b.image_path,
+              image_url: b.image_url,
+              media_type: b.media_type,
+            },
+            loadedBannerType
+          );
+          const resolvedPreview =
+            (b.id && localPreviews[b.id]) ||
+            resolveBannerPreviewUrl(
+              {
+                image_path: b.image_path,
+                image_url: b.image_url,
+              },
+              mediaType
+            );
 
           const keyById = b?.id ? `id:${b.id}` : undefined;
           const keyByOrder = typeof b?.order !== "undefined" ? `order:${b.order}` : undefined;
@@ -328,8 +358,9 @@ function HomeBanner() {
 
           return {
             id: b.id,
-            preview: (b.id && localPreviews[b.id]) ? localPreviews[b.id] : resolvedPreview,
+            preview: resolvedPreview,
             image_path: b.image_path,
+            image_url: b.image_url,
             media_type: mediaType,
             is_active: isActive,
             title: b.title,
@@ -387,11 +418,38 @@ function HomeBanner() {
     if (!files) return;
 
     const fileArr = Array.from(files);
+    const accepted: File[] = [];
+
+    for (const file of fileArr) {
+      if (bannerType === "video") {
+        if (!file.type.startsWith("video/")) {
+          toast.error(`${file.name} is not a supported video file.`);
+          continue;
+        }
+        if (file.size > BANNER_VIDEO_MAX_BYTES) {
+          toast.error(
+            `${file.name} is ${formatBannerFileSize(file.size)}. Video banners must be 5 MB or smaller.`
+          );
+          continue;
+        }
+      } else if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} is not a supported image file.`);
+        continue;
+      }
+
+      accepted.push(file);
+    }
+
+    if (accepted.length === 0) {
+      e.target.value = "";
+      return;
+    }
+
     setBanners((prev) => {
-      const newBanners: BannerForm[] = fileArr.map((file, idx) => ({
+      const newBanners: BannerForm[] = accepted.map((file, idx) => ({
         image: file,
         preview: URL.createObjectURL(file),
-        media_type: file.type.startsWith("video/") ? "video" : bannerType,
+        media_type: file.type.startsWith("video/") ? "video" : "image",
         is_active: true,
         order: prev.length + idx,
       }));
@@ -407,8 +465,28 @@ function HomeBanner() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (bannerType === "video") {
+      if (!file.type.startsWith("video/")) {
+        toast.error(`${file.name} is not a supported video file.`);
+        e.target.value = "";
+        return;
+      }
+      if (file.size > BANNER_VIDEO_MAX_BYTES) {
+        toast.error(
+          `${file.name} is ${formatBannerFileSize(file.size)}. Video banners must be 5 MB or smaller.`
+        );
+        e.target.value = "";
+        return;
+      }
+    } else if (!file.type.startsWith("image/")) {
+      toast.error(`${file.name} is not a supported image file.`);
+      e.target.value = "";
+      return;
+    }
+
     updateBanner(resizeIndex, "image", file);
     updateBanner(resizeIndex, "preview", URL.createObjectURL(file));
+    updateBanner(resizeIndex, "media_type", file.type.startsWith("video/") ? "video" : "image");
     setResizedPreview(null);
 
     // Ensure crop box resets to full image on next image load
@@ -1192,9 +1270,15 @@ function HomeBanner() {
                   {bannerType === "video" ? "Upload Videos" : "Upload Images"}
                 </button>
                 <span className="home-banner-upload__hint">
-                  {bannerType === "video"
-                    ? "MP4/WebM videos autoplay muted on the public site."
-                    : "Upload one or more images. Drag slides to reorder."}
+                  {bannerType === "video" ? (
+                    <>
+                      {BANNER_VIDEO_REQUIREMENTS_LABEL}. Videos autoplay muted on the public site.
+                    </>
+                  ) : (
+                    <>
+                      {BANNER_IMAGE_REQUIREMENTS_LABEL}. Upload one or more images and drag slides to reorder.
+                    </>
+                  )}
                 </span>
                 <input
                   id="imageUpload"
@@ -1271,6 +1355,7 @@ function HomeBanner() {
                           alt={banner.alt || "Banner"}
                           draggable={false}
                           onDragStart={(e) => e.preventDefault()}
+                          onError={(e) => handleBannerPreviewError(e, banner)}
                         />
                       )}
                     </div>
@@ -1363,6 +1448,7 @@ function HomeBanner() {
                   alt={banner.alt || "Banner"}
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
+                  onError={(e) => handleBannerPreviewError(e, banner)}
                 />
               )}
 
@@ -1839,6 +1925,7 @@ function HomeBanner() {
                 <img
                   src={mediaPreviewBanner.preview}
                   alt={mediaPreviewBanner.alt || "Banner preview"}
+                  onError={(e) => handleBannerPreviewError(e, mediaPreviewBanner)}
                 />
               )}
             </div>
