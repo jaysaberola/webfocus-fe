@@ -8,7 +8,6 @@ import {
 import {
   approvalExpiredDate,
   approvalIssuedDate,
-  approvalIssuedDate,
   approvalPlanLabel,
   approvalServiceLabel,
   filterApprovals,
