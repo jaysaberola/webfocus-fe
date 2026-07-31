@@ -34,3 +34,12 @@ export function formatApprovalDate(value?: string | null) {
   if (!value) return "—";
   return String(value).slice(0, 10);
 }
+
+export function approvalServiceLabel(row: CommercePaymentProofRow) {
+  return row.serviceName?.trim() || "Service";
+}
+
+export function approvalPlanLabel(row: CommercePaymentProofRow) {
+  const plan = row.plan?.trim() || "Payment Deposit";
+  return row.client ? `${plan} (${row.client})` : plan;
+}

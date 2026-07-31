@@ -2429,6 +2429,25 @@
   color: var(--ca-slate-500);
 }
 
+.txServiceCell {
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: var(--ca-slate-900);
+  line-height: 1.45;
+}
+
+.txPlanCell {
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  color: var(--ca-slate-900);
+  line-height: 1.45;
+}
+
+.txPlanCell strong {
+  font-weight: 700;
+}
+
 .subTabNav {
   display: flex;
   flex-wrap: wrap;

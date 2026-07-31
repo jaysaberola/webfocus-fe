@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
+import { joinPlanNames } from "@/lib/serviceCategory";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import { fetchPortalOrders } from "@/services/customerPortalService";
 import type { PortalOrder } from "@/lib/customerPortal/types";
@@ -217,7 +218,7 @@ export default function OrdersTab() {
                     <tr key={order.id}>
                       <td className={styles.monoBlue}>{order.id}</td>
                       <td className={styles.serviceNameBold}>{order.serviceName ?? item?.name}</td>
-                      <td>{item?.detail ?? item?.name}</td>
+                      <td>{order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name))}</td>
                       <td className={styles.monoBold}>{formatPeso(order.total)}</td>
                       <td>{order.gateway}</td>
                       <td>{order.date}</td>
@@ -300,7 +301,8 @@ export default function OrdersTab() {
               <div className={styles.billingModalDetailRow}>
                 <span className={styles.billingModalDetailLabel}>Plan</span>
                 <span className={styles.billingModalDetailValue}>
-                  {detailModal.order.items[0]?.detail ?? detailModal.order.items[0]?.name}
+                  {detailModal.order.plan ??
+                    joinPlanNames(detailModal.order.items.map((entry) => entry.detail ?? entry.name))}
                 </span>
               </div>
               <div className={styles.billingModalDetailRow}>

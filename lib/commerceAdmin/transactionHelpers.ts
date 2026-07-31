@@ -1,4 +1,9 @@
 import type { SalesTransaction } from "@/services/salesTransactionService";
+import {
+  isAddonLineItem,
+  joinPlanNames,
+  resolveServiceCategory,
+} from "@/lib/serviceCategory";
 
 export type TxSortKey = "date-desc" | "date-asc" | "amount-desc" | "amount-asc" | "id-asc";
 export type TxFilterKey = "all" | "paid" | "pending";
@@ -39,22 +44,38 @@ const normalizeItems = (items: SalesTransaction["items"]) =>
   (items ?? []).map((item) => ({
     ...item,
     name: String(item?.name ?? ""),
+    item_type: item?.item_type ?? null,
     total_price: Number(item?.total_price ?? Number(item?.price || 0) * Number(item?.quantity || 0)),
   }));
 
-export function transactionItemSummary(transaction: SalesTransaction) {
-  const items = normalizeItems(transaction.items);
-  if (items.length) {
-    return items.length === 1 ? items[0].name : `${items[0].name} + ${items.length - 1} more`;
-  }
-  return "—";
+function primaryTransactionItem(items: ReturnType<typeof normalizeItems>[number][] | ReturnType<typeof normalizeItems>) {
+  const list = items as ReturnType<typeof normalizeItems>;
+  return list.find((item) => !isAddonLineItem(item.name)) ?? list[0];
 }
 
-export function transactionPlanLabel(transaction: SalesTransaction) {
+export function transactionServiceCategory(transaction: SalesTransaction) {
   const items = normalizeItems(transaction.items);
-  if (!items.length) return transaction.customer_name ?? "—";
-  const label = items.map((item) => item.name).join(", ");
-  return transaction.customer_name ? `${label} (${transaction.customer_name})` : label;
+  if (!items.length) return "—";
+  const primary = primaryTransactionItem(items);
+  return resolveServiceCategory(primary.name, primary.item_type);
+}
+
+export function transactionPlanDetail(transaction: SalesTransaction) {
+  const items = normalizeItems(transaction.items);
+  if (!items.length) return "—";
+  return joinPlanNames(items.map((item) => item.name)) || "—";
+}
+
+/** Service Name column — category such as Hosting, Secure Domain, DMS, Custom Web Design */
+export function transactionItemSummary(transaction: SalesTransaction) {
+  return transactionServiceCategory(transaction);
+}
+
+/** Plan column — package / domain / product line with optional customer */
+export function transactionPlanLabel(transaction: SalesTransaction) {
+  const detail = transactionPlanDetail(transaction);
+  if (detail === "—") return transaction.customer_name ?? "—";
+  return transaction.customer_name ? `${detail} (${transaction.customer_name})` : detail;
 }
 
 export function transactionOrderType(transaction: SalesTransaction) {

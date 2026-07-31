@@ -142,7 +142,10 @@ export default function CommerceTransactionsTab() {
 
   const markPaid = async (row: SalesTransaction) => {
     try {
-      await updateSalesTransaction(row.id, { payment_status: "paid" });
+      await updateSalesTransaction(row.id, {
+        payment_status: "paid",
+        order_status: row.order_status || "completed",
+      });
       toast.success(`Invoice ${row.transaction_no} marked as paid.`);
       loadRows();
     } catch (err: any) {
@@ -328,8 +331,14 @@ export default function CommerceTransactionsTab() {
                 displayRows.map((row) => (
                   <tr key={row.id}>
                     {columnsVisible.id ? <td className={styles.monoCell}>{row.transaction_no}</td> : null}
-                    {columnsVisible.items ? <td>{transactionItemSummary(row)}</td> : null}
-                    {columnsVisible.subscription ? <td><strong>{transactionPlanLabel(row)}</strong></td> : null}
+                    {columnsVisible.items ? (
+                      <td className={styles.txServiceCell}>{transactionItemSummary(row)}</td>
+                    ) : null}
+                    {columnsVisible.subscription ? (
+                      <td className={styles.txPlanCell}>
+                        <strong>{transactionPlanLabel(row)}</strong>
+                      </td>
+                    ) : null}
                     {columnsVisible.orderType ? <td>{renderOrderTypeBadge(row)}</td> : null}
                     {columnsVisible.date ? <td>{formatTxDate(row.transacted_at)}</td> : null}
                     {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}

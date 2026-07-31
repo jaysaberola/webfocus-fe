@@ -26,6 +26,7 @@ export type PortalOrder = {
   id: string;
   invoiceId?: string;
   serviceName?: string;
+  plan?: string;
   date: string;
   expiredDate: string;
   total: number;

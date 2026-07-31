@@ -6,7 +6,8 @@ import {
   type CommercePaymentProofRow,
 } from "@/services/commerceAdminService";
 import {
-  approvalQueueType,
+  approvalPlanLabel,
+  approvalServiceLabel,
   filterApprovals,
   formatApprovalDate,
   sortApprovals,
@@ -23,6 +24,7 @@ export default function CommerceApprovalsTab() {
   const [rows, setRows] = useState<CommercePaymentProofRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = useState<ApprovalSortKey>("date-desc");
   const [filterType, setFilterType] = useState<ApprovalFilterKey>("all");
   const [page, setPage] = useState(1);
@@ -41,7 +43,7 @@ export default function CommerceApprovalsTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [sortBy, filterType]);
+  }, [sortBy, filterType, viewMode]);
 
   const processedRows = useMemo(() => {
     const filtered = filterApprovals(rows, filterType);
@@ -140,6 +142,40 @@ export default function CommerceApprovalsTab() {
     </select>
   );
 
+  const renderApprovalGridCard = (row: CommercePaymentProofRow) => (
+    <article key={row.id} className={styles.txGridCard}>
+      <div className={styles.txGridCardTop}>
+        <span className={styles.monoCell}>{row.invoiceId || row.proofNo}</span>
+        <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
+      </div>
+      <div>
+        <div className={styles.txGridLabel}>Service Name</div>
+        <div className={styles.txGridValue}>{approvalServiceLabel(row)}</div>
+      </div>
+      <div>
+        <div className={styles.txGridLabel}>Plan</div>
+        <div className={styles.txGridValue}>{approvalPlanLabel(row)}</div>
+      </div>
+      <div className={styles.txGridMeta}>
+        <span>Client: {row.client}</span>
+        <span>Issued: {formatApprovalDate(row.submittedAt)}</span>
+      </div>
+      {row.fileName ? <div className={styles.approvalFileInline}>{row.fileName}</div> : null}
+      <div className={styles.txGridFooter}>
+        <strong className={styles.amountCell}>{formatCommerceMoney(row.amount)}</strong>
+        <button
+          type="button"
+          className={styles.primaryBtnSm}
+          disabled={busyId === row.id}
+          onClick={() => void handleVerify(row)}
+        >
+          Approve
+        </button>
+      </div>
+      <div>{renderActionSelect(row)}</div>
+    </article>
+  );
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
@@ -149,6 +185,25 @@ export default function CommerceApprovalsTab() {
             Review pending server deployment requests and uploaded bank deposit, GCash, or wire transfer receipts.
           </p>
         </div>
+        <div className={styles.analyticsToggle}>
+          <button
+            type="button"
+            className={viewMode === "list" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
+            onClick={() => setViewMode("list")}
+          >
+            <i className="fa-solid fa-list" aria-hidden="true" /> List
+          </button>
+          <button
+            type="button"
+            className={viewMode === "grid" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
+            onClick={() => setViewMode("grid")}
+          >
+            <i className="fa-solid fa-table-cells" aria-hidden="true" /> Grid
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.toolbarRow}>
         <div className={styles.toolbarFilters}>
           <select
             className={styles.selectInline}
@@ -174,7 +229,7 @@ export default function CommerceApprovalsTab() {
 
       {loading ? (
         <p className={styles.emptyState}>Loading approvals...</p>
-      ) : (
+      ) : viewMode === "list" ? (
         <>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
@@ -200,13 +255,10 @@ export default function CommerceApprovalsTab() {
                   paginatedRows.map((row) => (
                     <tr key={row.id}>
                       <td className={styles.monoCell}>{row.invoiceId || row.proofNo}</td>
-                      <td>
-                        <strong>{row.serviceName || "Payment Deposit"}</strong>
-                        {row.fileName ? (
-                          <div className={styles.approvalFileInline}>{row.fileName}</div>
-                        ) : null}
+                      <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
+                      <td className={styles.txPlanCell}>
+                        <strong>{approvalPlanLabel(row)}</strong>
                       </td>
-                      <td>{row.serviceName || "Standard Hosting Plan"}</td>
                       <td>{row.client}</td>
                       <td>{formatApprovalDate(row.submittedAt)}</td>
                       <td>—</td>
@@ -220,6 +272,45 @@ export default function CommerceApprovalsTab() {
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className={styles.paginationBar}>
+            <div className={styles.paginationInfo}>
+              {processedRows.length === 0
+                ? "Showing 0 queue items"
+                : `Showing ${rangeStart}-${rangeEnd} of ${processedRows.length} queue items`}
+            </div>
+            <div className={styles.paginationActions}>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </button>
+              <span className={styles.managedServicePageIndicator}>
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                className={styles.primaryBtnSm}
+                disabled={page >= totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={styles.txGrid}>
+            {paginatedRows.length === 0 ? (
+              <p className={styles.emptyState}>No pending approvals or verification items found matching filter.</p>
+            ) : (
+              paginatedRows.map(renderApprovalGridCard)
+            )}
           </div>
 
           <div className={styles.paginationBar}>
