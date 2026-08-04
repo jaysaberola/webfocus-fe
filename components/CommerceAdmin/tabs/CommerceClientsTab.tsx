@@ -155,7 +155,7 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
       }}
     >
       <option value="" disabled>
-        Select Action...
+        Actions...
       </option>
       <option value="info">View Client Account/Info</option>
       <option value="purchases">View Purchases Service</option>
@@ -249,7 +249,7 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                   {columnsVisible.email ? renderSortableHead("email") : null}
                   {columnsVisible.service ? renderSortableHead("service") : null}
                   {columnsVisible.status ? renderSortableHead("status") : null}
-                  <th className={styles.tableActionsHead}>Actions</th>
+                  <th className={styles.tableActionsHead}>Action</th>
                 </tr>
               </thead>
               <tbody>

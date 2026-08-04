@@ -2327,6 +2327,11 @@
 }
 
 .actionSelect {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 7.75rem;
+  min-width: 7.75rem;
+  max-width: 7.75rem;
   min-height: 2rem;
   padding: 0.2rem 0.55rem;
   border: 1px solid var(--ca-slate-200);
@@ -2336,12 +2341,19 @@
   font-size: var(--ca-text-xs);
   font-weight: 700;
   color: var(--ca-slate-700);
+  line-height: 1.3;
   cursor: pointer;
+  vertical-align: middle;
 }
 
 .tableActionHead,
-.tableActionCell {
-  text-align: right;
+.tableActionCell,
+.tableActionsHead,
+.tableActionsCell {
+  width: 1%;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: middle;
 }
 
 .badgePaid,
@@ -3106,10 +3118,6 @@
   font-size: var(--ca-text-sm);
 }
 
-.tableActionsHead,
-.tableActionsCell {
-  text-align: right;
-}
 
 .paginationControls {
   display: flex;

@@ -178,7 +178,7 @@ export default function CommerceManagedTab() {
       }}
     >
       <option value="" disabled>
-        Select Action...
+        Actions...
       </option>
       <option value="clients">View Clients</option>
       <option value="discount">Apply 10% Discount</option>
