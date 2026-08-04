@@ -42,6 +42,7 @@ export default function TemplatePreviewModal({
   slideDirection = "next",
 }: TemplatePreviewModalProps) {
   const [viewport, setViewport] = useState("desktop" as PreviewViewport);
+  const [frameLoading, setFrameLoading] = useState(true);
   const packageInfo = template ? getWebDesignPackageById(template.packageId) : undefined;
 
   useEffect(() => {
@@ -64,6 +65,10 @@ export default function TemplatePreviewModal({
   useEffect(() => {
     if (open) setViewport("desktop");
   }, [open, template?.id]);
+
+  useEffect(() => {
+    setFrameLoading(true);
+  }, [template?.previewUrl]);
 
   if (!open || !template || !group) return null;
 
@@ -156,12 +161,22 @@ export default function TemplatePreviewModal({
             className={`${styles.templatePreviewFrameShell} ${templateSlideClass(styles, slideDirection)}`}
             style={{ width: viewportWidth }}
           >
+            {frameLoading ? (
+              <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
+                <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
+                <span>Loading live preview…</span>
+              </div>
+            ) : null}
             <iframe
               key={template.previewUrl}
               title={`${template.label} Canvas 7 preview`}
-              className={styles.templatePreviewFrame}
+              className={`${styles.templatePreviewFrame} ${
+                frameLoading ? styles.templatePreviewFrameHidden : ""
+              }`}
               src={template.previewUrl}
+              loading="lazy"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+              onLoad={() => setFrameLoading(false)}
             />
           </div>
         </div>
