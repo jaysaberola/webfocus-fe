@@ -17,16 +17,19 @@ import {
   cartIsQuotationOnly,
   cartPayableItems,
   cartSubtotal,
-  clearPublicCart,
+  cartUnsubmittedQuotationItems,
   formatCartItemPrice,
   formatCartMoney,
   formatCartSubtotalLabel,
   isPendingQuotationCartItem,
+  isQuotationSubmittedCartItem,
+  markQuotationSubmittedCartItems,
   MIXED_CART_WEB_DESIGN_NOTICE,
   PENDING_QUOTATION_LABEL,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
+  writePublicCart,
 } from "@/lib/publicCart";
 import {
   hasCheckoutAgreementAccepted,
@@ -244,6 +247,14 @@ export default function PublicCartCheckoutPage() {
       setPlacingOrder(true);
 
       if (quotationOnly) {
+        const unsubmitted = cartUnsubmittedQuotationItems(checkoutItems);
+        if (!unsubmitted.length) {
+          toast.info(
+            "This web design quotation was already sent to Sales. It stays in your cart until the package price is set."
+          );
+          return;
+        }
+
         const result = await createSalesTransaction({
           customer_id: activeCustomer.id,
           customer_name:
@@ -255,7 +266,7 @@ export default function PublicCartCheckoutPage() {
           shipping_total: 0,
           payment_status: "pending",
           order_status: "pending",
-          items: checkoutItems.map((item) => ({
+          items: unsubmitted.map((item) => ({
             product_id: item.id ?? null,
             name: item.name,
             item_type: "web_design",
@@ -273,21 +284,25 @@ export default function PublicCartCheckoutPage() {
           ].join("\n"),
         });
 
-        clearPublicCart();
         const orderNo = result?.data?.transaction_no;
+        // Keep Pending Quotation items in the cart so the customer can still see them.
+        writePublicCart(
+          markQuotationSubmittedCartItems(checkoutItems, orderNo)
+        );
         toast.success(
           orderNo
-            ? `Quotation request ${orderNo} submitted to Customer Care. Sales will set the package price.`
-            : "Quotation request submitted to Customer Care. Sales will set the package price."
+            ? `Quotation request ${orderNo} submitted to Sales. It remains in your cart until priced.`
+            : "Quotation request submitted to Sales. It remains in your cart until priced."
         );
-        window.location.assign("/public/dashboard?tab=orders");
+        window.location.assign("/public/cart");
         return;
       }
 
       // Mixed cart: submit web design as Pending Quotation for Sales, then pay other items.
       let quotationOrderNo: string | null = null;
-      if (mixedCheckout && heldQuotationItems.length > 0) {
-        const quotationSummary = heldQuotationItems
+      const unsubmittedQuotes = cartUnsubmittedQuotationItems(heldQuotationItems);
+      if (mixedCheckout && unsubmittedQuotes.length > 0) {
+        const quotationSummary = unsubmittedQuotes
           .map((item) => {
             return `${item.qty} x ${item.name} @ ${PENDING_QUOTATION_LABEL}${
               item.detail ? ` (${item.detail})` : ""
@@ -306,7 +321,7 @@ export default function PublicCartCheckoutPage() {
           shipping_total: 0,
           payment_status: "pending",
           order_status: "pending",
-          items: heldQuotationItems.map((item) => ({
+          items: unsubmittedQuotes.map((item) => ({
             product_id: item.id ?? null,
             name: item.name,
             item_type: "web_design",
@@ -325,6 +340,10 @@ export default function PublicCartCheckoutPage() {
           ].join("\n"),
         });
         quotationOrderNo = quotationResult?.data?.transaction_no ?? null;
+      } else if (mixedCheckout && heldQuotationItems.length > 0) {
+        quotationOrderNo =
+          heldQuotationItems.find((item) => item.quotationTransactionNo)
+            ?.quotationTransactionNo || null;
       }
 
       const result = await checkoutWithPaynamics({
@@ -350,7 +369,7 @@ export default function PublicCartCheckoutPage() {
           "Customer checkout order",
           "Payment gateway: Paynamics hosted portal",
           mixedCheckout
-            ? `Note: Web design Pending Quotation submitted to Sales${
+            ? `Note: Web design Pending Quotation kept in customer cart${
                 quotationOrderNo ? ` (${quotationOrderNo})` : ""
               }.`
             : null,
@@ -367,13 +386,20 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      // Quotation already filed with Sales — clear cart (payable goes to Paynamics).
-      clearPublicCart();
+      // Keep Pending Quotation web design items in the cart (Sales already has the request).
+      writePublicCart(
+        markQuotationSubmittedCartItems(
+          heldQuotationItems,
+          quotationOrderNo ||
+            heldQuotationItems.find((item) => item.quotationTransactionNo)
+              ?.quotationTransactionNo
+        )
+      );
       toast.success(
         mixedCheckout
           ? quotationOrderNo
-            ? `Web design quotation ${quotationOrderNo} sent to Sales. Opening payment for other items...`
-            : "Web design quotation sent to Sales. Opening payment for other items..."
+            ? `Web design quotation ${quotationOrderNo} sent to Sales and kept in your cart. Opening payment...`
+            : "Web design Pending Quotation stays in your cart. Opening payment for other items..."
           : "Redirecting to the secure Paynamics payment portal..."
       );
       window.location.assign(redirectUrl);
@@ -522,7 +548,14 @@ export default function PublicCartCheckoutPage() {
 
                       {isWebDesign ? (
                         <p className={styles.renewalNote}>
-                          One-time web design package · no renewal term
+                          {isQuotationSubmittedCartItem(item)
+                            ? `Sent to Sales${
+                                item.quotationTransactionNo &&
+                                item.quotationTransactionNo !== "submitted"
+                                  ? ` (${item.quotationTransactionNo})`
+                                  : ""
+                              } · Pending Quotation · stays in your cart`
+                            : "One-time web design package · Pending Quotation · no renewal term"}
                         </p>
                       ) : (
                         <>
@@ -598,9 +631,11 @@ export default function PublicCartCheckoutPage() {
                   {heldQuotationItems.length} web design item
                   {heldQuotationItems.length === 1 ? "" : "s"} as{" "}
                   {PENDING_QUOTATION_LABEL}
-                  {mixedCheckout
-                    ? " — will be sent to Sales when you checkout"
-                    : ""}
+                  {heldQuotationItems.every(isQuotationSubmittedCartItem)
+                    ? " — already sent to Sales (kept in your cart)"
+                    : mixedCheckout
+                      ? " — will be sent to Sales and kept in your cart when you checkout"
+                      : " — stays in your cart after Sales receives the request"}
                   .
                 </p>
               ) : null}
@@ -689,14 +724,18 @@ export default function PublicCartCheckoutPage() {
                   type="button"
                   className={styles.checkoutBtn}
                   disabled={placingOrder}
-                  onClick={handleProceedToPaynamics}
+                  onClick={() => {
+                    void handleProceedToPaynamics();
+                  }}
                 >
                   {placingOrder
                     ? quotationOnly
                       ? "Submitting quotation..."
                       : "Opening secure payment..."
                     : quotationOnly
-                      ? "Submit Quotation Request"
+                      ? heldQuotationItems.every(isQuotationSubmittedCartItem)
+                        ? "Quotation Already Sent to Sales"
+                        : "Submit Quotation Request"
                       : mixedCheckout
                         ? "Checkout Payable Items"
                         : "Proceed to Paynamics"}
@@ -719,13 +758,14 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive && quotationOnly ? (
                 <p className={styles.agreementHint}>
-                  This request goes to Customer Care as Pending Quotation. Sales
-                  will set the package price before payment.
+                  {heldQuotationItems.every(isQuotationSubmittedCartItem)
+                    ? "Sales already received this quotation. It remains in your cart until the package price is set."
+                    : "This request goes to Sales as Pending Quotation and stays in your cart until priced."}
                 </p>
               ) : paymentStepActive && mixedCheckout ? (
                 <p className={styles.agreementHint}>
                   Payable services go to Paynamics. Web design is submitted to
-                  Sales as Pending Quotation for pricing.
+                  Sales and remains in your cart as Pending Quotation.
                 </p>
               ) : paymentStepActive &&
                 customerNeedsCheckoutBillingAddress(customer) ? (

@@ -13,6 +13,8 @@ export type PublicCartItem = {
   detail?: string;
   /** Web design packages are quote-based until Sales sets a price. */
   pricingStatus?: "pending_quotation" | "priced";
+  /** Set after the Pending Quotation request was filed with Sales (item stays in cart). */
+  quotationTransactionNo?: string | null;
 };
 
 const CART_KEY = "cms4.publicCart.v1";
@@ -38,6 +40,32 @@ export function isPendingQuotationCartItem(item: PublicCartItem) {
   if (item.pricingStatus === "pending_quotation") return true;
   if (item.pricingStatus === "priced") return false;
   return looksLikeWebDesignCartItem(item) && Number(item.price || 0) <= 0;
+}
+
+export function isQuotationSubmittedCartItem(item: PublicCartItem) {
+  return (
+    isPendingQuotationCartItem(item) &&
+    Boolean(String(item.quotationTransactionNo || "").trim())
+  );
+}
+
+export function markQuotationSubmittedCartItems(
+  items: PublicCartItem[],
+  transactionNo: string | null | undefined
+): PublicCartItem[] {
+  const orderNo = String(transactionNo || "").trim();
+  return items.map((item) => {
+    if (!isPendingQuotationCartItem(item)) return item;
+    return {
+      ...item,
+      pricingStatus: "pending_quotation" as const,
+      quotationTransactionNo: orderNo || item.quotationTransactionNo || "submitted",
+    };
+  });
+}
+
+export function cartUnsubmittedQuotationItems(items: PublicCartItem[]) {
+  return cartHeldQuotationItems(items).filter((item) => !isQuotationSubmittedCartItem(item));
 }
 
 export function formatCartItemPrice(item: PublicCartItem) {
@@ -174,7 +202,7 @@ export function cartHasMixedCheckout(items: PublicCartItem[]) {
 }
 
 export const MIXED_CART_WEB_DESIGN_NOTICE =
-  "Web design packages are Pending Quotation. They will be submitted to Sales for pricing, while your other services proceed to Paynamics payment.";
+  "Web design packages are Pending Quotation. They will be submitted to Sales for pricing and stay in your cart, while your other services proceed to Paynamics payment.";
 
 export const cartCategoryLabel = (category?: string) => {
   const value = String(category || "Service").trim();
