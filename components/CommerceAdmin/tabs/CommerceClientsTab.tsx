@@ -283,7 +283,9 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                             </button>
                           </td>
                         ) : null}
-                        {columnsVisible.status ? <td>{renderStatusBadge(client)}</td> : null}
+                        {columnsVisible.status ? (
+                          <td className={styles.statusCell}>{renderStatusBadge(client)}</td>
+                        ) : null}
                         <td className={styles.tableActionsCell}>{renderActionSelect(client)}</td>
                       </tr>
                     );

@@ -2362,15 +2362,23 @@
 .badgePurple {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.625rem;
-  font-weight: 700;
+  justify-content: center;
+  gap: 0.25rem;
+  max-width: none;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--ca-radius-pill);
+  font-family: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
 }
 
 .badgePaid {
   background: #d1fae5;
-  color: #065f46;
+  color: #047857;
 }
 
 .badgePending {
@@ -2386,6 +2394,12 @@
 .badgePurple {
   background: #ede9fe;
   color: #5b21b6;
+}
+
+.statusCell {
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .paginationBar {

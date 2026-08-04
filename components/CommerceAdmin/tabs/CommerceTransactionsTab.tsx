@@ -477,7 +477,9 @@ export default function CommerceTransactionsTab() {
                     {columnsVisible.amount ? (
                       <td className={styles.amountCell}>{formatCommerceMoney(Number(row.grand_total))}</td>
                     ) : null}
-                    {columnsVisible.status ? <td>{renderStatusBadge(row.payment_status)}</td> : null}
+                    {columnsVisible.status ? (
+                      <td className={styles.statusCell}>{renderStatusBadge(row.payment_status)}</td>
+                    ) : null}
                     <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
                   </tr>
                 ))

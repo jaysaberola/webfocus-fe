@@ -315,7 +315,7 @@ export default function CommerceApprovalsTab() {
                       <td>{approvalIssuedDate(row)}</td>
                       <td>{approvalDueDate(row)}</td>
                       <td className={styles.amountCell}>{approvalAmountLabel(row)}</td>
-                      <td>
+                      <td className={styles.statusCell}>
                         <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
                       </td>
                       <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
