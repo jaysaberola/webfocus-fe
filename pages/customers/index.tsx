@@ -118,7 +118,7 @@ function ManageCustomers() {
         sort_order: sortOrder,
       }, { silent });
 
-      const apiRows: CustomerRow[] = Array.isArray(res?.data?.data) ? res.data.data : [];
+      const apiRows: CustomerRow[] = Array.isArray(res?.data) ? res.data : [];
       const requestedStatus = getRequestedStatus();
 
       const filteredRows = requestedStatus

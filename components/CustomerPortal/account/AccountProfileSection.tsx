@@ -3,12 +3,15 @@ import {
   customerDisplayName,
   PORTAL_ACCOUNT_DEFAULTS,
 } from "@/lib/customerPortal/mockData";
-import { buildProfileApprovalRequest } from "@/lib/customerPortal/mockAccountData";
 import type { PortalProfileApproval } from "@/lib/customerPortal/types";
 import { resolveAvatarUrl } from "@/lib/currentUser";
 import {
-  PublicCustomer,
-  uploadCustomerAvatar,
+  fetchPendingProfileChangeRequest,
+  submitPortalProfileChange,
+} from "@/services/customerPortalService";
+import {
+  fetchCurrentCustomer,
+  type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
@@ -20,6 +23,22 @@ type ProfileForm = {
   company: string;
   address: string;
 };
+
+function splitRepresentativeName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { fname: "Customer", lname: "User" };
+  if (parts.length === 1) return { fname: parts[0], lname: "User" };
+  return { fname: parts[0], lname: parts.slice(1).join(" ") };
+}
+
+function mapPendingApproval(data: any): PortalProfileApproval {
+  return {
+    reference: data.reference,
+    submittedAt: data.submittedAt,
+    status: data.status === "Pending Review" ? "Pending Admin Review" : data.status,
+    summary: data.summary,
+  };
+}
 
 type Props = {
   customer: PublicCustomer | null;
@@ -38,9 +57,11 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
   });
   const [baseline, setBaseline] = useState<ProfileForm | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarUrl, setPendingAvatarUrl] = useState<string | null>(null);
   const [pendingApproval, setPendingApproval] = useState<PortalProfileApproval | null>(null);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
 
   useEffect(() => {
     if (!customer) return;
@@ -48,7 +69,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       name: customerDisplayName(customer.fname, customer.lname),
       email: customer.email || "",
       phone: customer.mobile || defaults.phone,
-      company: defaults.company,
+      company: customer.mname || defaults.company,
       address:
         [customer.address_street, customer.address_city, customer.address_province]
           .filter(Boolean)
@@ -56,6 +77,31 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     };
     setForm(nextForm);
     setBaseline(nextForm);
+    setPendingAvatarFile(null);
+    setAvatarPreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return null;
+    });
+  }, [customer]);
+
+  useEffect(() => {
+    if (!customer) return;
+    fetchCurrentCustomer({ silent: true, force: true })
+      .then((fresh) => onCustomerUpdate?.(fresh))
+      .catch(() => {});
+  }, [customer?.id, onCustomerUpdate]);
+
+  useEffect(() => {
+    if (!customer) return;
+    fetchPendingProfileChangeRequest()
+      .then((data) => {
+        setPendingApproval(data ? mapPendingApproval(data) : null);
+        setPendingAvatarUrl(data?.pendingAvatarUrl ?? null);
+      })
+      .catch(() => {
+        setPendingApproval(null);
+        setPendingAvatarUrl(null);
+      });
   }, [customer]);
 
   useEffect(() => {
@@ -64,6 +110,10 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     };
   }, [avatarPreview]);
 
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [customer?.avatar, pendingAvatarUrl, avatarPreview]);
+
   const displayName = form.name || customerDisplayName(customer?.fname, customer?.lname);
   const initials = useMemo(() => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -71,36 +121,69 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     return (parts[0]?.[0] || "C").toUpperCase();
   }, [displayName]);
 
-  const avatarUrl = avatarPreview || resolveAvatarUrl(customer?.avatar);
+  const avatarUrl = avatarPreview || pendingAvatarUrl || resolveAvatarUrl(customer?.avatar);
+  const showAvatarImage = Boolean(avatarUrl && !avatarLoadFailed);
 
-  const hasChanges =
+  const hasFormChanges =
     baseline &&
     (form.name !== baseline.name ||
       form.phone !== baseline.phone ||
       form.company !== baseline.company ||
       form.address !== baseline.address);
 
+  const hasChanges = Boolean(hasFormChanges || pendingAvatarFile);
+
+  const buildSubmissionSummary = () => {
+    const parts: string[] = [];
+    if (pendingAvatarFile) parts.push("profile photo");
+    if (hasFormChanges) parts.push("profile details");
+    if (!parts.length) return `Update profile for ${form.email}`;
+    return `Update ${parts.join(" and ")} for ${form.email}`;
+  };
+
   const submitForApproval = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!customer || !hasChanges) return;
 
+    const { fname, lname } = splitRepresentativeName(form.name);
+
     try {
       setSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      const approval = buildProfileApprovalRequest(
-        `Update representative, phone, company, and billing address for ${form.email}`
-      );
-      setPendingApproval(approval);
+      const data = await submitPortalProfileChange({
+        fname,
+        lname,
+        mobile: form.phone,
+        mname: form.company,
+        address_street: form.address,
+        summary: buildSubmissionSummary(),
+        avatar: pendingAvatarFile ?? undefined,
+      });
+      setPendingApproval(mapPendingApproval(data));
+      setPendingAvatarUrl(data?.pendingAvatarUrl ?? avatarPreview);
+      setPendingAvatarFile(null);
+      setAvatarPreview((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+      const freshCustomer = await fetchCurrentCustomer({ silent: true, force: true }).catch(() => null);
+      if (freshCustomer) onCustomerUpdate?.(freshCustomer);
       toast.success("Profile changes sent for admin approval.");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to submit profile changes for approval.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file || !customer) return;
+
+    if (pendingApproval) {
+      toast.error("You already have a profile change request awaiting admin review.");
+      return;
+    }
 
     if (!["image/jpeg", "image/jpg", "image/png"].includes(file.type)) {
       toast.error("Please upload a JPG or PNG image.");
@@ -117,25 +200,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       if (current) URL.revokeObjectURL(current);
       return previewUrl;
     });
-
-    try {
-      setUploadingAvatar(true);
-      const updated = await uploadCustomerAvatar(file, customer);
-      setAvatarPreview((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return null;
-      });
-      onCustomerUpdate?.(updated);
-      toast.success("Profile photo updated.");
-    } catch (err: any) {
-      setAvatarPreview((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return null;
-      });
-      toast.error(err?.response?.data?.message || "Failed to upload profile photo.");
-    } finally {
-      setUploadingAvatar(false);
-    }
+    setPendingAvatarFile(file);
   };
 
   return (
@@ -164,8 +229,12 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
       <div className={styles.profilePhotoRow}>
         <div className={styles.profilePhotoPreview} aria-hidden="true">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" />
+          {showAvatarImage ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              onError={() => setAvatarLoadFailed(true)}
+            />
           ) : (
             <span>{initials}</span>
           )}
@@ -173,21 +242,27 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
         <div className={styles.profilePhotoMeta}>
           <p className={styles.profilePhotoTitle}>Profile Photo</p>
-          <p className={styles.profilePhotoHint}>JPG or PNG, up to 1 MB. Updates immediately.</p>
+          <p className={styles.profilePhotoHint}>
+            JPG or PNG, up to 1 MB. Select a photo, then click Send for Approval.
+          </p>
+          {pendingAvatarFile ? (
+            <p className={styles.profilePhotoHint}>New photo selected and ready to submit.</p>
+          ) : null}
           <input
             ref={fileInputRef}
             type="file"
             accept=".jpg,.jpeg,.png,image/jpeg,image/png"
             className={styles.profilePhotoInput}
             onChange={handleAvatarChange}
+            disabled={Boolean(pendingApproval)}
           />
           <button
             type="button"
             className={styles.profilePhotoBtn}
-            disabled={uploadingAvatar || !customer}
+            disabled={!customer || Boolean(pendingApproval)}
             onClick={() => fileInputRef.current?.click()}
           >
-            {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change Photo" : "Upload Photo"}
+            {avatarUrl ? "Change Photo" : "Upload Photo"}
           </button>
         </div>
       </div>
@@ -233,7 +308,8 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
         <div className={styles.accountActions}>
           <p className={styles.accountHint}>
-            Profile edits require admin approval. Password, security settings, and profile photo update immediately.
+            Profile edits and photo changes require admin approval. Click Send for Approval after making changes.
+            Password and security settings update immediately.
           </p>
           <button
             type="submit"

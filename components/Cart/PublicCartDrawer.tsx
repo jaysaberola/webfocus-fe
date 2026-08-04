@@ -9,8 +9,7 @@ import {
   readPublicCart,
   removePublicCartItem,
 } from "@/lib/publicCart";
-import { readStoredAuthToken } from "@/lib/authToken";
-import { getStoredCustomer } from "@/services/publicCustomerService";
+import { canUsePublicCart, getStaffCartBlockReason } from "@/lib/publicCartAccess";
 import { usePublicCartDrawer } from "./PublicCartDrawerContext";
 import styles from "@/styles/publicCartDrawer.module.css";
 
@@ -21,7 +20,7 @@ export default function PublicCartDrawer() {
 
   const refreshCart = () => {
     setItems(readPublicCart());
-    setIsLoggedIn(Boolean(readStoredAuthToken() && getStoredCustomer()));
+    setIsLoggedIn(canUsePublicCart());
   };
 
   useEffect(() => {
@@ -59,6 +58,7 @@ export default function PublicCartDrawer() {
   const itemCount = cartCount(items);
   const subtotal = cartSubtotal(items);
   const checkoutHref = isLoggedIn ? "/public/cart" : "/public/cart?signin=1";
+  const staffBlockReason = getStaffCartBlockReason();
 
   const removeItem = (key: string) => {
     setItems(removePublicCartItem(key));
@@ -114,9 +114,26 @@ export default function PublicCartDrawer() {
             </span>
           </div>
 
-          <Link href={checkoutHref} className={styles.checkoutBtn} onClick={closeDrawer}>
-            {isLoggedIn ? "Checkout" : "Sign In & Checkout"}
-          </Link>
+          {staffBlockReason && items.length > 0 ? (
+            <p className={styles.emptyState}>{staffBlockReason}</p>
+          ) : null}
+
+          {staffBlockReason ? (
+            <button
+              type="button"
+              className={styles.checkoutBtn}
+              onClick={() => {
+                window.alert(staffBlockReason);
+                closeDrawer();
+              }}
+            >
+              Cart Unavailable for Staff
+            </button>
+          ) : (
+            <Link href={checkoutHref} className={styles.checkoutBtn} onClick={closeDrawer}>
+              {isLoggedIn ? "Checkout" : "Sign In & Checkout"}
+            </Link>
+          )}
 
           <button type="button" className={styles.browseBtn} onClick={closeDrawer}>
             Keep Browsing

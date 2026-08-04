@@ -41,7 +41,7 @@ export function useCustomerPortalAuth() {
     };
 
     const verifySession = () =>
-      fetchCurrentCustomer({ silent: true })
+      fetchCurrentCustomer({ silent: true, force: true })
         .then((user) => {
           if (alive) setCustomer(user);
         })

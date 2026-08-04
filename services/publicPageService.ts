@@ -102,6 +102,8 @@ export const sendContactMessage = (payload: {
   email: string;
   contact_number: string;
   message: string;
+  preferred_services?: string[];
+  recaptcha_token: string;
 }) => {
   return axiosInstance.post("/contact", payload);
 };

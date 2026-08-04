@@ -12,6 +12,7 @@ let lastCustomerFetchAt = 0;
 export type PublicCustomer = {
   id: number;
   fname?: string;
+  mname?: string | null;
   lname?: string;
   email?: string;
   mobile?: string | null;

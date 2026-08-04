@@ -133,6 +133,7 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
 
     let customerName = "";
     let customerEmail = "";
+    let customerId: number | undefined;
     if (clientKey === "NEW_CLIENT") {
       customerName = newClientName.trim();
       if (!customerName) {
@@ -146,6 +147,7 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
         toast.error("Please select a client.");
         return;
       }
+      customerId = Number(client.id);
       customerName = client.name ?? client.company ?? "";
       customerEmail = client.email ?? "";
     }
@@ -156,7 +158,6 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
       price: number;
       quantity: number;
       total_price: number;
-      product_id?: number | string;
     }> = [
       {
         name: plan.name ?? plan.title ?? "Service",
@@ -164,14 +165,13 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
         price: Number(plan.price ?? 0),
         quantity: 1,
         total_price: Number(plan.price ?? 0),
-        product_id: plan.id,
       },
     ];
 
     if (selectedAddon) {
       lineItems.push({
         name: selectedAddon.name,
-        item_type: "service",
+        item_type: "addon",
         price: selectedAddon.price,
         quantity: 1,
         total_price: selectedAddon.price,
@@ -189,6 +189,7 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
     setSubmitting(true);
     try {
       await createSalesTransaction({
+        customer_id: customerId,
         customer_name: customerName,
         customer_email: customerEmail,
         subtotal,

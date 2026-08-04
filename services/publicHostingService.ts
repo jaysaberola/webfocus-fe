@@ -52,3 +52,11 @@ export async function getPublicHostingAddons(
 
   return Array.isArray(res.data?.data) ? res.data.data : [];
 }
+
+export async function getAllPublicHostingAddons(): Promise<PublicHostingAddon[]> {
+  const res = await axios.get<ApiListResponse<PublicHostingAddon>>(`${API_URL}/public/hosting/addons`, {
+    headers: { "X-No-Loading": true },
+  });
+
+  return Array.isArray(res.data?.data) ? res.data.data : [];
+}

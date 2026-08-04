@@ -1,5 +1,6 @@
 import type { TxColumnKey, TxSortKey } from "@/lib/commerceAdmin/transactionHelpers";
 import type { ApprovalSortKey } from "@/lib/commerceAdmin/approvalHelpers";
+import type { ClientColumnKey, ClientSortKey } from "@/lib/commerceAdmin/clientHelpers";
 
 const TX_ASC: Partial<Record<TxColumnKey, TxSortKey>> = {
   id: "id-asc",
@@ -93,4 +94,39 @@ export function approvalSortDirection(
 
 export function isApprovalColumnSorted(sortBy: ApprovalSortKey, column: ApprovalColumnKey) {
   return approvalSortDirection(sortBy, column) !== null;
+}
+
+const CLIENT_ASC: Partial<Record<ClientColumnKey, ClientSortKey>> = {
+  id: "id-asc",
+  name: "name-asc",
+  email: "email-asc",
+  service: "service-asc",
+  status: "status-asc",
+};
+
+const CLIENT_DESC: Partial<Record<ClientColumnKey, ClientSortKey>> = {
+  id: "id-desc",
+  name: "name-desc",
+  email: "email-desc",
+  service: "service-desc",
+  status: "status-desc",
+};
+
+export function toggleClientSort(current: ClientSortKey, column: ClientColumnKey): ClientSortKey {
+  const asc = CLIENT_ASC[column];
+  const desc = CLIENT_DESC[column];
+  if (!asc || !desc) return current;
+  return current === asc ? desc : asc;
+}
+
+export function clientSortDirection(sortBy: ClientSortKey, column: ClientColumnKey): "asc" | "desc" | null {
+  const asc = CLIENT_ASC[column];
+  const desc = CLIENT_DESC[column];
+  if (sortBy === asc) return "asc";
+  if (sortBy === desc) return "desc";
+  return null;
+}
+
+export function isClientColumnSorted(sortBy: ClientSortKey, column: ClientColumnKey) {
+  return clientSortDirection(sortBy, column) !== null;
 }

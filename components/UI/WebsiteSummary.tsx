@@ -29,6 +29,7 @@ type WebsiteSettingsSnapshot = {
   google_analytics?: string | null;
   google_map?: string | null;
   google_recaptcha_sitekey?: string | null;
+  google_recaptcha_secret?: string | null;
 };
 
 export default function WebsiteSummary({ stats, loading = false, compact = false }: WebsiteSummaryProps) {
@@ -219,7 +220,7 @@ export default function WebsiteSummary({ stats, loading = false, compact = false
       { key: "favicon", label: "Favicon", ok: !!settings?.website_favicon },
       { key: "contact", label: "Contact Email", ok: !!settings?.email },
       { key: "analytics", label: "Analytics", ok: !!settings?.google_analytics },
-      { key: "recaptcha", label: "reCAPTCHA", ok: !!settings?.google_recaptcha_sitekey },
+      { key: "recaptcha", label: "reCAPTCHA", ok: !!settings?.google_recaptcha_sitekey && !!settings?.google_recaptcha_secret },
       { key: "map", label: "Google Map", ok: !!settings?.google_map },
       { key: "social", label: "Social Links", ok: (socialCount ?? 0) > 0 },
     ];

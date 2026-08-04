@@ -45,6 +45,7 @@ export type CommerceDashboardData = {
 
 export type CommercePaymentProofRow = {
   id: number;
+  kind?: "payment_proof" | "profile_change";
   proofNo: string;
   invoiceId: string;
   client: string;
@@ -53,6 +54,14 @@ export type CommercePaymentProofRow = {
   fileUrl?: string | null;
   status: string;
   notes?: string | null;
+  summary?: string | null;
+  changes?: Array<{
+    field: string;
+    label: string;
+    from: string;
+    to: string;
+  }>;
+  currentAvatarUrl?: string | null;
   submittedAt: string;
   amount: number;
   serviceName?: string;
@@ -109,6 +118,24 @@ export async function fetchCommercePaymentProofs(status = "Pending Review") {
   return extractList<CommercePaymentProofRow>(res.data.data);
 }
 
+export async function fetchCommerceApprovals(status = "Pending Review") {
+  const res = await axiosInstance.get("/commerce-admin/approvals", {
+    params: { status },
+    headers: { "X-No-Loading": true },
+  });
+  return extractList<CommercePaymentProofRow>(res.data.data);
+}
+
+export async function approveCommerceProfileChange(id: number) {
+  const res = await axiosInstance.patch(`/commerce-admin/profile-change-requests/${id}/approve`);
+  return res.data;
+}
+
+export async function rejectCommerceProfileChange(id: number, reason?: string) {
+  const res = await axiosInstance.patch(`/commerce-admin/profile-change-requests/${id}/reject`, { reason });
+  return res.data;
+}
+
 export async function verifyCommercePaymentProof(id: number) {
   const res = await axiosInstance.patch(`/commerce-admin/payment-proofs/${id}/verify`);
   return res.data;
@@ -132,9 +159,13 @@ export async function updateCommerceTicket(id: number, status: string) {
   return res.data;
 }
 
-export async function fetchCommerceServices(status?: string) {
+export async function fetchCommerceServices(status?: string, customerId?: number) {
   const res = await axiosInstance.get("/commerce-admin/services", {
-    params: { status, per_page: 50 },
+    params: {
+      status,
+      per_page: 50,
+      ...(customerId ? { customer_id: customerId } : {}),
+    },
     headers: { "X-No-Loading": true },
   });
   return extractList<CommerceServiceAdminRow>(res.data.data);

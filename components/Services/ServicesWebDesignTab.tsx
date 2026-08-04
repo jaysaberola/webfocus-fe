@@ -172,7 +172,7 @@ export default function ServicesWebDesignTab() {
                           })
                         }
                       >
-                        + ADD AGENCY PACKAGE
+                        Secure your Package
                       </button>
                       <Link href="/public/contact-us" className={styles.agencyPlanCall}>
                         <i className="fa-solid fa-phone" aria-hidden="true" />

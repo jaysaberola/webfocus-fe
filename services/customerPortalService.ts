@@ -155,6 +155,37 @@ export async function deletePortalPaymentProof(recordId: number) {
   return res.data;
 }
 
+export async function fetchPendingProfileChangeRequest() {
+  const res = await axiosInstance.get("/customer/portal/profile-change-requests/pending", {
+    headers: silentHeaders,
+  });
+  return res.data?.data ?? null;
+}
+
+export async function submitPortalProfileChange(payload: {
+  fname: string;
+  lname: string;
+  mobile?: string;
+  mname?: string;
+  address_street?: string;
+  summary?: string;
+  avatar?: File;
+}) {
+  const formData = new FormData();
+  formData.append("fname", payload.fname);
+  formData.append("lname", payload.lname);
+  if (payload.mobile != null) formData.append("mobile", payload.mobile);
+  if (payload.mname != null) formData.append("mname", payload.mname);
+  if (payload.address_street != null) formData.append("address_street", payload.address_street);
+  if (payload.summary) formData.append("summary", payload.summary);
+  if (payload.avatar) formData.append("avatar", payload.avatar);
+
+  const res = await axiosInstance.post("/customer/portal/profile-change-requests", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data?.data;
+}
+
 export const PORTAL_NOTIFICATIONS_UPDATED_EVENT = "customer-portal-notifications-updated";
 
 export function notifyPortalNotificationsUpdated() {

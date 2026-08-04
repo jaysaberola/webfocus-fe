@@ -1,6 +1,8 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
+import GoogleRecaptcha, { GoogleRecaptchaHandle } from "@/components/UI/GoogleRecaptcha";
 import { getPublicPageBySlug, sendContactMessage } from "@/services/publicPageService";
-import { useState } from "react";
+import { websiteService } from "@/services/websiteService";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "@/styles/contactPage.module.css";
 
 const OFFICE = {
@@ -15,7 +17,20 @@ const OFFICE = {
   mapQuery: "Antel+Global+Corporate+Center+Julia+Vargas+Avenue+Ortigas+Center+Pasig+City",
 };
 
-export default function ContactUsPage() {
+const PREFERRED_SERVICE_OPTIONS = [
+  "Hosting",
+  "Web Design",
+  "Domains",
+  "DMS",
+  "SSL / Security",
+  "Other",
+];
+
+type ContactUsPageProps = {
+  recaptchaSiteKey?: string;
+};
+
+export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPageProps) {
   const [form, setForm] = useState({
     inquiry_type: "",
     first_name: "",
@@ -24,10 +39,27 @@ export default function ContactUsPage() {
     contact_number: "",
     message: "",
   });
+  const [preferredServices, setPreferredServices] = useState<string[]>([]);
+  const [servicesOpen, setServicesOpen] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [recaptchaError, setRecaptchaError] = useState("");
+  const servicesRef = useRef<HTMLDivElement>(null);
+  const recaptchaRef = useRef<GoogleRecaptchaHandle>(null);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (servicesRef.current && !servicesRef.current.contains(event.target as Node)) {
+        setServicesOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -35,14 +67,45 @@ export default function ContactUsPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const togglePreferredService = (service: string) => {
+    setPreferredServices((current) =>
+      current.includes(service)
+        ? current.filter((item) => item !== service)
+        : [...current, service]
+    );
+  };
+
+  const handleRecaptchaChange = useCallback((token: string | null) => {
+    setRecaptchaToken(token);
+    if (token) {
+      setRecaptchaError("");
+    }
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setSuccess("");
     setError("");
+    setRecaptchaError("");
+
+    if (!recaptchaSiteKey) {
+      setRecaptchaError("reCAPTCHA is not configured. Please contact the site administrator.");
+      return;
+    }
+
+    if (!recaptchaToken) {
+      setRecaptchaError("Please complete the reCAPTCHA verification before submitting.");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      await sendContactMessage(form);
+      await sendContactMessage({
+        ...form,
+        preferred_services: preferredServices.length ? preferredServices : undefined,
+        recaptcha_token: recaptchaToken,
+      });
       setSuccess("Thank you! Your message has been sent successfully.");
       setForm({
         inquiry_type: "",
@@ -52,15 +115,25 @@ export default function ContactUsPage() {
         contact_number: "",
         message: "",
       });
+      setPreferredServices([]);
+      setRecaptchaToken(null);
+      recaptchaRef.current?.reset();
+      setServicesOpen(false);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ||
           "Something went wrong. Please try again later."
       );
+      recaptchaRef.current?.reset();
+      setRecaptchaToken(null);
     } finally {
       setLoading(false);
     }
   };
+
+  const preferredServicesLabel = preferredServices.length
+    ? preferredServices.join(", ")
+    : "Select preferred services";
 
   return (
     <div className={styles.page}>
@@ -250,6 +323,67 @@ export default function ContactUsPage() {
                       required
                     />
                   </div>
+
+                  <div className={`${styles.field} ${styles.fieldFull}`}>
+                    <label className={styles.label} htmlFor="preferred_services">
+                      Preferred Services <span className={styles.optional}>(Optional)</span>
+                    </label>
+                    <div className={styles.multiSelectWrap} ref={servicesRef}>
+                      <button
+                        id="preferred_services"
+                        type="button"
+                        className={`${styles.multiSelectBtn} ${
+                          preferredServices.length ? styles.multiSelectBtnActive : ""
+                        }`}
+                        aria-haspopup="listbox"
+                        aria-expanded={servicesOpen}
+                        onClick={() => setServicesOpen((open) => !open)}
+                      >
+                        <span
+                          className={
+                            preferredServices.length ? undefined : styles.multiSelectPlaceholder
+                          }
+                        >
+                          {preferredServicesLabel}
+                        </span>
+                        <i
+                          className={`fa-solid fa-chevron-down ${styles.multiSelectChevron}`}
+                          aria-hidden="true"
+                        />
+                      </button>
+
+                      {servicesOpen ? (
+                        <div className={styles.multiSelectPanel} role="listbox" aria-multiselectable>
+                          {PREFERRED_SERVICE_OPTIONS.map((service) => (
+                            <label key={service} className={styles.multiSelectItem}>
+                              <input
+                                type="checkbox"
+                                checked={preferredServices.includes(service)}
+                                onChange={() => togglePreferredService(service)}
+                              />
+                              <span>{service}</span>
+                            </label>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.captchaRow}>
+                  {recaptchaSiteKey ? (
+                    <GoogleRecaptcha
+                      ref={recaptchaRef}
+                      siteKey={recaptchaSiteKey}
+                      onChange={handleRecaptchaChange}
+                      className={styles.recaptchaWidget}
+                    />
+                  ) : (
+                    <p className={styles.captchaMissing}>
+                      reCAPTCHA is not configured for this site.
+                    </p>
+                  )}
+                  {recaptchaError ? <p className={styles.captchaError}>{recaptchaError}</p> : null}
                 </div>
 
                 <button type="submit" className={styles.submitBtn} disabled={loading}>
@@ -265,22 +399,30 @@ export default function ContactUsPage() {
 }
 
 export async function getServerSideProps() {
+  let pageData = { slug: "contact-us", title: "Contact Us" };
+  let recaptchaSiteKey = "";
+
   try {
     const res = await getPublicPageBySlug("contact-us");
-    return {
-      props: {
-        pageData: res.data,
-        layout: { hideBanner: true, fullWidth: true },
-      },
-    };
+    pageData = res.data;
   } catch {
-    return {
-      props: {
-        pageData: { slug: "contact-us", title: "Contact Us" },
-        layout: { hideBanner: true, fullWidth: true },
-      },
-    };
+    // use fallback page data
   }
+
+  try {
+    const branding = await websiteService.getPublicBranding();
+    recaptchaSiteKey = branding?.google_recaptcha_sitekey ?? "";
+  } catch {
+    // reCAPTCHA widget stays hidden if keys are unavailable
+  }
+
+  return {
+    props: {
+      pageData,
+      recaptchaSiteKey,
+      layout: { hideBanner: true, fullWidth: true },
+    },
+  };
 }
 
 ContactUsPage.Layout = LandingPageLayout;

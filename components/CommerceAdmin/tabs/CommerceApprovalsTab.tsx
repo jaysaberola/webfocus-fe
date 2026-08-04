@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  fetchCommercePaymentProofs,
+  approveCommerceProfileChange,
+  fetchCommerceApprovals,
   rejectCommercePaymentProof,
+  rejectCommerceProfileChange,
   verifyCommercePaymentProof,
   type CommercePaymentProofRow,
 } from "@/services/commerceAdminService";
 import {
+  approvalAmountLabel,
   approvalDueDate,
   approvalIssuedDate,
   approvalPlanLabel,
@@ -22,7 +25,7 @@ import {
   type ApprovalColumnKey,
 } from "@/lib/commerceAdmin/tableSortHelpers";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
-import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
+import ApprovalReviewModal from "@/components/CommerceAdmin/modals/ApprovalReviewModal";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -36,10 +39,11 @@ export default function CommerceApprovalsTab() {
   const [sortBy, setSortBy] = useState<ApprovalSortKey>("date-desc");
   const [filterType, setFilterType] = useState<ApprovalFilterKey>("all");
   const [page, setPage] = useState(1);
+  const [reviewTarget, setReviewTarget] = useState<CommercePaymentProofRow | null>(null);
 
   const load = () => {
     setLoading(true);
-    fetchCommercePaymentProofs("Pending Review")
+    fetchCommerceApprovals("Pending Review")
       .then((data) => setRows(Array.isArray(data) ? data : []))
       .catch(() => setRows([]))
       .finally(() => setLoading(false));
@@ -74,11 +78,17 @@ export default function CommerceApprovalsTab() {
   const handleVerify = async (row: CommercePaymentProofRow) => {
     try {
       setBusyId(row.id);
-      await verifyCommercePaymentProof(row.id);
-      toast.success(`Verified ${row.proofNo}. Customer billing updated.`);
+      if (row.kind === "profile_change") {
+        await approveCommerceProfileChange(row.id);
+        toast.success(`Approved profile change ${row.proofNo}. Customer profile updated.`);
+      } else {
+        await verifyCommercePaymentProof(row.id);
+        toast.success(`Verified ${row.proofNo}. Customer billing updated.`);
+      }
+      setReviewTarget((current) => (current?.id === row.id ? null : current));
       load();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to verify payment proof.");
+      toast.error(err?.response?.data?.message || "Failed to approve queue item.");
     } finally {
       setBusyId(null);
     }
@@ -90,11 +100,17 @@ export default function CommerceApprovalsTab() {
 
     try {
       setBusyId(row.id);
-      await rejectCommercePaymentProof(row.id, reason || undefined);
-      toast.success(`Rejected ${row.proofNo}. Customer notified.`);
+      if (row.kind === "profile_change") {
+        await rejectCommerceProfileChange(row.id, reason || undefined);
+        toast.success(`Rejected profile change ${row.proofNo}. Customer notified.`);
+      } else {
+        await rejectCommercePaymentProof(row.id, reason || undefined);
+        toast.success(`Rejected ${row.proofNo}. Customer notified.`);
+      }
+      setReviewTarget((current) => (current?.id === row.id ? null : current));
       load();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to reject payment proof.");
+      toast.error(err?.response?.data?.message || "Failed to reject queue item.");
     } finally {
       setBusyId(null);
     }
@@ -102,13 +118,15 @@ export default function CommerceApprovalsTab() {
 
   const handleAction = async (row: CommercePaymentProofRow, action: string) => {
     if (action === "view") {
-      toast.info(
-        `${row.proofNo} · ${row.client} · ${formatCommerceMoney(row.amount)} · ${row.fileName}`,
-      );
+      setReviewTarget(row);
       return;
     }
     if (action === "edit") {
-      toast.info("Edit approval details from the linked invoice or transaction record.");
+      toast.info(
+        row.kind === "profile_change"
+          ? "Review the requested profile fields, then approve or reject the request."
+          : "Edit approval details from the linked invoice or transaction record.",
+      );
       return;
     }
     if (action === "pay") {
@@ -118,9 +136,13 @@ export default function CommerceApprovalsTab() {
     if (action === "file") {
       if (row.fileUrl) {
         window.open(row.fileUrl, "_blank", "noopener,noreferrer");
-      } else {
-        toast.error("No receipt file attached.");
+        return;
       }
+      if (row.kind === "profile_change") {
+        toast.info("No pending profile photo attached to this request.");
+        return;
+      }
+      toast.error("No receipt file attached.");
       return;
     }
     if (action === "reject") {
@@ -156,11 +178,17 @@ export default function CommerceApprovalsTab() {
       <option value="" disabled>
         Actions...
       </option>
-      <option value="view">View Service Details</option>
+      <option value="view">
+        {row.kind === "profile_change" ? "View Profile Changes" : "View Service Details"}
+      </option>
       <option value="edit">Edit</option>
-      <option value="pay">Approve Order</option>
-      <option value="file">Attached File</option>
-      <option value="reject">Reject Purchase</option>
+      <option value="pay">
+        {row.kind === "profile_change" ? "Approve Profile Change" : "Approve Order"}
+      </option>
+      {row.fileUrl ? <option value="file">Attached File</option> : null}
+      <option value="reject">
+        {row.kind === "profile_change" ? "Reject Profile Change" : "Reject Purchase"}
+      </option>
     </select>
   );
 
@@ -185,14 +213,14 @@ export default function CommerceApprovalsTab() {
       </div>
       {row.fileName ? <div className={styles.approvalFileInline}>{row.fileName}</div> : null}
       <div className={styles.txGridFooter}>
-        <strong className={styles.amountCell}>{formatCommerceMoney(row.amount)}</strong>
+        <strong className={styles.amountCell}>{approvalAmountLabel(row)}</strong>
         <button
           type="button"
           className={styles.primaryBtnSm}
           disabled={busyId === row.id}
           onClick={() => void handleVerify(row)}
         >
-          Approve
+          {row.kind === "profile_change" ? "Approve Profile" : "Approve"}
         </button>
       </div>
       <div>{renderActionSelect(row)}</div>
@@ -205,7 +233,7 @@ export default function CommerceApprovalsTab() {
         <div>
           <h3 className={styles.panelTitle}>Provisioning &amp; Payment Proof Approvals</h3>
           <p className={styles.panelSubtitle}>
-            Review pending server deployment requests and uploaded bank deposit, GCash, or wire transfer receipts.
+            Review pending server deployment requests, uploaded payment receipts, and customer profile change requests.
           </p>
         </div>
         <div className={styles.analyticsToggle}>
@@ -246,6 +274,7 @@ export default function CommerceApprovalsTab() {
             <option value="all">Filter: All Queue Items</option>
             <option value="provisioning">Pending Provisioning</option>
             <option value="receipt">Receipt Verification</option>
+            <option value="profile">Profile Changes</option>
           </select>
         </div>
       </div>
@@ -285,7 +314,7 @@ export default function CommerceApprovalsTab() {
                       <td>{row.client}</td>
                       <td>{approvalIssuedDate(row)}</td>
                       <td>{approvalDueDate(row)}</td>
-                      <td className={styles.amountCell}>{formatCommerceMoney(row.amount)}</td>
+                      <td className={styles.amountCell}>{approvalAmountLabel(row)}</td>
                       <td>
                         <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
                       </td>
@@ -366,6 +395,15 @@ export default function CommerceApprovalsTab() {
           </div>
         </>
       )}
+
+      <ApprovalReviewModal
+        open={!!reviewTarget}
+        row={reviewTarget}
+        busy={reviewTarget ? busyId === reviewTarget.id : false}
+        onClose={() => setReviewTarget(null)}
+        onApprove={(row) => void handleVerify(row)}
+        onReject={(row) => void handleReject(row)}
+      />
     </section>
   );
 }

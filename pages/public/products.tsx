@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import SearchIcon from "@/components/icons/search";
 import { toast } from "@/lib/toast";
 import { addPublicCartItem, productToCartItem } from "@/lib/publicCart";
+import { getAddToCartBlockReason } from "@/lib/publicCartAccess";
 import { getStoredCustomer } from "@/services/publicCustomerService";
 import {
 	fetchPublicProducts,
@@ -260,8 +261,12 @@ function ProductCard({ product: p, viewMode }: { product: Product; viewMode: "gr
 		? Number(p.price).toLocaleString("en-PH", { style: "currency", currency: "PHP" })
 		: null;
 	const addToCart = () => {
-		if (!getStoredCustomer()) {
-			window.location.href = `/public/login?redirect=${encodeURIComponent("/public/products")}`;
+		const blockReason = getAddToCartBlockReason();
+		if (blockReason) {
+			toast.info(blockReason);
+			if (!getStoredCustomer()) {
+				window.location.href = `/public/login?redirect=${encodeURIComponent("/public/products")}`;
+			}
 			return;
 		}
 		addPublicCartItem(productToCartItem(p, 1));

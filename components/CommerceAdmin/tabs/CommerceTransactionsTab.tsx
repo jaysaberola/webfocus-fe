@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
+import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import {
   DEFAULT_TX_COLUMNS,
@@ -20,6 +21,20 @@ import {
   type TxSortKey,
 } from "@/lib/commerceAdmin/transactionHelpers";
 import { isTxColumnSorted, toggleTxSort, txSortDirection } from "@/lib/commerceAdmin/tableSortHelpers";
+import {
+  HOSTING_SERVICE_NAME,
+  hostingSubTypesForTransaction,
+  inferHostingTypeName,
+  isHostingTransaction,
+  parseHostingClassification,
+  hostingClassificationLabel,
+  type HostingClassification,
+} from "@/lib/commerceAdmin/hostingTransactionTypes";
+import {
+  mergeEditedTransactionNotes,
+  resolveHostingActionUpdate,
+  userFacingNotes,
+} from "@/lib/commerceAdmin/hostingTransactionActions";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { toast } from "@/lib/toast";
 import {
@@ -58,9 +73,13 @@ export default function CommerceTransactionsTab() {
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
+    null,
+  );
   const [modalMode, setModalMode] = useState<"view" | "edit" | null>(null);
   const [selected, setSelected] = useState<SalesTransaction | null>(null);
   const [rejectTarget, setRejectTarget] = useState<SalesTransaction | null>(null);
+  const [hostingTarget, setHostingTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const colVisRef = useRef<HTMLDivElement>(null);
 
@@ -81,8 +100,20 @@ export default function CommerceTransactionsTab() {
   }, [loadRows]);
 
   useEffect(() => {
+    const raw = sessionStorage.getItem("commerceAdmin:txClientFilter");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      setClientFilter(parsed);
+      sessionStorage.removeItem("commerceAdmin:txClientFilter");
+    } catch {
+      sessionStorage.removeItem("commerceAdmin:txClientFilter");
+    }
+  }, []);
+
+  useEffect(() => {
     setPage(1);
-  }, [sortBy, filterStatus]);
+  }, [sortBy, filterStatus, clientFilter]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -95,9 +126,20 @@ export default function CommerceTransactionsTab() {
   }, []);
 
   const processedRows = useMemo(() => {
-    const filtered = filterTransactions(rows, filterStatus);
+    let filtered = filterTransactions(rows, filterStatus);
+    if (clientFilter) {
+      const needleName = String(clientFilter.name ?? "").toLowerCase();
+      const needleEmail = String(clientFilter.email ?? "").toLowerCase();
+      filtered = filtered.filter((row) => {
+        const rowName = String(row.customer_name ?? "").toLowerCase();
+        const rowEmail = String(row.customer_email ?? "").toLowerCase();
+        if (needleEmail && rowEmail === needleEmail) return true;
+        if (needleName && rowName.includes(needleName)) return true;
+        return false;
+      });
+    }
     return sortTransactions(filtered, sortBy);
-  }, [rows, filterStatus, sortBy]);
+  }, [rows, filterStatus, sortBy, clientFilter]);
 
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
@@ -145,7 +187,7 @@ export default function CommerceTransactionsTab() {
       shipping_total: row.shipping_total ?? 0,
       payment_status: row.payment_status ?? "pending",
       order_status: row.order_status ?? "pending",
-      notes: row.notes ?? "",
+      notes: userFacingNotes(row.notes) ?? "",
       transacted_at: formatTxDate(row.transacted_at),
       items: row.items ?? [],
     });
@@ -170,11 +212,39 @@ export default function CommerceTransactionsTab() {
     }
   };
 
+  const applyHostingAction = async (
+    row: SalesTransaction,
+    classification: HostingClassification,
+  ) => {
+    try {
+      const update = resolveHostingActionUpdate(row, classification);
+      await updateSalesTransaction(row.id, {
+        notes: update.notes,
+        ...(update.order_status ? { order_status: update.order_status } : {}),
+        ...(update.payment_status ? { payment_status: update.payment_status } : {}),
+      });
+      toast.success(update.successMessage);
+      setHostingTarget(null);
+      loadRows();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to apply hosting action.");
+    }
+  };
+
   const handleAction = async (row: SalesTransaction, action: string) => {
     if (action === "view") openView(row);
     else if (action === "pay") await markPaid(row);
     else if (action === "edit") openEdit(row);
     else if (action === "reject") setRejectTarget(row);
+    else if (action === "hosting:classify") setHostingTarget(row);
+    else if (action.startsWith("hosting:")) {
+      const subType = action.slice("hosting:".length);
+      await applyHostingAction(row, {
+        serviceName: HOSTING_SERVICE_NAME,
+        typeName: inferHostingTypeName(row),
+        subType,
+      });
+    }
   };
 
   const confirmReject = async () => {
@@ -192,8 +262,16 @@ export default function CommerceTransactionsTab() {
   const submitEdit = async () => {
     if (!selected) return;
     try {
+      const savedClassification = parseHostingClassification(selected.notes);
+      const notes = mergeEditedTransactionNotes(
+        selected.notes,
+        form.notes,
+        savedClassification,
+      );
+
       await updateSalesTransaction(selected.id, {
         ...form,
+        notes,
         transacted_at: form.transacted_at || null,
       });
       toast.success("Transaction updated successfully.");
@@ -220,25 +298,48 @@ export default function CommerceTransactionsTab() {
     return <span className={clientOrder ? styles.badgePurple : styles.badgeBlue}>{type}</span>;
   };
 
-  const renderActionSelect = (row: SalesTransaction) => (
-    <select
-      className={styles.actionSelect}
-      defaultValue=""
-      onChange={(e) => {
-        const value = e.target.value;
-        e.target.value = "";
-        if (value) void handleAction(row, value);
-      }}
-    >
-      <option value="" disabled>
-        Actions...
-      </option>
-      <option value="view">View Purchase details</option>
-      {!isPaidStatus(row.payment_status) ? <option value="pay">Mark Invoice as Paid</option> : null}
-      <option value="edit">Edit</option>
-      <option value="reject">Reject Purchase</option>
-    </select>
-  );
+  const renderHostingMeta = (row: SalesTransaction) => {
+    if (!isHostingTransaction(row)) return null;
+    const classified = parseHostingClassification(row.notes);
+    if (!classified) return null;
+    return <div className={styles.txHostingMeta}>{hostingClassificationLabel(row)}</div>;
+  };
+
+  const renderActionSelect = (row: SalesTransaction) => {
+    const hosting = isHostingTransaction(row);
+    const hostingType = hosting ? inferHostingTypeName(row) : null;
+    const hostingSubTypes = hosting ? hostingSubTypesForTransaction(row) : [];
+
+    return (
+      <select
+        className={styles.actionSelect}
+        defaultValue=""
+        onChange={(e) => {
+          const value = e.target.value;
+          e.target.value = "";
+          if (value) void handleAction(row, value);
+        }}
+      >
+        <option value="" disabled>
+          Actions...
+        </option>
+        <option value="view">View Purchase details</option>
+        {!isPaidStatus(row.payment_status) ? <option value="pay">Mark Invoice as Paid</option> : null}
+        <option value="edit">Edit</option>
+        <option value="reject">Reject Purchase</option>
+        {hosting ? (
+          <optgroup label={`Hosting · ${hostingType}`}>
+            {hostingSubTypes.map((subType) => (
+              <option key={subType} value={`hosting:${subType}`}>
+                {subType}
+              </option>
+            ))}
+            <option value="hosting:classify">Set Type / Sub-Type...</option>
+          </optgroup>
+        ) : null}
+      </select>
+    );
+  };
 
   const visibleColumnCount =
     Object.values(columnsVisible).filter(Boolean).length + 1;
@@ -269,6 +370,17 @@ export default function CommerceTransactionsTab() {
           </button>
         </div>
       </div>
+
+      {clientFilter ? (
+        <div className={styles.filterBanner}>
+          <span>
+            Showing purchases for <strong>{clientFilter.name ?? clientFilter.email}</strong>
+          </span>
+          <button type="button" className={styles.secondaryBtnSm} onClick={() => setClientFilter(null)}>
+            Clear filter
+          </button>
+        </div>
+      ) : null}
 
       <div className={styles.toolbarRow}>
         <div className={styles.toolbarFilters}>
@@ -349,7 +461,10 @@ export default function CommerceTransactionsTab() {
                   <tr key={row.id}>
                     {columnsVisible.id ? <td className={styles.monoCell}>{row.transaction_no}</td> : null}
                     {columnsVisible.items ? (
-                      <td className={styles.txServiceCell}>{transactionItemSummary(row)}</td>
+                      <td className={styles.txServiceCell}>
+                        {transactionItemSummary(row)}
+                        {renderHostingMeta(row)}
+                      </td>
                     ) : null}
                     {columnsVisible.subscription ? (
                       <td className={styles.txPlanCell}>
@@ -456,6 +571,16 @@ export default function CommerceTransactionsTab() {
 
       <CreateClientOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={loadRows} />
 
+      <HostingTransactionModal
+        open={!!hostingTarget}
+        transaction={hostingTarget}
+        onClose={() => setHostingTarget(null)}
+        onSave={(classification) => {
+          if (!hostingTarget) return;
+          void applyHostingAction(hostingTarget, classification);
+        }}
+      />
+
       {modalMode ? (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true">
           <div className={styles.modalCardWide}>
@@ -473,13 +598,29 @@ export default function CommerceTransactionsTab() {
                 <DetailField label="Customer" value={selected.customer_name} />
                 <DetailField label="Email" value={selected.customer_email} />
                 <DetailField label="Service" value={transactionItemSummary(selected)} />
+                {isHostingTransaction(selected) ? (
+                  <>
+                    <DetailField label="Service Name" value={HOSTING_SERVICE_NAME} />
+                    <DetailField
+                      label="Type Name"
+                      value={
+                        parseHostingClassification(selected.notes)?.typeName ??
+                        inferHostingTypeName(selected)
+                      }
+                    />
+                    <DetailField
+                      label="Sub-Type"
+                      value={parseHostingClassification(selected.notes)?.subType ?? "—"}
+                    />
+                  </>
+                ) : null}
                 <DetailField label="Plan" value={transactionPlanLabel(selected)} />
                 <DetailField label="Amount" value={formatCommerceMoney(Number(selected.grand_total))} />
                 <DetailField label="Payment Status" value={paymentStatusLabel(selected.payment_status)} />
                 <DetailField label="Order Status" value={selected.order_status} />
                 <DetailField label="Issued Date" value={transactionIssuedDate(selected)} />
                 <DetailField label="Due Date" value={transactionDueDate(selected)} />
-                <DetailField label="Notes" value={selected.notes || "—"} wide />
+                <DetailField label="Notes" value={userFacingNotes(selected.notes) || "—"} wide />
               </div>
             ) : (
               <form

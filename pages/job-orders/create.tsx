@@ -143,7 +143,7 @@ function CreateJobOrder() {
 
     getCustomers({ per_page: 1000 }, { silent: true })
       .then((res) => {
-        const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+        const rows = Array.isArray(res?.data) ? res.data : [];
         setCustomers(rows);
         if (rows[0]?.id) setCustomerId(rows[0].id);
       })

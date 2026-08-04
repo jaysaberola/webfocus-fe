@@ -43,6 +43,7 @@ function WebsiteSettingsPage() {
   const [analytics, setAnalytics] = useState("");
   const [googleMap, setGoogleMap] = useState("");
   const [recaptcha, setRecaptcha] = useState("");
+  const [recaptchaSecret, setRecaptchaSecret] = useState("");
   const [navAlignment, setNavAlignment] = useState<'left' | 'center' | 'right'>('center');
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -116,6 +117,7 @@ function WebsiteSettingsPage() {
       setAnalytics(data.google_analytics ?? "");
       setGoogleMap(data.google_map ?? "");
       setRecaptcha(data.google_recaptcha_sitekey ?? "");
+      setRecaptchaSecret(data.google_recaptcha_secret ?? "");
       setNavAlignment(data.nav_alignment ?? 'center');
 
       setAddress(data.company_address ?? "");
@@ -184,6 +186,7 @@ function WebsiteSettingsPage() {
       fd.append("google_analytics", analytics);
       fd.append("google_map", googleMap);
       fd.append("google_recaptcha_sitekey", recaptcha);
+      fd.append("google_recaptcha_secret", recaptchaSecret);
       fd.append("nav_alignment", navAlignment);
 
       if (logoFile) fd.append("company_logo", logoFile);
@@ -416,6 +419,18 @@ function WebsiteSettingsPage() {
                       className="form-control"
                       value={recaptcha}
                       onChange={(e) => setRecaptcha(e.target.value)}
+                    />
+                  </CmsSettingsField>
+                  <CmsSettingsField
+                    label="Google reCaptcha Secret Key"
+                    hint="Used on the server to verify contact form submissions."
+                    required
+                  >
+                    <textarea
+                      rows={2}
+                      className="form-control"
+                      value={recaptchaSecret}
+                      onChange={(e) => setRecaptchaSecret(e.target.value)}
                     />
                   </CmsSettingsField>
                 </CmsSettingsGrid>

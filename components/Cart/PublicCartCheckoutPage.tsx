@@ -20,6 +20,7 @@ import {
   PAYNAMICS_PAYMENT_METHODS,
 } from "@/lib/checkoutPaymentMethods";
 import { hasCheckoutAgreementAccepted, markCheckoutAgreementAccepted } from "@/lib/checkoutAgreement";
+import { canUsePublicCart, getAddToCartBlockReason, PUBLIC_CART_CLIENT_ONLY_MESSAGE } from "@/lib/publicCartAccess";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { fetchCurrentCustomer, getStoredCustomer, PublicCustomer } from "@/services/publicCustomerService";
 import { createSalesTransaction } from "@/services/salesTransactionService";
@@ -65,7 +66,7 @@ export default function PublicCartCheckoutPage() {
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
     setCustomer(storedCustomer);
-    setIsLoggedIn(Boolean(readStoredAuthToken() && storedCustomer));
+    setIsLoggedIn(canUsePublicCart());
   };
 
   const refreshCart = () => {
@@ -141,6 +142,12 @@ export default function PublicCartCheckoutPage() {
     }
     if (!paymentMethod) {
       toast.warning("Select a payment method to continue.");
+      return;
+    }
+
+    if (!canUsePublicCart()) {
+      toast.info(getAddToCartBlockReason() ?? PUBLIC_CART_CLIENT_ONLY_MESSAGE);
+      setSignInOpen(true);
       return;
     }
 

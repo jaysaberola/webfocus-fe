@@ -1,5 +1,6 @@
 import type { CommercePaymentProofRow } from "@/services/commerceAdminService";
 import { commerceDueDate, formatCommerceDate } from "@/lib/commerceAdmin/dateHelpers";
+import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 
 export type ApprovalSortKey =
   | "date-desc"
@@ -18,9 +19,12 @@ export type ApprovalSortKey =
   | "client-desc"
   | "status-asc"
   | "status-desc";
-export type ApprovalFilterKey = "all" | "provisioning" | "receipt";
+export type ApprovalFilterKey = "all" | "provisioning" | "receipt" | "profile";
 
-export function approvalQueueType(_row: CommercePaymentProofRow): "Receipt Verification" | "Pending Provisioning" {
+export function approvalQueueType(
+  row: CommercePaymentProofRow,
+): "Receipt Verification" | "Pending Provisioning" | "Profile Change" {
+  if (row.kind === "profile_change") return "Profile Change";
   return "Receipt Verification";
 }
 
@@ -28,6 +32,9 @@ export function filterApprovals(rows: CommercePaymentProofRow[], filter: Approva
   if (filter === "all") return rows;
   if (filter === "provisioning") {
     return rows.filter((row) => approvalQueueType(row) === "Pending Provisioning");
+  }
+  if (filter === "profile") {
+    return rows.filter((row) => approvalQueueType(row) === "Profile Change");
   }
   return rows.filter((row) => approvalQueueType(row) === "Receipt Verification");
 }
@@ -93,10 +100,18 @@ export function approvalDueDate(row: CommercePaymentProofRow) {
 }
 
 export function approvalServiceLabel(row: CommercePaymentProofRow) {
-  return row.serviceName?.trim() || "Service";
+  return row.serviceName?.trim() || (row.kind === "profile_change" ? "Profile Change" : "Service");
 }
 
 export function approvalPlanLabel(row: CommercePaymentProofRow) {
+  if (row.kind === "profile_change") {
+    return row.summary?.trim() || row.plan?.trim() || "Profile update request";
+  }
   const plan = row.plan?.trim() || "Payment Deposit";
   return row.client ? `${plan} (${row.client})` : plan;
+}
+
+export function approvalAmountLabel(row: CommercePaymentProofRow) {
+  if (row.kind === "profile_change") return "—";
+  return formatCommerceMoney(Number(row.amount ?? 0));
 }

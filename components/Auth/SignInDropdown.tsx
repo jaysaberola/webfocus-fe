@@ -32,7 +32,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
     let alive = true;
 
     const refreshSession = () => {
-      fetchCurrentCustomer({ silent: true })
+      fetchCurrentCustomer({ silent: true, force: true })
         .then((user) => {
           if (!alive) return;
           storeCustomer(user, { notify: true });
