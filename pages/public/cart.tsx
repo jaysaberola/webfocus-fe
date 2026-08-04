@@ -118,6 +118,19 @@ export default function PublicCartCheckoutPage() {
   }, []);
 
   useEffect(() => {
+    if (!readStoredAuthToken()) return;
+    let alive = true;
+    fetchCurrentCustomer({ silent: true, force: true })
+      .then((fresh) => {
+        if (alive) setCustomer(fresh);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!router.isReady) return;
     if (router.query.signin === "1" && !isLoggedIn) {
       setSignInOpen(true);
@@ -171,11 +184,37 @@ export default function PublicCartCheckoutPage() {
       return;
     }
 
-    const activeCustomer =
-      customerOverride ?? getStoredCustomer() ?? customer;
+    let activeCustomer =
+      customerOverride ?? customer ?? getStoredCustomer();
     if (!activeCustomer) {
       setSignInOpen(true);
       return;
+    }
+
+    // Always re-check the server profile so a saved billing address skips the modal.
+    if (!quotationOnly) {
+      try {
+        const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+        activeCustomer = {
+          ...activeCustomer,
+          ...fresh,
+          address_street: fresh.address_street || activeCustomer.address_street,
+          address_city: fresh.address_city || activeCustomer.address_city,
+          address_municipality:
+            fresh.address_municipality || activeCustomer.address_municipality,
+          address_province: fresh.address_province || activeCustomer.address_province,
+          address_zip: fresh.address_zip || activeCustomer.address_zip,
+        };
+        setCustomer(activeCustomer);
+      } catch {
+        // Keep local customer if refresh fails.
+      }
+
+      if (customerNeedsCheckoutBillingAddress(activeCustomer)) {
+        setBillingOpen(true);
+        toast.info("Add your billing address to continue to Paynamics.");
+        return;
+      }
     }
 
     const checkoutItems = quotationOnly ? items : payableItems;
@@ -188,12 +227,6 @@ export default function PublicCartCheckoutPage() {
 
     if (mixedCheckout) {
       toast.info(MIXED_CART_WEB_DESIGN_NOTICE);
-    }
-
-    if (!quotationOnly && customerNeedsCheckoutBillingAddress(activeCustomer)) {
-      setBillingOpen(true);
-      toast.info("Add your billing address to continue to Paynamics.");
-      return;
     }
 
     const itemSummary = checkoutItems
@@ -373,10 +406,35 @@ export default function PublicCartCheckoutPage() {
     }
   };
 
-  const handleBillingAddressSaved = (updated: PublicCustomer) => {
+  const handleBillingAddressSaved = async (updated: PublicCustomer) => {
     setCustomer(updated);
     setBillingOpen(false);
-    void handleProceedToPaynamics(updated);
+
+    // Confirm the address persisted before continuing checkout.
+    try {
+      const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+      const merged = {
+        ...updated,
+        ...fresh,
+        address_street: fresh.address_street || updated.address_street,
+        address_city: fresh.address_city || updated.address_city,
+        address_municipality:
+          fresh.address_municipality || updated.address_municipality,
+        address_province: fresh.address_province || updated.address_province,
+        address_zip: fresh.address_zip || updated.address_zip,
+      };
+      setCustomer(merged);
+      if (customerNeedsCheckoutBillingAddress(merged)) {
+        setBillingOpen(true);
+        toast.error(
+          "Billing address did not save. Please try again before checkout."
+        );
+        return;
+      }
+      void handleProceedToPaynamics(merged);
+    } catch {
+      void handleProceedToPaynamics(updated);
+    }
   };
 
   const handleSignInSuccess = () => {

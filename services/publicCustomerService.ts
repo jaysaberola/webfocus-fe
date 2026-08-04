@@ -127,28 +127,64 @@ export const updateCustomerProfile = async (payload: {
   address_zip?: string | null;
   avatar?: File | null;
 }) => {
-  const formData = new FormData();
+  const previous = getStoredCustomer();
+  let user: PublicCustomer;
 
-  if (payload.fname != null) formData.append("fname", payload.fname);
-  if (payload.lname != null) formData.append("lname", payload.lname);
-  if (payload.mobile != null) formData.append("mobile", payload.mobile ?? "");
-  if (payload.birth_date != null) formData.append("birth_date", payload.birth_date ?? "");
-  if (payload.address_street != null) formData.append("address_street", payload.address_street ?? "");
-  if (payload.address_city != null) formData.append("address_city", payload.address_city ?? "");
-  if (payload.address_municipality != null) {
-    formData.append("address_municipality", payload.address_municipality ?? "");
+  if (payload.avatar) {
+    const formData = new FormData();
+    if (payload.fname != null) formData.append("fname", payload.fname);
+    if (payload.lname != null) formData.append("lname", payload.lname);
+    if (payload.mobile != null) formData.append("mobile", payload.mobile ?? "");
+    if (payload.birth_date != null) formData.append("birth_date", payload.birth_date ?? "");
+    if (payload.address_street != null) {
+      formData.append("address_street", payload.address_street ?? "");
+    }
+    if (payload.address_city != null) formData.append("address_city", payload.address_city ?? "");
+    if (payload.address_municipality != null) {
+      formData.append("address_municipality", payload.address_municipality ?? "");
+    }
+    if (payload.address_province != null) {
+      formData.append("address_province", payload.address_province ?? "");
+    }
+    if (payload.address_zip != null) formData.append("address_zip", payload.address_zip ?? "");
+    formData.append("avatar", payload.avatar);
+
+    // Let the browser set multipart boundary — do not force Content-Type.
+    const res = await axiosInstance.post("/user/profile", formData);
+    user = (res.data?.user ?? res.data) as PublicCustomer;
+  } else {
+    const res = await axiosInstance.post("/user/profile", {
+      fname: payload.fname,
+      lname: payload.lname,
+      mobile: payload.mobile ?? null,
+      birth_date: payload.birth_date ?? null,
+      address_street: payload.address_street ?? null,
+      address_city: payload.address_city ?? null,
+      address_municipality: payload.address_municipality ?? null,
+      address_province: payload.address_province ?? null,
+      address_zip: payload.address_zip ?? null,
+    });
+    user = (res.data?.user ?? res.data) as PublicCustomer;
   }
-  if (payload.address_province != null) formData.append("address_province", payload.address_province ?? "");
-  if (payload.address_zip != null) formData.append("address_zip", payload.address_zip ?? "");
-  if (payload.avatar) formData.append("avatar", payload.avatar);
 
-  const res = await axiosInstance.post("/user/profile", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  const user = res.data?.user ?? res.data;
-  storeCustomer(user);
+  // Keep billing fields even if the API payload omits them.
+  const merged: PublicCustomer = {
+    ...(previous || {}),
+    ...user,
+    address_street: user.address_street ?? payload.address_street ?? previous?.address_street,
+    address_city: user.address_city ?? payload.address_city ?? previous?.address_city,
+    address_municipality:
+      user.address_municipality ??
+      payload.address_municipality ??
+      previous?.address_municipality,
+    address_province:
+      user.address_province ?? payload.address_province ?? previous?.address_province,
+    address_zip: user.address_zip ?? payload.address_zip ?? previous?.address_zip,
+  };
+
+  storeCustomer(merged);
   lastCustomerFetchAt = Date.now();
-  return user as PublicCustomer;
+  return merged;
 };
 
 export const uploadCustomerAvatar = async (file: File, customer: PublicCustomer) => {
