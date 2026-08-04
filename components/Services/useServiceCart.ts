@@ -1,10 +1,12 @@
 import { addPublicCartItem } from "@/lib/publicCart";
-import { getAddToCartBlockReason } from "@/lib/publicCartAccess";
+import { canUsePublicCart, getAddToCartBlockReason } from "@/lib/publicCartAccess";
 import { toast } from "@/lib/toast";
 import {
   formatWebDesignSetupDetail,
   type WebDesignSetupSelection,
 } from "@/lib/webDesignSetup";
+
+const WEB_DESIGN_AUTH_REDIRECT = `/public/login?redirect=${encodeURIComponent("/public/cart")}&intent=webdesign`;
 
 export function useServiceCart() {
   const guardCartAccess = () => {
@@ -41,12 +43,21 @@ export function useServiceCart() {
     addPublicCartItem({
       key: `service:Agency Web Design:${selection.packageName}`,
       name: selection.packageName,
-      price: selection.packagePrice,
+      price: 0,
       qty: 1,
       category: "Agency Web Design",
       detail: formatWebDesignSetupDetail(selection),
+      pricingStatus: "pending_quotation",
     });
     toast.cartAdded(selection.packageName);
+
+    // Guests must sign in / create a Client account before continuing the quotation flow.
+    if (!canUsePublicCart() && typeof window !== "undefined") {
+      toast.info(
+        "Sign in or create a Client account to continue. Your web design package is saved in the cart as Pending Quotation."
+      );
+      window.location.assign(WEB_DESIGN_AUTH_REDIRECT);
+    }
   };
 
   return { addToCart, addWebDesignSetupToCart };

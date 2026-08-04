@@ -2950,6 +2950,13 @@
   padding-top: 0.5rem;
 }
 
+.modalError {
+  margin: 0;
+  color: #b91c1c;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+}
+
 .detailGrid {
   display: grid;
   grid-template-columns: 1fr;

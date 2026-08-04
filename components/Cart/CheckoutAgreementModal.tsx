@@ -4,7 +4,7 @@ import {
   CHECKOUT_AGREEMENT_SECTIONS,
   CHECKOUT_AGREEMENT_TERMS_LABEL,
 } from "@/lib/checkoutAgreementContent";
-import { formatCartMoney, PublicCartItem } from "@/lib/publicCart";
+import { formatCartItemPrice, formatCartMoney, PublicCartItem, isPendingQuotationCartItem } from "@/lib/publicCart";
 import styles from "@/styles/checkoutAgreementModal.module.css";
 
 type CheckoutAgreementModalProps = {
@@ -172,9 +172,14 @@ export default function CheckoutAgreementModal({
                   <div className={styles.summaryBlockHead}>
                     <p className={styles.summaryBlockTitle}>Services</p>
                     <strong className={styles.summaryBlockPrice}>
-                      {formatCartMoney(
-                        grouped.services.reduce((sum, item) => sum + item.price * item.qty, 0)
-                      )}
+                      {grouped.services.every(isPendingQuotationCartItem)
+                        ? "Pending Quotation"
+                        : formatCartMoney(
+                            grouped.services.reduce((sum, item) => {
+                              if (isPendingQuotationCartItem(item)) return sum;
+                              return sum + item.price * item.qty;
+                            }, 0)
+                          )}
                     </strong>
                   </div>
                   {grouped.services
@@ -184,7 +189,7 @@ export default function CheckoutAgreementModal({
                       <span>
                         {item.qty} x {item.name}
                       </span>
-                      <strong>{formatCartMoney(item.price * item.qty)}</strong>
+                      <strong>{formatCartItemPrice(item)}</strong>
                     </div>
                   ))}
                 </div>

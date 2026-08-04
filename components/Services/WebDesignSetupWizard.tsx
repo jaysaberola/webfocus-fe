@@ -5,7 +5,8 @@ import {
   type WebDesignFeaturePath,
   type WebDesignSetupSelection,
 } from "@/lib/webDesignSetup";
-import { formatPeso, getWebsiteTemplateById, resolveTemplateGroupForPackage } from "@/lib/servicesCatalog";
+import { getWebsiteTemplateById, resolveTemplateGroupForPackage } from "@/lib/servicesCatalog";
+import { canUsePublicCart } from "@/lib/publicCartAccess";
 import {
   TEMPLATE_NAV_NEXT_ICON,
   TEMPLATE_NAV_PREV_ICON,
@@ -71,7 +72,8 @@ export default function WebDesignSetupWizard({
     if (!open) return;
 
     setStep("choose-path");
-    setSelectedPath(null);
+    // Guests are guided to template selection; signed-in clients to the online checklist.
+    setSelectedPath(canUsePublicCart() ? "online-services" : "member-portal");
     setSelectedTemplateId(templateId);
     setTemplateSlideDirection("next");
     setServiceFeatures([]);
@@ -207,7 +209,9 @@ export default function WebDesignSetupWizard({
 
   const stepHint =
     step === "choose-path"
-      ? "We use this to recommend the right portal tools and setup for your package."
+      ? canUsePublicCart()
+        ? "Signed-in clients usually continue with the online service checklist. You can still pick a website template if preferred."
+        : "New visitors usually continue with a selected website template. After checkout setup you will sign in or create a Client account."
       : step === "preview-template"
         ? "Confirm the template you chose before adding this package to your cart."
         : "Choose all items that apply. You can select multiple options.";
@@ -235,7 +239,7 @@ export default function WebDesignSetupWizard({
               {templatePreview?.template.label || templateLabel
                 ? `${templatePreview?.template.label || templateLabel} · `
                 : ""}
-              {packageName} · {formatPeso(packagePrice)} one-off
+              {packageName}
             </p>
           </div>
           <button

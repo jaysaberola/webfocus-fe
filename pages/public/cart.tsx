@@ -7,12 +7,22 @@ import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   cartCount,
+  cartHasMixedCheckout,
+  cartHeldQuotationItems,
+  cartIsQuotationOnly,
+  cartPayableItems,
   cartSubtotal,
   clearPublicCart,
+  formatCartItemPrice,
   formatCartMoney,
+  formatCartSubtotalLabel,
+  isPendingQuotationCartItem,
+  MIXED_CART_WEB_DESIGN_NOTICE,
+  PENDING_QUOTATION_LABEL,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
+  writePublicCart,
 } from "@/lib/publicCart";
 import {
   hasCheckoutAgreementAccepted,
@@ -24,7 +34,11 @@ import {
   getStoredCustomer,
   PublicCustomer,
 } from "@/services/publicCustomerService";
-import { checkoutWithPaynamics } from "@/services/salesTransactionService";
+import {
+  checkoutWithPaynamics,
+  createSalesTransaction,
+} from "@/services/salesTransactionService";
+import { WEB_DESIGN_PENDING_QUOTATION_MARKER } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/publicCartCheckout.module.css";
 
@@ -106,10 +120,15 @@ export default function PublicCartCheckoutPage() {
   }, [router.isReady, router.query.signin, isLoggedIn]);
 
   const itemCount = cartCount(items);
-  const subtotal = cartSubtotal(items);
+  const payableItems = cartPayableItems(items);
+  const heldQuotationItems = cartHeldQuotationItems(items);
+  const mixedCheckout = cartHasMixedCheckout(items);
+  const subtotal = cartSubtotal(payableItems);
   const emptyState = items.length === 0;
+  const quotationOnly = cartIsQuotationOnly(items);
+  const canCheckoutPayable = payableItems.length > 0;
   const paymentStepActive =
-    isLoggedIn && agreementAccepted && !emptyState;
+    isLoggedIn && agreementAccepted && !emptyState && (quotationOnly || canCheckoutPayable);
   const checkoutBlockedByAgreement =
     isLoggedIn && !agreementAccepted && !emptyState;
 
@@ -153,15 +172,73 @@ export default function PublicCartCheckoutPage() {
       return;
     }
 
-    const itemSummary = items
-      .map(
-        (item) =>
-          `${item.qty} x ${item.name} @ ${formatCartMoney(item.price)}`
-      )
+    const checkoutItems = quotationOnly ? items : payableItems;
+    if (!checkoutItems.length) {
+      toast.info(
+        "Your cart only has Pending Quotation web design items. Submit a quotation request, or wait for Customer Care to set the price."
+      );
+      return;
+    }
+
+    if (mixedCheckout) {
+      toast.info(MIXED_CART_WEB_DESIGN_NOTICE);
+    }
+
+    const itemSummary = checkoutItems
+      .map((item) => {
+        const priceLabel = isPendingQuotationCartItem(item)
+          ? PENDING_QUOTATION_LABEL
+          : formatCartMoney(item.price);
+        return `${item.qty} x ${item.name} @ ${priceLabel}${
+          item.detail ? ` (${item.detail})` : ""
+        }`;
+      })
       .join("\n");
 
     try {
       setPlacingOrder(true);
+
+      if (quotationOnly) {
+        const result = await createSalesTransaction({
+          customer_id: activeCustomer.id,
+          customer_name:
+            `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+          customer_email: activeCustomer.email,
+          subtotal: 0,
+          discount_total: 0,
+          tax_total: 0,
+          shipping_total: 0,
+          payment_status: "pending",
+          order_status: "pending",
+          transacted_at: new Date().toISOString(),
+          items: checkoutItems.map((item) => ({
+            product_id: item.id ?? null,
+            name: item.name,
+            item_type: "web_design",
+            price: 0,
+            quantity: item.qty,
+            total_price: 0,
+          })),
+          notes: [
+            "Web design quotation request",
+            WEB_DESIGN_PENDING_QUOTATION_MARKER,
+            "Notify: Customer Care",
+            "",
+            "Items:",
+            itemSummary,
+          ].join("\n"),
+        });
+
+        clearPublicCart();
+        const orderNo = result?.data?.transaction_no;
+        toast.success(
+          orderNo
+            ? `Quotation request ${orderNo} submitted to Customer Care. Sales will set the package price.`
+            : "Quotation request submitted to Customer Care. Sales will set the package price."
+        );
+        window.location.assign("/public/dashboard?tab=orders");
+        return;
+      }
 
       const result = await checkoutWithPaynamics({
         customer_id: activeCustomer.id,
@@ -175,7 +252,7 @@ export default function PublicCartCheckoutPage() {
         payment_status: "pending",
         order_status: "pending",
         transacted_at: new Date().toISOString(),
-        items: items.map((item) => ({
+        items: checkoutItems.map((item) => ({
           product_id: item.id ?? null,
           name: item.name,
           item_type: "product",
@@ -186,10 +263,15 @@ export default function PublicCartCheckoutPage() {
         notes: [
           "Customer checkout order",
           "Payment gateway: Paynamics hosted portal",
+          mixedCheckout
+            ? "Note: Web design Pending Quotation items were excluded and kept in the customer cart."
+            : null,
           "",
           "Items:",
           itemSummary,
-        ].join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n"),
       });
 
       const redirectUrl = result?.paynamics?.redirect_url;
@@ -197,8 +279,13 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      clearPublicCart();
-      toast.success("Redirecting to the secure Paynamics payment portal...");
+      // Keep pending web design quotations in the cart after paying for other services.
+      writePublicCart(heldQuotationItems);
+      toast.success(
+        mixedCheckout
+          ? "Opening payment for payable items. Web design Pending Quotation remains in your cart."
+          : "Redirecting to the secure Paynamics payment portal..."
+      );
       window.location.assign(redirectUrl);
     } catch (err: any) {
       const validationErrors = err?.response?.data?.errors;
@@ -211,7 +298,9 @@ export default function PublicCartCheckoutPage() {
           firstValidationError ||
             err?.response?.data?.message ||
             err?.message ||
-            "Failed to open the Paynamics payment portal."
+            (quotationOnly
+              ? "Failed to submit quotation request."
+              : "Failed to open the Paynamics payment portal.")
         )
       );
     } finally {
@@ -262,6 +351,15 @@ export default function PublicCartCheckoutPage() {
 
         <div className={styles.layout}>
           <section className={styles.mainColumn}>
+            {mixedCheckout ? (
+              <div className={styles.mixedCartNotice} role="status">
+                <i className="fa-solid fa-circle-info" aria-hidden="true" />
+                <div>
+                  <strong>Web design stays in your cart</strong>
+                  <p>{MIXED_CART_WEB_DESIGN_NOTICE}</p>
+                </div>
+              </div>
+            ) : null}
             {emptyState ? (
               <div className={styles.emptyCard}>
                 <p>Your shopping cart is currently empty.</p>
@@ -322,7 +420,7 @@ export default function PublicCartCheckoutPage() {
 
                     <div className={styles.itemAside}>
                       <strong className={styles.itemPrice}>
-                        {formatCartMoney(item.price * item.qty)}
+                        {formatCartItemPrice(item)}
                       </strong>
                       <button
                         type="button"
@@ -351,8 +449,20 @@ export default function PublicCartCheckoutPage() {
 
               <div className={styles.summaryTotal}>
                 <span>Subtotal (PHP)</span>
-                <strong>{formatCartMoney(subtotal)}</strong>
+                <strong>
+                  {quotationOnly
+                    ? PENDING_QUOTATION_LABEL
+                    : formatCartSubtotalLabel(payableItems)}
+                </strong>
               </div>
+              {heldQuotationItems.length > 0 ? (
+                <p className={styles.heldQuoteHint}>
+                  {heldQuotationItems.length} web design item
+                  {heldQuotationItems.length === 1 ? "" : "s"} held as{" "}
+                  {PENDING_QUOTATION_LABEL}
+                  {mixedCheckout ? " (excluded from this checkout)" : ""}.
+                </p>
+              ) : null}
 
               <div className={styles.promoBlock}>
                 <button
@@ -441,8 +551,14 @@ export default function PublicCartCheckoutPage() {
                   onClick={handleProceedToPaynamics}
                 >
                   {placingOrder
-                    ? "Opening secure payment..."
-                    : "Proceed to Paynamics"}
+                    ? quotationOnly
+                      ? "Submitting quotation..."
+                      : "Opening secure payment..."
+                    : quotationOnly
+                      ? "Submit Quotation Request"
+                      : mixedCheckout
+                        ? "Checkout Payable Items"
+                        : "Proceed to Paynamics"}
                 </button>
               ) : (
                 <button
@@ -451,7 +567,7 @@ export default function PublicCartCheckoutPage() {
                   disabled={emptyState || checkoutBlockedByAgreement}
                   onClick={handleReadyForCheckout}
                 >
-                  Ready for Checkout
+                  {!isLoggedIn ? "Sign In to Continue" : "Ready for Checkout"}
                 </button>
               )}
 
@@ -459,6 +575,16 @@ export default function PublicCartCheckoutPage() {
                 <p className={styles.agreementHint}>
                   Open the agreement, scroll to the end, and accept it to
                   continue.
+                </p>
+              ) : paymentStepActive && quotationOnly ? (
+                <p className={styles.agreementHint}>
+                  This request goes to Customer Care as Pending Quotation. Sales
+                  will set the package price before payment.
+                </p>
+              ) : paymentStepActive && mixedCheckout ? (
+                <p className={styles.agreementHint}>
+                  Only non-web-design items will be charged now. Web design
+                  Pending Quotation remains in your cart.
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>

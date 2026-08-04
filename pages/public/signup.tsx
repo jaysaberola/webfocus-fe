@@ -43,8 +43,14 @@ function CustomerSignupPage() {
         password: form.password,
         password_confirmation: form.password_confirmation || form.password,
       });
-      toast.success("Account created");
-      router.push("/public/dashboard");
+      const redirect = String(router.query.redirect || "/public/dashboard");
+      const intent = String(router.query.intent || "");
+      toast.success(
+        intent === "webdesign"
+          ? "Account created. Please verify your email from your inbox when prompted, then continue your Pending Quotation in the cart."
+          : "Account created. Please check your email to verify your account when prompted."
+      );
+      router.push(redirect);
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
@@ -64,7 +70,18 @@ function CustomerSignupPage() {
         <>
           <CustomerTermsNotice variant="signup" />
           <p className={styles.lead}>
-            Already have an account? <Link href="/public/login">Sign In</Link>
+            Already have an account?{" "}
+            <Link
+              href={`/public/login${
+                router.query.redirect
+                  ? `?redirect=${encodeURIComponent(String(router.query.redirect))}${
+                      router.query.intent ? `&intent=${encodeURIComponent(String(router.query.intent))}` : ""
+                    }`
+                  : ""
+              }`}
+            >
+              Sign In
+            </Link>
           </p>
           <SignupProviderButtons onEmail={() => setStep("email")} onSocial={onSocialClick} />
         </>

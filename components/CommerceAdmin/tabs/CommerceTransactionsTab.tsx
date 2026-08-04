@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
+import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import {
   DEFAULT_TX_COLUMNS,
@@ -35,7 +36,13 @@ import {
   resolveHostingActionUpdate,
   userFacingNotes,
 } from "@/lib/commerceAdmin/hostingTransactionActions";
-import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
+import {
+  applyWebDesignPriceToItems,
+  buildWebDesignPricedNotes,
+  isPendingQuotationTransaction,
+  isWebDesignTransaction,
+  transactionAmountLabel,
+} from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import {
   deleteSalesTransaction,
@@ -80,6 +87,7 @@ export default function CommerceTransactionsTab() {
   const [selected, setSelected] = useState<SalesTransaction | null>(null);
   const [rejectTarget, setRejectTarget] = useState<SalesTransaction | null>(null);
   const [hostingTarget, setHostingTarget] = useState<SalesTransaction | null>(null);
+  const [webDesignPriceTarget, setWebDesignPriceTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const colVisRef = useRef<HTMLDivElement>(null);
 
@@ -231,11 +239,34 @@ export default function CommerceTransactionsTab() {
     }
   };
 
+  const applyWebDesignPrice = async (row: SalesTransaction, amount: number) => {
+    try {
+      const items = applyWebDesignPriceToItems(row.items, amount);
+      const notes = buildWebDesignPricedNotes(row.notes, amount);
+      await updateSalesTransaction(row.id, {
+        items,
+        notes,
+        subtotal: amount,
+        discount_total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        grand_total: amount,
+        payment_status: row.payment_status || "pending",
+      });
+      toast.success(`Web design price set for ${row.transaction_no}.`);
+      setWebDesignPriceTarget(null);
+      loadRows();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to set web design price.");
+    }
+  };
+
   const handleAction = async (row: SalesTransaction, action: string) => {
     if (action === "view") openView(row);
     else if (action === "pay") await markPaid(row);
     else if (action === "edit") openEdit(row);
     else if (action === "reject") setRejectTarget(row);
+    else if (action === "webdesign:set-price") setWebDesignPriceTarget(row);
     else if (action === "hosting:classify") setHostingTarget(row);
     else if (action.startsWith("hosting:")) {
       const subType = action.slice("hosting:".length);
@@ -286,9 +317,12 @@ export default function CommerceTransactionsTab() {
     setColumnsVisible((current) => ({ ...current, [key]: checked }));
   };
 
-  const renderStatusBadge = (status?: string | null) => {
-    const label = paymentStatusLabel(status);
-    const paid = isPaidStatus(status);
+  const renderStatusBadge = (row: SalesTransaction) => {
+    if (isPendingQuotationTransaction(row)) {
+      return <span className={styles.badgePending}>Pending Quotation</span>;
+    }
+    const label = paymentStatusLabel(row.payment_status);
+    const paid = isPaidStatus(row.payment_status);
     return <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>;
   };
 
@@ -309,6 +343,7 @@ export default function CommerceTransactionsTab() {
     const hosting = isHostingTransaction(row);
     const hostingType = hosting ? inferHostingTypeName(row) : null;
     const hostingSubTypes = hosting ? hostingSubTypesForTransaction(row) : [];
+    const webDesign = isWebDesignTransaction(row);
 
     return (
       <select
@@ -324,8 +359,11 @@ export default function CommerceTransactionsTab() {
           Actions...
         </option>
         <option value="view">View Purchase details</option>
-        {!isPaidStatus(row.payment_status) ? <option value="pay">Mark Invoice as Paid</option> : null}
+        {!isPaidStatus(row.payment_status) && !isPendingQuotationTransaction(row) ? (
+          <option value="pay">Mark Invoice as Paid</option>
+        ) : null}
         <option value="edit">Edit</option>
+        {webDesign ? <option value="webdesign:set-price">Set Web Design Price...</option> : null}
         <option value="reject">Reject Purchase</option>
         {hosting ? (
           <optgroup label={`Hosting · ${hostingType}`}>
@@ -475,10 +513,10 @@ export default function CommerceTransactionsTab() {
                     {columnsVisible.date ? <td>{transactionIssuedDate(row)}</td> : null}
                     {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}
                     {columnsVisible.amount ? (
-                      <td className={styles.amountCell}>{formatCommerceMoney(Number(row.grand_total))}</td>
+                      <td className={styles.amountCell}>{transactionAmountLabel(row)}</td>
                     ) : null}
                     {columnsVisible.status ? (
-                      <td className={styles.statusCell}>{renderStatusBadge(row.payment_status)}</td>
+                      <td className={styles.statusCell}>{renderStatusBadge(row)}</td>
                     ) : null}
                     <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
                   </tr>
@@ -496,7 +534,7 @@ export default function CommerceTransactionsTab() {
               <article key={row.id} className={styles.txGridCard}>
                 <div className={styles.txGridCardTop}>
                   <span className={styles.monoCell}>{row.transaction_no}</span>
-                  {renderStatusBadge(row.payment_status)}
+                  {renderStatusBadge(row)}
                 </div>
                 <div>
                   <div className={styles.txGridLabel}>Service Name</div>
@@ -512,8 +550,16 @@ export default function CommerceTransactionsTab() {
                   <span>Due: {transactionDueDate(row)}</span>
                 </div>
                 <div className={styles.txGridFooter}>
-                  <strong className={styles.amountCell}>{formatCommerceMoney(Number(row.grand_total))}</strong>
-                  {!isPaidStatus(row.payment_status) ? (
+                  <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
+                  {isPendingQuotationTransaction(row) ? (
+                    <button
+                      type="button"
+                      className={styles.primaryBtnSm}
+                      onClick={() => setWebDesignPriceTarget(row)}
+                    >
+                      Set Price
+                    </button>
+                  ) : !isPaidStatus(row.payment_status) ? (
                     <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
                       Mark Paid
                     </button>
@@ -583,6 +629,16 @@ export default function CommerceTransactionsTab() {
         }}
       />
 
+      <SetWebDesignPriceModal
+        open={!!webDesignPriceTarget}
+        transaction={webDesignPriceTarget}
+        onClose={() => setWebDesignPriceTarget(null)}
+        onSave={(amount) => {
+          if (!webDesignPriceTarget) return;
+          void applyWebDesignPrice(webDesignPriceTarget, amount);
+        }}
+      />
+
       {modalMode ? (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true">
           <div className={styles.modalCardWide}>
@@ -617,8 +673,15 @@ export default function CommerceTransactionsTab() {
                   </>
                 ) : null}
                 <DetailField label="Plan" value={transactionPlanLabel(selected)} />
-                <DetailField label="Amount" value={formatCommerceMoney(Number(selected.grand_total))} />
-                <DetailField label="Payment Status" value={paymentStatusLabel(selected.payment_status)} />
+                <DetailField label="Amount" value={transactionAmountLabel(selected)} />
+                <DetailField
+                  label="Payment Status"
+                  value={
+                    isPendingQuotationTransaction(selected)
+                      ? "Pending Quotation"
+                      : paymentStatusLabel(selected.payment_status)
+                  }
+                />
                 <DetailField label="Order Status" value={selected.order_status} />
                 <DetailField label="Issued Date" value={transactionIssuedDate(selected)} />
                 <DetailField label="Due Date" value={transactionDueDate(selected)} />

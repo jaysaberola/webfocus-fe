@@ -56,7 +56,7 @@ export default function CommerceAdminContent({ activeTab, onTabChange }: Props) 
     case "catalog":
       return <CommerceCatalogTab />;
     case "notifications":
-      return <CommerceNotificationsTab />;
+      return <CommerceNotificationsTab onOpenTransactions={() => onTabChange("transactions")} />;
     case "helpdesk":
       return <CommerceHelpdeskTab />;
     case "reports":

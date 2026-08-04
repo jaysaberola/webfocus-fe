@@ -7,8 +7,13 @@ import {
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
-export default function CommerceNotificationsTab() {
-  const [rows, setRows] = useState<CommerceNotificationAdminRow[]>([]);
+type Props = {
+  onOpenTransactions?: () => void;
+};
+
+export default function CommerceNotificationsTab({ onOpenTransactions }: Props) {
+  const [clientAlerts, setClientAlerts] = useState<CommerceNotificationAdminRow[]>([]);
+  const [broadcasts, setBroadcasts] = useState<CommerceNotificationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
@@ -18,9 +23,11 @@ export default function CommerceNotificationsTab() {
     setLoading(true);
     try {
       const data = await fetchCommerceNotifications();
-      setRows(Array.isArray(data) ? data : []);
+      setClientAlerts(Array.isArray(data.clientAlerts) ? data.clientAlerts : []);
+      setBroadcasts(Array.isArray(data.broadcasts) ? data.broadcasts : []);
     } catch {
-      setRows([]);
+      setClientAlerts([]);
+      setBroadcasts([]);
     } finally {
       setLoading(false);
     }
@@ -56,6 +63,53 @@ export default function CommerceNotificationsTab() {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
+        <div>
+          <h3 className={styles.panelTitle}>Client Quotation Alerts</h3>
+          <p className={styles.panelSubtitle}>
+            Web design Pending Quotation checkouts from client portals appear here for Sales
+            pricing.
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.broadcastHistory} style={{ borderTop: "none", paddingTop: 0 }}>
+        {loading ? (
+          <p className={styles.emptyState}>Loading client quotation alerts...</p>
+        ) : clientAlerts.length === 0 ? (
+          <p className={styles.emptyState}>No pending web design quotation checkouts.</p>
+        ) : (
+          <div className={styles.discountList}>
+            {clientAlerts.map((row) => (
+              <article key={`alert-${row.id}`} className={styles.broadcastCard}>
+                <div>
+                  <h5>{row.title}</h5>
+                  <p className={styles.panelSubtitle}>{row.desc}</p>
+                  {(row.email || row.transactionNo) && (
+                    <p className={styles.panelSubtitle} style={{ marginTop: "0.35rem" }}>
+                      {[row.email, row.transactionNo].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                </div>
+                <div className={styles.broadcastCardMeta}>
+                  <span className={styles.badgePending}>{row.status}</span>
+                  <span className={styles.monoCell}>{row.date}</span>
+                  {onOpenTransactions ? (
+                    <button
+                      type="button"
+                      className={styles.primaryBtnSm}
+                      onClick={onOpenTransactions}
+                    >
+                      Open Transactions
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.panelHeader} style={{ marginTop: "1.75rem" }}>
         <div>
           <h3 className={styles.panelTitle}>Broadcast System Notifications</h3>
           <p className={styles.panelSubtitle}>
@@ -95,12 +149,12 @@ export default function CommerceNotificationsTab() {
         <h4 className={styles.broadcastHistoryTitle}>Broadcast History</h4>
         {loading ? (
           <p className={styles.emptyState}>Loading notification history...</p>
-        ) : rows.length === 0 ? (
+        ) : broadcasts.length === 0 ? (
           <p className={styles.emptyState}>No broadcast notices sent yet.</p>
         ) : (
           <div className={styles.discountList}>
-            {rows.map((row) => (
-              <article key={row.id} className={styles.broadcastCard}>
+            {broadcasts.map((row) => (
+              <article key={`broadcast-${row.id}`} className={styles.broadcastCard}>
                 <div>
                   <h5>{row.title}</h5>
                   <p className={styles.panelSubtitle}>{row.desc}</p>

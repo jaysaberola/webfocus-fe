@@ -24,9 +24,13 @@ export function canUsePublicCart(): boolean {
   return Boolean(readStoredAuthToken() && customer && isCustomerUser(customer));
 }
 
+/**
+ * Guests and Client accounts may add items to the cart.
+ * Staff/admin accounts stay blocked. Checkout still requires a Client sign-in
+ * via canUsePublicCart().
+ */
 export function getAddToCartBlockReason(): string | null {
   if (isStaffCartBlocked()) return PUBLIC_CART_STAFF_BLOCKED_MESSAGE;
-  if (!canUsePublicCart()) return PUBLIC_CART_CLIENT_ONLY_MESSAGE;
   return null;
 }
 

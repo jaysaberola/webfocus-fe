@@ -7,9 +7,14 @@ import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   cartCount,
+  cartIsQuotationOnly,
   cartSubtotal,
   clearPublicCart,
+  formatCartItemPrice,
   formatCartMoney,
+  formatCartSubtotalLabel,
+  isPendingQuotationCartItem,
+  PENDING_QUOTATION_LABEL,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
@@ -24,6 +29,7 @@ import { canUsePublicCart, getAddToCartBlockReason, PUBLIC_CART_CLIENT_ONLY_MESS
 import { readStoredAuthToken } from "@/lib/authToken";
 import { fetchCurrentCustomer, getStoredCustomer, PublicCustomer } from "@/services/publicCustomerService";
 import { createSalesTransaction } from "@/services/salesTransactionService";
+import { WEB_DESIGN_PENDING_QUOTATION_MARKER } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/publicCartCheckout.module.css";
 
@@ -105,6 +111,7 @@ export default function PublicCartCheckoutPage() {
   const itemCount = cartCount(items);
   const subtotal = cartSubtotal(items);
   const emptyState = items.length === 0;
+  const quotationOnly = cartIsQuotationOnly(items);
   const paymentStepActive = isLoggedIn && agreementAccepted && !emptyState;
   const checkoutBlockedByAgreement = isLoggedIn && !agreementAccepted && !emptyState;
 
@@ -140,7 +147,7 @@ export default function PublicCartCheckoutPage() {
       setAgreementOpen(true);
       return;
     }
-    if (!paymentMethod) {
+    if (!quotationOnly && !paymentMethod) {
       toast.warning("Select a payment method to continue.");
       return;
     }
@@ -157,9 +164,20 @@ export default function PublicCartCheckoutPage() {
       return;
     }
 
-    const paymentLabel = getPaynamicsPaymentLabel(paymentMethod);
-    const paymentGateway = formatPaynamicsPaymentMethod(paymentMethod);
-    const itemSummary = items.map((item) => `${item.qty} x ${item.name} @ ${formatCartMoney(item.price)}`).join("\n");
+    const paymentLabel = quotationOnly
+      ? "Pending Quotation"
+      : getPaynamicsPaymentLabel(paymentMethod);
+    const paymentGateway = quotationOnly
+      ? "Pending Quotation"
+      : formatPaynamicsPaymentMethod(paymentMethod);
+    const itemSummary = items
+      .map((item) => {
+        const priceLabel = isPendingQuotationCartItem(item)
+          ? PENDING_QUOTATION_LABEL
+          : formatCartMoney(item.price);
+        return `${item.qty} x ${item.name} @ ${priceLabel}${item.detail ? ` (${item.detail})` : ""}`;
+      })
+      .join("\n");
 
     try {
       setPlacingOrder(true);
@@ -177,14 +195,14 @@ export default function PublicCartCheckoutPage() {
         items: items.map((item) => ({
           product_id: item.id ?? null,
           name: item.name,
-          item_type: "product",
-          price: item.price,
+          item_type: isPendingQuotationCartItem(item) ? "web_design" : "product",
+          price: isPendingQuotationCartItem(item) ? 0 : item.price,
           quantity: item.qty,
-          total_price: item.price * item.qty,
+          total_price: isPendingQuotationCartItem(item) ? 0 : item.price * item.qty,
         })),
         notes: [
-          "Customer checkout order",
-          `Payment method: ${paymentGateway} (${paymentLabel})`,
+          quotationOnly ? "Web design quotation request" : "Customer checkout order",
+          quotationOnly ? WEB_DESIGN_PENDING_QUOTATION_MARKER : `Payment method: ${paymentGateway} (${paymentLabel})`,
           "",
           "Items:",
           itemSummary,
@@ -194,12 +212,19 @@ export default function PublicCartCheckoutPage() {
       const orderNo = result?.data?.transaction_no;
       toast.success(
         orderNo
-          ? `Order ${orderNo} submitted. Redirecting to your orders...`
-          : "Order submitted. Redirecting to your orders..."
+          ? quotationOnly
+            ? `Quotation request ${orderNo} submitted. Sales will set the package price.`
+            : `Order ${orderNo} submitted. Redirecting to your orders...`
+          : quotationOnly
+            ? "Quotation request submitted. Sales will set the package price."
+            : "Order submitted. Redirecting to your orders..."
       );
       window.location.assign("/public/dashboard?tab=orders");
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to start Paynamics payment");
+      toast.error(
+        err?.response?.data?.message ||
+          (quotationOnly ? "Failed to submit quotation request" : "Failed to start Paynamics payment")
+      );
     } finally {
       setPlacingOrder(false);
     }
@@ -287,7 +312,7 @@ export default function PublicCartCheckoutPage() {
                     </div>
 
                     <div className={styles.itemAside}>
-                      <strong className={styles.itemPrice}>{formatCartMoney(item.price * item.qty)}</strong>
+                      <strong className={styles.itemPrice}>{formatCartItemPrice(item)}</strong>
                       <button
                         type="button"
                         className={styles.removeIconBtn}
@@ -311,7 +336,7 @@ export default function PublicCartCheckoutPage() {
               </p>
               <div className={styles.summaryTotal}>
                 <span>Subtotal (PHP)</span>
-                <strong>{formatCartMoney(subtotal)}</strong>
+                <strong>{formatCartSubtotalLabel(items)}</strong>
               </div>
 
               <div className={styles.promoBlock}>
@@ -375,7 +400,7 @@ export default function PublicCartCheckoutPage() {
                 </div>
               ) : null}
 
-              {paymentStepActive ? (
+              {paymentStepActive && !quotationOnly ? (
                 <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
               ) : null}
 
@@ -386,7 +411,11 @@ export default function PublicCartCheckoutPage() {
                   disabled={placingOrder}
                   onClick={handleProceedToPaynamics}
                 >
-                  {placingOrder ? "Processing..." : "Proceed to Paynamics"}
+                  {placingOrder
+                    ? "Processing..."
+                    : quotationOnly
+                      ? "Submit Quotation Request"
+                      : "Proceed to Paynamics"}
                 </button>
               ) : (
                 <button
@@ -401,6 +430,10 @@ export default function PublicCartCheckoutPage() {
               {checkoutBlockedByAgreement ? (
                 <p className={styles.agreementHint}>
                   Open the agreement, scroll to the end, and accept it to continue.
+                </p>
+              ) : paymentStepActive && quotationOnly ? (
+                <p className={styles.agreementHint}>
+                  Web design packages are quoted by Sales. No payment is required until a price is set.
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>

@@ -18,7 +18,7 @@ export const COMMERCE_ADMIN_TABS = [
   { id: "managed", label: "Managed", icon: "fa-solid fa-server" },
   { id: "contracts", label: "Contracts", icon: "fa-regular fa-file-lines" },
   { id: "catalog", label: "Catalog", icon: "fa-solid fa-boxes-stacked" },
-  { id: "notifications", label: "Notifications", icon: "fa-regular fa-bell" },
+  { id: "notifications", label: "Notifications", icon: "fa-regular fa-bell", badge: true },
   { id: "helpdesk", label: "Helpdesk", icon: "fa-solid fa-headset" },
   { id: "reports", label: "Reports", icon: "fa-solid fa-chart-column" },
 ] as const;

@@ -158,6 +158,44 @@
   white-space: nowrap;
 }
 
+.mixedCartNotice {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.85rem;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.mixedCartNotice i {
+  margin-top: 0.15rem;
+  color: #2563eb;
+}
+
+.mixedCartNotice strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}
+
+.mixedCartNotice p {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #1e40af;
+}
+
+.heldQuoteHint {
+  margin: 0.35rem 0 0;
+  color: #b45309;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .removeIconBtn {
   border: none;
   background: transparent;

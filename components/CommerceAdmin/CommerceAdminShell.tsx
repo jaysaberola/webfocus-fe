@@ -15,6 +15,7 @@ type Props = {
 
 export default function CommerceAdminShell({ activeTab, onTabChange, user }: Props) {
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingQuotations, setPendingQuotations] = useState(0);
 
   const visibleTabs = useMemo(
     () => COMMERCE_ADMIN_TABS.filter((tab) => canAccessCommerceTab(user, tab.id as CommerceAdminTab)),
@@ -26,12 +27,14 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
     const cached = readCommerceDashboardCache();
     if (cached) {
       setPendingApprovals(cached.counts.pendingApprovals);
+      setPendingQuotations(cached.counts.pendingQuotations ?? 0);
     }
 
     getCommerceDashboardCached()
       .then((data) => {
         if (!alive) return;
         setPendingApprovals(data.counts.pendingApprovals);
+        setPendingQuotations(data.counts.pendingQuotations ?? 0);
       })
       .catch(() => {
         if (!alive) return;
@@ -49,7 +52,13 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
       <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;
-          const showBadge = "badge" in tab && tab.badge && pendingApprovals > 0;
+          const badgeCount =
+            tab.id === "approvals"
+              ? pendingApprovals
+              : tab.id === "notifications"
+                ? pendingQuotations
+                : 0;
+          const showBadge = "badge" in tab && tab.badge && badgeCount > 0;
           return (
             <button
               key={tab.id}
@@ -60,8 +69,8 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
               <i className={tab.icon} aria-hidden="true" />
               {tab.label}
               {showBadge ? (
-                <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
-                  {pendingApprovals > 9 ? "9+" : pendingApprovals}
+                <span className={styles.moduleTabBadge} aria-label={`${badgeCount} pending`}>
+                  {badgeCount > 9 ? "9+" : badgeCount}
                 </span>
               ) : null}
             </button>

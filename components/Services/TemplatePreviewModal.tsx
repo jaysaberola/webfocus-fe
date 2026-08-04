@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {
-  formatPeso,
   getWebDesignPackageById,
   type TemplateGroup,
   type WebsiteTemplate,
@@ -185,7 +184,7 @@ export default function TemplatePreviewModal({
           <div>
             <p className={styles.templatePreviewPackageLabel}>Recommended package</p>
             <strong>{packageInfo?.name || group.title}</strong>
-            {packageInfo ? <span>{`${formatPeso(packageInfo.price)} one-off`}</span> : null}
+            <span>Pending Quotation</span>
           </div>
           <div className={styles.templatePreviewFooterActions}>
             <button type="button" className={styles.secondaryBtn} onClick={onClose}>

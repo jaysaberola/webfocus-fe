@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import {
   cartCategoryLabel,
   cartCount,
-  cartSubtotal,
-  formatCartMoney,
+  formatCartItemPrice,
+  formatCartSubtotalLabel,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
@@ -56,7 +56,6 @@ export default function PublicCartDrawer() {
   }, [isOpen, closeDrawer]);
 
   const itemCount = cartCount(items);
-  const subtotal = cartSubtotal(items);
   const checkoutHref = isLoggedIn ? "/public/cart" : "/public/cart?signin=1";
   const staffBlockReason = getStaffCartBlockReason();
 
@@ -88,7 +87,7 @@ export default function PublicCartDrawer() {
                     <span className={styles.itemBadge}>{cartCategoryLabel(item.category)}</span>
                     <div className={styles.itemTopRow}>
                       <h3 className={styles.itemName}>{item.name}</h3>
-                      <span className={styles.itemPrice}>{formatCartMoney(item.price * item.qty)}</span>
+                      <span className={styles.itemPrice}>{formatCartItemPrice(item)}</span>
                     </div>
                     {item.detail && <p className={styles.itemDetail}>{item.detail}</p>}
                   </div>
@@ -110,7 +109,7 @@ export default function PublicCartDrawer() {
           <div className={styles.summaryRow}>
             <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
             <span>
-              Subtotal <strong>{formatCartMoney(subtotal)}</strong>
+              Subtotal <strong>{formatCartSubtotalLabel(items)}</strong>
             </span>
           </div>
 

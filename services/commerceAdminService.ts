@@ -13,6 +13,7 @@ function extractList<T>(payload: unknown): T[] {
 export type CommerceDashboardData = {
   counts: {
     pendingApprovals: number;
+    pendingQuotations?: number;
     openTickets: number;
     activeClients: number;
     activeServices: number;
@@ -101,6 +102,15 @@ export type CommerceNotificationAdminRow = {
   date: string;
   audience: string;
   status: string;
+  kind?: "broadcast" | "web_design_quotation";
+  email?: string | null;
+  transactionNo?: string | null;
+  actionUrl?: string | null;
+};
+
+export type CommerceNotificationsPayload = {
+  clientAlerts: CommerceNotificationAdminRow[];
+  broadcasts: CommerceNotificationAdminRow[];
 };
 
 export async function fetchCommerceDashboard() {
@@ -171,12 +181,27 @@ export async function fetchCommerceServices(status?: string, customerId?: number
   return extractList<CommerceServiceAdminRow>(res.data.data);
 }
 
-export async function fetchCommerceNotifications() {
+export async function fetchCommerceNotifications(): Promise<CommerceNotificationsPayload> {
   const res = await axiosInstance.get("/commerce-admin/notifications", {
     params: { per_page: 50 },
     headers: { "X-No-Loading": true },
   });
-  return extractList<CommerceNotificationAdminRow>(res.data.data);
+  const payload = res.data?.data;
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return {
+      clientAlerts: extractList<CommerceNotificationAdminRow>(
+        (payload as CommerceNotificationsPayload).clientAlerts
+      ),
+      broadcasts: extractList<CommerceNotificationAdminRow>(
+        (payload as CommerceNotificationsPayload).broadcasts
+      ),
+    };
+  }
+  // Legacy flat list = broadcasts only
+  return {
+    clientAlerts: [],
+    broadcasts: extractList<CommerceNotificationAdminRow>(payload),
+  };
 }
 
 export async function broadcastCommerceNotification(payload: { title: string; body: string }) {

@@ -32,7 +32,7 @@ export const WEBDESIGN_PAYMENT_METHODS = [
 ] as const;
 
 export function formatWebDesignSetupDetail(selection: WebDesignSetupSelection): string {
-  const parts: string[] = ["Agency Web Design"];
+  const parts: string[] = ["Agency Web Design", "Pending Quotation"];
 
   if (selection.templateLabel) {
     parts.push(`Template: ${selection.templateLabel}`);
