@@ -4,7 +4,12 @@ import { useRouter } from "next/router";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
+import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
+import {
+  customerNeedsCheckoutBillingAddress,
+  isCheckoutBillingValidationError,
+} from "@/lib/checkoutBillingAddress";
 import {
   cartCount,
   cartHasMixedCheckout,
@@ -22,7 +27,6 @@ import {
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
-  writePublicCart,
 } from "@/lib/publicCart";
 import {
   hasCheckoutAgreementAccepted,
@@ -71,6 +75,7 @@ export default function PublicCartCheckoutPage() {
   const [terms, setTerms] = useState<Record<string, number>>({});
   const [signInOpen, setSignInOpen] = useState(false);
   const [agreementOpen, setAgreementOpen] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customer, setCustomer] = useState<PublicCustomer | null>(null);
@@ -153,7 +158,7 @@ export default function PublicCartCheckoutPage() {
     markCheckoutAgreementAccepted(items);
   };
 
-  const handleProceedToPaynamics = async () => {
+  const handleProceedToPaynamics = async (customerOverride?: PublicCustomer) => {
     if (!items.length) return;
 
     if (!isLoggedIn) {
@@ -166,7 +171,8 @@ export default function PublicCartCheckoutPage() {
       return;
     }
 
-    const activeCustomer = customer ?? getStoredCustomer();
+    const activeCustomer =
+      customerOverride ?? getStoredCustomer() ?? customer;
     if (!activeCustomer) {
       setSignInOpen(true);
       return;
@@ -182,6 +188,12 @@ export default function PublicCartCheckoutPage() {
 
     if (mixedCheckout) {
       toast.info(MIXED_CART_WEB_DESIGN_NOTICE);
+    }
+
+    if (!quotationOnly && customerNeedsCheckoutBillingAddress(activeCustomer)) {
+      setBillingOpen(true);
+      toast.info("Add your billing address to continue to Paynamics.");
+      return;
     }
 
     const itemSummary = checkoutItems
@@ -210,7 +222,6 @@ export default function PublicCartCheckoutPage() {
           shipping_total: 0,
           payment_status: "pending",
           order_status: "pending",
-          transacted_at: new Date().toISOString(),
           items: checkoutItems.map((item) => ({
             product_id: item.id ?? null,
             name: item.name,
@@ -240,6 +251,49 @@ export default function PublicCartCheckoutPage() {
         return;
       }
 
+      // Mixed cart: submit web design as Pending Quotation for Sales, then pay other items.
+      let quotationOrderNo: string | null = null;
+      if (mixedCheckout && heldQuotationItems.length > 0) {
+        const quotationSummary = heldQuotationItems
+          .map((item) => {
+            return `${item.qty} x ${item.name} @ ${PENDING_QUOTATION_LABEL}${
+              item.detail ? ` (${item.detail})` : ""
+            }`;
+          })
+          .join("\n");
+
+        const quotationResult = await createSalesTransaction({
+          customer_id: activeCustomer.id,
+          customer_name:
+            `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+          customer_email: activeCustomer.email,
+          subtotal: 0,
+          discount_total: 0,
+          tax_total: 0,
+          shipping_total: 0,
+          payment_status: "pending",
+          order_status: "pending",
+          items: heldQuotationItems.map((item) => ({
+            product_id: item.id ?? null,
+            name: item.name,
+            item_type: "web_design",
+            price: 0,
+            quantity: item.qty,
+            total_price: 0,
+          })),
+          notes: [
+            "Web design quotation request",
+            WEB_DESIGN_PENDING_QUOTATION_MARKER,
+            "Submitted with mixed cart checkout (other services paid via Paynamics)",
+            "Notify: Customer Care / Sales",
+            "",
+            "Items:",
+            quotationSummary,
+          ].join("\n"),
+        });
+        quotationOrderNo = quotationResult?.data?.transaction_no ?? null;
+      }
+
       const result = await checkoutWithPaynamics({
         customer_id: activeCustomer.id,
         customer_name:
@@ -251,7 +305,6 @@ export default function PublicCartCheckoutPage() {
         shipping_total: 0,
         payment_status: "pending",
         order_status: "pending",
-        transacted_at: new Date().toISOString(),
         items: checkoutItems.map((item) => ({
           product_id: item.id ?? null,
           name: item.name,
@@ -264,7 +317,9 @@ export default function PublicCartCheckoutPage() {
           "Customer checkout order",
           "Payment gateway: Paynamics hosted portal",
           mixedCheckout
-            ? "Note: Web design Pending Quotation items were excluded and kept in the customer cart."
+            ? `Note: Web design Pending Quotation submitted to Sales${
+                quotationOrderNo ? ` (${quotationOrderNo})` : ""
+              }.`
             : null,
           "",
           "Items:",
@@ -279,11 +334,13 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      // Keep pending web design quotations in the cart after paying for other services.
-      writePublicCart(heldQuotationItems);
+      // Quotation already filed with Sales — clear cart (payable goes to Paynamics).
+      clearPublicCart();
       toast.success(
         mixedCheckout
-          ? "Opening payment for payable items. Web design Pending Quotation remains in your cart."
+          ? quotationOrderNo
+            ? `Web design quotation ${quotationOrderNo} sent to Sales. Opening payment for other items...`
+            : "Web design quotation sent to Sales. Opening payment for other items..."
           : "Redirecting to the secure Paynamics payment portal..."
       );
       window.location.assign(redirectUrl);
@@ -292,6 +349,14 @@ export default function PublicCartCheckoutPage() {
       const firstValidationError = validationErrors
         ? Object.values(validationErrors).flat().find(Boolean)
         : null;
+
+      if (!quotationOnly && isCheckoutBillingValidationError(validationErrors)) {
+        setBillingOpen(true);
+        toast.error(
+          "Complete your billing address (street, city, province, and ZIP) to continue checkout."
+        );
+        return;
+      }
 
       toast.error(
         String(
@@ -306,6 +371,12 @@ export default function PublicCartCheckoutPage() {
     } finally {
       setPlacingOrder(false);
     }
+  };
+
+  const handleBillingAddressSaved = (updated: PublicCustomer) => {
+    setCustomer(updated);
+    setBillingOpen(false);
+    void handleProceedToPaynamics(updated);
   };
 
   const handleSignInSuccess = () => {
@@ -355,7 +426,7 @@ export default function PublicCartCheckoutPage() {
               <div className={styles.mixedCartNotice} role="status">
                 <i className="fa-solid fa-circle-info" aria-hidden="true" />
                 <div>
-                  <strong>Web design stays in your cart</strong>
+                  <strong>Mixed cart checkout</strong>
                   <p>{MIXED_CART_WEB_DESIGN_NOTICE}</p>
                 </div>
               </div>
@@ -375,6 +446,7 @@ export default function PublicCartCheckoutPage() {
                 const months = terms[item.key] || 12;
                 const renewalYear =
                   new Date().getFullYear() + Math.ceil(months / 12);
+                const isWebDesign = isPendingQuotationCartItem(item);
 
                 return (
                   <article key={item.key} className={styles.itemCard}>
@@ -390,32 +462,40 @@ export default function PublicCartCheckoutPage() {
                         {getCartItemTitle(item)}
                       </h2>
 
-                      <div className={styles.termRow}>
-                        <select
-                          value={months}
-                          onChange={(event) =>
-                            setTerms((current) => ({
-                              ...current,
-                              [item.key]: Number(event.target.value),
-                            }))
-                          }
-                          aria-label={`Term for ${item.name}`}
-                        >
-                          {TERM_OPTIONS.map((option) => (
-                            <option
-                              key={option.months}
-                              value={option.months}
+                      {isWebDesign ? (
+                        <p className={styles.renewalNote}>
+                          One-time web design package · no renewal term
+                        </p>
+                      ) : (
+                        <>
+                          <div className={styles.termRow}>
+                            <select
+                              value={months}
+                              onChange={(event) =>
+                                setTerms((current) => ({
+                                  ...current,
+                                  [item.key]: Number(event.target.value),
+                                }))
+                              }
+                              aria-label={`Term for ${item.name}`}
                             >
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                              {TERM_OPTIONS.map((option) => (
+                                <option
+                                  key={option.months}
+                                  value={option.months}
+                                >
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                      <p className={styles.renewalNote}>
-                        Renews {months} months from purchase. Next renewal
-                        around {renewalYear}.
-                      </p>
+                          <p className={styles.renewalNote}>
+                            Renews {months} months from purchase. Next renewal
+                            around {renewalYear}.
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     <div className={styles.itemAside}>
@@ -458,9 +538,12 @@ export default function PublicCartCheckoutPage() {
               {heldQuotationItems.length > 0 ? (
                 <p className={styles.heldQuoteHint}>
                   {heldQuotationItems.length} web design item
-                  {heldQuotationItems.length === 1 ? "" : "s"} held as{" "}
+                  {heldQuotationItems.length === 1 ? "" : "s"} as{" "}
                   {PENDING_QUOTATION_LABEL}
-                  {mixedCheckout ? " (excluded from this checkout)" : ""}.
+                  {mixedCheckout
+                    ? " — will be sent to Sales when you checkout"
+                    : ""}
+                  .
                 </p>
               ) : null}
 
@@ -583,8 +666,14 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive && mixedCheckout ? (
                 <p className={styles.agreementHint}>
-                  Only non-web-design items will be charged now. Web design
-                  Pending Quotation remains in your cart.
+                  Payable services go to Paynamics. Web design is submitted to
+                  Sales as Pending Quotation for pricing.
+                </p>
+              ) : paymentStepActive &&
+                customerNeedsCheckoutBillingAddress(customer) ? (
+                <p className={styles.agreementHint}>
+                  You&apos;ll be asked for street, city, province, and ZIP before
+                  Paynamics opens.
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
@@ -617,6 +706,13 @@ export default function PublicCartCheckoutPage() {
         items={items}
         onClose={() => setAgreementOpen(false)}
         onAccept={handleAgreementContinueToPayment}
+      />
+
+      <CheckoutBillingAddressModal
+        open={billingOpen}
+        customer={customer}
+        onClose={() => setBillingOpen(false)}
+        onSaved={handleBillingAddressSaved}
       />
     </div>
   );

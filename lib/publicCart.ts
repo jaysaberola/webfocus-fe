@@ -174,7 +174,7 @@ export function cartHasMixedCheckout(items: PublicCartItem[]) {
 }
 
 export const MIXED_CART_WEB_DESIGN_NOTICE =
-  "Web Development / web design packages are Pending Quotation and will not be included in this checkout. They will remain in your cart for Customer Care to price.";
+  "Web design packages are Pending Quotation. They will be submitted to Sales for pricing, while your other services proceed to Paynamics payment.";
 
 export const cartCategoryLabel = (category?: string) => {
   const value = String(category || "Service").trim();

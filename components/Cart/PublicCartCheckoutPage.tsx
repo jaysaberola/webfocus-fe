@@ -278,6 +278,7 @@ export default function PublicCartCheckoutPage() {
               items.map((item) => {
                 const months = terms[item.key] || 12;
                 const renewalYear = new Date().getFullYear() + Math.ceil(months / 12);
+                const isWebDesign = isPendingQuotationCartItem(item);
                 return (
                   <article key={item.key} className={styles.itemCard}>
                     <div className={styles.itemIcon} aria-hidden="true">
@@ -287,28 +288,36 @@ export default function PublicCartCheckoutPage() {
                     <div className={styles.itemBody}>
                       <h2 className={styles.itemTitle}>{getCartItemTitle(item)}</h2>
 
-                      <div className={styles.termRow}>
-                        <select
-                          value={months}
-                          onChange={(event) =>
-                            setTerms((current) => ({
-                              ...current,
-                              [item.key]: Number(event.target.value),
-                            }))
-                          }
-                          aria-label={`Term for ${item.name}`}
-                        >
-                          {TERM_OPTIONS.map((option) => (
-                            <option key={option.months} value={option.months}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {isWebDesign ? (
+                        <p className={styles.renewalNote}>
+                          One-time web design package · no renewal term
+                        </p>
+                      ) : (
+                        <>
+                          <div className={styles.termRow}>
+                            <select
+                              value={months}
+                              onChange={(event) =>
+                                setTerms((current) => ({
+                                  ...current,
+                                  [item.key]: Number(event.target.value),
+                                }))
+                              }
+                              aria-label={`Term for ${item.name}`}
+                            >
+                              {TERM_OPTIONS.map((option) => (
+                                <option key={option.months} value={option.months}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                      <p className={styles.renewalNote}>
-                        Renews {months} months from purchase. Next renewal around {renewalYear}.
-                      </p>
+                          <p className={styles.renewalNote}>
+                            Renews {months} months from purchase. Next renewal around {renewalYear}.
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     <div className={styles.itemAside}>
