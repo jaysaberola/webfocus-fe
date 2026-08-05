@@ -29,6 +29,7 @@ import {
   runStudioRteAction,
 } from "./grapesStudioRteToolbar";
 import GrapesRteDocBar from "./GrapesRteDocBar";
+import { normalizePublicHref } from "@/lib/publicMenuLinks";
 
 type GrapesEditorProps = {
   value?: string;
@@ -2134,7 +2135,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             type: "text",
             name: "href",
             label: "URL",
-            placeholder: "https://example.com",
+            placeholder: "/public/about-us",
           },
           {
             type: "select",
@@ -2160,7 +2161,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             type: "text",
             name: "data-url",
             label: "URL",
-            placeholder: "https://example.com",
+            placeholder: "/public/contact-us",
           },
           {
             type: "select",
@@ -2248,13 +2249,32 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         return;
       }
 
+      const normalizedUrl = normalizePublicHref(url);
+      if (normalizedUrl !== url) {
+        component.addAttributes({ "data-url": normalizedUrl });
+      }
+
       const target = String(attrs["data-target"] || "").trim();
-      const escaped = JSON.stringify(url);
+      const escaped = JSON.stringify(normalizedUrl);
       const onClick = target === "_blank"
         ? `window.open(${escaped}, '_blank');`
         : `window.location.href=${escaped};`;
 
       component.addAttributes({ onclick: onClick });
+    });
+
+    editor.on("component:update:attributes:href", (component: any) => {
+      const tagName = String(component?.get?.("tagName") || "").toLowerCase();
+      if (tagName !== "a") return;
+
+      const attrs = component.getAttributes?.() || {};
+      const href = String(attrs.href || "").trim();
+      if (!href) return;
+
+      const normalized = normalizePublicHref(href);
+      if (normalized !== href) {
+        component.addAttributes({ href: normalized });
+      }
     });
 
     editor.on("component:update:attributes:data-target", (component: any) => {

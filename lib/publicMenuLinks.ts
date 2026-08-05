@@ -1,12 +1,84 @@
 import type { PublicMenuItem } from "@/services/publicPageService";
 
-/** Known dev/prod hosts saved in menu targets — strip to pathname at render time. */
-const KNOWN_MENU_HOSTS = new Set([
+/** Known dev/prod hosts saved in menu/footer targets — strip to pathname at render time. */
+const KNOWN_PUBLIC_HOSTS = new Set([
   "localhost",
   "127.0.0.1",
   "cms4-nextjs.vercel.app",
   "webfocus-fe.vercel.app",
 ]);
+
+const SKIP_HREF_PREFIX =
+  /^(#|mailto:|tel:|sms:|javascript:|data:|blob:)/i;
+
+/**
+ * Normalize CMS / Grapes / menu URLs so they work on any host.
+ * Examples:
+ * - https://webfocus-fe.vercel.app/public/about-us → /public/about-us
+ * - http://127.0.0.1:3000/public/services → /public/services
+ * - webfocus-fe.vercel.app/public/about-us → /public/about-us
+ * - public/about-us → /public/about-us
+ * - about-us → /public/about-us
+ */
+export function normalizePublicHref(href: string): string {
+  const target = String(href ?? "").trim();
+  if (!target) return "#";
+  if (SKIP_HREF_PREFIX.test(target)) return target;
+
+  if (target.startsWith("/") && !target.startsWith("//")) {
+    return target;
+  }
+
+  if (target.startsWith("//")) {
+    try {
+      return normalizeParsedUrl(new URL(`https:${target}`), `https:${target}`);
+    } catch {
+      return target;
+    }
+  }
+
+  try {
+    return normalizeParsedUrl(new URL(target), target);
+  } catch {
+    // Bare host without protocol: webfocus-fe.vercel.app/public/about-us
+    if (/^[a-z0-9.-]+\.[a-z]{2,}([/:?]|$)/i.test(target)) {
+      try {
+        return normalizeParsedUrl(new URL(`https://${target}`), `https://${target}`);
+      } catch {
+        // fall through
+      }
+    }
+
+    if (target.startsWith("public/")) {
+      return `/${target}`;
+    }
+
+    // Relative slug like "about-us" or "about" from the Grapes canvas
+    const clean = target.replace(/^\/+/, "");
+    if (clean && !clean.includes("://") && !clean.startsWith("?")) {
+      return `/public/${clean}`;
+    }
+
+    return `/${clean}`;
+  }
+}
+
+function normalizeParsedUrl(url: URL, fallback: string): string {
+  const host = url.hostname.toLowerCase();
+  const isKnownHost = KNOWN_PUBLIC_HOSTS.has(host);
+  const isPublicPath = url.pathname.startsWith("/public/");
+
+  if (isKnownHost || isPublicPath) {
+    return `${url.pathname || "/"}${url.search}${url.hash}`;
+  }
+
+  // External absolute URL — keep as-is
+  if (/^https?:$/i.test(url.protocol)) {
+    return fallback.startsWith("http") ? fallback : url.toString();
+  }
+
+  return `${url.pathname || "/"}${url.search}${url.hash}`;
+}
 
 /**
  * Menu items are stored with full URLs (e.g. http://127.0.0.1:3000/public/home).
@@ -17,23 +89,10 @@ export function resolvePublicMenuHref(item: Pick<PublicMenuItem, "type" | "targe
   if (!target) return "#";
 
   if (item.type !== "page") {
-    return target;
+    return normalizePublicHref(target);
   }
 
-  if (target.startsWith("/")) {
-    return target;
-  }
-
-  try {
-    const url = new URL(target);
-    if (KNOWN_MENU_HOSTS.has(url.hostname) || url.pathname.startsWith("/public/")) {
-      return url.pathname || "/";
-    }
-    return url.pathname.startsWith("/") ? url.pathname : `/${url.pathname}`;
-  } catch {
-    if (target.startsWith("public/")) return `/${target}`;
-    return `/public/${target.replace(/^\/+/, "")}`;
-  }
+  return normalizePublicHref(target);
 }
 
 /** Prefer relative paths when saving menu page items. */
@@ -49,4 +108,17 @@ export function buildPublicPageFullUrl(slug: string, frontendBase?: string | nul
     .trim()
     .replace(/\/$/, "");
   return base ? `${base}${path}` : path;
+}
+
+/** Rewrite every href in Grapes/HTML content to a host-safe public path. */
+export function rewritePublicHtmlHrefs(html: string): string {
+  if (!html) return "";
+
+  return html.replace(
+    /href\s*=\s*(["'])(.*?)\1/gi,
+    (_match, quote: string, rawHref: string) => {
+      const next = normalizePublicHref(rawHref);
+      return `href=${quote}${next}${quote}`;
+    }
+  );
 }

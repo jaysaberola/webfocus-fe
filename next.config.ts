@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["pptxgenjs", "grapesjs"],
 	devIndicators: false,
+  async redirects() {
+    return [
+      {
+        source: "/public/about",
+        destination: "/public/about-us",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

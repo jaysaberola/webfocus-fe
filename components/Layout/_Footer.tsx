@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { PublicFooter } from "@/services/publicPageService";
 import { getFooterCached, useStoredPublicFooter } from "@/lib/publicFooterCache";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
 
 function buildFooterHtml(footer: PublicFooter | null) {
   if (!footer) return "";
@@ -9,14 +10,19 @@ function buildFooterHtml(footer: PublicFooter | null) {
   const hasGrapesFields = Boolean(footer.grapes_html || footer.grapes_css || footer.grapes_js);
   const isGrapes = footer.content_type === "grapes" || hasGrapesFields;
 
-  if (!isGrapes) return footer.contents || "";
+  let html = "";
+  if (!isGrapes) {
+    html = footer.contents || "";
+  } else {
+    const parsed = extractGrapesParts(footer.contents || "");
+    html = composeContentFromGrapes({
+      grapes_html: (footer.grapes_html || "").trim() || parsed.grapes_html,
+      grapes_css: (footer.grapes_css || "").trim() || parsed.grapes_css,
+      grapes_js: (footer.grapes_js || "").trim() || parsed.grapes_js,
+    });
+  }
 
-  const parsed = extractGrapesParts(footer.contents || "");
-  return composeContentFromGrapes({
-    grapes_html: (footer.grapes_html || "").trim() || parsed.grapes_html,
-    grapes_css: (footer.grapes_css || "").trim() || parsed.grapes_css,
-    grapes_js: (footer.grapes_js || "").trim() || parsed.grapes_js,
-  });
+  return rewritePublicHtmlHrefs(html);
 }
 
 export default function LandingFooter() {

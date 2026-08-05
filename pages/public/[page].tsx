@@ -4,6 +4,7 @@ import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesConten
 import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
+import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
 import { useEffect, useLayoutEffect, useRef } from "react";
 
 interface PublicPageViewProps {
@@ -170,7 +171,7 @@ export async function getServerSideProps(context: any) {
   try {
     const res = await getPublicPageBySlug(page);
     const pageData = normalizeGrapesPageData(res.data);
-    const htmlContent = buildPublicPageHtml(pageData);
+    const htmlContent = rewritePublicHtmlHrefs(buildPublicPageHtml(pageData));
     const isGrapesPage =
       pageData?.content_type === "grapes" || Boolean(pageData?.grapes_html);
     // Home keeps the layout banner (MainBanner + domain search); other Grapes pages use their own hero.
@@ -185,6 +186,15 @@ export async function getServerSideProps(context: any) {
       },
     };
   } catch {
+    // Common CMS mistake: /public/about when the page slug is about-us
+    if (slug === "about") {
+      return {
+        redirect: {
+          destination: "/public/about-us",
+          permanent: false,
+        },
+      };
+    }
     return { notFound: true };
   }
 }
