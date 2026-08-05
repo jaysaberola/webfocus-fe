@@ -3042,11 +3042,37 @@
   border-top: 1px solid var(--ca-slate-100);
 }
 
+.broadcastHistoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
 .broadcastHistoryTitle {
-  margin: 0 0 0.85rem;
+  margin: 0;
   font-size: var(--ca-text-sm);
   font-weight: 700;
   color: var(--ca-slate-900);
+}
+
+.broadcastGrid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .broadcastGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .broadcastGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .broadcastCard {
@@ -3057,6 +3083,28 @@
   border: 1px solid var(--ca-slate-200);
   border-radius: 0.85rem;
   background: var(--ca-slate-50);
+}
+
+.broadcastCardGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.85rem;
+  background: var(--ca-slate-50);
+}
+
+.broadcastCardGrid h5 {
+  margin: 0;
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  color: var(--ca-slate-900);
+}
+
+.broadcastCardGrid .broadcastCardMeta {
+  margin-top: auto;
 }
 
 @media (min-width: 768px) {

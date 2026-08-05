@@ -746,33 +746,32 @@
 
 .notifTopBar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--cp-slate-100);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .notifTopBarTitle {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  flex-shrink: 0;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .notifTopBarTitle .panelTitle {
   margin: 0;
-  white-space: nowrap;
 }
 
 .notifSummaryInline {
   font-size: var(--cp-text-xs);
   color: var(--cp-slate-500);
-  white-space: nowrap;
 }
 
 .notifSummaryInline strong {
@@ -780,10 +779,56 @@
   font-weight: 700;
 }
 
+.notifTopBar .portalToolbarInner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  row-gap: 0.65rem;
+  column-gap: 0;
+}
+
+.notifTopBar .portalToolbarGroup {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.notifTopBar .portalToolbarGroup:has(.portalToolbarSearch) {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.notifTopBar .portalToolbarSearch {
+  width: 100%;
+  min-width: 0;
+  max-width: 12rem;
+}
+
 .notifList {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.notifGrid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+@media (min-width: 720px) {
+  .notifGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .notifGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .notifCard {
@@ -794,6 +839,68 @@
   border-radius: 1rem;
   background: var(--cp-slate-50);
   border: 1px solid var(--cp-slate-200);
+}
+
+.notifCardGrid {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.85rem;
+  height: 100%;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--cp-slate-50);
+  border: 1px solid var(--cp-slate-200);
+}
+
+.notifCardGrid .notifHead {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.notifCardGrid .notifCardActions {
+  margin-top: auto;
+}
+
+.notifCardGrid .unreadDot {
+  align-self: flex-start;
+}
+
+.notifPaginationBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  border-top: 1px solid var(--cp-slate-100);
+}
+
+@media (min-width: 640px) {
+  .notifPaginationBar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.notifPaginationInfo {
+  font-size: var(--cp-text-xs);
+  font-weight: 600;
+  color: var(--cp-slate-500);
+}
+
+.notifPaginationActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.notifPageIndicator {
+  min-width: 3.5rem;
+  text-align: center;
+  font-size: var(--cp-text-xs);
+  font-weight: 700;
+  color: var(--cp-slate-700);
 }
 
 .notifCardBody {
