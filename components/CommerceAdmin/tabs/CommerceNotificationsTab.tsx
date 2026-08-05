@@ -26,13 +26,18 @@ function NotificationCard({
   viewMode: ViewMode;
   onOpenTransactions?: () => void;
 }) {
+  const showAction = kind === "alert" && Boolean(onOpenTransactions);
+
   return (
     <article
-      className={
-        viewMode === "grid" ? styles.broadcastCardGrid : styles.broadcastCard
-      }
+      className={[
+        viewMode === "grid" ? styles.broadcastCardGrid : styles.broadcastCard,
+        showAction ? styles.broadcastCardWithAction : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <div>
+      <div className={styles.broadcastCardBody}>
         <h5>{row.title}</h5>
         <p className={styles.panelSubtitle}>{row.desc}</p>
         {(row.email || row.transactionNo) && (
@@ -42,11 +47,13 @@ function NotificationCard({
         )}
       </div>
       <div className={styles.broadcastCardMeta}>
-        <span className={kind === "alert" ? styles.badgePending : styles.badgePaid}>
-          {row.status}
-        </span>
-        <span className={styles.monoCell}>{row.date}</span>
-        {kind === "alert" && onOpenTransactions ? (
+        <div className={styles.broadcastCardMetaTop}>
+          <span className={kind === "alert" ? styles.badgePending : styles.badgePaid}>
+            {row.status}
+          </span>
+          <span className={styles.monoCell}>{row.date}</span>
+        </div>
+        {showAction ? (
           <button
             type="button"
             className={styles.primaryBtnSm}
@@ -212,50 +219,12 @@ export default function CommerceNotificationsTab({ onOpenTransactions }: Props) 
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Client Quotation Alerts</h3>
-          <p className={styles.panelSubtitle}>
-            Web design Pending Quotation checkouts from client portals appear here for Sales
-            pricing.
-          </p>
-        </div>
-        <ViewToggle viewMode={viewMode} onChange={setViewMode} />
-      </div>
-
-      <div className={styles.broadcastHistory} style={{ borderTop: "none", paddingTop: 0 }}>
-        {loading ? (
-          <p className={styles.emptyState}>Loading client quotation alerts...</p>
-        ) : clientAlerts.length === 0 ? (
-          <p className={styles.emptyState}>No pending web design quotation checkouts.</p>
-        ) : (
-          <>
-            <div className={listClass}>
-              {paginatedAlerts.map((row) => (
-                <NotificationCard
-                  key={`alert-${row.id}`}
-                  row={row}
-                  kind="alert"
-                  viewMode={viewMode}
-                  onOpenTransactions={onOpenTransactions}
-                />
-              ))}
-            </div>
-            <NotificationPagination
-              page={alertsPage}
-              totalItems={clientAlerts.length}
-              itemLabel="alerts"
-              onPageChange={setAlertsPage}
-            />
-          </>
-        )}
-      </div>
-
-      <div className={styles.panelHeader} style={{ marginTop: "1.75rem" }}>
-        <div>
           <h3 className={styles.panelTitle}>Broadcast System Notifications</h3>
           <p className={styles.panelSubtitle}>
             Send global maintenance alerts or notices to all client portals.
           </p>
         </div>
+        <ViewToggle viewMode={viewMode} onChange={setViewMode} />
       </div>
 
       <form className={styles.broadcastForm} onSubmit={handleBroadcast}>
@@ -288,7 +257,6 @@ export default function CommerceNotificationsTab({ onOpenTransactions }: Props) 
       <div className={styles.broadcastHistory}>
         <div className={styles.broadcastHistoryHeader}>
           <h4 className={styles.broadcastHistoryTitle}>Broadcast History</h4>
-          <ViewToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
         {loading ? (
           <p className={styles.emptyState}>Loading notification history...</p>
@@ -311,6 +279,44 @@ export default function CommerceNotificationsTab({ onOpenTransactions }: Props) 
               totalItems={broadcasts.length}
               itemLabel="broadcasts"
               onPageChange={setBroadcastsPage}
+            />
+          </>
+        )}
+      </div>
+
+      <div className={styles.panelHeader} style={{ marginTop: "1.75rem" }}>
+        <div>
+          <h3 className={styles.panelTitle}>Client Quotation Alerts</h3>
+          <p className={styles.panelSubtitle}>
+            Web design Pending Quotation checkouts from client portals appear here for Sales
+            pricing.
+          </p>
+        </div>
+      </div>
+
+      <div className={styles.broadcastHistory} style={{ borderTop: "none", paddingTop: 0 }}>
+        {loading ? (
+          <p className={styles.emptyState}>Loading client quotation alerts...</p>
+        ) : clientAlerts.length === 0 ? (
+          <p className={styles.emptyState}>No pending web design quotation checkouts.</p>
+        ) : (
+          <>
+            <div className={listClass}>
+              {paginatedAlerts.map((row) => (
+                <NotificationCard
+                  key={`alert-${row.id}`}
+                  row={row}
+                  kind="alert"
+                  viewMode={viewMode}
+                  onOpenTransactions={onOpenTransactions}
+                />
+              ))}
+            </div>
+            <NotificationPagination
+              page={alertsPage}
+              totalItems={clientAlerts.length}
+              itemLabel="alerts"
+              onPageChange={setAlertsPage}
             />
           </>
         )}

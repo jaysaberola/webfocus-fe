@@ -3076,13 +3076,18 @@
 }
 
 .broadcastCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
   padding: 0.85rem 1rem;
   border: 1px solid var(--ca-slate-200);
   border-radius: 0.85rem;
   background: var(--ca-slate-50);
+}
+
+.broadcastCardBody {
+  min-width: 0;
 }
 
 .broadcastCardGrid {
@@ -3096,6 +3101,11 @@
   background: var(--ca-slate-50);
 }
 
+.broadcastCardGrid .broadcastCardBody {
+  flex: 1;
+  min-width: 0;
+}
+
 .broadcastCardGrid h5 {
   margin: 0;
   font-size: var(--ca-text-sm);
@@ -3105,13 +3115,17 @@
 
 .broadcastCardGrid .broadcastCardMeta {
   margin-top: auto;
+  align-items: stretch;
 }
 
 @media (min-width: 768px) {
   .broadcastCard {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: minmax(0, 1fr) 12.5rem;
+    gap: 1rem;
+  }
+
+  .broadcastCardWithAction {
+    grid-template-columns: minmax(0, 1fr) 12.5rem;
   }
 }
 
@@ -3124,9 +3138,40 @@
 
 .broadcastCardMeta {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .broadcastCardMeta {
+    align-items: flex-end;
+    justify-content: center;
+    width: 12.5rem;
+  }
+}
+
+.broadcastCardMetaTop {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .broadcastCardMetaTop {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}
+
+.broadcastCardMeta .primaryBtnSm {
+  width: 100%;
+  max-width: 12.5rem;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .clientServiceBadge {
