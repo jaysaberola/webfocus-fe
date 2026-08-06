@@ -1,11 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/router";
-import { clearPayablePublicCartItems } from "@/lib/publicCart";
+import {
+  clearPayablePublicCartItems,
+  restorePublicCartFromCheckoutBackup,
+} from "@/lib/publicCart";
 import { toast } from "@/lib/toast";
 
 /**
  * Handles Paynamics browser return (?paynamics=...).
- * Cart is kept until payment is confirmed paid; Back from the gateway retains items.
+ * Cart (including priced services + Pending Quotation) is kept until payment is paid.
  */
 export default function PaynamicsReturnHandler() {
   const router = useRouter();
@@ -24,12 +27,16 @@ export default function PaynamicsReturnHandler() {
     if (status === "paid") {
       clearPayablePublicCartItems();
       toast.success("Payment received. Paid items were removed from your cart.");
-    } else if (status === "cancelled") {
-      toast.info("Payment cancelled. Your cart items are still saved.");
-    } else if (status === "failed" || status === "verification_failed") {
-      toast.error("Payment was not completed. Your cart items are still saved.");
     } else {
-      toast.info("Payment is still pending. Your cart items are still saved.");
+      // Cancel / fail / pending — restore full cart (priced + Pending Quotation).
+      restorePublicCartFromCheckoutBackup();
+      if (status === "cancelled") {
+        toast.info("Payment cancelled. Your cart items are still saved.");
+      } else if (status === "failed" || status === "verification_failed") {
+        toast.error("Payment was not completed. Your cart items are still saved.");
+      } else {
+        toast.info("Payment is still pending. Your cart items are still saved.");
+      }
     }
 
     const nextQuery = { ...router.query };
@@ -40,6 +47,16 @@ export default function PaynamicsReturnHandler() {
       { shallow: true }
     );
   }, [router, router.isReady, router.pathname, router.query]);
+
+  // Browser Back from Paynamics usually has no ?paynamics= — restore on pageshow.
+  useEffect(() => {
+    const onPageShow = () => {
+      restorePublicCartFromCheckoutBackup();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    restorePublicCartFromCheckoutBackup();
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   return null;
 }

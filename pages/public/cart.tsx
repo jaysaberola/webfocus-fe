@@ -29,6 +29,8 @@ import {
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
+  restorePublicCartFromCheckoutBackup,
+  stashPublicCartForCheckout,
   writePublicCart,
 } from "@/lib/publicCart";
 import {
@@ -94,6 +96,7 @@ export default function PublicCartCheckoutPage() {
   };
 
   const refreshCart = () => {
+    restorePublicCartFromCheckoutBackup();
     const nextItems = readPublicCart();
     setItems(nextItems);
     setAgreementAccepted(hasCheckoutAgreementAccepted(nextItems));
@@ -112,11 +115,14 @@ export default function PublicCartCheckoutPage() {
     window.addEventListener("public-cart-updated", refreshCart);
     window.addEventListener("public-customer-updated", refreshAuth);
     window.addEventListener("storage", refreshCart);
+    const onPageShow = () => refreshCart();
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       window.removeEventListener("public-cart-updated", refreshCart);
       window.removeEventListener("public-customer-updated", refreshAuth);
       window.removeEventListener("storage", refreshCart);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
@@ -386,18 +392,18 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      // Keep the full cart until Paynamics confirms payment (browser Back must retain items).
-      // Only mark web-design quotation rows as submitted when present.
-      if (heldQuotationItems.length > 0) {
-        writePublicCart(
-          markQuotationSubmittedCartItems(
-            items,
-            quotationOrderNo ||
-              heldQuotationItems.find((item) => item.quotationTransactionNo)
-                ?.quotationTransactionNo
-          )
-        );
-      }
+      // Keep the FULL cart (priced services + Pending Quotation) until payment succeeds.
+      // Snapshot survives browser Back from Paynamics.
+      const cartToKeep =
+        heldQuotationItems.length > 0
+          ? markQuotationSubmittedCartItems(
+              items,
+              quotationOrderNo ||
+                heldQuotationItems.find((item) => item.quotationTransactionNo)
+                  ?.quotationTransactionNo
+            )
+          : items;
+      stashPublicCartForCheckout(cartToKeep);
       toast.success(
         mixedCheckout
           ? quotationOrderNo

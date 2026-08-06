@@ -18,6 +18,8 @@ export type PublicCartItem = {
 };
 
 const CART_KEY = "cms4.publicCart.v1";
+/** Full cart snapshot while Paynamics checkout is in progress (survives browser Back). */
+const CHECKOUT_BACKUP_KEY = "cms4.publicCart.checkoutBackup.v1";
 
 export const PENDING_QUOTATION_LABEL = "Pending Quotation";
 
@@ -197,10 +199,79 @@ export function cartHeldQuotationItems(items: PublicCartItem[]) {
   return items.filter(isPendingQuotationCartItem);
 }
 
+function readCheckoutBackup(): PublicCartItem[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw =
+      sessionStorage.getItem(CHECKOUT_BACKUP_KEY) ||
+      localStorage.getItem(CHECKOUT_BACKUP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    return parsed.map((item) => normalizeCartItem(item as PublicCartItem));
+  } catch {
+    return null;
+  }
+}
+
+/** Snapshot the full cart before leaving for Paynamics so Back retains priced items. */
+export function stashPublicCartForCheckout(items: PublicCartItem[]) {
+  if (typeof window === "undefined") return;
+  const snapshot = items.map(normalizeCartItem);
+  const payload = JSON.stringify(snapshot);
+  try {
+    sessionStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+  } catch {
+    // ignore
+  }
+  // Always persist the full cart (payable + Pending Quotation) until payment succeeds.
+  writePublicCart(snapshot);
+}
+
+/** If checkout was abandoned (Back / Cancel), restore any missing priced items. */
+export function restorePublicCartFromCheckoutBackup(): PublicCartItem[] | null {
+  const backup = readCheckoutBackup();
+  if (!backup?.length) return null;
+
+  const current = readPublicCart();
+  const backupPayable = cartPayableItems(backup);
+  const currentPayable = cartPayableItems(current);
+
+  // Restore when priced services were wiped but still exist in the checkout snapshot.
+  const needsRestore =
+    backupPayable.length > 0 &&
+    (currentPayable.length < backupPayable.length || current.length < backup.length);
+
+  if (!needsRestore) return null;
+
+  writePublicCart(backup);
+  return backup;
+}
+
+export function clearPublicCartCheckoutBackup() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CHECKOUT_BACKUP_KEY);
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.removeItem(CHECKOUT_BACKUP_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /** Remove payable items after successful payment; keep Pending Quotation rows. */
 export function clearPayablePublicCartItems() {
   const remaining = cartHeldQuotationItems(readPublicCart());
   writePublicCart(remaining);
+  clearPublicCartCheckoutBackup();
   return remaining;
 }
 
