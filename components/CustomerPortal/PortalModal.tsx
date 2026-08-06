@@ -53,7 +53,11 @@ export default function PortalModal({
   const dialogClass = [styles.billingModal, dialogClassName].filter(Boolean).join(" ");
 
   return createPortal(
-    <div className={styles.billingModalOverlay} role="presentation" onClick={onClose}>
+    <div
+      className={`${styles.customerPortal} ${styles.billingModalOverlay}`}
+      role="presentation"
+      onClick={onClose}
+    >
       <div
         className={dialogClass}
         role="dialog"

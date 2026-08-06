@@ -67,11 +67,12 @@ const TONE_CLASS: Record<TabConfig["tone"], string> = {
 type Props = {
   activeTab: ServiceTab;
   onTabChange: (tab: ServiceTab) => void;
+  onTabPrefetch?: (tab: ServiceTab) => void;
 };
 
 export { TABS };
 
-export default function ServicesIntro({ activeTab, onTabChange }: Props) {
+export default function ServicesIntro({ activeTab, onTabChange, onTabPrefetch }: Props) {
   return (
     <header className={styles.intro}>
       <div className={styles.introAccent} aria-hidden="true" />
@@ -112,6 +113,8 @@ export default function ServicesIntro({ activeTab, onTabChange }: Props) {
                     .filter(Boolean)
                     .join(" ")}
                   onClick={() => onTabChange(tab.id)}
+                  onPointerEnter={() => onTabPrefetch?.(tab.id)}
+                  onFocus={() => onTabPrefetch?.(tab.id)}
                 >
                   <span className={styles.introTabIcon}>{tab.icon}</span>
                   <span className={styles.introTabLabel}>{tab.label}</span>

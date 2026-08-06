@@ -1,25 +1,16 @@
-import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import {
+  ensureCanvasOriginHints,
+  preloadTemplateImages,
+} from "@/lib/canvasPreviewWarmup";
+import { TEMPLATE_GROUPS } from "@/lib/servicesCatalog";
+import ServicesDomainsTab from "./ServicesDomainsTab";
+import ServicesDmsTab from "./ServicesDmsTab";
+import ServicesHostingTab from "./ServicesHostingTab";
 import ServicesIntro, { type ServiceTab } from "./ServicesIntro";
-import ServicesTabLoading from "./ServicesTabLoading";
+import ServicesWebDesignTab from "./ServicesWebDesignTab";
 import styles from "@/styles/services.module.css";
-
-const ServicesHostingTab = dynamic(() => import("./ServicesHostingTab"), {
-  loading: () => <ServicesTabLoading label="Loading hosting plans..." />,
-});
-
-const ServicesWebDesignTab = dynamic(() => import("./ServicesWebDesignTab"), {
-  loading: () => <ServicesTabLoading label="Loading web design templates..." />,
-});
-
-const ServicesDomainsTab = dynamic(() => import("./ServicesDomainsTab"), {
-  loading: () => <ServicesTabLoading label="Loading domain services..." />,
-});
-
-const ServicesDmsTab = dynamic(() => import("./ServicesDmsTab"), {
-  loading: () => <ServicesTabLoading label="Loading DMS services..." />,
-});
 
 const TAB_QUERY_MAP: Record<string, ServiceTab> = {
   hosting: "hosting",
@@ -48,10 +39,18 @@ export default function ServicesPage({ initialTab = "hosting" }: { initialTab?: 
     setActiveTab(resolveServiceTabFromQuery(router.query.tab));
   }, [router.isReady, router.query.tab]);
 
+  useEffect(() => {
+    if (initialTab !== "webdesign") return;
+    ensureCanvasOriginHints();
+    preloadTemplateImages(
+      TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((template) => template.image) ?? []
+    );
+  }, [initialTab]);
+
   const handleTabChange = (tab: ServiceTab) => {
     setActiveTab(tab);
     const nextQuery = tabToQuery(tab);
-    router.replace(
+    void router.replace(
       nextQuery ? { pathname: "/public/services", query: { tab: nextQuery } } : "/public/services",
       undefined,
       { shallow: true }

@@ -1,7 +1,13 @@
 import dynamic from "next/dynamic";
+import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TemplateSlideDirection } from "@/lib/templateNav";
+import {
+  ensureCanvasOriginHints,
+  preloadTemplateImages,
+  warmCanvasPreview,
+} from "@/lib/canvasPreviewWarmup";
 import {
   TEMPLATE_GROUPS,
   WEBDESIGN_PACKAGES,
@@ -36,7 +42,19 @@ export default function ServicesWebDesignTab() {
   const [previewSlideDirection, setPreviewSlideDirection] = useState<TemplateSlideDirection>("next");
   const [setupContext, setSetupContext] = useState<SetupContext | null>(null);
 
+  const firstPageImages = TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((t) => t.image) ?? [];
+
+  useEffect(() => {
+    ensureCanvasOriginHints();
+    preloadTemplateImages(
+      TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((template) => template.image) ?? []
+    );
+    // Prefetch preview modal chunk early so the first click feels instant.
+    void import("./TemplatePreviewModal");
+  }, []);
+
   const openPreview = (group: TemplateGroup, template: WebsiteTemplate) => {
+    warmCanvasPreview(template.previewUrl);
     setPreviewGroup(group);
     setPreviewTemplate(template);
   };
@@ -62,7 +80,14 @@ export default function ServicesWebDesignTab() {
     const total = previewGroup.templates.length;
     const nextIndex =
       direction === "next" ? (currentIndex + 1) % total : (currentIndex - 1 + total) % total;
-    setPreviewTemplate(previewGroup.templates[nextIndex]);
+    const nextTemplate = previewGroup.templates[nextIndex];
+    warmCanvasPreview(nextTemplate.previewUrl);
+    setPreviewTemplate(nextTemplate);
+
+    // Warm one more step ahead so consecutive Next clicks stay snappy.
+    const aheadIndex =
+      direction === "next" ? (nextIndex + 1) % total : (nextIndex - 1 + total) % total;
+    warmCanvasPreview(previewGroup.templates[aheadIndex].previewUrl);
   };
 
   const handlePreviewContinue = (packageName: string, packagePrice: number) => {
@@ -78,6 +103,14 @@ export default function ServicesWebDesignTab() {
 
   return (
     <div className={styles.tabPanel}>
+      <Head>
+        <link rel="dns-prefetch" href="https://projects.wsiph2.com" />
+        <link rel="preconnect" href="https://projects.wsiph2.com" crossOrigin="" />
+        {firstPageImages.map((href) => (
+          <link key={href} rel="preload" as="image" href={href} />
+        ))}
+      </Head>
+
       <div className={styles.webdesignWrap}>
         <section className={styles.webdesignHero} aria-label="Web design services overview">
           <div className={styles.webdesignHeroInner}>
@@ -96,7 +129,13 @@ export default function ServicesWebDesignTab() {
           </div>
 
           {TEMPLATE_GROUPS.map((group, groupIndex) => (
-            <DeferredMount key={group.title} eager={groupIndex === 0} minHeight={360}>
+            <DeferredMount
+              key={group.title}
+              eager={groupIndex === 0}
+              rootMargin={groupIndex === 0 ? "240px 0px" : "40px 0px"}
+              delayMs={groupIndex === 0 ? 0 : 450 * groupIndex}
+              minHeight={360}
+            >
               <section className={`${styles.webdesignTemplateGroup} ${styles.webdesignDeferredSection}`}>
                 <h4 className={styles.webdesignTemplateGroupTitle}>{group.title}</h4>
                 <TemplateCatalogCarousel
@@ -115,7 +154,7 @@ export default function ServicesWebDesignTab() {
             </DeferredMount>
           ))}
 
-          <DeferredMount minHeight={520} rootMargin="320px 0px">
+          <DeferredMount minHeight={520} rootMargin="200px 0px" delayMs={600}>
             <div className={`${styles.webdesignPackagesSection} ${styles.webdesignDeferredSection}`}>
               <div className={styles.webdesignSectionHead}>
                 <h3 className={styles.webdesignSectionTitle}>Agency Web Design Packages</h3>
@@ -177,7 +216,7 @@ export default function ServicesWebDesignTab() {
             </div>
           </DeferredMount>
 
-          <DeferredMount minHeight={220} rootMargin="280px 0px">
+          <DeferredMount minHeight={220} rootMargin="160px 0px" delayMs={800}>
             <section className={`${styles.webdesignCustomQuote} ${styles.webdesignDeferredSection}`}>
               <div className={styles.webdesignCustomQuoteCopy}>
                 <span>Bespoke Enterprise Integration</span>

@@ -1839,9 +1839,15 @@
   inset: 0;
   z-index: 2000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: clamp(1rem, 3vw, 1.5rem);
+  padding: max(0.75rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background: rgba(2, 24, 69, 0.42);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
@@ -1851,7 +1857,8 @@
 
 .billingModal {
   width: min(100%, 520px);
-  max-height: min(88vh, 760px);
+  max-height: min(calc(100dvh - 1.5rem), calc(100vh - 1.5rem), 760px);
+  margin: auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2070,7 +2077,10 @@
   justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
-  padding: 0.9rem 1.35rem 1.2rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 0.9rem 1.35rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
   margin-top: 0;
   border-top: 1px solid #eef2f7;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -2281,10 +2291,11 @@
 
 .billingModalForm {
   width: min(100%, 480px);
+  max-height: min(calc(100dvh - 1.5rem), calc(100vh - 1.5rem), 720px);
 }
 
 .billingModalActionsStacked {
-  padding: 1rem 1.35rem 1.25rem;
+  padding: 1rem 1.35rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
 }
 
 .billingModalActionsStacked .proofSubmitBtn {
@@ -2300,20 +2311,21 @@
   min-height: 2.75rem;
   height: 2.75rem;
   padding: 0 1.25rem;
-  border: 1px solid var(--cp-blue-dark) !important;
-  border-radius: var(--cp-radius-md);
-  background: var(--cp-blue) !important;
-  color: #fff !important;
+  border: 1px solid #1d4ed8 !important;
+  border-radius: var(--cp-radius-md, 0.625rem);
+  background: #2563eb !important;
+  color: #ffffff !important;
   font: inherit;
-  font-size: var(--cp-text-sm);
+  font-size: var(--cp-text-sm, 0.8125rem);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
 }
 
 .proofSubmitBtn:hover:not(:disabled) {
-  background: var(--cp-blue-dark) !important;
+  background: #1d4ed8 !important;
   border-color: #1e40af !important;
+  color: #ffffff !important;
 }
 
 .proofSubmitBtn:active:not(:disabled) {
@@ -2321,9 +2333,9 @@
 }
 
 .proofSubmitBtn:disabled {
-  background: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
-  color: #94a3b8 !important;
+  background: #e2e8f0 !important;
+  border-color: #cbd5e1 !important;
+  color: #64748b !important;
   cursor: not-allowed;
 }
 

@@ -5,6 +5,7 @@ import {
   type WebsiteTemplate,
 } from "@/lib/servicesCatalog";
 import { openCanvas7TemplatePreview } from "@/lib/canvasTemplateCatalog";
+import { warmCanvasPreview } from "@/lib/canvasPreviewWarmup";
 import {
   TEMPLATE_NAV_NEXT_ICON,
   TEMPLATE_NAV_PREV_ICON,
@@ -68,6 +69,17 @@ export default function TemplatePreviewModal({
   useEffect(() => {
     setFrameLoading(true);
   }, [template?.previewUrl]);
+
+  useEffect(() => {
+    if (!open || !group || !template) return;
+    const currentIndex = group.templates.findIndex((item) => item.id === template.id);
+    if (currentIndex < 0) return;
+    const total = group.templates.length;
+    const next = group.templates[(currentIndex + 1) % total];
+    const prev = group.templates[(currentIndex - 1 + total) % total];
+    if (next) warmCanvasPreview(next.previewUrl);
+    if (prev && prev.id !== next?.id) warmCanvasPreview(prev.previewUrl);
+  }, [open, group, template]);
 
   if (!open || !template || !group) return null;
 
@@ -162,6 +174,16 @@ export default function TemplatePreviewModal({
           >
             {frameLoading ? (
               <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
+                {template.image ? (
+                  <img
+                    src={template.image}
+                    alt=""
+                    className={styles.templatePreviewPoster}
+                    width={400}
+                    height={260}
+                    decoding="async"
+                  />
+                ) : null}
                 <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
                 <span>Loading live preview…</span>
               </div>
@@ -173,7 +195,7 @@ export default function TemplatePreviewModal({
                 frameLoading ? styles.templatePreviewFrameHidden : ""
               }`}
               src={template.previewUrl}
-              loading="lazy"
+              loading="eager"
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
               onLoad={() => setFrameLoading(false)}
             />

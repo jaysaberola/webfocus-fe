@@ -1538,7 +1538,7 @@
   object-fit: cover;
   display: block;
   opacity: 0;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.15s ease;
 }
 
 .templateCatalogImageLoaded {
@@ -2355,6 +2355,24 @@
   color: #475569;
   font-size: 0.8125rem;
   font-weight: 600;
+  overflow: hidden;
+}
+
+.templatePreviewPoster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.35;
+  filter: saturate(0.85);
+  pointer-events: none;
+}
+
+.templatePreviewFrameLoading > .templatePreviewFrameSpinner,
+.templatePreviewFrameLoading > span:not(.templatePreviewFrameSpinner) {
+  position: relative;
+  z-index: 1;
 }
 
 .templatePreviewFrameSpinner {

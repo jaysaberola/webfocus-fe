@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "@/styles/services.module.css";
 
 type TemplateCatalogImageProps = {
@@ -8,21 +8,33 @@ type TemplateCatalogImageProps = {
 };
 
 export default function TemplateCatalogImage({ src, alt, priority = false }: TemplateCatalogImageProps) {
+  const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+    setFailed(false);
+
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, [src]);
 
   return (
     <div className={styles.templateCatalogImageWrap}>
       {!loaded && !failed ? <span className={styles.templateCatalogImageSkeleton} aria-hidden="true" /> : null}
       {!failed ? (
         <img
+          ref={imgRef}
           src={src}
           alt={alt}
           width={400}
           height={260}
           loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          fetchPriority={priority ? "high" : "auto"}
+          decoding={priority ? "sync" : "async"}
+          fetchPriority={priority ? "high" : "low"}
           className={`${styles.templateCatalogImage} ${loaded ? styles.templateCatalogImageLoaded : ""}`}
           onLoad={() => setLoaded(true)}
           onError={() => {

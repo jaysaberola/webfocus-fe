@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TemplateGroup, WebsiteTemplate } from "@/lib/servicesCatalog";
+import { warmCanvasPreview } from "@/lib/canvasPreviewWarmup";
 import {
   TEMPLATE_CAROUSEL_NEXT_ICON,
   TEMPLATE_CAROUSEL_PREV_ICON,
@@ -66,8 +67,8 @@ export default function TemplateCatalogCarousel({
     };
 
     const hasIdleCallback = typeof window.requestIdleCallback === "function";
-    const idleId = hasIdleCallback ? window.requestIdleCallback(run, { timeout: 1200 }) : null;
-    const timeoutId = hasIdleCallback ? null : window.setTimeout(run, 250);
+    const idleId = hasIdleCallback ? window.requestIdleCallback(run, { timeout: 900 }) : null;
+    const timeoutId = hasIdleCallback ? null : window.setTimeout(run, 180);
 
     return () => {
       cancelled = true;
@@ -117,12 +118,14 @@ export default function TemplateCatalogCarousel({
                 type="button"
                 className={styles.templateCatalogButton}
                 onClick={() => onPreview(group, template)}
+                onPointerEnter={() => warmCanvasPreview(template.previewUrl)}
+                onFocus={() => warmCanvasPreview(template.previewUrl)}
                 aria-label={`Preview ${template.label} template`}
               >
                 <TemplateCatalogImage
                   src={template.image}
                   alt={template.alt}
-                  priority={priorityImages && pageIndex === 0 && index < 2}
+                  priority={priorityImages && pageIndex === 0 && index < PAGE_SIZE}
                 />
                 <div className={styles.templateCatalogFooter}>
                   <h5>{template.label}</h5>

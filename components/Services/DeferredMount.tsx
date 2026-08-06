@@ -5,6 +5,8 @@ type DeferredMountProps = {
   /** Keep first N sections mounted immediately for LCP. */
   eager?: boolean;
   rootMargin?: string;
+  /** Extra wait after intersecting so above-the-fold images keep bandwidth. */
+  delayMs?: number;
   minHeight?: number | string;
   className?: string;
 };
@@ -17,6 +19,7 @@ export default function DeferredMount({
   children,
   eager = false,
   rootMargin = "240px 0px",
+  delayMs = 0,
   minHeight = 280,
   className,
 }: DeferredMountProps) {
@@ -28,15 +31,27 @@ export default function DeferredMount({
     const node = ref.current;
     if (!node) return;
 
+    let timeoutId: number | null = null;
+
+    const reveal = () => {
+      if (delayMs <= 0) {
+        setVisible(true);
+        return;
+      }
+      timeoutId = window.setTimeout(() => setVisible(true), delayMs);
+    };
+
     if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
+      reveal();
+      return () => {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+      };
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setVisible(true);
+          reveal();
           observer.disconnect();
         }
       },
@@ -44,8 +59,11 @@ export default function DeferredMount({
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
-  }, [eager, visible, rootMargin]);
+    return () => {
+      observer.disconnect();
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [eager, visible, rootMargin, delayMs]);
 
   return (
     <div
