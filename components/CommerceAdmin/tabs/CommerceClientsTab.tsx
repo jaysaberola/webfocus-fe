@@ -128,9 +128,9 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
         }),
       );
       if (onTabChange) {
-        onTabChange("transactions");
+        onTabChange("orders");
       } else {
-        router.push(`${COMMERCE_ADMIN_PATH}?tab=transactions`);
+        router.push(`${COMMERCE_ADMIN_PATH}?tab=orders`);
       }
       return;
     }

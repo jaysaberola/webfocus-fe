@@ -401,7 +401,7 @@ export default function CommerceTransactionsTab() {
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>All Transactions &amp; Invoices</h3>
+          <h3 className={styles.panelTitle}>All Orders &amp; Invoices</h3>
           <p className={styles.panelSubtitle}>
             View and verify all financial invoices, payment gateway checkouts, and receipts.
           </p>
@@ -487,7 +487,7 @@ export default function CommerceTransactionsTab() {
       </div>
 
       {loading ? (
-        <p className={styles.emptyState}>Loading transactions...</p>
+        <p className={styles.emptyState}>Loading orders...</p>
       ) : viewMode === "list" ? (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -508,7 +508,7 @@ export default function CommerceTransactionsTab() {
             <tbody>
               {displayRows.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumnCount}>No transactions found matching filter.</td>
+                  <td colSpan={visibleColumnCount}>No orders found matching filter.</td>
                 </tr>
               ) : (
                 displayRows.map((row) => (
@@ -553,7 +553,7 @@ export default function CommerceTransactionsTab() {
       ) : (
         <div className={styles.txGrid}>
           {displayRows.length === 0 ? (
-            <p className={styles.emptyState}>No transactions found matching filter.</p>
+            <p className={styles.emptyState}>No orders found matching filter.</p>
           ) : (
             displayRows.map((row) => (
               <article key={row.id} className={styles.txGridCard}>

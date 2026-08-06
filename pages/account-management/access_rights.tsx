@@ -36,7 +36,7 @@ const ACCESS_RIGHTS_TABS: Array<{
     id: "commerce",
     label: "Commerce Control Center",
     icon: "fa-solid fa-store",
-    description: "Clients, transactions, approvals, catalog, notifications, helpdesk, and reports.",
+    description: "Clients, orders, approvals, notifications, helpdesk, and reports.",
   },
 ];
 

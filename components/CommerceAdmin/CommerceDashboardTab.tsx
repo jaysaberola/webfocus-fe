@@ -155,7 +155,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("transactions")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("orders")}>
                   View All New Orders
                 </button>
               </article>
@@ -237,7 +237,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("transactions")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("orders")}>
                   View All Overdue
                 </button>
               </article>

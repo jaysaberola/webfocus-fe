@@ -26,7 +26,6 @@ const COMMERCE_PORTAL_PERMISSIONS = [
   "commerce_approvals.view",
   "commerce_managed.view",
   "commerce_contracts.view",
-  "commerce_catalog.view",
   "commerce_notifications.view",
   "commerce_helpdesk.view",
   "reports.view",
@@ -91,11 +90,10 @@ export const COMMERCE_PORTAL_ITEM: CmsNavItem = {
 export const COMMERCE_TAB_PERMISSIONS: Record<CommerceAdminTab, string[]> = {
   dashboard: ["commerce_dashboard.view"],
   clients: ["customers.manage"],
-  transactions: ["sales_transactions.view", "sales_transactions.manage"],
+  orders: ["sales_transactions.view", "sales_transactions.manage"],
   approvals: ["commerce_approvals.view", "commerce_approvals.manage"],
   managed: ["commerce_managed.view", "commerce_managed.manage"],
   contracts: ["commerce_contracts.view", "commerce_contracts.manage"],
-  catalog: ["commerce_catalog.view", "commerce_catalog.manage", "products.manage"],
   notifications: ["commerce_notifications.view", "commerce_notifications.manage"],
   helpdesk: ["commerce_helpdesk.view", "commerce_helpdesk.create", "commerce_helpdesk.update", "commerce_helpdesk.delete"],
   reports: ["reports.view"],
@@ -133,9 +131,16 @@ export function getAccessibleCommerceTabs(user: unknown): CommerceAdminTab[] {
   );
 }
 
-export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab): CommerceAdminTab {
+export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab | string): CommerceAdminTab {
   const allowed = getAccessibleCommerceTabs(user);
   if (allowed.length === 0) return "dashboard";
-  if (requested && allowed.includes(requested)) return requested;
+
+  // Legacy query aliases from older bookmarks / notifications.
+  const normalized: CommerceAdminTab | undefined =
+    requested === "transactions" || requested === "catalog"
+      ? "orders"
+      : (requested as CommerceAdminTab | undefined);
+
+  if (normalized && allowed.includes(normalized)) return normalized;
   return allowed[0];
 }

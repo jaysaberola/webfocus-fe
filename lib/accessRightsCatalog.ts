@@ -7,7 +7,6 @@ const COMMERCE_PERMISSION_PREFIXES = new Set([
   "commerce_approvals",
   "commerce_managed",
   "commerce_contracts",
-  "commerce_catalog",
   "commerce_notifications",
   "commerce_helpdesk",
   "customers",

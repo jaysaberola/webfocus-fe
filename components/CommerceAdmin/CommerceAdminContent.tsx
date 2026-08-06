@@ -11,7 +11,6 @@ const CommerceManagedTab = dynamic(() => import("./tabs/CommerceManagedTab"));
 const CommerceContractsTab = dynamic(() => import("./tabs/CommerceContractsTab"));
 const CommerceNotificationsTab = dynamic(() => import("./tabs/CommerceNotificationsTab"));
 const CommerceHelpdeskTab = dynamic(() => import("./tabs/CommerceHelpdeskTab"));
-const CommerceCatalogTab = dynamic(() => import("./tabs/CommerceCatalogTab"));
 
 type Props = {
   activeTab: CommerceAdminTab;
@@ -45,7 +44,7 @@ export default function CommerceAdminContent({ activeTab, onTabChange }: Props) 
       return <CommerceDashboardTab onTabChange={onTabChange} />;
     case "clients":
       return <CommerceClientsTab onTabChange={onTabChange} />;
-    case "transactions":
+    case "orders":
       return <CommerceTransactionsTab />;
     case "approvals":
       return <CommerceApprovalsTab />;
@@ -53,10 +52,8 @@ export default function CommerceAdminContent({ activeTab, onTabChange }: Props) 
       return <CommerceManagedTab />;
     case "contracts":
       return <CommerceContractsTab />;
-    case "catalog":
-      return <CommerceCatalogTab />;
     case "notifications":
-      return <CommerceNotificationsTab onOpenTransactions={() => onTabChange("transactions")} />;
+      return <CommerceNotificationsTab onOpenOrders={() => onTabChange("orders")} />;
     case "helpdesk":
       return <CommerceHelpdeskTab />;
     case "reports":

@@ -8,7 +8,7 @@ import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
-  onOpenTransactions?: () => void;
+  onOpenOrders?: () => void;
 };
 
 type ViewMode = "list" | "grid";
@@ -19,14 +19,14 @@ function NotificationCard({
   row,
   kind,
   viewMode,
-  onOpenTransactions,
+  onOpenOrders,
 }: {
   row: CommerceNotificationAdminRow;
   kind: "alert" | "broadcast";
   viewMode: ViewMode;
-  onOpenTransactions?: () => void;
+  onOpenOrders?: () => void;
 }) {
-  const showAction = kind === "alert" && Boolean(onOpenTransactions);
+  const showAction = kind === "alert" && Boolean(onOpenOrders);
 
   return (
     <article
@@ -57,9 +57,9 @@ function NotificationCard({
           <button
             type="button"
             className={styles.primaryBtnSm}
-            onClick={onOpenTransactions}
+            onClick={onOpenOrders}
           >
-            Open Transactions
+            Open Orders
           </button>
         ) : null}
       </div>
@@ -145,7 +145,7 @@ function NotificationPagination({
   );
 }
 
-export default function CommerceNotificationsTab({ onOpenTransactions }: Props) {
+export default function CommerceNotificationsTab({ onOpenOrders }: Props) {
   const [clientAlerts, setClientAlerts] = useState<CommerceNotificationAdminRow[]>([]);
   const [broadcasts, setBroadcasts] = useState<CommerceNotificationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -308,7 +308,7 @@ export default function CommerceNotificationsTab({ onOpenTransactions }: Props) 
                   row={row}
                   kind="alert"
                   viewMode={viewMode}
-                  onOpenTransactions={onOpenTransactions}
+                  onOpenOrders={onOpenOrders}
                 />
               ))}
             </div>
