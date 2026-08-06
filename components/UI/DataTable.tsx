@@ -1,6 +1,7 @@
-import { ReactNode, useMemo, useState, useEffect } from "react";
+import { ReactNode, useMemo, useState, useEffect, useCallback } from "react";
 import type { CSSProperties } from "react";
 import { DEFAULT_CMS_TABLE_PAGE_SIZE } from "@/components/Modules/moduleTableUi";
+import { defaultAdminRowId } from "@/lib/useRowSelection";
 
 type SortOrder = "asc" | "desc";
 
@@ -41,6 +42,11 @@ interface DataTableProps<T> {
   onSortChange?: (sortBy: string, sortOrder: SortOrder) => void;
   actions?: ReactNode;
   entriesPlacement?: "bottom" | "top" | "none";
+  /** Multi-select checkboxes before the first data column (admin tables). Default: true */
+  selectable?: boolean;
+  getRowId?: (row: T, index: number) => string | number;
+  selectedIds?: string[];
+  onSelectionChange?: (ids: string[]) => void;
 }
 
 function buildPageList(current: number, total: number): (number | "ellipsis")[] {
@@ -75,6 +81,10 @@ export default function DataTable<T>({
   stickyHeader = false,
   actions,
   entriesPlacement = "bottom",
+  selectable = true,
+  getRowId,
+  selectedIds: controlledSelectedIds,
+  onSelectionChange,
 }: DataTableProps<T>) {
   const isServerPaginated =
     typeof currentPage === "number" &&
@@ -85,12 +95,17 @@ export default function DataTable<T>({
   const firstSortableField = sortableColumns[0]?.sortField ?? sortableColumns[0]?.key;
   const [localSortBy, setLocalSortBy] = useState<string | undefined>(firstSortableField);
   const [localSortOrder, setLocalSortOrder] = useState<SortOrder>("asc");
+  const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
 
   const effectiveSortBy = onSortChange ? sortBy : (sortBy ?? localSortBy);
   const effectiveSortOrder: SortOrder = onSortChange ? (sortOrder ?? "asc") : (sortOrder ?? localSortOrder);
+  const selectedIds = controlledSelectedIds ?? internalSelectedIds;
 
   const applySortChange = (nextBy: string, nextOrder: SortOrder) => {
-    if (onSortChange) { onSortChange(nextBy, nextOrder); return; }
+    if (onSortChange) {
+      onSortChange(nextBy, nextOrder);
+      return;
+    }
     setLocalSortBy(nextBy);
     setLocalSortOrder(nextOrder);
   };
@@ -106,7 +121,11 @@ export default function DataTable<T>({
     const label = getHeaderLabel(col);
     const active = (effectiveSortBy ?? "") === field;
     const order = active ? effectiveSortOrder : undefined;
-    const iconClass = !active ? "fas fa-sort" : order === "asc" ? "fas fa-sort-up" : "fas fa-sort-down";
+    const iconClass = !active
+      ? "fas fa-sort"
+      : order === "asc"
+        ? "fas fa-sort-up"
+        : "fas fa-sort-down";
     const defaultOrder: SortOrder = col.defaultSortOrder ?? "asc";
 
     return (
@@ -114,7 +133,10 @@ export default function DataTable<T>({
         type="button"
         className={`dt-sort-btn${active ? " is-active" : ""}`}
         onClick={() => {
-          if (active) { applySortChange(field, effectiveSortOrder === "asc" ? "desc" : "asc"); return; }
+          if (active) {
+            applySortChange(field, effectiveSortOrder === "asc" ? "desc" : "asc");
+            return;
+          }
           applySortChange(field, defaultOrder);
         }}
         aria-label={`Sort by ${label}`}
@@ -160,11 +182,13 @@ export default function DataTable<T>({
   const [clientPage, setClientPage] = useState(1);
   const [selectedItemsPerPage, setSelectedItemsPerPage] = useState(itemsPerPage);
 
-  useEffect(() => { setSelectedItemsPerPage(itemsPerPage); }, [itemsPerPage]);
+  useEffect(() => {
+    setSelectedItemsPerPage(itemsPerPage);
+  }, [itemsPerPage]);
 
-  const effectiveCurrentPage = isServerPaginated ? (currentPage || 1) : clientPage;
+  const effectiveCurrentPage = isServerPaginated ? currentPage || 1 : clientPage;
   const effectiveTotalPages = isServerPaginated
-    ? (totalPages || 1)
+    ? totalPages || 1
     : Math.max(1, Math.ceil(sortedData.length / selectedItemsPerPage));
 
   const clampPage = (p: number) => Math.min(Math.max(1, p), effectiveTotalPages);
@@ -182,11 +206,56 @@ export default function DataTable<T>({
         effectiveCurrentPage * selectedItemsPerPage
       );
 
+  const resolveRowId = useCallback(
+    (row: T, index: number) =>
+      String(getRowId ? getRowId(row, index) : defaultAdminRowId(row, index)),
+    [getRowId]
+  );
+
+  const pageIds = useMemo(
+    () => pageData.map((row, index) => resolveRowId(row, index)),
+    [pageData, resolveRowId]
+  );
+
+  const setSelected = useCallback(
+    (next: string[]) => {
+      if (controlledSelectedIds == null) setInternalSelectedIds(next);
+      onSelectionChange?.(next);
+    },
+    [controlledSelectedIds, onSelectionChange]
+  );
+
+  const allSelected =
+    pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+  const someSelected =
+    pageIds.some((id) => selectedIds.includes(id)) && !allSelected;
+
+  const toggleRow = (row: T, index: number) => {
+    const id = resolveRowId(row, index);
+    setSelected(
+      selectedIds.includes(id)
+        ? selectedIds.filter((entry) => entry !== id)
+        : [...selectedIds, id]
+    );
+  };
+
+  const toggleAll = () => {
+    setSelected(
+      allSelected
+        ? selectedIds.filter((id) => !pageIds.includes(id))
+        : Array.from(new Set([...selectedIds, ...pageIds]))
+    );
+  };
+
+  const colSpan = columns.length + (selectable ? 1 : 0);
+
   const safeTotal = Math.max(1, effectiveTotalPages);
   const safeCurrent = Math.min(Math.max(1, effectiveCurrentPage), safeTotal);
   const pageList = buildPageList(safeCurrent, safeTotal);
   const entriesOptions = [5, 10, 25, 50, 100];
-  const showBottomEntries = entriesPlacement === "bottom" && (!isServerPaginated || typeof onItemsPerPageChange === "function");
+  const showBottomEntries =
+    entriesPlacement === "bottom" &&
+    (!isServerPaginated || typeof onItemsPerPageChange === "function");
   const shouldRenderPaginationBlock = showBottomEntries || effectiveTotalPages > 1;
 
   const thPad: CSSProperties = { padding: "12px 16px" };
@@ -201,20 +270,33 @@ export default function DataTable<T>({
           const v = Number(e.target.value) || DEFAULT_CMS_TABLE_PAGE_SIZE;
           setSelectedItemsPerPage(v);
           if (!isServerPaginated) setClientPage(1);
-          if (isServerPaginated && typeof onItemsPerPageChange === "function") onItemsPerPageChange(v);
+          if (isServerPaginated && typeof onItemsPerPageChange === "function") {
+            onItemsPerPageChange(v);
+          }
         }}
       >
-        {entriesOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+        {entriesOptions.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
       </select>
       <span>entries</span>
     </div>
   );
 
+  const selectedCount = selectedIds.length;
+
   return (
     <>
-      {(entriesPlacement === "top" || actions) && (
+      {(entriesPlacement === "top" || actions || (selectable && selectedCount > 0)) && (
         <div className="dt-toolbar">
-          <div>{actions}</div>
+          <div className="dt-toolbar__left">
+            {actions}
+            {selectable && selectedCount > 0 ? (
+              <span className="dt-selection-count">{selectedCount} selected</span>
+            ) : null}
+          </div>
           <div>{entriesPlacement === "top" ? entriesControl : null}</div>
         </div>
       )}
@@ -236,6 +318,27 @@ export default function DataTable<T>({
         >
           <thead>
             <tr>
+              {selectable ? (
+                <th
+                  className="dt-select-col"
+                  style={{
+                    ...thPad,
+                    ...(stickyHeader ? { position: "sticky", top: 0, zIndex: 2 } : {}),
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    className="dt-select-checkbox"
+                    checked={allSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={toggleAll}
+                    disabled={loading || pageData.length === 0}
+                    aria-label="Select all rows on this page"
+                  />
+                </th>
+              ) : null}
               {columns.map((col) => (
                 <th
                   key={col.key}
@@ -256,58 +359,82 @@ export default function DataTable<T>({
           </thead>
 
           <tbody>
-            {loading && (
+            {loading &&
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={`sk-${i}`} className="dt-skeleton-row">
+                  {selectable ? (
+                    <td className="dt-select-col" style={tdPad}>
+                      <div className="dt-skeleton-bar" style={{ width: 16 }} />
+                    </td>
+                  ) : null}
                   {columns.map((col) => (
                     <td key={col.key} style={tdPad}>
                       <div
                         className="dt-skeleton-bar"
-                        style={{ width: col.key === "options" ? 80 : `${55 + (i * 7) % 30}%` }}
+                        style={{
+                          width: col.key === "options" ? 80 : `${55 + ((i * 7) % 30)}%`,
+                        }}
                       />
                     </td>
                   ))}
                 </tr>
-              ))
-            )}
+              ))}
 
             {!loading && pageData.length === 0 && (
               <tr>
-                <td colSpan={columns.length} className="dt-empty-state">
+                <td colSpan={colSpan} className="dt-empty-state">
                   <div className="dt-empty-state__icon">
                     <i className="fas fa-inbox" />
                   </div>
                   <div className="dt-empty-state__title">No records found</div>
-                  <div className="text-muted small mt-1">Try adjusting your search or filters.</div>
+                  <div className="text-muted small mt-1">
+                    Try adjusting your search or filters.
+                  </div>
                 </td>
               </tr>
             )}
 
-            {!loading && pageData.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={col.tdClassName}
-                    style={{
-                      ...tdPad,
-                      ...(col.width != null ? { width: col.width } : {}),
-                      ...(col.minWidth != null ? { minWidth: col.minWidth } : {}),
-                      ...(col.maxWidth != null ? { maxWidth: col.maxWidth } : {}),
-                      ...col.tdStyle,
-                    }}
-                  >
-                    {col.render ? col.render(row) : (row as any)[col.key]}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {!loading &&
+              pageData.map((row, rowIndex) => {
+                const rowId = resolveRowId(row, rowIndex);
+                const checked = selectedIds.includes(rowId);
+                return (
+                  <tr key={rowId} className={checked ? "dt-row-selected" : undefined}>
+                    {selectable ? (
+                      <td className="dt-select-col" style={tdPad}>
+                        <input
+                          type="checkbox"
+                          className="dt-select-checkbox"
+                          checked={checked}
+                          onChange={() => toggleRow(row, rowIndex)}
+                          aria-label={`Select row ${rowId}`}
+                        />
+                      </td>
+                    ) : null}
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={col.tdClassName}
+                        style={{
+                          ...tdPad,
+                          ...(col.width != null ? { width: col.width } : {}),
+                          ...(col.minWidth != null ? { minWidth: col.minWidth } : {}),
+                          ...(col.maxWidth != null ? { maxWidth: col.maxWidth } : {}),
+                          ...col.tdStyle,
+                        }}
+                      >
+                        {col.render ? col.render(row) : (row as any)[col.key]}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
 
       {shouldRenderPaginationBlock && (
-        <div className="dt-footer" data-cms-tour="module-pagination">
+        <div className="dt-footer" data-cms-token="module-pagination">
           <div>{showBottomEntries && entriesControl}</div>
 
           <nav aria-label="Pagination">
@@ -326,7 +453,9 @@ export default function DataTable<T>({
               {safeTotal <= 7 ? (
                 pageList.map((p, idx) =>
                   p === "ellipsis" ? (
-                    <span key={`e-${idx}`} className="dt-pg-info" style={{ padding: "0 8px" }}>…</span>
+                    <span key={`e-${idx}`} className="dt-pg-info" style={{ padding: "0 8px" }}>
+                      …
+                    </span>
                   ) : (
                     <button
                       key={p}
@@ -341,7 +470,9 @@ export default function DataTable<T>({
                   )
                 )
               ) : (
-                <span className="dt-pg-info">{safeCurrent} / {safeTotal}</span>
+                <span className="dt-pg-info">
+                  {safeCurrent} / {safeTotal}
+                </span>
               )}
 
               <button

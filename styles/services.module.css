@@ -7,80 +7,83 @@
     #f4f7fb;
 }
 
-/* Intro — compact header + icon tabs */
+/* Intro — professional catalogue header */
 .intro {
   position: relative;
   margin-bottom: 1.75rem;
-  border-radius: 1.25rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 1.15rem;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 16px 40px rgba(15, 23, 42, 0.07);
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 12px 32px rgba(15, 23, 42, 0.05);
   overflow: hidden;
 }
 
 .introAccent {
-  height: 5px;
-  background: linear-gradient(90deg, #021845 0%, #2563eb 42%, #ea580c 100%);
+  height: 3px;
+  background: linear-gradient(90deg, #021845 0%, #2563eb 55%, #ea580c 100%);
 }
 
 .introGlow {
-  position: absolute;
-  top: -60px;
-  right: -40px;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.1) 0%, transparent 68%);
-  pointer-events: none;
+  display: none;
 }
 
 .introBody {
   position: relative;
   z-index: 1;
-  padding: 1.5rem 1.5rem 1.35rem;
+  padding: 1.35rem 1.4rem 1.4rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.15rem;
 }
 
 .introCopy {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.65rem 1.5rem;
+  gap: 0.85rem 1.5rem;
 }
 
 .introTitleRow {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.45rem;
+  gap: 0.4rem;
+  max-width: 36rem;
 }
 
 .introBadge {
   display: inline-flex;
-  padding: 0.28rem 0.65rem;
+  padding: 0.22rem 0.58rem;
   border-radius: 9999px;
-  background: rgba(234, 88, 12, 0.1);
-  border: 1px solid rgba(234, 88, 12, 0.22);
-  color: #c2410c;
+  background: rgba(2, 24, 69, 0.05);
+  border: 1px solid rgba(2, 24, 69, 0.1);
+  color: #334155;
   font-size: 0.5625rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .introTitle {
   margin: 0;
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(1.65rem, 3vw, 2rem);
+  font-size: clamp(1.55rem, 2.8vw, 1.9rem);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: #0f172a;
-  line-height: 1;
+  line-height: 1.05;
+}
+
+.introLead {
+  margin: 0.1rem 0 0;
+  max-width: 28rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .introQuoteBtn {
@@ -88,42 +91,32 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   flex-shrink: 0;
-  padding: 0.9rem 1.55rem 0.9rem 1.65rem;
+  margin-top: 0.15rem;
+  padding: 0.9rem 1.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  background:
-    linear-gradient(135deg, #021845 0%, #1d4ed8 42%, #2563eb 100%);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: linear-gradient(135deg, #021845 0%, #1d4ed8 45%, #2563eb 100%);
   color: #ffffff;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   line-height: 1;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
   box-shadow:
-    0 12px 28px rgba(37, 99, 235, 0.38),
-    0 0 0 1px rgba(37, 99, 235, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  animation: introQuoteGlow 2.6s ease-in-out infinite;
+    0 10px 24px rgba(37, 99, 235, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition:
-    transform 0.28s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.28s ease,
-    background 0.28s ease;
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s ease,
+    background 0.25s ease;
 }
 
 .introQuoteBtn::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, #2563eb 0%, #ea580c 100%);
-  opacity: 0.55;
-  z-index: -1;
-  filter: blur(8px);
-  transition: opacity 0.28s ease;
+  display: none;
 }
 
 .introQuoteBtnLabel {
@@ -137,33 +130,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
-  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), background 0.28s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
 }
 
 .introQuoteBtnIcon svg {
-  width: 0.85rem;
-  height: 0.85rem;
+  width: 0.8rem;
+  height: 0.8rem;
 }
 
 .introQuoteBtn:hover,
 .introQuoteBtn:focus-visible {
   color: #ffffff;
-  transform: translateY(-2px) scale(1.02);
-  background: linear-gradient(135deg, #021845 0%, #1e40af 38%, #1d4ed8 100%);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #021845 0%, #1e40af 40%, #1d4ed8 100%);
   box-shadow:
-    0 18px 36px rgba(37, 99, 235, 0.45),
-    0 0 0 1px rgba(37, 99, 235, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+    0 14px 30px rgba(37, 99, 235, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
   text-decoration: none;
-}
-
-.introQuoteBtn:hover::before,
-.introQuoteBtn:focus-visible::before {
-  opacity: 0.85;
 }
 
 .introQuoteBtn:hover .introQuoteBtnIcon,
@@ -172,110 +159,169 @@
   background: rgba(255, 255, 255, 0.28);
 }
 
-@keyframes introQuoteGlow {
-  0%,
-  100% {
-    box-shadow:
-      0 12px 28px rgba(37, 99, 235, 0.38),
-      0 0 0 0 rgba(234, 88, 12, 0),
-      inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  }
-
-  50% {
-    box-shadow:
-      0 16px 34px rgba(37, 99, 235, 0.48),
-      0 0 0 6px rgba(234, 88, 12, 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.22);
-  }
-}
-
 .introTabsShell {
-  padding: 0.4rem;
-  border-radius: 1rem;
-  background: rgba(226, 232, 240, 0.55);
-  border: 1px solid rgba(203, 213, 225, 0.65);
+  position: relative;
+  padding: 0.55rem;
+  border-radius: 0.95rem;
+  background: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  overflow: visible;
 }
 
 .introTabs {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
+  gap: 0.5rem;
+  perspective: 1000px;
+  transform-style: preserve-3d;
 }
 
 .introTab {
+  position: relative;
+  display: block;
+  min-height: 7rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform-style: preserve-3d;
+}
+
+.introTabCard {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  min-height: 5.5rem;
-  padding: 0.75rem 0.45rem 0.85rem;
-  border: none;
-  border-radius: 0.75rem;
+  width: 100%;
+  min-height: 7rem;
+  padding: 0.95rem 0.5rem 1.05rem;
+  border-radius: 0.8rem;
+  border: 1px solid transparent;
   background: transparent;
-  cursor: pointer;
+  box-shadow: none;
+  transform: translateZ(0);
+  transform-style: preserve-3d;
   transition:
-    background 0.22s ease,
-    transform 0.22s ease,
-    box-shadow 0.22s ease;
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.35s ease,
+    border-color 0.25s ease,
+    background 0.25s ease;
 }
 
-.introTab:hover {
-  background: rgba(255, 255, 255, 0.72);
+.introTabIdle .introTabCard {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.introTabIdle:hover .introTabCard {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
+  transform: translateY(-2px) translateZ(8px);
 }
 
 .introTabActive {
-  background: #ffffff;
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 8px 22px rgba(15, 23, 42, 0.08);
-  transform: translateY(-2px);
+  z-index: 3;
 }
 
-.introTabIcon {
+.introTabActive .introTabCard {
+  background: #ffffff;
+  border-color: rgba(2, 24, 69, 0.14);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 10px 24px rgba(15, 23, 42, 0.1),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+  animation: introTabLift 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform: translateY(-3px) translateZ(18px) scale(1.015);
+}
+
+.introTabIconWell {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.7rem;
-  transition: background 0.22s ease, color 0.22s ease, transform 0.22s ease;
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 6px 14px rgba(15, 23, 42, 0.06);
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.35s ease,
+    background 0.25s ease,
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.introTabActive .introTabIconWell {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 10px 18px rgba(37, 99, 235, 0.12);
+  transform: translateZ(10px);
+}
+
+.introTabIcon {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.85rem;
+  height: 2.85rem;
+  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.12));
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
 }
 
 .introTabActive .introTabIcon {
-  transform: scale(1.05);
+  transform: scale(1.06);
+  filter: drop-shadow(0 8px 12px rgba(15, 23, 42, 0.16));
+  animation: introTabIconPop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.introTabIcon svg {
-  width: 1.2rem;
-  height: 1.2rem;
+.introTabIconImg {
+  width: 2.7rem !important;
+  height: 2.7rem !important;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
 }
 
 .introTabLabel {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  color: #475569;
+  position: relative;
+  z-index: 1;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #64748b;
   text-align: center;
   line-height: 1.2;
+  transition: color 0.25s ease;
 }
 
 .introTabActive .introTabLabel {
   color: #0f172a;
+  font-weight: 700;
 }
 
 .introTabIndicator {
   position: absolute;
-  bottom: 0.45rem;
+  bottom: 0.55rem;
   left: 50%;
-  transform: translateX(-50%) scaleX(0.4);
   width: 1.25rem;
-  height: 3px;
+  height: 2.5px;
   border-radius: 9999px;
   background: currentColor;
   opacity: 0;
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  transform: translateX(-50%) scaleX(0.35);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .introTabActive .introTabIndicator {
@@ -283,20 +329,85 @@
   transform: translateX(-50%) scaleX(1);
 }
 
-.introTab_blue .introTabIcon { background: #dbeafe; color: #1d4ed8; }
-.introTab_violet .introTabIcon { background: #ede9fe; color: #6d28d9; }
-.introTab_emerald .introTabIcon { background: #d1fae5; color: #047857; }
-.introTab_amber .introTabIcon { background: #ffedd5; color: #c2410c; }
+.introTab_blue { color: #1d4ed8; }
+.introTab_violet { color: #6d28d9; }
+.introTab_emerald { color: #047857; }
+.introTab_amber { color: #c2410c; }
 
-.introTab_blue { color: #2563eb; }
-.introTab_violet { color: #7c3aed; }
-.introTab_emerald { color: #059669; }
-.introTab_amber { color: #ea580c; }
+.introTab_blue.introTabActive .introTabCard {
+  border-color: rgba(29, 78, 216, 0.22);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 12px 26px rgba(37, 99, 235, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+.introTab_violet.introTabActive .introTabCard {
+  border-color: rgba(109, 40, 217, 0.22);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 12px 26px rgba(124, 58, 237, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+.introTab_emerald.introTabActive .introTabCard {
+  border-color: rgba(4, 120, 87, 0.22);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 12px 26px rgba(5, 150, 105, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+.introTab_amber.introTabActive .introTabCard {
+  border-color: rgba(194, 65, 12, 0.22);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 12px 26px rgba(234, 88, 12, 0.14),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
 
-.introTab_blue.introTabActive .introTabIcon { background: #2563eb; color: #fff; }
-.introTab_violet.introTabActive .introTabIcon { background: #7c3aed; color: #fff; }
-.introTab_emerald.introTabActive .introTabIcon { background: #059669; color: #fff; }
-.introTab_amber.introTabActive .introTabIcon { background: #ea580c; color: #fff; }
+.introTab_blue.introTabActive .introTabIconWell {
+  border-color: rgba(37, 99, 235, 0.2);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 10px 18px rgba(37, 99, 235, 0.12);
+}
+.introTab_violet.introTabActive .introTabIconWell {
+  border-color: rgba(124, 58, 237, 0.2);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 10px 18px rgba(124, 58, 237, 0.12);
+}
+.introTab_emerald.introTabActive .introTabIconWell {
+  border-color: rgba(5, 150, 105, 0.2);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 10px 18px rgba(5, 150, 105, 0.12);
+}
+.introTab_amber.introTabActive .introTabIconWell {
+  border-color: rgba(234, 88, 12, 0.2);
+  box-shadow:
+    0 1px 0 #fff inset,
+    0 10px 18px rgba(234, 88, 12, 0.12);
+}
+
+@keyframes introTabLift {
+  0% {
+    transform: translateY(2px) translateZ(0) scale(0.985);
+  }
+  100% {
+    transform: translateY(-3px) translateZ(18px) scale(1.015);
+  }
+}
+
+@keyframes introTabIconPop {
+  0% {
+    transform: scale(0.94);
+  }
+  65% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1.06);
+  }
+}
 
 .tabContent {
   min-height: 28rem;
@@ -312,8 +423,13 @@
     animation: none;
   }
 
-  .introTabActive {
+  .introTabIdle .introTabCard,
+  .introTabIdle:hover .introTabCard,
+  .introTabActive .introTabCard,
+  .introTabActive .introTabIcon,
+  .introTabActive .introTabIconWell {
     transform: none;
+    animation: none;
   }
 }
 
@@ -1651,6 +1767,143 @@
   color: #64748b;
 }
 
+/* ── 3D coverflow template carousel ─────────────────────────── */
+
+.templateCoverflow {
+  width: 100%;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.templateCoverflowViewport {
+  position: relative;
+  width: 100%;
+  height: clamp(18rem, 40vw, 23rem);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e8eef6 100%);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  perspective: 1200px;
+}
+
+.templateCoverflowTrack {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.templateCoverflowCard {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(72%, 28rem);
+  border-radius: 0.85rem;
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  transform-origin: center center;
+  transition:
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease,
+    box-shadow 0.45s ease;
+  will-change: transform, opacity;
+}
+
+.templateCoverflowCardActive {
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.18),
+    0 4px 12px rgba(37, 99, 235, 0.12);
+}
+
+.templateCoverflowButton {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: inherit;
+  color: inherit;
+}
+
+.templateCoverflowButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.templateCoverflowButton > div:first-child {
+  aspect-ratio: 16 / 10;
+}
+
+.templateCoverflowFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+}
+
+.templateCoverflowFooter h5 {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.templateCoverflowFooter span {
+  flex-shrink: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.templateCoverflowNav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #2563eb;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  transform: translateY(-50%);
+  transition: color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.templateCoverflowNavPrev {
+  left: 0.65rem;
+}
+
+.templateCoverflowNavNext {
+  right: 0.65rem;
+}
+
+.templateCoverflowNav:hover {
+  color: #1d4ed8;
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.06);
+}
+
+.templateCoverflowNav:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
 .webdesignPackagesSection {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
@@ -2086,10 +2339,16 @@
 
   .introTabs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
   }
 
-  .introTab {
-    min-height: 5rem;
+  .introTab,
+  .introTabCard {
+    min-height: 6.35rem;
+  }
+
+  .introTabActive .introTabCard {
+    transform: translateY(-2px) translateZ(10px) scale(1.01);
   }
 }
 
@@ -2936,6 +3195,39 @@
 
   .templateCatalogCarouselNav {
     font-size: 1.75rem;
+  }
+
+  .templateCoverflowViewport {
+    height: clamp(16rem, 62vw, 19rem);
+  }
+
+  .templateCoverflowCard {
+    width: min(78%, 19rem);
+  }
+
+  .templateCoverflowNav {
+    width: 2rem;
+    height: 2rem;
+    font-size: 1.2rem;
+  }
+
+  .templateCoverflowNavPrev {
+    left: 0.4rem;
+  }
+
+  .templateCoverflowNavNext {
+    right: 0.4rem;
+  }
+
+  .templateCoverflowFooter {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.15rem;
+    padding: 0.45rem 0.6rem;
+  }
+
+  .templateCoverflowFooter h5 {
+    font-size: 0.6875rem;
   }
 
   .setupWizardHeader,

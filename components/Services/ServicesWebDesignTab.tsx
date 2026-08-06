@@ -9,7 +9,7 @@ import {
   warmCanvasPreview,
 } from "@/lib/canvasPreviewWarmup";
 import {
-  TEMPLATE_GROUPS,
+  ALL_WEBSITE_TEMPLATES_GROUP,
   WEBDESIGN_PACKAGES,
   type TemplateGroup,
   type WebsiteTemplate,
@@ -42,12 +42,12 @@ export default function ServicesWebDesignTab() {
   const [previewSlideDirection, setPreviewSlideDirection] = useState<TemplateSlideDirection>("next");
   const [setupContext, setSetupContext] = useState<SetupContext | null>(null);
 
-  const firstPageImages = TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((t) => t.image) ?? [];
+  const firstPageImages = ALL_WEBSITE_TEMPLATES_GROUP.templates.slice(0, 5).map((t) => t.image);
 
   useEffect(() => {
     ensureCanvasOriginHints();
     preloadTemplateImages(
-      TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((template) => template.image) ?? []
+      ALL_WEBSITE_TEMPLATES_GROUP.templates.slice(0, 5).map((template) => template.image)
     );
     // Prefetch preview modal chunk early so the first click feels instant.
     void import("./TemplatePreviewModal");
@@ -123,36 +123,20 @@ export default function ServicesWebDesignTab() {
           <div className={styles.webdesignSectionHead}>
             <h3 className={styles.webdesignSectionTitle}>Website Templates</h3>
             <p className={styles.webdesignSectionHint}>
-              Browse Canvas 7 portfolio sample designs for Business Starter Launch. Use previous and
-              next to explore templates, then click preview to view the live layout.
+              Explore ready-made website templates. The carousel advances automatically — use the
+              arrows anytime, or click the center design to preview.
             </p>
           </div>
 
-          {TEMPLATE_GROUPS.map((group, groupIndex) => (
-            <DeferredMount
-              key={group.title}
-              eager={groupIndex === 0}
-              rootMargin={groupIndex === 0 ? "240px 0px" : "40px 0px"}
-              delayMs={groupIndex === 0 ? 0 : 450 * groupIndex}
-              minHeight={360}
-            >
-              <section className={`${styles.webdesignTemplateGroup} ${styles.webdesignDeferredSection}`}>
-                <h4 className={styles.webdesignTemplateGroupTitle}>{group.title}</h4>
-                <TemplateCatalogCarousel
-                  group={group}
-                  onPreview={openPreview}
-                  priorityImages={groupIndex === 0}
-                  counterLabel={
-                    group.packageId === "design-ecommerce"
-                      ? "eCommerce templates"
-                      : group.packageId === "design-corporate"
-                        ? "listing templates"
-                        : "portfolio templates"
-                  }
-                />
-              </section>
-            </DeferredMount>
-          ))}
+          <DeferredMount eager rootMargin="240px 0px" delayMs={0} minHeight={400}>
+            <section className={`${styles.webdesignTemplateGroup} ${styles.webdesignDeferredSection}`}>
+              <TemplateCatalogCarousel
+                group={ALL_WEBSITE_TEMPLATES_GROUP}
+                onPreview={openPreview}
+                priorityImages
+              />
+            </section>
+          </DeferredMount>
 
           <DeferredMount minHeight={520} rootMargin="200px 0px" delayMs={600}>
             <div className={`${styles.webdesignPackagesSection} ${styles.webdesignDeferredSection}`}>

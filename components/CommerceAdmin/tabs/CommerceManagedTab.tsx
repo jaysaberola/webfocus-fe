@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateManageServiceModal from "@/components/CommerceAdmin/modals/CreateManageServiceModal";
 import EditManageServiceModal from "@/components/CommerceAdmin/modals/EditManageServiceModal";
+import {
+  CommerceSelectAllHead,
+  CommerceSelectRowCell,
+} from "@/components/CommerceAdmin/CommerceSelectCells";
+import { useRowSelection } from "@/lib/useRowSelection";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { groupServicesByType, resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import { toast } from "@/lib/toast";
@@ -112,6 +117,12 @@ export default function CommerceManagedTab() {
     const start = (servicePage - 1) * pageSize;
     return activeGroupServices.slice(start, start + pageSize);
   }, [activeGroupServices, pageSize, servicePage]);
+
+  const getServiceRowId = useCallback(
+    (service: any) => String(service.id ?? service.service_id ?? service.name),
+    []
+  );
+  const selection = useRowSelection(paginatedServices, getServiceRowId);
 
   const serviceRangeStart = activeGroupServices.length ? (servicePage - 1) * pageSize + 1 : 0;
   const serviceRangeEnd = Math.min(servicePage * pageSize, activeGroupServices.length);
@@ -280,7 +291,15 @@ export default function CommerceManagedTab() {
   );
 
   const renderServiceTableRow = (service: any) => (
-    <tr key={service.id ?? service.service_id}>
+    <tr
+      key={service.id ?? service.service_id}
+      className={selection.isSelected(service) ? styles.rowSelected : undefined}
+    >
+      <CommerceSelectRowCell
+        checked={selection.isSelected(service)}
+        onChange={() => selection.toggleRow(service)}
+        label={`Select service ${service.name ?? service.title}`}
+      />
       <td><strong>{service.name ?? service.title}</strong></td>
       <td><span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span></td>
       <td className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))}</td>
@@ -407,6 +426,12 @@ export default function CommerceManagedTab() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
+                        <CommerceSelectAllHead
+                          allSelected={selection.allSelected}
+                          someSelected={selection.someSelected}
+                          onToggleAll={selection.toggleAll}
+                          disabled={paginatedServices.length === 0}
+                        />
                         <th>Service Name</th>
                         <th>Type</th>
                         <th>Base Price</th>
@@ -419,7 +444,7 @@ export default function CommerceManagedTab() {
                     <tbody>
                       {paginatedServices.length === 0 ? (
                         <tr>
-                          <td colSpan={7}>No plans in this category.</td>
+                          <td colSpan={8}>No plans in this category.</td>
                         </tr>
                       ) : (
                         paginatedServices.map(renderServiceTableRow)

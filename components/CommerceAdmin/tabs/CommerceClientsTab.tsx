@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import {
+  CommerceSelectAllHead,
+  CommerceSelectRowCell,
+} from "@/components/CommerceAdmin/CommerceSelectCells";
+import { useRowSelection } from "@/lib/useRowSelection";
 import CreateClientModal from "@/components/CommerceAdmin/modals/CreateClientModal";
 import EditClientModal from "@/components/CommerceAdmin/modals/EditClientModal";
 import ClientServicesModal from "@/components/CommerceAdmin/modals/ClientServicesModal";
@@ -87,6 +92,9 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
     return processedRows.slice(start, start + PAGE_SIZE);
   }, [processedRows, page]);
 
+  const getClientRowId = useCallback((client: CustomerRow) => String(client.id), []);
+  const selection = useRowSelection(paginatedRows, getClientRowId);
+
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, processedRows.length);
 
@@ -170,7 +178,7 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
     return <span className={active ? styles.badgePaid : styles.badgePending}>{status}</span>;
   };
 
-  const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 1;
+  const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 2;
 
   return (
     <section className={styles.panel}>
@@ -244,6 +252,12 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <CommerceSelectAllHead
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggleAll={selection.toggleAll}
+                    disabled={paginatedRows.length === 0}
+                  />
                   {columnsVisible.id ? renderSortableHead("id") : null}
                   {columnsVisible.name ? renderSortableHead("name") : null}
                   {columnsVisible.email ? renderSortableHead("email") : null}
@@ -261,7 +275,15 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                   paginatedRows.map((client) => {
                     const serviceCount = clientActiveServicesCount(client);
                     return (
-                      <tr key={client.id}>
+                      <tr
+                        key={client.id}
+                        className={selection.isSelected(client) ? styles.rowSelected : undefined}
+                      >
+                        <CommerceSelectRowCell
+                          checked={selection.isSelected(client)}
+                          onChange={() => selection.toggleRow(client)}
+                          label={`Select client CL-${client.id}`}
+                        />
                         {columnsVisible.id ? (
                           <td className={styles.monoCell}>CL-{client.id}</td>
                         ) : null}

@@ -5,9 +5,15 @@ type TemplateCatalogImageProps = {
   src: string;
   alt: string;
   priority?: boolean;
+  showPreviewHint?: boolean;
 };
 
-export default function TemplateCatalogImage({ src, alt, priority = false }: TemplateCatalogImageProps) {
+export default function TemplateCatalogImage({
+  src,
+  alt,
+  priority = false,
+  showPreviewHint = true,
+}: TemplateCatalogImageProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -47,7 +53,7 @@ export default function TemplateCatalogImage({ src, alt, priority = false }: Tem
           <i className="fa-solid fa-image" />
         </div>
       )}
-      <span className={styles.templateCatalogPreview}>Preview</span>
+      {showPreviewHint ? <span className={styles.templateCatalogPreview}>Preview</span> : null}
     </div>
   );
 }

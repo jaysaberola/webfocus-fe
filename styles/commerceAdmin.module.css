@@ -2356,6 +2356,40 @@
   vertical-align: middle;
 }
 
+.selectCol {
+  width: 2.5rem;
+  min-width: 2.5rem;
+  max-width: 2.5rem;
+  text-align: center;
+  vertical-align: middle;
+  padding-left: 0.65rem;
+  padding-right: 0.35rem;
+}
+
+.selectCheckbox {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ca-blue-600, #2563eb);
+}
+
+.selectionCount {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rowSelected {
+  background: #f8fbff;
+}
+
 .badgePaid,
 .badgePending,
 .badgeMuted,

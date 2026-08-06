@@ -191,6 +191,13 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
   },
 ];
 
+/** Single catalog for the public Web Design 3D carousel (all packages combined). */
+export const ALL_WEBSITE_TEMPLATES_GROUP: TemplateGroup = {
+  title: "Website Templates",
+  packageId: "design-all",
+  templates: TEMPLATE_GROUPS.flatMap((group) => group.templates),
+};
+
 export function getWebsiteTemplateById(templateId: string) {
   for (const group of TEMPLATE_GROUPS) {
     const match = group.templates.find((template) => template.id === templateId);

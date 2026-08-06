@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   fetchCommerceTickets,
   updateCommerceTicket,
   type CommerceTicketAdminRow,
 } from "@/services/commerceAdminService";
+import {
+  CommerceSelectAllHead,
+  CommerceSelectRowCell,
+} from "@/components/CommerceAdmin/CommerceSelectCells";
+import { useRowSelection } from "@/lib/useRowSelection";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -13,6 +18,9 @@ export default function CommerceHelpdeskTab() {
   const [rows, setRows] = useState<CommerceTicketAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  const getTicketRowId = useCallback((ticket: CommerceTicketAdminRow) => String(ticket.id), []);
+  const selection = useRowSelection(rows, getTicketRowId);
 
   const load = () => {
     setLoading(true);
@@ -61,6 +69,12 @@ export default function CommerceHelpdeskTab() {
           <table className={styles.table}>
             <thead>
               <tr>
+                <CommerceSelectAllHead
+                  allSelected={selection.allSelected}
+                  someSelected={selection.someSelected}
+                  onToggleAll={selection.toggleAll}
+                  disabled={rows.length === 0}
+                />
                 <th>Ticket</th>
                 <th>Subject</th>
                 <th>Client</th>
@@ -70,7 +84,15 @@ export default function CommerceHelpdeskTab() {
             </thead>
             <tbody>
               {rows.map((ticket) => (
-                <tr key={ticket.id}>
+                <tr
+                  key={ticket.id}
+                  className={selection.isSelected(ticket) ? styles.rowSelected : undefined}
+                >
+                  <CommerceSelectRowCell
+                    checked={selection.isSelected(ticket)}
+                    onChange={() => selection.toggleRow(ticket)}
+                    label={`Select ticket ${ticket.ticketNo}`}
+                  />
                   <td className={styles.monoCell}>{ticket.ticketNo}</td>
                   <td>
                     <strong>{ticket.subject}</strong>

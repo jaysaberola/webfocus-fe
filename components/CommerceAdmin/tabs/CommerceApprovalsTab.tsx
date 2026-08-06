@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   approveCommerceProfileChange,
   fetchCommerceApprovals,
@@ -25,6 +25,11 @@ import {
   type ApprovalColumnKey,
 } from "@/lib/commerceAdmin/tableSortHelpers";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import {
+  CommerceSelectAllHead,
+  CommerceSelectRowCell,
+} from "@/components/CommerceAdmin/CommerceSelectCells";
+import { useRowSelection } from "@/lib/useRowSelection";
 import ApprovalReviewModal from "@/components/CommerceAdmin/modals/ApprovalReviewModal";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -67,6 +72,12 @@ export default function CommerceApprovalsTab() {
     const start = (page - 1) * PAGE_SIZE;
     return processedRows.slice(start, start + PAGE_SIZE);
   }, [processedRows, page]);
+
+  const getApprovalRowId = useCallback(
+    (row: CommercePaymentProofRow) => String(row.id),
+    []
+  );
+  const selection = useRowSelection(paginatedRows, getApprovalRowId);
 
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, processedRows.length);
@@ -287,6 +298,12 @@ export default function CommerceApprovalsTab() {
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <CommerceSelectAllHead
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggleAll={selection.toggleAll}
+                    disabled={paginatedRows.length === 0}
+                  />
                   {renderSortableHead("invoice", "Invoice #")}
                   {renderSortableHead("service", "Service Name")}
                   {renderSortableHead("plan", "Plan")}
@@ -301,11 +318,19 @@ export default function CommerceApprovalsTab() {
               <tbody>
                 {paginatedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>No pending approvals or verification items found matching filter.</td>
+                    <td colSpan={10}>No pending approvals or verification items found matching filter.</td>
                   </tr>
                 ) : (
                   paginatedRows.map((row) => (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className={selection.isSelected(row) ? styles.rowSelected : undefined}
+                    >
+                      <CommerceSelectRowCell
+                        checked={selection.isSelected(row)}
+                        onChange={() => selection.toggleRow(row)}
+                        label={`Select approval ${row.invoiceId || row.proofNo}`}
+                      />
                       <td className={styles.monoCell}>{row.invoiceId || row.proofNo}</td>
                       <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
                       <td className={styles.txPlanCell}>

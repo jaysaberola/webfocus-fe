@@ -4,7 +4,7 @@ import {
   ensureCanvasOriginHints,
   preloadTemplateImages,
 } from "@/lib/canvasPreviewWarmup";
-import { TEMPLATE_GROUPS } from "@/lib/servicesCatalog";
+import { ALL_WEBSITE_TEMPLATES_GROUP } from "@/lib/servicesCatalog";
 import ServicesDomainsTab from "./ServicesDomainsTab";
 import ServicesDmsTab from "./ServicesDmsTab";
 import ServicesHostingTab from "./ServicesHostingTab";
@@ -43,7 +43,7 @@ export default function ServicesPage({ initialTab = "hosting" }: { initialTab?: 
     if (initialTab !== "webdesign") return;
     ensureCanvasOriginHints();
     preloadTemplateImages(
-      TEMPLATE_GROUPS[0]?.templates.slice(0, 3).map((template) => template.image) ?? []
+      ALL_WEBSITE_TEMPLATES_GROUP.templates.slice(0, 5).map((template) => template.image)
     );
   }, [initialTab]);
 

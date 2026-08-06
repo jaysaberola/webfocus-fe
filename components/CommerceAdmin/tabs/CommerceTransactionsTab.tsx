@@ -6,6 +6,11 @@ import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTr
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import {
+  CommerceSelectAllHead,
+  CommerceSelectRowCell,
+} from "@/components/CommerceAdmin/CommerceSelectCells";
+import { useRowSelection } from "@/lib/useRowSelection";
+import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_LABELS,
   filterTransactions,
@@ -167,6 +172,9 @@ export default function CommerceTransactionsTab() {
     const start = (page - 1) * PAGE_SIZE;
     return processedRows.slice(start, start + PAGE_SIZE);
   }, [processedRows, page, showAll]);
+
+  const getTxRowId = useCallback((row: SalesTransaction) => String(row.id), []);
+  const selection = useRowSelection(displayRows, getTxRowId);
 
   const totalCount = processedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -395,13 +403,18 @@ export default function CommerceTransactionsTab() {
   };
 
   const visibleColumnCount =
-    Object.values(columnsVisible).filter(Boolean).length + 1;
+    Object.values(columnsVisible).filter(Boolean).length + 2;
 
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>All Orders &amp; Invoices</h3>
+          <h3 className={styles.panelTitle}>
+            All Orders &amp; Invoices
+            {selection.selectedCount > 0 ? (
+              <span className={styles.selectionCount}>{selection.selectedCount} selected</span>
+            ) : null}
+          </h3>
           <p className={styles.panelSubtitle}>
             View and verify all financial invoices, payment gateway checkouts, and receipts.
           </p>
@@ -493,6 +506,12 @@ export default function CommerceTransactionsTab() {
           <table className={styles.table}>
             <thead>
               <tr>
+                <CommerceSelectAllHead
+                  allSelected={selection.allSelected}
+                  someSelected={selection.someSelected}
+                  onToggleAll={selection.toggleAll}
+                  disabled={displayRows.length === 0}
+                />
                 {columnsVisible.id ? renderSortableHead("id") : null}
                 {columnsVisible.items ? renderSortableHead("items") : null}
                 {columnsVisible.subscription ? renderSortableHead("subscription") : null}
@@ -512,7 +531,15 @@ export default function CommerceTransactionsTab() {
                 </tr>
               ) : (
                 displayRows.map((row) => (
-                  <tr key={row.id}>
+                  <tr
+                    key={row.id}
+                    className={selection.isSelected(row) ? styles.rowSelected : undefined}
+                  >
+                    <CommerceSelectRowCell
+                      checked={selection.isSelected(row)}
+                      onChange={() => selection.toggleRow(row)}
+                      label={`Select order ${row.transaction_no}`}
+                    />
                     {columnsVisible.id ? <td className={styles.monoCell}>{row.transaction_no}</td> : null}
                     {columnsVisible.items ? (
                       <td className={styles.txServiceCell}>

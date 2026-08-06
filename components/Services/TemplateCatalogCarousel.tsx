@@ -4,14 +4,13 @@ import { warmCanvasPreview } from "@/lib/canvasPreviewWarmup";
 import {
   TEMPLATE_CAROUSEL_NEXT_ICON,
   TEMPLATE_CAROUSEL_PREV_ICON,
-  templateSlideClass,
-  type TemplateSlideDirection,
 } from "@/lib/templateNav";
-import { serviceCardGridClass } from "./serviceCardGridClass";
 import TemplateCatalogImage from "./TemplateCatalogImage";
 import styles from "@/styles/services.module.css";
 
-const PAGE_SIZE = 3;
+/** How many cards show on each side of the active slide. */
+const SIDE_VISIBLE = 1;
+const AUTOPLAY_MS = 3800;
 
 type TemplateCatalogCarouselProps = {
   group: TemplateGroup;
@@ -20,6 +19,24 @@ type TemplateCatalogCarouselProps = {
   /** Prioritize first-page images for LCP (first template group only). */
   priorityImages?: boolean;
 };
+
+function wrapOffset(index: number, active: number, total: number) {
+  if (total <= 0) return 0;
+  let diff = index - active;
+  const half = Math.floor(total / 2);
+  if (diff > half) diff -= total;
+  if (diff < -half) diff += total;
+  return diff;
+}
+
+function coverTransform(offset: number) {
+  const abs = Math.abs(offset);
+  const x = offset * 58;
+  const scale = Math.max(0.78, 1 - abs * 0.12);
+  const rotateY = offset * -10;
+  const y = abs * 2;
+  return `translate(-50%, -50%) translateX(${x}%) translateY(${y}px) scale(${scale}) rotateY(${rotateY}deg)`;
+}
 
 function prefetchImages(urls: string[]) {
   if (typeof window === "undefined") return;
@@ -34,32 +51,48 @@ function prefetchImages(urls: string[]) {
 export default function TemplateCatalogCarousel({
   group,
   onPreview,
-  counterLabel = "templates",
   priorityImages = false,
 }: TemplateCatalogCarouselProps) {
-  const [pageIndex, setPageIndex] = useState(0);
-  const [slideDirection, setSlideDirection] = useState<TemplateSlideDirection>("next");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
   const total = group.templates.length;
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
-    setPageIndex(0);
-    setSlideDirection("next");
+    setActiveIndex(0);
   }, [group.packageId]);
 
-  const visibleTemplates = useMemo(
-    () => group.templates.slice(pageIndex * PAGE_SIZE, pageIndex * PAGE_SIZE + PAGE_SIZE),
-    [group.templates, pageIndex]
-  );
-
-  // Warm the next carousel page so pagination feels instant.
   useEffect(() => {
-    if (typeof window === "undefined" || total <= PAGE_SIZE) return;
+    if (total <= 1 || paused) return;
+    if (typeof window === "undefined") return;
 
-    const nextPage = (pageIndex + 1) % pageCount;
-    const urls = group.templates
-      .slice(nextPage * PAGE_SIZE, nextPage * PAGE_SIZE + PAGE_SIZE)
-      .map((template) => template.image);
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return;
+
+    const id = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % total);
+    }, AUTOPLAY_MS);
+
+    return () => window.clearInterval(id);
+  }, [total, paused, group.packageId]);
+
+  const slides = useMemo(() => {
+    return group.templates.map((template, index) => {
+      const offset = wrapOffset(index, activeIndex, total);
+      const visible = Math.abs(offset) <= SIDE_VISIBLE;
+      return { template, index, offset, visible };
+    });
+  }, [group.templates, activeIndex, total]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || total <= 1) return;
+
+    const urls: string[] = [];
+    for (let step = 1; step <= SIDE_VISIBLE + 1; step += 1) {
+      const next = group.templates[(activeIndex + step) % total];
+      const prev = group.templates[(activeIndex - step + total) % total];
+      if (next?.image) urls.push(next.image);
+      if (prev?.image) urls.push(prev.image);
+    }
 
     let cancelled = false;
     const run = () => {
@@ -79,75 +112,115 @@ export default function TemplateCatalogCarousel({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [group.templates, pageIndex, pageCount, total]);
+  }, [group.templates, activeIndex, total]);
 
   if (total === 0) return null;
 
-  const rangeStart = pageIndex * PAGE_SIZE + 1;
-  const rangeEnd = Math.min((pageIndex + 1) * PAGE_SIZE, total);
-
   const goPrev = () => {
-    setSlideDirection("prev");
-    setPageIndex((current) => (current - 1 + pageCount) % pageCount);
+    setActiveIndex((current) => (current - 1 + total) % total);
   };
 
   const goNext = () => {
-    setSlideDirection("next");
-    setPageIndex((current) => (current + 1) % pageCount);
+    setActiveIndex((current) => (current + 1) % total);
+  };
+
+  const handleCardActivate = (index: number, template: WebsiteTemplate) => {
+    if (index === activeIndex) {
+      warmCanvasPreview(template.previewUrl);
+      onPreview(group, template);
+      return;
+    }
+    setActiveIndex(index);
+    warmCanvasPreview(template.previewUrl);
   };
 
   return (
-    <div className={styles.templateCatalogCarousel}>
-      <div className={styles.templateCatalogCarouselStage}>
+    <div className={styles.templateCoverflow}>
+      <div
+        className={styles.templateCoverflowViewport}
+        aria-roledescription="carousel"
+        aria-label="Website templates carousel"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocusCapture={() => setPaused(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setPaused(false);
+          }
+        }}
+      >
         <button
           type="button"
-          className={styles.templateCatalogCarouselNav}
+          className={`${styles.templateCoverflowNav} ${styles.templateCoverflowNavPrev}`}
           onClick={goPrev}
-          aria-label="Previous templates"
+          aria-label="Previous template"
         >
           <i className={TEMPLATE_CAROUSEL_PREV_ICON} aria-hidden="true" />
         </button>
 
-        <div
-          key={pageIndex}
-          className={`${serviceCardGridClass(PAGE_SIZE)} ${templateSlideClass(styles, slideDirection)}`}
-        >
-          {visibleTemplates.map((template, index) => (
-            <article key={template.id} className={styles.templateCatalogCard}>
-              <button
-                type="button"
-                className={styles.templateCatalogButton}
-                onClick={() => onPreview(group, template)}
-                onPointerEnter={() => warmCanvasPreview(template.previewUrl)}
-                onFocus={() => warmCanvasPreview(template.previewUrl)}
-                aria-label={`Preview ${template.label} template`}
+        <div className={styles.templateCoverflowTrack}>
+          {slides.map(({ template, index, offset, visible }) => {
+            if (!visible) return null;
+
+            const isActive = offset === 0;
+            const abs = Math.abs(offset);
+
+            return (
+              <article
+                key={template.id}
+                className={[
+                  styles.templateCoverflowCard,
+                  isActive ? styles.templateCoverflowCardActive : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{
+                  zIndex: SIDE_VISIBLE + 1 - abs,
+                  transform: coverTransform(offset),
+                  opacity: isActive ? 1 : Math.max(0.62, 1 - abs * 0.16),
+                }}
+                data-offset={offset}
               >
-                <TemplateCatalogImage
-                  src={template.image}
-                  alt={template.alt}
-                  priority={priorityImages && pageIndex === 0 && index < PAGE_SIZE}
-                />
-                <div className={styles.templateCatalogFooter}>
-                  <h5>{template.label}</h5>
-                </div>
-              </button>
-            </article>
-          ))}
+                <button
+                  type="button"
+                  className={styles.templateCoverflowButton}
+                  onClick={() => handleCardActivate(index, template)}
+                  onPointerEnter={() => warmCanvasPreview(template.previewUrl)}
+                  onFocus={() => warmCanvasPreview(template.previewUrl)}
+                  aria-label={
+                    isActive
+                      ? `Preview ${template.label} template`
+                      : `Show ${template.label} template`
+                  }
+                  aria-current={isActive ? "true" : undefined}
+                >
+                    <TemplateCatalogImage
+                      src={template.image}
+                      alt={template.alt}
+                      priority={priorityImages && (isActive || abs === 1)}
+                      showPreviewHint={isActive}
+                    />
+                  {isActive ? (
+                    <div className={styles.templateCoverflowFooter}>
+                      <h5>{template.label}</h5>
+                      <span>Click to preview</span>
+                    </div>
+                  ) : null}
+                </button>
+              </article>
+            );
+          })}
         </div>
 
         <button
           type="button"
-          className={styles.templateCatalogCarouselNav}
+          className={`${styles.templateCoverflowNav} ${styles.templateCoverflowNavNext}`}
           onClick={goNext}
-          aria-label="Next templates"
+          aria-label="Next template"
         >
           <i className={TEMPLATE_CAROUSEL_NEXT_ICON} aria-hidden="true" />
         </button>
       </div>
-
-      <p className={styles.templateCatalogCarouselCounter}>
-        {rangeStart}–{rangeEnd} of {total} {counterLabel}
-      </p>
     </div>
   );
 }
