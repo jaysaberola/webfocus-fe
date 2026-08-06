@@ -1,5 +1,6 @@
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { hasAnyPermission } from "@/lib/userPermissions";
+import { isCustomerUser } from "@/lib/userRoles";
 
 export type CmsNavChild = {
   label: string;
@@ -101,6 +102,8 @@ export const COMMERCE_TAB_PERMISSIONS: Record<CommerceAdminTab, string[]> = {
 };
 
 export function filterCmsNavItems(user: unknown, items: CmsNavItem[] = CMS_NAV_ITEMS): CmsNavItem[] {
+  if (isCustomerUser(user)) return [];
+
   return items.reduce<CmsNavItem[]>((acc, item) => {
     if (item.children?.length) {
       const children = item.children.filter((child) => hasAnyPermission(user, child.permissions));
@@ -116,6 +119,7 @@ export function filterCmsNavItems(user: unknown, items: CmsNavItem[] = CMS_NAV_I
 }
 
 export function canAccessCommercePortal(user: unknown): boolean {
+  if (isCustomerUser(user)) return false;
   return hasAnyPermission(user, COMMERCE_PORTAL_PERMISSIONS);
 }
 

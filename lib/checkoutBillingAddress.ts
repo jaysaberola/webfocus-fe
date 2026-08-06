@@ -71,3 +71,16 @@ export function billingAddressFromCustomer(
     address_zip: String(customer?.address_zip || "").trim(),
   };
 }
+
+/** True when all Paynamics-required billing fields are non-empty. */
+export function isCheckoutBillingAddressComplete(
+  address: CheckoutBillingAddress | null | undefined
+) {
+  if (!address) return false;
+  return (
+    Boolean(address.address_street?.trim()) &&
+    Boolean(address.address_city?.trim()) &&
+    Boolean(address.address_province?.trim()) &&
+    Boolean(address.address_zip?.trim())
+  );
+}

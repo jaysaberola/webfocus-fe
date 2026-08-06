@@ -5,10 +5,15 @@ import Sidebar from './_Sidebar';
 import Topbar from './_Topbar2';
 import ToastHost from "@/components/UI/ToastHost";
 import Head from "next/head";
-import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
+import { syncAuthTokenCookieFromStorage, readStoredAuthToken } from "@/lib/authToken";
 import { getCurrentUserCached, readStoredCurrentUser } from "@/lib/currentUser";
 import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
-import { COMMERCE_ADMIN_PATH, isCommerceOnlyStaffUser } from "@/lib/userRoles";
+import {
+  COMMERCE_ADMIN_PATH,
+  isCmsPortalUser,
+  isCommerceOnlyStaffUser,
+  isCustomerUser,
+} from "@/lib/userRoles";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
 
 const CmsHelpProvider = dynamic(
@@ -24,34 +29,91 @@ const ADMIN_SIDEBAR_HIDDEN_KEY = "cms5.admin.sidebarHidden";
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
+  const [accessState, setAccessState] = useState<"checking" | "allowed" | "blocked">("checking");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarHidden, setSidebarHidden] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const sidebarToggleRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    let alive = true;
     syncAuthTokenCookieFromStorage();
 
-    const stored = readStoredCurrentUser();
-    if (stored && isCommerceOnlyStaffUser(stored)) {
-      router.replace(COMMERCE_ADMIN_PATH);
-      return;
+    const denyCustomer = () => {
+      if (!alive) return;
+      setAccessState("blocked");
+      void router.replace("/public/dashboard");
+    };
+
+    const denyUnauthenticated = () => {
+      if (!alive) return;
+      setAccessState("blocked");
+      void router.replace("/");
+    };
+
+    const allowCms = () => {
+      if (!alive) return;
+      setAccessState("allowed");
+    };
+
+    if (!readStoredAuthToken()) {
+      denyUnauthenticated();
+      return () => {
+        alive = false;
+      };
     }
 
-    getCurrentUserCached({ force: false }).then((user) => {
-      if (isCommerceOnlyStaffUser(user)) {
-        router.replace(COMMERCE_ADMIN_PATH);
+    const stored = readStoredCurrentUser();
+    if (stored) {
+      if (isCustomerUser(stored)) {
+        denyCustomer();
+        return () => {
+          alive = false;
+        };
       }
-    }).catch(() => {
-      // ignore
-    });
+      if (isCommerceOnlyStaffUser(stored)) {
+        setAccessState("blocked");
+        void router.replace(COMMERCE_ADMIN_PATH);
+        return () => {
+          alive = false;
+        };
+      }
+      if (isCmsPortalUser(stored)) {
+        allowCms();
+      }
+    }
+
+    getCurrentUserCached({ force: false })
+      .then((user) => {
+        if (!alive) return;
+        if (isCustomerUser(user)) {
+          denyCustomer();
+          return;
+        }
+        if (isCommerceOnlyStaffUser(user)) {
+          setAccessState("blocked");
+          void router.replace(COMMERCE_ADMIN_PATH);
+          return;
+        }
+        if (!isCmsPortalUser(user)) {
+          denyUnauthenticated();
+          return;
+        }
+        allowCms();
+      })
+      .catch(() => {
+        denyUnauthenticated();
+      });
 
     const media = window.matchMedia("(max-width: 991px)");
     const update = () => setIsMobile(media.matches);
     update();
     media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
+    return () => {
+      alive = false;
+      media.removeEventListener("change", update);
+    };
+  }, [router]);
 
   useEffect(() => {
     try {
@@ -96,6 +158,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return stored ? (stored as any)?.company_name || null : null;
   });
   useEffect(() => {
+    if (accessState !== "allowed") return;
     let alive = true;
 
     const refresh = async (opts?: { force?: boolean }) => {
@@ -118,9 +181,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       alive = false;
       unsub();
     };
-  }, []);
+  }, [accessState]);
 
   const tabTitle = companyName;
+
+  if (accessState !== "allowed") {
+    return (
+      <div className="d-flex vh-100 align-items-center justify-content-center bg-light text-secondary">
+        <Head>
+          <title>Checking access…</title>
+        </Head>
+        <SiteFavicon />
+        <span>Checking access…</span>
+      </div>
+    );
+  }
 
   return (
     <CmsHelpProvider>

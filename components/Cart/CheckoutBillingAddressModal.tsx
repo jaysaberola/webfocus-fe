@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   billingAddressFromCustomer,
   CHECKOUT_BILLING_FIELD_LABELS,
   CHECKOUT_BILLING_MAX,
+  isCheckoutBillingAddressComplete,
   type CheckoutBillingAddress,
 } from "@/lib/checkoutBillingAddress";
 import {
@@ -47,6 +48,11 @@ export default function CheckoutBillingAddressModal({
     };
   }, [open, onClose, saving]);
 
+  const canSubmit = useMemo(
+    () => isCheckoutBillingAddressComplete(form) && !saving && Boolean(customer),
+    [form, saving, customer]
+  );
+
   if (!open) return null;
 
   const updateField = (key: keyof CheckoutBillingAddress, value: string) => {
@@ -55,7 +61,7 @@ export default function CheckoutBillingAddressModal({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!customer) return;
+    if (!customer || !canSubmit) return;
 
     const trimmed: CheckoutBillingAddress = {
       address_street: form.address_street.trim(),
@@ -115,8 +121,8 @@ export default function CheckoutBillingAddressModal({
             <p className={styles.eyebrow}>Paynamics Checkout</p>
             <h2 id="checkout-billing-title">Complete billing address</h2>
             <p className={styles.subtitle}>
-              Paynamics requires your street, city, province, and ZIP before opening the
-              payment portal.
+              First-time payments require your street, city, province, and ZIP before opening
+              the Paynamics portal.
             </p>
           </div>
           <button
@@ -130,9 +136,11 @@ export default function CheckoutBillingAddressModal({
           </button>
         </header>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <label className={styles.field}>
-            Street address
+            <span>
+              Street address <span className={styles.requiredMark} aria-hidden="true">*</span>
+            </span>
             <input
               className={styles.input}
               value={form.address_street}
@@ -141,12 +149,15 @@ export default function CheckoutBillingAddressModal({
               placeholder="e.g. 26th St, BGC"
               autoFocus
               required
+              aria-required="true"
             />
           </label>
 
           <div className={styles.row}>
             <label className={styles.field}>
-              City
+              <span>
+                City <span className={styles.requiredMark} aria-hidden="true">*</span>
+              </span>
               <input
                 className={styles.input}
                 value={form.address_city}
@@ -154,10 +165,13 @@ export default function CheckoutBillingAddressModal({
                 onChange={(e) => updateField("address_city", e.target.value)}
                 placeholder="e.g. Taguig City"
                 required
+                aria-required="true"
               />
             </label>
             <label className={styles.field}>
-              Province / Region
+              <span>
+                Province / Region <span className={styles.requiredMark} aria-hidden="true">*</span>
+              </span>
               <input
                 className={styles.input}
                 value={form.address_province}
@@ -165,12 +179,15 @@ export default function CheckoutBillingAddressModal({
                 onChange={(e) => updateField("address_province", e.target.value)}
                 placeholder="e.g. Metro Manila"
                 required
+                aria-required="true"
               />
             </label>
           </div>
 
           <label className={styles.field}>
-            ZIP / Postal code
+            <span>
+              ZIP / Postal code <span className={styles.requiredMark} aria-hidden="true">*</span>
+            </span>
             <input
               className={styles.input}
               value={form.address_zip}
@@ -178,14 +195,19 @@ export default function CheckoutBillingAddressModal({
               onChange={(e) => updateField("address_zip", e.target.value)}
               placeholder="e.g. 1634"
               required
+              aria-required="true"
             />
           </label>
+
+          <p className={styles.helperHint}>
+            Fill in all required fields (*) to enable Save &amp; Continue.
+          </p>
 
           <div className={styles.actions}>
             <button type="button" className={styles.secondaryBtn} disabled={saving} onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className={styles.primaryBtn} disabled={saving}>
+            <button type="submit" className={styles.primaryBtn} disabled={!canSubmit}>
               {saving ? "Saving..." : "Save & Continue to Paynamics"}
             </button>
           </div>

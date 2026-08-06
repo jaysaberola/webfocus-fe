@@ -219,12 +219,12 @@ export default function BillingTab() {
   const handleUploadProof = async (payload: { invoiceId: string; notes: string; file: File }) => {
     try {
       setUploadingProof(true);
-      await uploadPortalPaymentProof({
+      const result = await uploadPortalPaymentProof({
         invoiceId: payload.invoiceId,
         notes: payload.notes || undefined,
         receipt: payload.file,
       });
-      toast.success("Payment proof uploaded.");
+      toast.success(result?.message || "Payment proof uploaded.");
       setProofModal({ open: false });
       notifyPortalNotificationsUpdated();
       await loadBilling({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });

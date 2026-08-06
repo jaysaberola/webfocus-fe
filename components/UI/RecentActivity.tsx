@@ -8,9 +8,9 @@ type AuditEventFilter = "all" | "created" | "updated" | "deleted" | "restored";
 
 const modelLabel = (auditableType: string) => {
   const tail = (auditableType || "").split("\\").pop() || auditableType || "Record";
-  // normalize common model names to your UI wording
   if (tail.toLowerCase() === "article") return "News";
-  return tail;
+  if (tail.toLowerCase() === "salestransaction") return "Sales Transaction";
+  return tail.replace(/([a-z])([A-Z])/g, "$1 $2");
 };
 
 const actorLabel = (row: AuditRow) => {
@@ -22,11 +22,19 @@ const actorLabel = (row: AuditRow) => {
 
 const eventMeta = (eventRaw: string) => {
   const event = (eventRaw || "").toLowerCase();
-  if (event.includes("create")) return { icon: "fas fa-plus", badge: "text-bg-success", label: "Created" };
-  if (event.includes("update")) return { icon: "fas fa-pen", badge: "text-bg-primary", label: "Updated" };
-  if (event.includes("delete")) return { icon: "fas fa-trash", badge: "text-bg-danger", label: "Deleted" };
-  if (event.includes("restore")) return { icon: "fas fa-rotate-left", badge: "text-bg-warning", label: "Restored" };
-  return { icon: "fas fa-circle", badge: "text-bg-secondary", label: eventRaw || "Event" };
+  if (event.includes("create")) {
+    return { icon: "fa-solid fa-plus", tone: "success", label: "Created" };
+  }
+  if (event.includes("update")) {
+    return { icon: "fa-solid fa-pen", tone: "primary", label: "Updated" };
+  }
+  if (event.includes("delete")) {
+    return { icon: "fa-solid fa-trash", tone: "danger", label: "Deleted" };
+  }
+  if (event.includes("restore")) {
+    return { icon: "fa-solid fa-rotate-left", tone: "warning", label: "Restored" };
+  }
+  return { icon: "fa-solid fa-circle", tone: "secondary", label: eventRaw || "Event" };
 };
 
 const timeAgo = (iso: string) => {
@@ -64,7 +72,9 @@ const dayBucketLabel = (iso: string) => {
   const startOfThatDay = new Date(d);
   startOfThatDay.setHours(0, 0, 0, 0);
 
-  const diffDays = Math.round((startOfToday.getTime() - startOfThatDay.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.round(
+    (startOfToday.getTime() - startOfThatDay.getTime()) / (1000 * 60 * 60 * 24)
+  );
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
@@ -115,10 +125,19 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
           : [];
 
       const nextTotalPages =
-        Number(payload?.last_page ?? payload?.meta?.last_page ?? payload?.data?.last_page ?? payload?.data?.meta?.last_page) || 1;
+        Number(
+          payload?.last_page ??
+            payload?.meta?.last_page ??
+            payload?.data?.last_page ??
+            payload?.data?.meta?.last_page
+        ) || 1;
       const nextCurrentPage =
-        Number(payload?.current_page ?? payload?.meta?.current_page ?? payload?.data?.current_page ?? payload?.data?.meta?.current_page) ||
-        requestedPage;
+        Number(
+          payload?.current_page ??
+            payload?.meta?.current_page ??
+            payload?.data?.current_page ??
+            payload?.data?.meta?.current_page
+        ) || requestedPage;
 
       setRows(items);
       setTotalPages(nextTotalPages);
@@ -183,7 +202,6 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
       list.push(r);
       m.set(key, list);
     }
-    // preserve insertion order (audits are usually newest-first)
     return Array.from(m.entries());
   }, [limited]);
 
@@ -203,28 +221,29 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
   }, [currentPage, totalPages]);
 
   return (
-    <div className={`card cms-panel shadow-sm border-0 h-100 d-flex flex-column${compact ? " cms-panel--compact" : ""}`}>
-      <div className="card-header cms-panel__header">
-        <div className="d-flex flex-column flex-md-row gap-2 align-items-md-center justify-content-between">
-          <div className="d-flex align-items-center gap-2">
-            <span className="cms-panel__badge">
+    <div
+      className={`card cms-panel cms-activity-panel shadow-sm border-0 h-100 d-flex flex-column${
+        compact ? " cms-panel--compact" : ""
+      }`}
+    >
+      <div className="card-header cms-panel__header cms-activity-panel__header">
+        <div className="cms-activity-panel__top">
+          <div className="cms-activity-panel__heading">
+            <span className="cms-panel__badge" aria-hidden="true">
               <i className="fas fa-clock-rotate-left" />
             </span>
-            <div>
-              <h4 className="mb-0 cms-panel__title d-flex align-items-center gap-2">
+            <div className="cms-activity-panel__heading-text">
+              <h4 className="mb-0 cms-panel__title">
                 Recent Activity
-                <Tooltip text="Shows the latest actions performed in the CMS such as creating, updating, deleting, or restoring records." />
+                <Tooltip text="Latest create, update, delete, and restore actions across the CMS." />
               </h4>
-              <div className="text-muted small d-flex align-items-center gap-1">
-                Latest changes across the CMS
-                <Tooltip text="Displays the most recent content and system changes performed by users." />
-              </div>
+              <p className="cms-activity-panel__subtitle mb-0">Latest changes across the CMS</p>
             </div>
           </div>
 
-          <div className="cms-panel__toolbar justify-content-md-end">
-            <div className="input-group input-group-sm" style={{ width: 260 }}>
-              <span className="input-group-text">
+          <div className="cms-panel__toolbar cms-activity-panel__toolbar">
+            <div className="cms-activity-search input-group input-group-sm">
+              <span className="input-group-text" aria-hidden="true">
                 <i className="fas fa-magnifying-glass" />
               </span>
               <input
@@ -232,52 +251,56 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
                 placeholder="Search activity"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search activity"
+                title="Search by user, content type, or event"
               />
-              <Tooltip text="Search activity by user name, content type, or event." />
             </div>
 
             <select
-              className="form-select form-select-sm"
-              style={{ width: 140 }}
+              className="form-select form-select-sm cms-activity-filter"
               value={eventFilter}
               onChange={(e) => setEventFilter(e.target.value as AuditEventFilter)}
               aria-label="Filter events"
+              title="Filter by event type"
             >
-              <option value="all">All</option>
+              <option value="all">All events</option>
               <option value="created">Created</option>
               <option value="updated">Updated</option>
               <option value="deleted">Deleted</option>
               <option value="restored">Restored</option>
             </select>
-            <Tooltip text="Filter activity by event type such as created, updated, deleted, or restored." />
 
             <button
               type="button"
-              className="btn btn-sm btn-outline-secondary"
+              className="btn btn-sm btn-outline-secondary cms-activity-action-btn"
               onClick={() => fetchActivity({ silent: false, page: currentPage })}
               disabled={loading}
+              title="Refresh activity"
             >
-              <i className={`fas ${loading ? "fa-spinner fa-spin" : "fa-rotate"} me-2`} />
-              Refresh
+              <i className={`fas ${loading ? "fa-spinner fa-spin" : "fa-rotate"}`} aria-hidden="true" />
+              <span>Refresh</span>
             </button>
 
-            <Link href="/settings/audit" className="btn btn-sm btn-outline-primary">
-              <i className="fas fa-table-list me-2" />
-              Audit Logs
+            <Link
+              href="/settings/audit"
+              className="btn btn-sm btn-outline-primary cms-activity-action-btn"
+              title="Open full audit log"
+            >
+              <i className="fas fa-table-list" aria-hidden="true" />
+              <span>Audit Logs</span>
             </Link>
-            <Tooltip text="Open the full audit log history with detailed records." />
           </div>
         </div>
       </div>
 
-      <div className="p-3 flex-grow-1 d-flex flex-column" style={{ minHeight: 0 }}>
+      <div className="cms-activity-panel__body flex-grow-1 d-flex flex-column">
         {error && (
-          <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+          <div className="alert alert-danger d-flex align-items-center justify-content-between py-2" role="alert">
             <div>
               <i className="fas fa-triangle-exclamation me-2" />
               {error}
             </div>
-            <button type="button" className="btn btn-sm btn-outline-light" onClick={() => fetchActivity()}>
+            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => fetchActivity()}>
               Retry
             </button>
           </div>
@@ -285,18 +308,20 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
 
         <div className="flex-grow-1 overflow-auto" style={{ minHeight: 0 }}>
           {loading ? (
-            <ul className="list-group list-group-flush cms-activity">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <li key={i} className="list-group-item cms-activity__item">
-                  <div className="d-flex align-items-start justify-content-between gap-3">
-                    <div className="d-flex align-items-start gap-2" style={{ minWidth: 0 }}>
-                      <span className="badge rounded-pill text-bg-secondary">
-                        <i className="fas fa-circle" />
-                      </span>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="cms-skeleton cms-skeleton--line" aria-hidden="true" />
-                        <div className="cms-skeleton cms-skeleton--line mt-2" aria-hidden="true" style={{ maxWidth: 220 }} />
-                      </div>
+            <ul className="list-unstyled cms-activity mb-0">
+              {Array.from({ length: compact ? 3 : 5 }).map((_, i) => (
+                <li key={i} className="cms-activity__item">
+                  <div className="cms-activity__row">
+                    <span className="cms-activity__event cms-activity__event--secondary" aria-hidden="true">
+                      <i className="fa-solid fa-circle" />
+                    </span>
+                    <div className="cms-activity__content">
+                      <div className="cms-skeleton cms-skeleton--line" aria-hidden="true" />
+                      <div
+                        className="cms-skeleton cms-skeleton--line mt-2"
+                        aria-hidden="true"
+                        style={{ maxWidth: 180 }}
+                      />
                     </div>
                     <span className="cms-skeleton cms-skeleton--pill" aria-hidden="true" />
                   </div>
@@ -314,13 +339,13 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
           ) : (
             <div className="cms-activity-groups">
               {grouped.map(([label, list]) => (
-                <div key={label} className="mb-3">
-                  <div className="d-flex align-items-center justify-content-between mb-2">
+                <div key={label} className="cms-activity-group">
+                  <div className="cms-activity-group__meta">
                     <div className="cms-activity-date">{label}</div>
-                    <div className="text-muted small">{list.length} item(s)</div>
+                    <div className="cms-activity-group__count">{list.length} item(s)</div>
                   </div>
 
-                  <ul className="list-group list-group-flush cms-activity">
+                  <ul className="list-unstyled cms-activity mb-0">
                     {list.map((row) => {
                       const meta = eventMeta(row.event);
                       const when = timeAgo(row.created_at);
@@ -328,38 +353,45 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
                       const href = entityHref(row);
 
                       return (
-                        <li key={row.id} className="list-group-item cms-activity__item">
-                          <div className="d-flex align-items-start justify-content-between gap-3">
-                            <div className="d-flex align-items-start gap-2" style={{ minWidth: 0 }}>
-                              <span className={`badge rounded-pill ${meta.badge}`} title={meta.label}>
-                                <i className={meta.icon} />
-                              </span>
+                        <li key={row.id} className="cms-activity__item">
+                          <div className="cms-activity__row">
+                            <span
+                              className={`cms-activity__event cms-activity__event--${meta.tone}`}
+                              title={meta.label}
+                            >
+                              <i className={meta.icon} aria-hidden="true" />
+                            </span>
 
-                              <div style={{ minWidth: 0 }}>
-                                <div className="d-flex flex-wrap gap-2 align-items-center">
-                                  <div className="fw-semibold text-truncate">{actorLabel(row)}</div>
-                                  <span className="text-muted small">{meta.label.toLowerCase()}</span>
-                                  <span className="badge bg-dark-subtle text-dark">
-                                    {model} #{row.auditable_id}
-                                  </span>
-                                </div>
+                            <div className="cms-activity__content">
+                              <div className="cms-activity__headline">
+                                <span className="cms-activity__actor">{actorLabel(row)}</span>
+                                <span className="cms-activity__verb">{meta.label.toLowerCase()}</span>
+                                <span className="cms-activity__entity">
+                                  {model} #{row.auditable_id}
+                                </span>
+                              </div>
 
-                                <div className="text-muted small d-flex flex-wrap gap-2">
-                                  <span className="text-truncate" title={row.ip_address || undefined}>
-                                    {row.ip_address ? `IP: ${row.ip_address}` : ""}
+                              <div className="cms-activity__meta">
+                                {row.ip_address ? (
+                                  <span className="cms-activity__ip" title={row.ip_address}>
+                                    IP: {row.ip_address}
                                   </span>
-                                  {href && (
-                                    <Link href={href} className="text-decoration-none">
-                                      Open record
-                                    </Link>
-                                  )}
-                                </div>
+                                ) : null}
+                                {href ? (
+                                  <Link href={href} className="cms-activity__open">
+                                    Open record
+                                  </Link>
+                                ) : null}
                               </div>
                             </div>
 
-                            <span className="cms-activity__time" title={new Date(row.created_at).toLocaleString()}>
+                            <time
+                              className="cms-activity__time"
+                              dateTime={row.created_at}
+                              title={new Date(row.created_at).toLocaleString()}
+                            >
                               {when}
-                            </span>
+                            </time>
                           </div>
                         </li>
                       );
@@ -372,7 +404,7 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
         </div>
 
         {!loading && limited.length > 0 && pageNumbers.safeTotal > 1 && (
-          <nav aria-label="Recent activity pagination" className="mt-2 pt-2 border-top">
+          <nav aria-label="Recent activity pagination" className="cms-activity-pagination">
             <ul className="pagination pagination-sm mb-0 justify-content-end">
               <li className={`page-item ${pageNumbers.safeCurrent <= 1 ? "disabled" : ""}`}>
                 <button

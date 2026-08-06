@@ -92,6 +92,19 @@
   font-weight: 600;
 }
 
+.requiredMark {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.helperHint {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .input {
   width: 100%;
   min-height: 2.65rem;
@@ -142,8 +155,18 @@
 
 .secondaryBtn:disabled,
 .primaryBtn:disabled {
-  opacity: 0.65;
+  opacity: 1;
   cursor: not-allowed;
+}
+
+.primaryBtn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  border: 1px solid #cbd5e1;
+}
+
+.secondaryBtn:disabled {
+  opacity: 0.65;
 }
 
 @media (max-width: 560px) {
