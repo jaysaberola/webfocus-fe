@@ -209,4 +209,26 @@ export async function broadcastCommerceNotification(payload: { title: string; bo
   return res.data;
 }
 
+export type CommerceAssignableUser = {
+  id: number;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+};
+
+export async function fetchCommerceAssignableUsers() {
+  const res = await axiosInstance.get("/commerce-admin/assignable-users", {
+    headers: { "X-No-Loading": true },
+  });
+  return extractList<CommerceAssignableUser>(res.data?.data ?? res.data);
+}
+
+export async function assignCommerceSalesTransaction(transactionId: number, userId: number) {
+  const res = await axiosInstance.patch(
+    `/commerce-admin/sales-transactions/${transactionId}/assign`,
+    { user_id: userId }
+  );
+  return res.data;
+}
+
 export { getCustomers, getSalesTransactions };

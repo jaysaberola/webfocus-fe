@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
+import AssignTransactionModal from "@/components/CommerceAdmin/modals/AssignTransactionModal";
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
@@ -44,6 +45,8 @@ import {
   transactionAmountLabel,
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
+import { readStoredCurrentUser } from "@/lib/currentUser";
+import { canAssignSalesTransactions } from "@/lib/userRoles";
 import {
   deleteSalesTransaction,
   getSalesTransactions,
@@ -53,6 +56,14 @@ import {
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 5;
+
+function assignedUserLabel(row: SalesTransaction) {
+  if (row.user) {
+    const name = `${row.user.fname || ""} ${row.user.lname || ""}`.trim();
+    return name || row.user.email || null;
+  }
+  return null;
+}
 
 const emptyForm = {
   transaction_no: "",
@@ -88,8 +99,10 @@ export default function CommerceTransactionsTab() {
   const [rejectTarget, setRejectTarget] = useState<SalesTransaction | null>(null);
   const [hostingTarget, setHostingTarget] = useState<SalesTransaction | null>(null);
   const [webDesignPriceTarget, setWebDesignPriceTarget] = useState<SalesTransaction | null>(null);
+  const [assignTarget, setAssignTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const colVisRef = useRef<HTMLDivElement>(null);
+  const canAssign = canAssignSalesTransactions(readStoredCurrentUser());
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -266,6 +279,7 @@ export default function CommerceTransactionsTab() {
     else if (action === "pay") await markPaid(row);
     else if (action === "edit") openEdit(row);
     else if (action === "reject") setRejectTarget(row);
+    else if (action === "assign") setAssignTarget(row);
     else if (action === "webdesign:set-price") setWebDesignPriceTarget(row);
     else if (action === "hosting:classify") setHostingTarget(row);
     else if (action.startsWith("hosting:")) {
@@ -363,6 +377,7 @@ export default function CommerceTransactionsTab() {
           <option value="pay">Mark Invoice as Paid</option>
         ) : null}
         <option value="edit">Edit</option>
+        {canAssign ? <option value="assign">Assign To...</option> : null}
         {webDesign ? <option value="webdesign:set-price">Set Web Design Price...</option> : null}
         <option value="reject">Reject Purchase</option>
         {hosting ? (
@@ -485,6 +500,7 @@ export default function CommerceTransactionsTab() {
                 {columnsVisible.date ? renderSortableHead("date") : null}
                 {columnsVisible.expiredDate ? renderSortableHead("expiredDate") : null}
                 {columnsVisible.amount ? renderSortableHead("amount") : null}
+                {columnsVisible.assigned ? <th>Assigned</th> : null}
                 {columnsVisible.status ? renderSortableHead("status") : null}
                 <th className={styles.tableActionHead}>Action</th>
               </tr>
@@ -515,6 +531,15 @@ export default function CommerceTransactionsTab() {
                     {columnsVisible.amount ? (
                       <td className={styles.amountCell}>{transactionAmountLabel(row)}</td>
                     ) : null}
+                    {columnsVisible.assigned ? (
+                      <td className={styles.txAssignedCell}>
+                        {assignedUserLabel(row) ? (
+                          <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
+                        ) : (
+                          <span className={styles.txAssignedEmpty}>Unassigned</span>
+                        )}
+                      </td>
+                    ) : null}
                     {columnsVisible.status ? (
                       <td className={styles.statusCell}>{renderStatusBadge(row)}</td>
                     ) : null}
@@ -543,6 +568,16 @@ export default function CommerceTransactionsTab() {
                 <div>
                   <div className={styles.txGridLabel}>Plan</div>
                   <div className={styles.txGridValue}>{transactionPlanLabel(row)}</div>
+                </div>
+                <div>
+                  <div className={styles.txGridLabel}>Assigned</div>
+                  <div className={styles.txGridValue}>
+                    {assignedUserLabel(row) ? (
+                      <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
+                    ) : (
+                      <span className={styles.txAssignedEmpty}>Unassigned</span>
+                    )}
+                  </div>
                 </div>
                 <div>{renderOrderTypeBadge(row)}</div>
                 <div className={styles.txGridMeta}>
@@ -654,6 +689,7 @@ export default function CommerceTransactionsTab() {
               <div className={styles.detailGrid}>
                 <DetailField label="Invoice ID" value={selected.transaction_no} />
                 <DetailField label="Customer" value={selected.customer_name} />
+                <DetailField label="Assigned To" value={assignedUserLabel(selected)} />
                 <DetailField label="Email" value={selected.customer_email} />
                 <DetailField label="Service" value={transactionItemSummary(selected)} />
                 {isHostingTransaction(selected) ? (
@@ -779,6 +815,18 @@ export default function CommerceTransactionsTab() {
         confirmLabel="Reject"
         onConfirm={confirmReject}
         onCancel={() => setRejectTarget(null)}
+      />
+
+      <AssignTransactionModal
+        open={!!assignTarget}
+        transaction={assignTarget}
+        onClose={() => setAssignTarget(null)}
+        onAssigned={(updated) => {
+          setRows((current) =>
+            current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row))
+          );
+          setAssignTarget(null);
+        }}
       />
     </section>
   );

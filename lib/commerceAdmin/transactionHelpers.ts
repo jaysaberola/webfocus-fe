@@ -33,6 +33,7 @@ export type TxColumnKey =
   | "date"
   | "expiredDate"
   | "amount"
+  | "assigned"
   | "status";
 
 export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
@@ -43,6 +44,7 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   date: "Issued Date",
   expiredDate: "Due Date",
   amount: "Amount",
+  assigned: "Assigned",
   status: "Status",
 };
 
@@ -54,6 +56,7 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   date: true,
   expiredDate: true,
   amount: true,
+  assigned: true,
   status: true,
 };
 

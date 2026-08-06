@@ -2957,6 +2957,123 @@
   font-weight: 600;
 }
 
+.assignUserList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(42vh, 360px);
+  overflow: auto;
+  padding: 0.15rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-lg);
+  background: #fff;
+}
+
+.assignUserRow,
+.assignUserRowActive {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.assignUserRow:hover {
+  background: var(--ca-slate-50);
+}
+
+.assignUserRowActive {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.assignUserAvatar {
+  width: 2.15rem;
+  height: 2.15rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.assignUserMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.assignUserMeta strong {
+  color: var(--ca-slate-900);
+  font-size: var(--ca-text-sm);
+}
+
+.assignUserMeta span {
+  color: var(--ca-slate-500);
+  font-size: var(--ca-text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignUserRole {
+  flex-shrink: 0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--ca-slate-100);
+  color: var(--ca-slate-600);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.txAssignedMeta {
+  margin-top: 0.2rem;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.txAssignedBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.txAssignedEmpty {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.txAssignedCell {
+  white-space: nowrap;
+  min-width: 9rem;
+  vertical-align: middle;
+}
+
 .detailGrid {
   display: grid;
   grid-template-columns: 1fr;

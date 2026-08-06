@@ -6,6 +6,13 @@ export interface SalesTransaction {
   customer_id?: number | null;
   customer_name?: string | null;
   customer_email?: string | null;
+  user_id?: number | null;
+  user?: {
+    id: number;
+    fname?: string | null;
+    lname?: string | null;
+    email?: string | null;
+  } | null;
   subtotal: string | number;
   discount_total: string | number;
   tax_total: string | number;

@@ -100,6 +100,19 @@ export const getRoleDisplayLabel = (user: unknown): string => {
   return ROLE_LABELS[roleSlug] ?? roleSlug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
+export const isCustomerCareUser = (user: unknown) => {
+  if (!user || typeof user !== "object") return false;
+  return getUserRoleNames(user).some((role) => role === "customer care");
+};
+
+/** Customer Care (and admins) can assign transactions to active users. */
+export const canAssignSalesTransactions = (user: unknown) => {
+  if (!user || typeof user !== "object") return false;
+  if (isSuperAdminUser(user)) return true;
+  const roles = getUserRoleNames(user);
+  return roles.includes("customer care") || roles.includes("admin");
+};
+
 export const isCommerceStaffUser = (user: unknown) => {
   if (!user || typeof user !== "object") return false;
   if (isSuperAdminUser(user)) return true;
