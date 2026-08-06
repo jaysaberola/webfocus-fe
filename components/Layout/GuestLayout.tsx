@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { getHeroPreloadImage } from "@/lib/heroBanner";
 import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
+import PaynamicsReturnHandler from "@/components/Cart/PaynamicsReturnHandler";
 
 interface LandingPageLayoutProps {
   children: React.ReactNode;
@@ -114,6 +115,7 @@ export default function LandingPageLayout({
         {layout?.minimalFooter ? <MinimalPublicFooter /> : <LandingFooter />}
 
         <ToastHost />
+        <PaynamicsReturnHandler />
         <PublicCartDrawer />
         <PrivacyConsentBanner />
       </div>

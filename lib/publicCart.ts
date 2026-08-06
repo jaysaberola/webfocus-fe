@@ -197,6 +197,13 @@ export function cartHeldQuotationItems(items: PublicCartItem[]) {
   return items.filter(isPendingQuotationCartItem);
 }
 
+/** Remove payable items after successful payment; keep Pending Quotation rows. */
+export function clearPayablePublicCartItems() {
+  const remaining = cartHeldQuotationItems(readPublicCart());
+  writePublicCart(remaining);
+  return remaining;
+}
+
 export function cartHasMixedCheckout(items: PublicCartItem[]) {
   return cartPayableItems(items).length > 0 && cartHeldQuotationItems(items).length > 0;
 }

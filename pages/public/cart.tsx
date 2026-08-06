@@ -386,15 +386,18 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      // Keep Pending Quotation web design items in the cart (Sales already has the request).
-      writePublicCart(
-        markQuotationSubmittedCartItems(
-          heldQuotationItems,
-          quotationOrderNo ||
-            heldQuotationItems.find((item) => item.quotationTransactionNo)
-              ?.quotationTransactionNo
-        )
-      );
+      // Keep the full cart until Paynamics confirms payment (browser Back must retain items).
+      // Only mark web-design quotation rows as submitted when present.
+      if (heldQuotationItems.length > 0) {
+        writePublicCart(
+          markQuotationSubmittedCartItems(
+            items,
+            quotationOrderNo ||
+              heldQuotationItems.find((item) => item.quotationTransactionNo)
+                ?.quotationTransactionNo
+          )
+        );
+      }
       toast.success(
         mixedCheckout
           ? quotationOrderNo
