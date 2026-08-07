@@ -1,38 +1,52 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  broadcastCommerceNotification,
   fetchCommerceNotifications,
   type CommerceNotificationAdminRow,
 } from "@/services/commerceAdminService";
-import { toast } from "@/lib/toast";
+import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
   onOpenOrders?: () => void;
+  onTabChange?: (tab: CommerceAdminTab) => void;
 };
 
 type ViewMode = "list" | "grid";
 
 const PAGE_SIZE = 10;
 
+function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
+  const url = String(row.actionUrl ?? "");
+  if (url.includes("tab=approvals") || row.kind === "payment_proof" || row.kind === "profile_change") {
+    return "approvals";
+  }
+  if (url.includes("tab=helpdesk") || row.kind === "support_ticket") {
+    return "helpdesk";
+  }
+  return "orders";
+}
+
+function alertActionLabel(row: CommerceNotificationAdminRow) {
+  const tab = alertActionTab(row);
+  if (tab === "approvals") return "Open Approvals";
+  if (tab === "helpdesk") return "Open Helpdesk";
+  return "Open Orders";
+}
+
 function NotificationCard({
   row,
-  kind,
   viewMode,
-  onOpenOrders,
+  onOpen,
 }: {
   row: CommerceNotificationAdminRow;
-  kind: "alert" | "broadcast";
   viewMode: ViewMode;
-  onOpenOrders?: () => void;
+  onOpen?: () => void;
 }) {
-  const showAction = kind === "alert" && Boolean(onOpenOrders);
-
   return (
     <article
       className={[
         viewMode === "grid" ? styles.broadcastCardGrid : styles.broadcastCard,
-        showAction ? styles.broadcastCardWithAction : "",
+        onOpen ? styles.broadcastCardWithAction : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -40,26 +54,20 @@ function NotificationCard({
       <div className={styles.broadcastCardBody}>
         <h5>{row.title}</h5>
         <p className={styles.panelSubtitle}>{row.desc}</p>
-        {(row.email || row.transactionNo) && (
+        {(row.email || row.transactionNo || row.audience) && (
           <p className={styles.panelSubtitle} style={{ marginTop: "0.35rem" }}>
-            {[row.email, row.transactionNo].filter(Boolean).join(" · ")}
+            {[row.audience, row.email, row.transactionNo].filter(Boolean).join(" · ")}
           </p>
         )}
       </div>
       <div className={styles.broadcastCardMeta}>
         <div className={styles.broadcastCardMetaTop}>
-          <span className={kind === "alert" ? styles.badgePending : styles.badgePaid}>
-            {row.status}
-          </span>
+          <span className={styles.badgePending}>{row.status}</span>
           <span className={styles.monoCell}>{row.date}</span>
         </div>
-        {showAction ? (
-          <button
-            type="button"
-            className={styles.primaryBtnSm}
-            onClick={onOpenOrders}
-          >
-            Open Orders
+        {onOpen ? (
+          <button type="button" className={styles.primaryBtnSm} onClick={onOpen}>
+            {alertActionLabel(row)}
           </button>
         ) : null}
       </div>
@@ -145,26 +153,19 @@ function NotificationPagination({
   );
 }
 
-export default function CommerceNotificationsTab({ onOpenOrders }: Props) {
+export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: Props) {
   const [clientAlerts, setClientAlerts] = useState<CommerceNotificationAdminRow[]>([]);
-  const [broadcasts, setBroadcasts] = useState<CommerceNotificationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [alertsPage, setAlertsPage] = useState(1);
-  const [broadcastsPage, setBroadcastsPage] = useState(1);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
       const data = await fetchCommerceNotifications();
       setClientAlerts(Array.isArray(data.clientAlerts) ? data.clientAlerts : []);
-      setBroadcasts(Array.isArray(data.broadcasts) ? data.broadcasts : []);
     } catch {
       setClientAlerts([]);
-      setBroadcasts([]);
     } finally {
       setLoading(false);
     }
@@ -176,7 +177,6 @@ export default function CommerceNotificationsTab({ onOpenOrders }: Props) {
 
   useEffect(() => {
     setAlertsPage(1);
-    setBroadcastsPage(1);
   }, [viewMode]);
 
   const paginatedAlerts = useMemo(() => {
@@ -184,131 +184,43 @@ export default function CommerceNotificationsTab({ onOpenOrders }: Props) {
     return clientAlerts.slice(start, start + PAGE_SIZE);
   }, [clientAlerts, alertsPage]);
 
-  const paginatedBroadcasts = useMemo(() => {
-    const start = (broadcastsPage - 1) * PAGE_SIZE;
-    return broadcasts.slice(start, start + PAGE_SIZE);
-  }, [broadcasts, broadcastsPage]);
+  const listClass = viewMode === "grid" ? styles.broadcastGrid : styles.discountList;
 
-  const handleBroadcast = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const trimmedTitle = title.trim();
-    const trimmedBody = body.trim();
-    if (!trimmedTitle || !trimmedBody) {
-      toast.error("Please enter title and description for broadcast.");
+  const openAlert = (row: CommerceNotificationAdminRow) => {
+    const tab = alertActionTab(row);
+    if (onTabChange) {
+      onTabChange(tab);
       return;
     }
-
-    setSubmitting(true);
-    try {
-      await broadcastCommerceNotification({ title: trimmedTitle, body: trimmedBody });
-      toast.success("Broadcast notice successfully sent to all client portals!");
-      setTitle("");
-      setBody("");
-      setBroadcastsPage(1);
-      loadRows();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to send broadcast notice.");
-    } finally {
-      setSubmitting(false);
-    }
+    if (tab === "orders" && onOpenOrders) onOpenOrders();
   };
-
-  const listClass = viewMode === "grid" ? styles.broadcastGrid : styles.discountList;
 
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Broadcast System Notifications</h3>
+          <h3 className={styles.panelTitle}>Client Activity Alerts</h3>
           <p className={styles.panelSubtitle}>
-            Send global maintenance alerts or notices to all client portals.
+            Alerts for your role and assigned clients. Web design quotations are shown to Sales only.
           </p>
         </div>
         <ViewToggle viewMode={viewMode} onChange={setViewMode} />
       </div>
 
-      <form className={styles.broadcastForm} onSubmit={handleBroadcast}>
-        <label className={styles.modalLabel}>
-          Notice Title
-          <input
-            className={styles.modalInput}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Scheduled Core Datacenter Upgrade"
-          />
-        </label>
-        <label className={styles.modalLabel}>
-          Notice Description
-          <textarea
-            className={styles.modalTextarea}
-            rows={3}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Provide details of the system update or broadcast message..."
-          />
-        </label>
-        <div className={styles.modalActions}>
-          <button type="submit" className={styles.primaryBtnSm} disabled={submitting}>
-            {submitting ? "Sending..." : "Broadcast Notice"}
-          </button>
-        </div>
-      </form>
-
-      <div className={styles.broadcastHistory}>
-        <div className={styles.broadcastHistoryHeader}>
-          <h4 className={styles.broadcastHistoryTitle}>Broadcast History</h4>
-        </div>
-        {loading ? (
-          <p className={styles.emptyState}>Loading notification history...</p>
-        ) : broadcasts.length === 0 ? (
-          <p className={styles.emptyState}>No broadcast notices sent yet.</p>
-        ) : (
-          <>
-            <div className={listClass}>
-              {paginatedBroadcasts.map((row) => (
-                <NotificationCard
-                  key={`broadcast-${row.id}`}
-                  row={row}
-                  kind="broadcast"
-                  viewMode={viewMode}
-                />
-              ))}
-            </div>
-            <NotificationPagination
-              page={broadcastsPage}
-              totalItems={broadcasts.length}
-              itemLabel="broadcasts"
-              onPageChange={setBroadcastsPage}
-            />
-          </>
-        )}
-      </div>
-
-      <div className={styles.panelHeader} style={{ marginTop: "1.75rem" }}>
-        <div>
-          <h3 className={styles.panelTitle}>Client Quotation Alerts</h3>
-          <p className={styles.panelSubtitle}>
-            Web design Pending Quotation checkouts from client portals appear here for Sales
-            pricing.
-          </p>
-        </div>
-      </div>
-
       <div className={styles.broadcastHistory} style={{ borderTop: "none", paddingTop: 0 }}>
         {loading ? (
-          <p className={styles.emptyState}>Loading client quotation alerts...</p>
+          <p className={styles.emptyState}>Loading client activity alerts...</p>
         ) : clientAlerts.length === 0 ? (
-          <p className={styles.emptyState}>No pending web design quotation checkouts.</p>
+          <p className={styles.emptyState}>No client activity alerts yet.</p>
         ) : (
           <>
             <div className={listClass}>
               {paginatedAlerts.map((row) => (
                 <NotificationCard
-                  key={`alert-${row.id}`}
+                  key={`${row.kind ?? "alert"}-${row.id}-${row.date}`}
                   row={row}
-                  kind="alert"
                   viewMode={viewMode}
-                  onOpenOrders={onOpenOrders}
+                  onOpen={() => openAlert(row)}
                 />
               ))}
             </div>

@@ -102,7 +102,7 @@ export type CommerceNotificationAdminRow = {
   date: string;
   audience: string;
   status: string;
-  kind?: "broadcast" | "web_design_quotation";
+  kind?: "broadcast" | "web_design_quotation" | "payment_proof" | "profile_change" | "support_ticket" | string;
   email?: string | null;
   transactionNo?: string | null;
   actionUrl?: string | null;
