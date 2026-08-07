@@ -6,7 +6,6 @@ const COMMERCE_PERMISSION_PREFIXES = new Set([
   "commerce_dashboard",
   "commerce_approvals",
   "commerce_managed",
-  "commerce_contracts",
   "commerce_notifications",
   "commerce_helpdesk",
   "customers",
@@ -17,17 +16,34 @@ const COMMERCE_PERMISSION_PREFIXES = new Set([
   "reports",
 ]);
 
+/** Modules hidden from Access Rights / admin UIs (kept in DB for compatibility). */
+const HIDDEN_ACCESS_RIGHTS_MODULES = new Set(["commerce_contracts", "contracts"]);
+
 export function getAccessRightsArea(permissionName: string): AccessRightsArea {
   const prefix = permissionName.split(".")[0]?.toLowerCase() ?? "";
   return COMMERCE_PERMISSION_PREFIXES.has(prefix) ? "commerce" : "cms";
 }
 
+export function isHiddenAccessRightsModule(moduleOrPermission: string) {
+  const key = moduleOrPermission.trim().toLowerCase();
+  const prefix = key.split(".")[0] ?? key;
+  return HIDDEN_ACCESS_RIGHTS_MODULES.has(key) || HIDDEN_ACCESS_RIGHTS_MODULES.has(prefix);
+}
+
 export function filterPermissionsByArea(permissions: Permission[], area: AccessRightsArea) {
-  return permissions.filter((perm) => getAccessRightsArea(perm.name) === area);
+  return permissions.filter(
+    (perm) =>
+      getAccessRightsArea(perm.name) === area &&
+      !isHiddenAccessRightsModule(perm.name) &&
+      !isHiddenAccessRightsModule(perm.module ?? ""),
+  );
 }
 
 export function groupPermissionsByModule(permissions: Permission[]) {
   return permissions.reduce((acc: Record<string, Permission[]>, perm) => {
+    if (isHiddenAccessRightsModule(perm.name) || isHiddenAccessRightsModule(perm.module ?? "")) {
+      return acc;
+    }
     acc[perm.module] = acc[perm.module] || [];
     acc[perm.module].push(perm);
     return acc;

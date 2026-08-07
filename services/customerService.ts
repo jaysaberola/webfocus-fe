@@ -26,6 +26,13 @@ export type CustomerRow = UserRow & {
   active_services_count?: number;
   company?: string;
   representative?: string;
+  owner_id?: number | null;
+  owner_name?: string | null;
+  owner?: {
+    id: number;
+    name?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 export const createCustomer = async (payload: CreateCustomerPayload) => {
@@ -165,4 +172,14 @@ export const toggleCustomerActive = async (id: number, nextActive?: boolean) => 
     }
   }
   throw lastError;
+};
+
+export const deleteCustomer = async (id: number) => {
+  const res = await axiosInstance.delete(`/customers/${id}`);
+  return res.data;
+};
+
+export const bulkDeleteCustomers = async (ids: number[]) => {
+  const res = await axiosInstance.post("/customers/bulk-delete", { ids });
+  return res.data;
 };

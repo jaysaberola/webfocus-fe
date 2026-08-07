@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateManageServiceModal from "@/components/CommerceAdmin/modals/CreateManageServiceModal";
 import EditManageServiceModal from "@/components/CommerceAdmin/modals/EditManageServiceModal";
+import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
+import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { groupServicesByType, resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import { toast } from "@/lib/toast";
@@ -65,6 +67,7 @@ export default function CommerceManagedTab() {
     discount_value: 10,
     target: "All Services",
   });
+  const [exporting, setExporting] = useState(false);
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true);
@@ -123,6 +126,14 @@ export default function CommerceManagedTab() {
     []
   );
   const selection = useRowSelection(paginatedServices, getServiceRowId);
+  const hasSelection = selection.selectedCount > 0;
+
+  const selectedServices = useMemo(() => {
+    const ids = new Set(selection.selectedIds);
+    return activeGroupServices.filter((service) =>
+      ids.has(String(service.id ?? service.service_id ?? service.name)),
+    );
+  }, [activeGroupServices, selection.selectedIds]);
 
   const serviceRangeStart = activeGroupServices.length ? (servicePage - 1) * pageSize + 1 : 0;
   const serviceRangeEnd = Math.min(servicePage * pageSize, activeGroupServices.length);
@@ -243,34 +254,53 @@ export default function CommerceManagedTab() {
 
   const renderServicePagination = () => (
     <div className={styles.paginationBar}>
-      <div className={styles.paginationInfo}>
-        {activeGroupServices.length === 0
-          ? "Showing 0 plans"
-          : `Showing ${serviceRangeStart}-${serviceRangeEnd} of ${activeGroupServices.length} plans in ${activeServiceType}`}
-      </div>
-      <div className={styles.paginationActions}>
+      <div className={styles.paginationInfo}>Total Records {activeGroupServices.length}</div>
+      <div className={styles.paginationControls}>
         <button
           type="button"
           className={styles.secondaryBtnSm}
-          disabled={servicePage <= 1}
+          disabled={servicePage <= 1 || activeGroupServices.length === 0}
           onClick={() => setServicePage((current) => Math.max(1, current - 1))}
+          aria-label="Previous page"
         >
-          Previous
+          <i className="fa-solid fa-chevron-left" aria-hidden="true" />
         </button>
-        <span className={styles.managedServicePageIndicator}>
-          {servicePage} / {totalServicePages}
+        <span className={styles.paginationRange}>
+          {activeGroupServices.length === 0 ? "0 to 0" : `${serviceRangeStart} to ${serviceRangeEnd}`}
         </span>
         <button
           type="button"
-          className={styles.primaryBtnSm}
-          disabled={servicePage >= totalServicePages}
+          className={styles.secondaryBtnSm}
+          disabled={servicePage >= totalServicePages || activeGroupServices.length === 0}
           onClick={() => setServicePage((current) => Math.min(totalServicePages, current + 1))}
+          aria-label="Next page"
         >
-          Next
+          <i className="fa-solid fa-chevron-right" aria-hidden="true" />
         </button>
       </div>
     </div>
   );
+
+  const handleExportSelectedServices = () => {
+    if (selectedServices.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      exportRowsToExcel(
+        ["Service Name", "Type", "Base Price", "Status", "Date Created", "Date Modified"],
+        selectedServices.map((service) => [
+          service.name ?? service.title ?? "",
+          resolveServiceTypeLabel(service),
+          formatCommerceMoney(Number(service.price ?? 0)),
+          serviceActive(service) ? "Active" : "Disabled",
+          formatServiceDate(service.created_at),
+          formatServiceDate(service.updated_at),
+        ]),
+        "managed-services",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const renderServiceGridCard = (service: any) => (
     <article key={service.id ?? service.service_id} className={styles.managedServiceCard}>
@@ -300,7 +330,15 @@ export default function CommerceManagedTab() {
         onChange={() => selection.toggleRow(service)}
         label={`Select service ${service.name ?? service.title}`}
       />
-      <td><strong>{service.name ?? service.title}</strong></td>
+      <td>
+        <button
+          type="button"
+          className={styles.tableCellLink}
+          onClick={() => void handleServiceAction(service, "edit")}
+        >
+          {service.name ?? service.title}
+        </button>
+      </td>
       <td><span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span></td>
       <td className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))}</td>
       <td>
@@ -420,6 +458,17 @@ export default function CommerceManagedTab() {
             <div className={styles.managedServiceLayout}>
               {renderServiceCategoryNav()}
               {renderServiceGroupHeader(activeServiceType, activeGroupServices.length)}
+
+              {hasSelection ? (
+                <CommerceBulkSelectionBar
+                  selectedCount={selection.selectedCount}
+                  entityLabel="service"
+                  exporting={exporting}
+                  onExport={handleExportSelectedServices}
+                  onClear={selection.clearSelection}
+                  showDelete={false}
+                />
+              ) : null}
 
               {viewMode === "list" ? (
                 <div className={styles.tableWrap}>

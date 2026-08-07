@@ -5,11 +5,13 @@ import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClie
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
+import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_LABELS,
@@ -106,6 +108,9 @@ export default function CommerceTransactionsTab() {
   const [webDesignPriceTarget, setWebDesignPriceTarget] = useState<SalesTransaction | null>(null);
   const [assignTarget, setAssignTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
+  const [exporting, setExporting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const canAssign = canAssignSalesTransactions(readStoredCurrentUser());
 
@@ -175,6 +180,12 @@ export default function CommerceTransactionsTab() {
 
   const getTxRowId = useCallback((row: SalesTransaction) => String(row.id), []);
   const selection = useRowSelection(displayRows, getTxRowId);
+  const hasSelection = selection.selectedCount > 0;
+
+  const selectedRows = useMemo(() => {
+    const ids = new Set(selection.selectedIds);
+    return processedRows.filter((row) => ids.has(String(row.id)));
+  }, [processedRows, selection.selectedIds]);
 
   const totalCount = processedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -405,16 +416,69 @@ export default function CommerceTransactionsTab() {
   const visibleColumnCount =
     Object.values(columnsVisible).filter(Boolean).length + 2;
 
+  const handleExportSelected = () => {
+    if (selectedRows.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      exportRowsToExcel(
+        [
+          "Invoice ID",
+          "Service Name",
+          "Plan",
+          "Order Type",
+          "Issued Date",
+          "Due Date",
+          "Amount",
+          "Assigned",
+          "Payment Status",
+          "Order Status",
+          "Customer Name",
+          "Customer Email",
+        ],
+        selectedRows.map((row) => [
+          row.transaction_no,
+          transactionItemSummary(row),
+          transactionPlanLabel(row),
+          transactionOrderType(row),
+          transactionIssuedDate(row),
+          transactionDueDate(row),
+          transactionAmountLabel(row),
+          assignedUserLabel(row) ?? "Unassigned",
+          paymentStatusLabel(row.payment_status),
+          row.order_status ?? "",
+          row.customer_name ?? "",
+          row.customer_email ?? "",
+        ]),
+        "orders",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0 || bulkDeleting) return;
+    setBulkDeleting(true);
+    try {
+      for (const row of selectedRows) {
+        await deleteSalesTransaction(row.id);
+      }
+      toast.success(`${selectedRows.length} order(s) deleted.`);
+      selection.clearSelection();
+      setBulkDeleteOpen(false);
+      loadRows();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to delete selected orders.");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>
-            All Orders &amp; Invoices
-            {selection.selectedCount > 0 ? (
-              <span className={styles.selectionCount}>{selection.selectedCount} selected</span>
-            ) : null}
-          </h3>
+          <h3 className={styles.panelTitle}>All Orders &amp; Invoices</h3>
           <p className={styles.panelSubtitle}>
             View and verify all financial invoices, payment gateway checkouts, and receipts.
           </p>
@@ -448,56 +512,68 @@ export default function CommerceTransactionsTab() {
         </div>
       ) : null}
 
-      <div className={styles.toolbarRow}>
-        <div className={styles.toolbarFilters}>
-          <select className={styles.selectInline} value={sortBy} onChange={(e) => setSortBy(e.target.value as TxSortKey)}>
-            <option value="date-desc">Sort: Newest First</option>
-            <option value="date-asc">Sort: Oldest First</option>
-            <option value="amount-desc">Sort: Amount (High to Low)</option>
-            <option value="amount-asc">Sort: Amount (Low to High)</option>
-            <option value="id-asc">Sort: Invoice ID (A-Z)</option>
-          </select>
-          <select
-            className={styles.selectInline}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as TxFilterKey)}
-          >
-            <option value="all">Filter: All Statuses</option>
-            <option value="paid">Paid</option>
-            <option value="pending">Pending Payment</option>
-          </select>
-          <div className={styles.colVisWrap} ref={colVisRef}>
-            <button
-              type="button"
-              className={styles.colVisBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                setColVisOpen((open) => !open);
-              }}
+      {hasSelection ? (
+        <CommerceBulkSelectionBar
+          selectedCount={selection.selectedCount}
+          entityLabel="order"
+          exporting={exporting}
+          deleting={bulkDeleting}
+          onExport={handleExportSelected}
+          onDelete={() => setBulkDeleteOpen(true)}
+          onClear={selection.clearSelection}
+        />
+      ) : (
+        <div className={styles.toolbarRow}>
+          <div className={styles.toolbarFilters}>
+            <select className={styles.selectInline} value={sortBy} onChange={(e) => setSortBy(e.target.value as TxSortKey)}>
+              <option value="date-desc">Sort: Newest First</option>
+              <option value="date-asc">Sort: Oldest First</option>
+              <option value="amount-desc">Sort: Amount (High to Low)</option>
+              <option value="amount-asc">Sort: Amount (Low to High)</option>
+              <option value="id-asc">Sort: Invoice ID (A-Z)</option>
+            </select>
+            <select
+              className={styles.selectInline}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as TxFilterKey)}
             >
-              <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
-            </button>
-            {colVisOpen ? (
-              <div className={styles.colVisPanel}>
-                <div className={styles.colVisTitle}>Toggle Columns</div>
-                {(Object.keys(TX_COLUMN_LABELS) as TxColumnKey[]).map((key) => (
-                  <label key={key} className={styles.colVisItem}>
-                    <input
-                      type="checkbox"
-                      checked={columnsVisible[key]}
-                      onChange={(e) => toggleColumn(key, e.target.checked)}
-                    />
-                    <span>{TX_COLUMN_LABELS[key]}</span>
-                  </label>
-                ))}
-              </div>
-            ) : null}
+              <option value="all">Filter: All Statuses</option>
+              <option value="paid">Paid</option>
+              <option value="pending">Pending Payment</option>
+            </select>
+            <div className={styles.colVisWrap} ref={colVisRef}>
+              <button
+                type="button"
+                className={styles.colVisBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setColVisOpen((open) => !open);
+                }}
+              >
+                <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+              </button>
+              {colVisOpen ? (
+                <div className={styles.colVisPanel}>
+                  <div className={styles.colVisTitle}>Toggle Columns</div>
+                  {(Object.keys(TX_COLUMN_LABELS) as TxColumnKey[]).map((key) => (
+                    <label key={key} className={styles.colVisItem}>
+                      <input
+                        type="checkbox"
+                        checked={columnsVisible[key]}
+                        onChange={(e) => toggleColumn(key, e.target.checked)}
+                      />
+                      <span>{TX_COLUMN_LABELS[key]}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
+          <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
+            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client Order
+          </button>
         </div>
-        <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
-          <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client Order
-        </button>
-      </div>
+      )}
 
       {loading ? (
         <p className={styles.emptyState}>Loading orders...</p>
@@ -540,7 +616,17 @@ export default function CommerceTransactionsTab() {
                       onChange={() => selection.toggleRow(row)}
                       label={`Select order ${row.transaction_no}`}
                     />
-                    {columnsVisible.id ? <td className={styles.monoCell}>{row.transaction_no}</td> : null}
+                    {columnsVisible.id ? (
+                      <td className={styles.monoCell}>
+                        <button
+                          type="button"
+                          className={styles.tableCellLink}
+                          onClick={() => openView(row)}
+                        >
+                          {row.transaction_no}
+                        </button>
+                      </td>
+                    ) : null}
                     {columnsVisible.items ? (
                       <td className={styles.txServiceCell}>
                         {transactionItemSummary(row)}
@@ -560,7 +646,18 @@ export default function CommerceTransactionsTab() {
                     ) : null}
                     {columnsVisible.assigned ? (
                       <td className={styles.txAssignedCell}>
-                        {assignedUserLabel(row) ? (
+                        {canAssign ? (
+                          <button
+                            type="button"
+                            className={
+                              assignedUserLabel(row) ? styles.txAssignedBadge : styles.txAssignedEmpty
+                            }
+                            onClick={() => setAssignTarget(row)}
+                            title="Assign staff"
+                          >
+                            {assignedUserLabel(row) ?? "Unassigned"}
+                          </button>
+                        ) : assignedUserLabel(row) ? (
                           <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
                         ) : (
                           <span className={styles.txAssignedEmpty}>Unassigned</span>
@@ -637,34 +734,34 @@ export default function CommerceTransactionsTab() {
       )}
 
       <div className={styles.paginationBar}>
-        <div className={styles.paginationInfo}>
-          {showAll
-            ? `Showing all ${totalCount} items`
-            : totalCount === 0
-              ? "Showing 0 items"
-              : `Showing ${startNum}-${endNum} of ${totalCount} items`}
-        </div>
-        <div className={styles.paginationActions}>
+        <div className={styles.paginationInfo}>Total Records {totalCount}</div>
+        <div className={styles.paginationControls}>
           <button
             type="button"
             className={styles.secondaryBtnSm}
-            disabled={page <= 1 || showAll}
+            disabled={page <= 1 || showAll || totalCount === 0}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
+            aria-label="Previous page"
           >
-            Previous
+            <i className="fa-solid fa-chevron-left" aria-hidden="true" />
           </button>
-          {!showAll ? (
-            <span className={styles.managedServicePageIndicator}>
-              {page} / {totalPages}
-            </span>
-          ) : null}
+          <span className={styles.paginationRange}>
+            {showAll
+              ? totalCount === 0
+                ? "0 to 0"
+                : `1 to ${totalCount}`
+              : totalCount === 0
+                ? "0 to 0"
+                : `${startNum} to ${endNum}`}
+          </span>
           <button
             type="button"
             className={styles.secondaryBtnSm}
-            disabled={showAll || page >= totalPages}
+            disabled={showAll || page >= totalPages || totalCount === 0}
             onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+            aria-label="Next page"
           >
-            Next
+            <i className="fa-solid fa-chevron-right" aria-hidden="true" />
           </button>
           <button
             type="button"
@@ -842,6 +939,25 @@ export default function CommerceTransactionsTab() {
         confirmLabel="Reject"
         onConfirm={confirmReject}
         onCancel={() => setRejectTarget(null)}
+      />
+
+      <ConfirmModal
+        show={bulkDeleteOpen}
+        title="Delete orders"
+        message={
+          <>
+            Delete <strong>{selection.selectedCount}</strong> selected order
+            {selection.selectedCount === 1 ? "" : "s"}? This cannot be undone.
+          </>
+        }
+        confirmLabel={bulkDeleting ? "Deleting..." : "Delete"}
+        danger
+        onConfirm={() => {
+          if (!bulkDeleting) void handleBulkDelete();
+        }}
+        onCancel={() => {
+          if (!bulkDeleting) setBulkDeleteOpen(false);
+        }}
       />
 
       <AssignTransactionModal

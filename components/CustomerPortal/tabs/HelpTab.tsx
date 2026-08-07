@@ -1,8 +1,65 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import { createPortalTicket, fetchPortalTickets } from "@/services/customerPortalService";
 import type { PortalTicket } from "@/lib/customerPortal/types";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
+
+type TicketColumnKey = "id" | "subject" | "date" | "status";
+type TicketSortKey =
+  | "id-asc"
+  | "id-desc"
+  | "subject-asc"
+  | "subject-desc"
+  | "date-asc"
+  | "date-desc"
+  | "status-asc"
+  | "status-desc";
+
+const TICKET_SORT_ASC: Record<TicketColumnKey, TicketSortKey> = {
+  id: "id-asc",
+  subject: "subject-asc",
+  date: "date-asc",
+  status: "status-asc",
+};
+
+const TICKET_SORT_DESC: Record<TicketColumnKey, TicketSortKey> = {
+  id: "id-desc",
+  subject: "subject-desc",
+  date: "date-desc",
+  status: "status-desc",
+};
+
+function sortPortalTickets(rows: PortalTicket[], sortBy: TicketSortKey) {
+  const copy = [...rows];
+  copy.sort((a, b) => {
+    const compareText = (left: string, right: string, desc: boolean) => {
+      const result = left.localeCompare(right);
+      return desc ? -result : result;
+    };
+
+    if (sortBy.startsWith("id")) return compareText(a.id, b.id, sortBy === "id-desc");
+    if (sortBy.startsWith("subject")) {
+      return compareText(a.subject, b.subject, sortBy === "subject-desc");
+    }
+    if (sortBy.startsWith("date")) return compareText(a.date, b.date, sortBy === "date-desc");
+    if (sortBy.startsWith("status")) return compareText(a.status, b.status, sortBy === "status-desc");
+    return 0;
+  });
+  return copy;
+}
+
+function toggleTicketSort(current: TicketSortKey, column: TicketColumnKey): TicketSortKey {
+  const asc = TICKET_SORT_ASC[column];
+  const desc = TICKET_SORT_DESC[column];
+  return current === asc ? desc : asc;
+}
+
+function ticketSortDirection(sortBy: TicketSortKey, column: TicketColumnKey): "asc" | "desc" | null {
+  if (sortBy === TICKET_SORT_ASC[column]) return "asc";
+  if (sortBy === TICKET_SORT_DESC[column]) return "desc";
+  return null;
+}
 
 export default function HelpTab() {
   const [chatInput, setChatInput] = useState("");
@@ -12,6 +69,7 @@ export default function HelpTab() {
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState<TicketSortKey>("date-desc");
   const [messages, setMessages] = useState([
     "Mabuhay! Welcome to WebFocus NOC Support. How may we assist your Manila server deployment today?",
   ]);
@@ -21,6 +79,8 @@ export default function HelpTab() {
       .then(setTickets)
       .finally(() => setLoading(false));
   }, []);
+
+  const sortedTickets = useMemo(() => sortPortalTickets(tickets, sortBy), [tickets, sortBy]);
 
   const sendMessage = () => {
     const text = chatInput.trim();
@@ -79,9 +139,8 @@ export default function HelpTab() {
               />
               <textarea
                 value={ticketMessage}
-                placeholder="Describe your issue (optional)"
+                placeholder="Describe your issue..."
                 onChange={(e) => setTicketMessage(e.target.value)}
-                rows={3}
               />
               <div className={styles.ticketFormActions}>
                 <button type="button" className={styles.secondaryBtnSm} onClick={() => setShowTicketForm(false)}>
@@ -94,28 +153,82 @@ export default function HelpTab() {
             </div>
           ) : null}
 
+          {!showTicketForm ? (
+            <div className={styles.portalTableToolbar}>
+              <div className={styles.portalToolbarInner}>
+                <div className={styles.portalToolbarGroup}>
+                  <span className={styles.portalToolbarLabel}>Sort By</span>
+                  <select
+                    className={styles.portalToolbarControl}
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as TicketSortKey)}
+                    aria-label="Sort tickets"
+                  >
+                    <option value="date-desc">Date (Newest)</option>
+                    <option value="date-asc">Date (Oldest)</option>
+                    <option value="status-asc">Status (A-Z)</option>
+                    <option value="subject-asc">Subject (A-Z)</option>
+                    <option value="id-asc">Ticket ID (A-Z)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {loading ? (
             <p className={styles.panelSub}>Loading tickets...</p>
           ) : (
-            <div className={styles.ticketList}>
-              {tickets.length === 0 ? (
-                <p className={styles.panelSub}>No support tickets yet.</p>
-              ) : (
-                tickets.map((ticket) => (
-                  <article key={ticket.id} className={styles.ticketCard}>
-                    <div>
-                      <div className={styles.ticketMeta}>
-                        <span className={styles.monoBlue}>{ticket.id}</span>
-                        <span className={ticket.status === "Resolved" ? styles.badgeGreen : styles.badgeBlue}>
-                          {ticket.status}
-                        </span>
-                      </div>
-                      <h3>{ticket.subject}</h3>
-                    </div>
-                    <span className={styles.ticketDate}>{ticket.date}</span>
-                  </article>
-                ))
-              )}
+            <div className={styles.tableWrap}>
+              <table className={styles.dataTable}>
+                <thead>
+                  <tr>
+                    <PortalSortableTableHead
+                      label="Ticket"
+                      active={ticketSortDirection(sortBy, "id") !== null}
+                      direction={ticketSortDirection(sortBy, "id") ?? "asc"}
+                      onClick={() => setSortBy((current) => toggleTicketSort(current, "id"))}
+                    />
+                    <PortalSortableTableHead
+                      label="Subject"
+                      active={ticketSortDirection(sortBy, "subject") !== null}
+                      direction={ticketSortDirection(sortBy, "subject") ?? "asc"}
+                      onClick={() => setSortBy((current) => toggleTicketSort(current, "subject"))}
+                    />
+                    <PortalSortableTableHead
+                      label="Date"
+                      active={ticketSortDirection(sortBy, "date") !== null}
+                      direction={ticketSortDirection(sortBy, "date") ?? "asc"}
+                      onClick={() => setSortBy((current) => toggleTicketSort(current, "date"))}
+                    />
+                    <PortalSortableTableHead
+                      label="Status"
+                      active={ticketSortDirection(sortBy, "status") !== null}
+                      direction={ticketSortDirection(sortBy, "status") ?? "asc"}
+                      onClick={() => setSortBy((current) => toggleTicketSort(current, "status"))}
+                    />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedTickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={4}>No support tickets yet.</td>
+                    </tr>
+                  ) : (
+                    sortedTickets.map((ticket) => (
+                      <tr key={ticket.id}>
+                        <td className={styles.monoBlue}>{ticket.id}</td>
+                        <td className={styles.serviceNameBold}>{ticket.subject}</td>
+                        <td>{ticket.date}</td>
+                        <td>
+                          <span className={ticket.status === "Resolved" ? styles.badgeGreen : styles.badgeBlue}>
+                            {ticket.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           )}
         </section>

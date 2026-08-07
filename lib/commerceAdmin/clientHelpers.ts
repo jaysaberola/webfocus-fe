@@ -4,34 +4,52 @@ export type ClientSortKey =
   | "name-asc"
   | "name-desc"
   | "newest"
-  | "id-asc"
-  | "id-desc"
-  | "email-asc"
-  | "email-desc"
-  | "service-asc"
-  | "service-desc"
-  | "status-asc"
-  | "status-desc";
+  | "oldest"
+  | "owner-asc"
+  | "owner-desc"
+  | "billing-asc"
+  | "billing-desc"
+  | "classification-asc"
+  | "classification-desc";
 
-export type ClientFilterKey = "all" | "Active" | "Disabled";
+export type ClientFilterKey = "all" | "New" | "Existing" | "Active" | "Disabled";
 
-export type ClientColumnKey = "id" | "name" | "email" | "service" | "status";
+export type ClientColumnKey = "name" | "owner" | "created" | "billing" | "classification";
 
 export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
-  id: "Client ID",
-  name: "Company / Representative",
-  email: "Business Email",
-  service: "Active Services",
-  status: "Status",
+  name: "Client Name",
+  owner: "Client Owner",
+  created: "Created Time",
+  billing: "Billing-In-Charge",
+  classification: "Client Classification",
 };
 
 export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
-  id: true,
   name: true,
-  email: true,
-  service: true,
-  status: true,
+  owner: true,
+  created: true,
+  billing: true,
+  classification: true,
 };
+
+export function clientDisplayName(client: CustomerRow) {
+  return String(client.company || client.name || "").trim() || "—";
+}
+
+export function clientOwnerName(client: CustomerRow) {
+  const assigned =
+    String(client.owner?.name || client.owner_name || "").trim() ||
+    String(client.owner?.email || "").trim();
+  return assigned || "Unassigned";
+}
+
+export function clientIsAssigned(client: CustomerRow) {
+  return Boolean(client.owner_id || client.owner?.id);
+}
+
+export function clientBillingInCharge(client: CustomerRow) {
+  return String(client.email || "").trim() || "—";
+}
 
 export function clientActiveServicesCount(client: CustomerRow) {
   return Number(client.active_services_count ?? 0);
@@ -45,8 +63,30 @@ export function clientDisplayStatus(client: CustomerRow) {
   return "Active";
 }
 
+export function clientClassification(client: CustomerRow): "New" | "Existing" {
+  return clientActiveServicesCount(client) > 0 ? "Existing" : "New";
+}
+
+export function formatClientCreatedTime(client: CustomerRow) {
+  const raw = client.created_at;
+  if (!raw) return "—";
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return String(client.date_registered || "—");
+  return date.toLocaleString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export function filterClients(rows: CustomerRow[], filter: ClientFilterKey) {
   if (filter === "all") return rows;
+  if (filter === "New" || filter === "Existing") {
+    return rows.filter((row) => clientClassification(row) === filter);
+  }
   return rows.filter((row) => clientDisplayStatus(row) === filter);
 }
 
@@ -64,27 +104,25 @@ export function sortClients(rows: CustomerRow[], sortBy: ClientSortKey) {
   sorted.sort((a, b) => {
     switch (sortBy) {
       case "name-asc":
-        return compareStrings(a.name ?? "", b.name ?? "", "asc");
+        return compareStrings(clientDisplayName(a), clientDisplayName(b), "asc");
       case "name-desc":
-        return compareStrings(a.name ?? "", b.name ?? "", "desc");
+        return compareStrings(clientDisplayName(a), clientDisplayName(b), "desc");
       case "newest":
         return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
-      case "id-asc":
-        return a.id - b.id;
-      case "id-desc":
-        return b.id - a.id;
-      case "email-asc":
-        return compareStrings(a.email ?? "", b.email ?? "", "asc");
-      case "email-desc":
-        return compareStrings(a.email ?? "", b.email ?? "", "desc");
-      case "service-asc":
-        return clientActiveServicesCount(a) - clientActiveServicesCount(b);
-      case "service-desc":
-        return clientActiveServicesCount(b) - clientActiveServicesCount(a);
-      case "status-asc":
-        return compareStrings(clientDisplayStatus(a), clientDisplayStatus(b), "asc");
-      case "status-desc":
-        return compareStrings(clientDisplayStatus(a), clientDisplayStatus(b), "desc");
+      case "oldest":
+        return new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+      case "owner-asc":
+        return compareStrings(clientOwnerName(a), clientOwnerName(b), "asc");
+      case "owner-desc":
+        return compareStrings(clientOwnerName(a), clientOwnerName(b), "desc");
+      case "billing-asc":
+        return compareStrings(clientBillingInCharge(a), clientBillingInCharge(b), "asc");
+      case "billing-desc":
+        return compareStrings(clientBillingInCharge(a), clientBillingInCharge(b), "desc");
+      case "classification-asc":
+        return compareStrings(clientClassification(a), clientClassification(b), "asc");
+      case "classification-desc":
+        return compareStrings(clientClassification(a), clientClassification(b), "desc");
       default:
         return 0;
     }

@@ -105,12 +105,17 @@ export const isCustomerCareUser = (user: unknown) => {
   return getUserRoleNames(user).some((role) => role === "customer care");
 };
 
-/** Customer Care (and admins) can assign transactions to active users. */
+/** Customer Care, Finance Admin, Sales Admin (and admins) can assign transactions. */
 export const canAssignSalesTransactions = (user: unknown) => {
   if (!user || typeof user !== "object") return false;
   if (isSuperAdminUser(user)) return true;
   const roles = getUserRoleNames(user);
-  return roles.includes("customer care") || roles.includes("admin");
+  return (
+    roles.includes("customer care") ||
+    roles.includes("finance admin") ||
+    roles.includes("sales admin") ||
+    roles.includes("admin")
+  );
 };
 
 export const isCommerceStaffUser = (user: unknown) => {

@@ -169,11 +169,15 @@ export async function updateCommerceTicket(id: number, status: string) {
   return res.data;
 }
 
-export async function fetchCommerceServices(status?: string, customerId?: number) {
+export async function fetchCommerceServices(
+  status?: string,
+  customerId?: number,
+  options?: { perPage?: number },
+) {
   const res = await axiosInstance.get("/commerce-admin/services", {
     params: {
       status,
-      per_page: 50,
+      per_page: options?.perPage ?? (customerId ? 200 : 50),
       ...(customerId ? { customer_id: customerId } : {}),
     },
     headers: { "X-No-Loading": true },
@@ -228,6 +232,13 @@ export async function assignCommerceSalesTransaction(transactionId: number, user
     `/commerce-admin/sales-transactions/${transactionId}/assign`,
     { user_id: userId }
   );
+  return res.data;
+}
+
+export async function assignCommerceCustomerOwner(customerId: number, ownerId: number | null) {
+  const res = await axiosInstance.patch(`/commerce-admin/customers/${customerId}/assign-owner`, {
+    owner_id: ownerId,
+  });
   return res.data;
 }
 

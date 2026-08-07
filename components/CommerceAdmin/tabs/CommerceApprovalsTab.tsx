@@ -25,11 +25,13 @@ import {
   type ApprovalColumnKey,
 } from "@/lib/commerceAdmin/tableSortHelpers";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
+import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import ApprovalReviewModal from "@/components/CommerceAdmin/modals/ApprovalReviewModal";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -45,6 +47,7 @@ export default function CommerceApprovalsTab() {
   const [filterType, setFilterType] = useState<ApprovalFilterKey>("all");
   const [page, setPage] = useState(1);
   const [reviewTarget, setReviewTarget] = useState<CommercePaymentProofRow | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -78,6 +81,12 @@ export default function CommerceApprovalsTab() {
     []
   );
   const selection = useRowSelection(paginatedRows, getApprovalRowId);
+  const hasSelection = selection.selectedCount > 0;
+
+  const selectedRows = useMemo(() => {
+    const ids = new Set(selection.selectedIds);
+    return processedRows.filter((row) => ids.has(String(row.id)));
+  }, [processedRows, selection.selectedIds]);
 
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, processedRows.length);
@@ -203,6 +212,29 @@ export default function CommerceApprovalsTab() {
     </select>
   );
 
+  const handleExportSelected = () => {
+    if (selectedRows.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      exportRowsToExcel(
+        ["Invoice #", "Service Name", "Plan", "Client", "Issued Date", "Due Date", "Amount", "Status"],
+        selectedRows.map((row) => [
+          row.invoiceId || row.proofNo,
+          approvalServiceLabel(row),
+          approvalPlanLabel(row),
+          row.client,
+          approvalIssuedDate(row),
+          approvalDueDate(row),
+          approvalAmountLabel(row),
+          row.status || "Pending Review",
+        ]),
+        "approvals",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const renderApprovalGridCard = (row: CommercePaymentProofRow) => (
     <article key={row.id} className={styles.txGridCard}>
       <div className={styles.txGridCardTop}>
@@ -265,30 +297,41 @@ export default function CommerceApprovalsTab() {
         </div>
       </div>
 
-      <div className={styles.toolbarRow}>
-        <div className={styles.toolbarFilters}>
-          <select
-            className={styles.selectInline}
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as ApprovalSortKey)}
-          >
-            <option value="date-desc">Sort: Newest First</option>
-            <option value="date-asc">Sort: Oldest First</option>
-            <option value="amount-desc">Sort: Amount (High to Low)</option>
-            <option value="amount-asc">Sort: Amount (Low to High)</option>
-          </select>
-          <select
-            className={styles.selectInline}
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value as ApprovalFilterKey)}
-          >
-            <option value="all">Filter: All Queue Items</option>
-            <option value="provisioning">Pending Provisioning</option>
-            <option value="receipt">Receipt Verification</option>
-            <option value="profile">Profile Changes</option>
-          </select>
+      {hasSelection ? (
+        <CommerceBulkSelectionBar
+          selectedCount={selection.selectedCount}
+          entityLabel="approval"
+          exporting={exporting}
+          onExport={handleExportSelected}
+          onClear={selection.clearSelection}
+          showDelete={false}
+        />
+      ) : (
+        <div className={styles.toolbarRow}>
+          <div className={styles.toolbarFilters}>
+            <select
+              className={styles.selectInline}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as ApprovalSortKey)}
+            >
+              <option value="date-desc">Sort: Newest First</option>
+              <option value="date-asc">Sort: Oldest First</option>
+              <option value="amount-desc">Sort: Amount (High to Low)</option>
+              <option value="amount-asc">Sort: Amount (Low to High)</option>
+            </select>
+            <select
+              className={styles.selectInline}
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as ApprovalFilterKey)}
+            >
+              <option value="all">Filter: All Queue Items</option>
+              <option value="provisioning">Pending Provisioning</option>
+              <option value="receipt">Receipt Verification</option>
+              <option value="profile">Profile Changes</option>
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {loading ? (
         <p className={styles.emptyState}>Loading approvals...</p>
@@ -331,7 +374,15 @@ export default function CommerceApprovalsTab() {
                         onChange={() => selection.toggleRow(row)}
                         label={`Select approval ${row.invoiceId || row.proofNo}`}
                       />
-                      <td className={styles.monoCell}>{row.invoiceId || row.proofNo}</td>
+                      <td className={styles.monoCell}>
+                        <button
+                          type="button"
+                          className={styles.tableCellLink}
+                          onClick={() => void handleAction(row, "view")}
+                        >
+                          {row.invoiceId || row.proofNo}
+                        </button>
+                      </td>
                       <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
                       <td className={styles.txPlanCell}>
                         <strong>{approvalPlanLabel(row)}</strong>
@@ -352,30 +403,28 @@ export default function CommerceApprovalsTab() {
           </div>
 
           <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>
-              {processedRows.length === 0
-                ? "Showing 0 queue items"
-                : `Showing ${rangeStart}-${rangeEnd} of ${processedRows.length} queue items`}
-            </div>
-            <div className={styles.paginationActions}>
+            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
+            <div className={styles.paginationControls}>
               <button
                 type="button"
                 className={styles.secondaryBtnSm}
-                disabled={page <= 1}
+                disabled={page <= 1 || processedRows.length === 0}
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Previous page"
               >
-                Previous
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
               </button>
-              <span className={styles.managedServicePageIndicator}>
-                {page} / {totalPages}
+              <span className={styles.paginationRange}>
+                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
               </span>
               <button
                 type="button"
-                className={styles.primaryBtnSm}
-                disabled={page >= totalPages}
+                className={styles.secondaryBtnSm}
+                disabled={page >= totalPages || processedRows.length === 0}
                 onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Next page"
               >
-                Next
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -391,30 +440,28 @@ export default function CommerceApprovalsTab() {
           </div>
 
           <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>
-              {processedRows.length === 0
-                ? "Showing 0 queue items"
-                : `Showing ${rangeStart}-${rangeEnd} of ${processedRows.length} queue items`}
-            </div>
-            <div className={styles.paginationActions}>
+            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
+            <div className={styles.paginationControls}>
               <button
                 type="button"
                 className={styles.secondaryBtnSm}
-                disabled={page <= 1}
+                disabled={page <= 1 || processedRows.length === 0}
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Previous page"
               >
-                Previous
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
               </button>
-              <span className={styles.managedServicePageIndicator}>
-                {page} / {totalPages}
+              <span className={styles.paginationRange}>
+                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
               </span>
               <button
                 type="button"
-                className={styles.primaryBtnSm}
-                disabled={page >= totalPages}
+                className={styles.secondaryBtnSm}
+                disabled={page >= totalPages || processedRows.length === 0}
                 onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Next page"
               >
-                Next
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
               </button>
             </div>
           </div>

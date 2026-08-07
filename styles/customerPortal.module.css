@@ -491,14 +491,15 @@
 }
 
 .dataTable th {
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 0.65rem;
   text-align: left;
-  color: #94a3b8;
-  font-size: var(--cp-text-label);
+  color: var(--cp-slate-700);
+  font-size: var(--cp-text-sm);
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   border-bottom: 1px solid var(--cp-slate-200);
+  background: #f8fafc;
 }
 
 .tableSortBtn,
@@ -2528,4 +2529,92 @@
   .billingProofGrid {
     grid-template-columns: 1fr;
   }
+}
+
+.selectCol {
+  width: 2.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.selectCheckbox {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #1d4ed8;
+  cursor: pointer;
+}
+
+.tableCellLink {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cp-blue-dark);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tableCellLink:hover,
+.tableCellLink:focus-visible {
+  text-decoration: underline;
+  color: #1d4ed8;
+}
+
+.rowSelected {
+  background: #eff6ff;
+}
+
+.bulkSelectionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 0.85rem;
+  background: #eff6ff;
+  color: var(--cp-slate-700);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+}
+
+.bulkSelectionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.paginationBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.paginationInfo {
+  color: var(--cp-slate-700);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+}
+
+.paginationControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.paginationRange {
+  min-width: 4.5rem;
+  text-align: center;
+  color: var(--cp-slate-700);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
 }

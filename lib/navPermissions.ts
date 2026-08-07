@@ -25,7 +25,6 @@ const COMMERCE_PORTAL_PERMISSIONS = [
   "sales_transactions.manage",
   "commerce_approvals.view",
   "commerce_managed.view",
-  "commerce_contracts.view",
   "commerce_notifications.view",
   "commerce_helpdesk.view",
   "reports.view",
@@ -122,6 +121,8 @@ export function canAccessCommercePortal(user: unknown): boolean {
 }
 
 export function canAccessCommerceTab(user: unknown, tab: CommerceAdminTab): boolean {
+  // Contracts module is temporarily hidden across Commerce admin.
+  if (tab === "contracts") return false;
   return hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS[tab]);
 }
 

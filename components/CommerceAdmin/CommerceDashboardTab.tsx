@@ -196,7 +196,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("contracts")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("managed")}>
                   View All Expiring Services
                 </button>
               </article>

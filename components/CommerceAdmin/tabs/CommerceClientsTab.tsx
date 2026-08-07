@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/router";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import {
   CommerceSelectAllHead,
@@ -8,39 +7,42 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import CreateClientModal from "@/components/CommerceAdmin/modals/CreateClientModal";
 import EditClientModal from "@/components/CommerceAdmin/modals/EditClientModal";
-import ClientServicesModal from "@/components/CommerceAdmin/modals/ClientServicesModal";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
+import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
+import ConfirmModal from "@/components/UI/ConfirmModal";
 import {
   CLIENT_COLUMN_LABELS,
   DEFAULT_CLIENT_COLUMNS,
-  clientActiveServicesCount,
-  clientDisplayStatus,
+  clientBillingInCharge,
+  clientClassification,
+  clientDisplayName,
+  clientIsAssigned,
+  clientOwnerName,
   filterClients,
+  formatClientCreatedTime,
   sortClients,
   type ClientColumnKey,
   type ClientFilterKey,
   type ClientSortKey,
 } from "@/lib/commerceAdmin/clientHelpers";
+import { exportClientsToExcel } from "@/lib/commerceAdmin/exportClientsExcel";
 import {
   clientSortDirection,
   isClientColumnSorted,
   toggleClientSort,
 } from "@/lib/commerceAdmin/tableSortHelpers";
 import { getCustomers } from "@/services/commerceAdminService";
-import type { CustomerRow } from "@/services/customerService";
+import { bulkDeleteCustomers, type CustomerRow } from "@/services/customerService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
-import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 10;
-const TX_CLIENT_FILTER_KEY = "commerceAdmin:txClientFilter";
 
 type Props = {
   onTabChange?: (tab: CommerceAdminTab) => void;
 };
 
-export default function CommerceClientsTab({ onTabChange }: Props) {
-  const router = useRouter();
+export default function CommerceClientsTab(_props: Props) {
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<ClientSortKey>("name-asc");
@@ -50,9 +52,12 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editClient, setEditClient] = useState<CustomerRow | null>(null);
-  const [servicesClient, setServicesClient] = useState<CustomerRow | null>(null);
   const [detailClient, setDetailClient] = useState<CustomerRow | null>(null);
   const [detailMode, setDetailMode] = useState<"info" | "audit">("info");
+  const [assignOwnerClient, setAssignOwnerClient] = useState<CustomerRow | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
 
   const loadRows = useCallback(() => {
@@ -94,6 +99,12 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
 
   const getClientRowId = useCallback((client: CustomerRow) => String(client.id), []);
   const selection = useRowSelection(paginatedRows, getClientRowId);
+  const hasSelection = selection.selectedCount > 0;
+
+  const selectedRows = useMemo(() => {
+    const ids = new Set(selection.selectedIds);
+    return processedRows.filter((row) => ids.has(String(row.id)));
+  }, [processedRows, selection.selectedIds]);
 
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, processedRows.length);
@@ -120,129 +131,143 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
     setColumnsVisible((current) => ({ ...current, [key]: checked }));
   };
 
-  const handleAction = (client: CustomerRow, action: string) => {
-    if (action === "info") {
-      setDetailClient(client);
-      setDetailMode("info");
-      return;
-    }
-    if (action === "purchases") {
-      sessionStorage.setItem(
-        TX_CLIENT_FILTER_KEY,
-        JSON.stringify({
-          id: client.id,
-          name: client.name,
-          email: client.email,
-        }),
-      );
-      if (onTabChange) {
-        onTabChange("orders");
-      } else {
-        router.push(`${COMMERCE_ADMIN_PATH}?tab=orders`);
-      }
-      return;
-    }
-    if (action === "edit") {
-      setEditClient(client);
-      return;
-    }
-    if (action === "audit") {
-      setDetailClient(client);
-      setDetailMode("audit");
+  const openClient = (client: CustomerRow) => {
+    setDetailClient(client);
+    setDetailMode("info");
+  };
+
+  const handleExportExcel = async () => {
+    if (selectedRows.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      await exportClientsToExcel(selectedRows);
+    } finally {
+      setExporting(false);
     }
   };
 
-  const renderActionSelect = (client: CustomerRow) => (
-    <select
-      className={styles.actionSelect}
-      defaultValue=""
-      onChange={(e) => {
-        const value = e.target.value;
-        e.target.value = "";
-        if (value) handleAction(client, value);
-      }}
-    >
-      <option value="" disabled>
-        Actions...
-      </option>
-      <option value="info">View Client Account/Info</option>
-      <option value="purchases">View Purchases Service</option>
-      <option value="edit">Edit Customer Account</option>
-      <option value="audit">View Audit Trail</option>
-    </select>
-  );
-
-  const renderStatusBadge = (client: CustomerRow) => {
-    const status = clientDisplayStatus(client);
-    const active = status === "Active";
-    return <span className={active ? styles.badgePaid : styles.badgePending}>{status}</span>;
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    setDeleting(true);
+    try {
+      await bulkDeleteCustomers(selectedRows.map((row) => row.id));
+      selection.clearSelection();
+      setDeleteConfirmOpen(false);
+      loadRows();
+    } catch {
+      // Keep selection so the user can retry after an error toast from axios.
+    } finally {
+      setDeleting(false);
+    }
   };
 
-  const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 2;
+  const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 1;
 
   return (
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Client Directory &amp; Organizations</h3>
+          <h3 className={styles.panelTitle}>Clients</h3>
           <p className={styles.panelSubtitle}>
-            Manage registered corporate accounts, domain registrations, and assigned nodes.
+            Manage registered corporate accounts, ownership, and classification.
           </p>
         </div>
       </div>
 
-      <div className={styles.toolbarRow}>
-        <div className={styles.toolbarFilters}>
-          <select
-            className={styles.selectInline}
-            value={sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" ? sortBy : "name-asc"}
-            onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
-          >
-            <option value="name-asc">Sort: Name (A - Z)</option>
-            <option value="name-desc">Sort: Name (Z - A)</option>
-            <option value="newest">Sort: Newest Joined</option>
-          </select>
-          <select
-            className={styles.selectInline}
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as ClientFilterKey)}
-          >
-            <option value="all">Filter: All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Disabled">Disabled</option>
-          </select>
-          <div className={styles.colVisWrap} ref={colVisRef}>
+      {hasSelection ? (
+        <div className={styles.bulkSelectionBar}>
+          <span>
+            {selection.selectedCount} client{selection.selectedCount === 1 ? "" : "s"} selected
+          </span>
+          <div className={styles.bulkSelectionActions}>
             <button
               type="button"
-              className={styles.colVisBtn}
-              onClick={(e) => {
-                e.stopPropagation();
-                setColVisOpen((open) => !open);
-              }}
+              className={styles.secondaryBtnSm}
+              onClick={() => void handleExportExcel()}
+              disabled={exporting || deleting}
             >
-              <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+              <i className="fa-solid fa-file-excel" aria-hidden="true" />
+              {exporting ? " Exporting..." : " Export Excel"}
             </button>
-            {colVisOpen ? (
-              <div className={styles.colVisPanel}>
-                <div className={styles.colVisTitle}>Toggle Columns</div>
-                {(Object.keys(CLIENT_COLUMN_LABELS) as ClientColumnKey[]).map((key) => (
-                  <label key={key} className={styles.colVisItem}>
-                    <input
-                      type="checkbox"
-                      checked={columnsVisible[key]}
-                      onChange={(e) => toggleColumn(key, e.target.checked)}
-                    />
-                    {CLIENT_COLUMN_LABELS[key]}
-                  </label>
-                ))}
-              </div>
-            ) : null}
+            <button
+              type="button"
+              className={styles.dangerBtnSm}
+              onClick={() => setDeleteConfirmOpen(true)}
+              disabled={deleting || exporting}
+            >
+              <i className="fa-solid fa-trash" aria-hidden="true" /> Delete
+            </button>
+            <button
+              type="button"
+              className={styles.secondaryBtnSm}
+              onClick={selection.clearSelection}
+              disabled={deleting || exporting}
+            >
+              Clear
+            </button>
           </div>
         </div>
-        <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
-          <i className="fa-solid fa-plus" aria-hidden="true" /> Add Client
-        </button>
-      </div>
+      ) : (
+        <div className={styles.toolbarRow}>
+          <div className={styles.toolbarFilters}>
+            <select
+              className={styles.selectInline}
+              value={
+                sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
+                  ? sortBy
+                  : "name-asc"
+              }
+              onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
+            >
+              <option value="name-asc">Sort: Client Name (A - Z)</option>
+              <option value="name-desc">Sort: Client Name (Z - A)</option>
+              <option value="newest">Sort: Newest Created</option>
+              <option value="oldest">Sort: Oldest Created</option>
+            </select>
+            <select
+              className={styles.selectInline}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as ClientFilterKey)}
+            >
+              <option value="all">Filter: All Clients</option>
+              <option value="New">New</option>
+              <option value="Existing">Existing</option>
+              <option value="Active">Active</option>
+              <option value="Disabled">Disabled</option>
+            </select>
+            <div className={styles.colVisWrap} ref={colVisRef}>
+              <button
+                type="button"
+                className={styles.colVisBtn}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setColVisOpen((open) => !open);
+                }}
+              >
+                <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+              </button>
+              {colVisOpen ? (
+                <div className={styles.colVisPanel}>
+                  <div className={styles.colVisTitle}>Toggle Columns</div>
+                  {(Object.keys(CLIENT_COLUMN_LABELS) as ClientColumnKey[]).map((key) => (
+                    <label key={key} className={styles.colVisItem}>
+                      <input
+                        type="checkbox"
+                        checked={columnsVisible[key]}
+                        onChange={(e) => toggleColumn(key, e.target.checked)}
+                      />
+                      {CLIENT_COLUMN_LABELS[key]}
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
+            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <p className={styles.emptyState}>Loading clients...</p>
@@ -258,12 +283,11 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                     onToggleAll={selection.toggleAll}
                     disabled={paginatedRows.length === 0}
                   />
-                  {columnsVisible.id ? renderSortableHead("id") : null}
                   {columnsVisible.name ? renderSortableHead("name") : null}
-                  {columnsVisible.email ? renderSortableHead("email") : null}
-                  {columnsVisible.service ? renderSortableHead("service") : null}
-                  {columnsVisible.status ? renderSortableHead("status") : null}
-                  <th className={styles.tableActionsHead}>Action</th>
+                  {columnsVisible.owner ? renderSortableHead("owner") : null}
+                  {columnsVisible.created ? renderSortableHead("created") : null}
+                  {columnsVisible.billing ? renderSortableHead("billing") : null}
+                  {columnsVisible.classification ? renderSortableHead("classification") : null}
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +297,7 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                   </tr>
                 ) : (
                   paginatedRows.map((client) => {
-                    const serviceCount = clientActiveServicesCount(client);
+                    const classification = clientClassification(client);
                     return (
                       <tr
                         key={client.id}
@@ -282,33 +306,48 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
                         <CommerceSelectRowCell
                           checked={selection.isSelected(client)}
                           onChange={() => selection.toggleRow(client)}
-                          label={`Select client CL-${client.id}`}
+                          label={`Select client ${clientDisplayName(client)}`}
                         />
-                        {columnsVisible.id ? (
-                          <td className={styles.monoCell}>CL-{client.id}</td>
-                        ) : null}
                         {columnsVisible.name ? (
-                          <td>
-                            <strong>{client.name}</strong>
-                          </td>
-                        ) : null}
-                        {columnsVisible.email ? <td>{client.email}</td> : null}
-                        {columnsVisible.service ? (
                           <td>
                             <button
                               type="button"
-                              className={styles.clientServiceBadge}
-                              onClick={() => setServicesClient(client)}
+                              className={styles.tableCellLink}
+                              onClick={() => openClient(client)}
                             >
-                              <i className="fa-solid fa-layer-group" aria-hidden="true" /> {serviceCount} Active
-                              Service{serviceCount === 1 ? "" : "s"}
+                              {clientDisplayName(client)}
                             </button>
                           </td>
                         ) : null}
-                        {columnsVisible.status ? (
-                          <td className={styles.statusCell}>{renderStatusBadge(client)}</td>
+                        {columnsVisible.owner ? (
+                          <td>
+                            <button
+                              type="button"
+                              className={
+                                clientIsAssigned(client)
+                                  ? styles.txAssignedBadge
+                                  : styles.txAssignedEmpty
+                              }
+                              onClick={() => setAssignOwnerClient(client)}
+                              title="Assign client owner"
+                            >
+                              {clientOwnerName(client)}
+                            </button>
+                          </td>
                         ) : null}
-                        <td className={styles.tableActionsCell}>{renderActionSelect(client)}</td>
+                        {columnsVisible.created ? <td>{formatClientCreatedTime(client)}</td> : null}
+                        {columnsVisible.billing ? <td>{clientBillingInCharge(client)}</td> : null}
+                        {columnsVisible.classification ? (
+                          <td>
+                            <span
+                              className={
+                                classification === "Existing" ? styles.badgePaid : styles.badgePending
+                              }
+                            >
+                              {classification}
+                            </span>
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })
@@ -317,34 +356,32 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
             </table>
           </div>
 
-          {processedRows.length > PAGE_SIZE ? (
-            <div className={styles.paginationBar}>
-              <span>
-                Showing {rangeStart}–{rangeEnd} of {processedRows.length} clients
+          <div className={styles.paginationBar}>
+            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page <= 1 || processedRows.length === 0}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous page"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <span className={styles.paginationRange}>
+                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
               </span>
-              <div className={styles.paginationControls}>
-                <button
-                  type="button"
-                  className={styles.secondaryBtnSm}
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </button>
-                <span>
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className={styles.secondaryBtnSm}
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                </button>
-              </div>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page >= totalPages || processedRows.length === 0}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                aria-label="Next page"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
             </div>
-          ) : null}
+          </div>
         </>
       )}
 
@@ -355,11 +392,6 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
         onClose={() => setEditClient(null)}
         onUpdated={loadRows}
       />
-      <ClientServicesModal
-        open={Boolean(servicesClient)}
-        client={servicesClient}
-        onClose={() => setServicesClient(null)}
-      />
       <ClientDetailModal
         open={Boolean(detailClient)}
         client={detailClient}
@@ -368,6 +400,44 @@ export default function CommerceClientsTab({ onTabChange }: Props) {
         onEdit={(client) => {
           setDetailClient(null);
           setEditClient(client);
+        }}
+      />
+      <AssignClientOwnerModal
+        open={Boolean(assignOwnerClient)}
+        client={assignOwnerClient}
+        onClose={() => setAssignOwnerClient(null)}
+        onAssigned={(payload) => {
+          setRows((current) =>
+            current.map((row) =>
+              row.id === payload.id
+                ? {
+                    ...row,
+                    owner_id: payload.owner_id,
+                    owner: payload.owner,
+                    owner_name: payload.owner_name,
+                  }
+                : row,
+            ),
+          );
+          setAssignOwnerClient(null);
+        }}
+      />
+      <ConfirmModal
+        show={deleteConfirmOpen}
+        title="Delete clients"
+        message={
+          <>
+            Delete <strong>{selection.selectedCount}</strong> selected client
+            {selection.selectedCount === 1 ? "" : "s"}? This cannot be undone from the list.
+          </>
+        }
+        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        danger
+        onConfirm={() => {
+          if (!deleting) void handleBulkDelete();
+        }}
+        onCancel={() => {
+          if (!deleting) setDeleteConfirmOpen(false);
         }}
       />
     </section>
