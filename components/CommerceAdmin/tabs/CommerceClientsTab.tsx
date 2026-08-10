@@ -5,8 +5,7 @@ import {
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
-import CreateClientModal from "@/components/CommerceAdmin/modals/CreateClientModal";
-import EditClientModal from "@/components/CommerceAdmin/modals/EditClientModal";
+import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import ConfirmModal from "@/components/UI/ConfirmModal";
@@ -42,6 +41,8 @@ type Props = {
   onTabChange?: (tab: CommerceAdminTab) => void;
 };
 
+type ClientView = "list" | "create" | "edit";
+
 export default function CommerceClientsTab(_props: Props) {
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +51,7 @@ export default function CommerceClientsTab(_props: Props) {
   const [columnsVisible, setColumnsVisible] = useState(DEFAULT_CLIENT_COLUMNS);
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [view, setView] = useState<ClientView>("list");
   const [editClient, setEditClient] = useState<CustomerRow | null>(null);
   const [detailClient, setDetailClient] = useState<CustomerRow | null>(null);
   const [detailMode, setDetailMode] = useState<"info" | "audit">("info");
@@ -136,6 +137,22 @@ export default function CommerceClientsTab(_props: Props) {
     setDetailMode("info");
   };
 
+  const openCreate = () => {
+    setEditClient(null);
+    setView("create");
+  };
+
+  const openEdit = (client: CustomerRow) => {
+    setDetailClient(null);
+    setEditClient(client);
+    setView("edit");
+  };
+
+  const backToList = () => {
+    setView("list");
+    setEditClient(null);
+  };
+
   const handleExportExcel = async () => {
     if (selectedRows.length === 0 || exporting) return;
     setExporting(true);
@@ -162,6 +179,19 @@ export default function CommerceClientsTab(_props: Props) {
   };
 
   const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 1;
+
+  if (view === "create" || view === "edit") {
+    return (
+      <section className={styles.panel}>
+        <ClientCrmForm
+          mode={view === "edit" ? "edit" : "create"}
+          client={view === "edit" ? editClient : null}
+          onBack={backToList}
+          onSaved={loadRows}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className={styles.panel}>
@@ -263,7 +293,7 @@ export default function CommerceClientsTab(_props: Props) {
               ) : null}
             </div>
           </div>
-          <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
+          <button type="button" className={styles.primaryBtnSm} onClick={openCreate}>
             <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client
           </button>
         </div>
@@ -385,22 +415,12 @@ export default function CommerceClientsTab(_props: Props) {
         </>
       )}
 
-      <CreateClientModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={loadRows} />
-      <EditClientModal
-        open={Boolean(editClient)}
-        client={editClient}
-        onClose={() => setEditClient(null)}
-        onUpdated={loadRows}
-      />
       <ClientDetailModal
         open={Boolean(detailClient)}
         client={detailClient}
         mode={detailMode}
         onClose={() => setDetailClient(null)}
-        onEdit={(client) => {
-          setDetailClient(null);
-          setEditClient(client);
-        }}
+        onEdit={(client) => openEdit(client)}
       />
       <AssignClientOwnerModal
         open={Boolean(assignOwnerClient)}

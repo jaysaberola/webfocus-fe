@@ -1,0 +1,627 @@
+import { useEffect, useState } from "react";
+import {
+  CLIENT_CLASSIFICATION_OPTIONS,
+  CLIENT_CURRENCY_OPTIONS,
+  CLIENT_INDUSTRY_OPTIONS,
+  CLIENT_OWNERSHIP_OPTIONS,
+  CLIENT_TAX_CLASSIFICATION_OPTIONS,
+  CLIENT_TYPE_OPTIONS,
+  emptyClientCrmForm,
+  parseMobileDigits,
+  validateClientCrmForm,
+  type ClientCrmFormState,
+} from "@/lib/commerceAdmin/clientFormHelpers";
+import {
+  fetchCommerceAssignableUsers,
+  type CommerceAssignableUser,
+} from "@/services/commerceAdminService";
+import {
+  createCustomerCrmAccount,
+  getCustomer,
+  updateCustomerCrmAccount,
+  type CustomerRow,
+} from "@/services/customerService";
+import { toast } from "@/lib/toast";
+import styles from "@/styles/commerceAdmin.module.css";
+
+type Props = {
+  mode: "create" | "edit";
+  client?: CustomerRow | null;
+  onBack: () => void;
+  onSaved: () => void;
+};
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={styles.clientCrmField}>
+      <span>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function FileField({
+  label,
+  value,
+  existingPath,
+  onChange,
+}: {
+  label: string;
+  value: File | null;
+  existingPath?: string | null;
+  onChange: (file: File | null) => void;
+}) {
+  return (
+    <Field label={label}>
+      <div>
+        <input
+          className={styles.clientCrmInput}
+          type="file"
+          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        />
+        {value ? (
+          <span className={styles.clientCrmFileHint}>{value.name}</span>
+        ) : existingPath ? (
+          <span className={styles.clientCrmFileHint}>Current file on file</span>
+        ) : null}
+      </div>
+    </Field>
+  );
+}
+
+export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) {
+  const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
+  const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
+  const [loading, setLoading] = useState(mode === "edit");
+  const [submitting, setSubmitting] = useState(false);
+  const [existingFiles, setExistingFiles] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    fetchCommerceAssignableUsers()
+      .then((rows) => setOwners(rows))
+      .catch(() => setOwners([]));
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "edit" || !client?.id) {
+      setForm(emptyClientCrmForm);
+      setExistingFiles({});
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    getCustomer(client.id, { silent: true })
+      .then((detail) => {
+        setForm({
+          ...emptyClientCrmForm,
+          owner_id: detail?.owner_id ?? client.owner_id ?? null,
+          company: detail?.company ?? client.company ?? client.name ?? "",
+          industry: detail?.industry ?? "",
+          tax_classification: detail?.tax_classification ?? "",
+          tin_number: detail?.tin_number ?? "",
+          other_numbers: detail?.other_numbers ?? "",
+          currency: detail?.currency || "PHP",
+          workdrive_folder_url: detail?.workdrive_folder_url ?? "",
+          client_classification: detail?.client_classification ?? "",
+          client_type: detail?.client_type ?? "",
+          contact_person:
+            detail?.contact_person ||
+            [detail?.fname, detail?.lname].filter(Boolean).join(" ") ||
+            "",
+          mobile: parseMobileDigits(detail?.mobile),
+          phone: detail?.phone ?? "",
+          email: detail?.email ?? client.email ?? "",
+          website: detail?.website ?? "",
+          ownership: detail?.ownership ?? "",
+          billing_in_charge: detail?.billing_in_charge ?? "",
+          exchange_rate: String(detail?.exchange_rate ?? "1"),
+          workdrive_folder_id: detail?.workdrive_folder_id ?? "",
+          address_street: detail?.address_street ?? "",
+          address_city: detail?.address_city ?? "",
+          address_province: detail?.address_province ?? "",
+          address_zip: detail?.address_zip ?? "",
+          address_country: detail?.address_country ?? "",
+          shipping_street: detail?.shipping_street ?? "",
+          shipping_city: detail?.shipping_city ?? "",
+          shipping_province: detail?.shipping_province ?? "",
+          shipping_zip: detail?.shipping_zip ?? "",
+          shipping_country: detail?.shipping_country ?? "",
+        });
+        setExistingFiles({
+          bir_certificate: detail?.bir_certificate ?? null,
+          business_permit: detail?.business_permit ?? null,
+          sec_dti_registration: detail?.sec_dti_registration ?? null,
+          valid_id_signatories: detail?.valid_id_signatories ?? null,
+          gen_info_sheet: detail?.gen_info_sheet ?? null,
+        });
+      })
+      .catch(() => {
+        toast.error("Failed to load client details.");
+        setForm({
+          ...emptyClientCrmForm,
+          company: client.company ?? client.name ?? "",
+          email: client.email ?? "",
+          owner_id: client.owner_id ?? null,
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [mode, client]);
+
+  const setField = <K extends keyof ClientCrmFormState>(key: K, value: ClientCrmFormState[K]) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const copyBillingToShipping = () => {
+    setForm((current) => ({
+      ...current,
+      shipping_street: current.address_street,
+      shipping_city: current.address_city,
+      shipping_province: current.address_province,
+      shipping_zip: current.address_zip,
+      shipping_country: current.address_country,
+    }));
+  };
+
+  const toPayload = () => ({
+    company: form.company.trim(),
+    email: form.email.trim(),
+    owner_id: form.owner_id,
+    contact_person: form.contact_person.trim(),
+    mobile: form.mobile.trim(),
+    phone: form.phone.trim(),
+    industry: form.industry,
+    tax_classification: form.tax_classification,
+    tin_number: form.tin_number.trim(),
+    other_numbers: form.other_numbers.trim(),
+    currency: form.currency || "PHP",
+    workdrive_folder_url: form.workdrive_folder_url.trim(),
+    workdrive_folder_id: form.workdrive_folder_id.trim(),
+    client_classification: form.client_classification,
+    client_type: form.client_type,
+    website: form.website.trim(),
+    ownership: form.ownership,
+    billing_in_charge: form.billing_in_charge,
+    exchange_rate: form.exchange_rate || "1",
+    address_street: form.address_street.trim(),
+    address_city: form.address_city.trim(),
+    address_province: form.address_province.trim(),
+    address_zip: form.address_zip.trim(),
+    address_country: form.address_country.trim(),
+    shipping_street: form.shipping_street.trim(),
+    shipping_city: form.shipping_city.trim(),
+    shipping_province: form.shipping_province.trim(),
+    shipping_zip: form.shipping_zip.trim(),
+    shipping_country: form.shipping_country.trim(),
+    bir_certificate: form.bir_certificate,
+    business_permit: form.business_permit,
+    sec_dti_registration: form.sec_dti_registration,
+    valid_id_signatories: form.valid_id_signatories,
+    gen_info_sheet: form.gen_info_sheet,
+  });
+
+  const save = async (andNew: boolean) => {
+    const validationError = validateClientCrmForm(form);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const payload = toPayload();
+      if (mode === "edit" && client?.id) {
+        await updateCustomerCrmAccount(client.id, payload);
+        toast.success("Client updated successfully.");
+        onSaved();
+        onBack();
+        return;
+      }
+
+      await createCustomerCrmAccount(payload);
+      toast.success(`Client ${form.company.trim()} added successfully!`);
+      onSaved();
+      if (andNew) {
+        setForm(emptyClientCrmForm);
+        setExistingFiles({});
+      } else {
+        onBack();
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0] ||
+        (mode === "edit" ? "Failed to update client." : "Failed to create client.");
+      toast.error(String(message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return <p className={styles.emptyState}>Loading client form...</p>;
+  }
+
+  return (
+    <div className={styles.clientCrmPage}>
+      <div className={styles.clientCrmTopBar}>
+        <div className={styles.clientCrmTitleBlock}>
+          <button type="button" className={styles.secondaryBtnSm} onClick={onBack}>
+            <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
+          </button>
+          <div>
+            <h3 className={styles.panelTitle}>{mode === "edit" ? "Edit Client" : "Create Client"}</h3>
+            <p className={styles.panelSubtitle}>Clients</p>
+          </div>
+        </div>
+        <div className={styles.clientCrmActions}>
+          <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
+            Cancel
+          </button>
+          {mode === "create" ? (
+            <button
+              type="button"
+              className={styles.secondaryBtnSm}
+              onClick={() => void save(true)}
+              disabled={submitting}
+            >
+              Save and New
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            onClick={() => void save(false)}
+            disabled={submitting}
+          >
+            {submitting ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+
+      <section className={styles.clientCrmSection}>
+        <h4 className={styles.clientCrmSectionTitle}>Client Information</h4>
+        <div className={styles.clientCrmGrid}>
+          <div className={styles.clientCrmCol}>
+            <Field label="Client Owner">
+              <select
+                className={styles.clientCrmInput}
+                value={form.owner_id ?? ""}
+                onChange={(e) =>
+                  setField("owner_id", e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                <option value="">-None-</option>
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.id}>
+                    {owner.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Client Name">
+              <input
+                className={styles.clientCrmInput}
+                value={form.company}
+                onChange={(e) => setField("company", e.target.value)}
+              />
+            </Field>
+            <Field label="Industry">
+              <select
+                className={styles.clientCrmInput}
+                value={form.industry}
+                onChange={(e) => setField("industry", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {CLIENT_INDUSTRY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Tax Classification">
+              <select
+                className={styles.clientCrmInput}
+                value={form.tax_classification}
+                onChange={(e) => setField("tax_classification", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {CLIENT_TAX_CLASSIFICATION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="TIN Number">
+              <input
+                className={styles.clientCrmInput}
+                value={form.tin_number}
+                onChange={(e) => setField("tin_number", e.target.value)}
+              />
+            </Field>
+            <Field label="Other Numbers">
+              <input
+                className={styles.clientCrmInput}
+                value={form.other_numbers}
+                onChange={(e) => setField("other_numbers", e.target.value)}
+              />
+            </Field>
+            <Field label="Currency">
+              <select
+                className={styles.clientCrmInput}
+                value={form.currency}
+                onChange={(e) => setField("currency", e.target.value)}
+              >
+                {CLIENT_CURRENCY_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Workdrive Folder URL">
+              <input
+                className={styles.clientCrmInput}
+                value={form.workdrive_folder_url}
+                onChange={(e) => setField("workdrive_folder_url", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className={styles.clientCrmCol}>
+            <Field label="Client Classification">
+              <select
+                className={styles.clientCrmInput}
+                value={form.client_classification}
+                onChange={(e) => setField("client_classification", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {CLIENT_CLASSIFICATION_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Client Type">
+              <select
+                className={styles.clientCrmInput}
+                value={form.client_type}
+                onChange={(e) => setField("client_type", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {CLIENT_TYPE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Contact Person">
+              <input
+                className={styles.clientCrmInput}
+                value={form.contact_person}
+                onChange={(e) => setField("contact_person", e.target.value)}
+              />
+            </Field>
+            <Field label="Contact Number">
+              <div className={styles.phoneInputWrap}>
+                <span className={styles.phonePrefix}>+63</span>
+                <input
+                  className={styles.phoneInput}
+                  value={form.mobile}
+                  onChange={(e) =>
+                    setField("mobile", e.target.value.replace(/\D/g, "").slice(0, 9))
+                  }
+                  placeholder="917123456"
+                  inputMode="numeric"
+                  maxLength={9}
+                />
+              </div>
+            </Field>
+            <Field label="Phone">
+              <input
+                className={styles.clientCrmInput}
+                value={form.phone}
+                onChange={(e) => setField("phone", e.target.value)}
+              />
+            </Field>
+            <Field label="Email">
+              <input
+                className={styles.clientCrmInput}
+                type="email"
+                value={form.email}
+                onChange={(e) => setField("email", e.target.value)}
+              />
+            </Field>
+            <Field label="Website">
+              <input
+                className={styles.clientCrmInput}
+                value={form.website}
+                onChange={(e) => setField("website", e.target.value)}
+              />
+            </Field>
+            <Field label="Ownership">
+              <select
+                className={styles.clientCrmInput}
+                value={form.ownership}
+                onChange={(e) => setField("ownership", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {CLIENT_OWNERSHIP_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Billing in Charge">
+              <select
+                className={styles.clientCrmInput}
+                value={form.billing_in_charge}
+                onChange={(e) => setField("billing_in_charge", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {owners.map((owner) => (
+                  <option key={owner.id} value={owner.name}>
+                    {owner.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Exchange Rate">
+              <input
+                className={styles.clientCrmInput}
+                type="number"
+                min="0"
+                step="0.0001"
+                value={form.exchange_rate}
+                onChange={(e) => setField("exchange_rate", e.target.value)}
+              />
+            </Field>
+            <Field label="Workdrive Folder ID">
+              <input
+                className={styles.clientCrmInput}
+                value={form.workdrive_folder_id}
+                onChange={(e) => setField("workdrive_folder_id", e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.clientCrmSection}>
+        <h4 className={styles.clientCrmSectionTitle}>File Attachments</h4>
+        <div className={styles.clientCrmGrid}>
+          <div className={styles.clientCrmCol}>
+            <FileField
+              label="BIR Certificate of Registration"
+              value={form.bir_certificate}
+              existingPath={existingFiles.bir_certificate}
+              onChange={(file) => setField("bir_certificate", file)}
+            />
+            <FileField
+              label="Business Permit"
+              value={form.business_permit}
+              existingPath={existingFiles.business_permit}
+              onChange={(file) => setField("business_permit", file)}
+            />
+            <FileField
+              label="SEC/DTI Registration"
+              value={form.sec_dti_registration}
+              existingPath={existingFiles.sec_dti_registration}
+              onChange={(file) => setField("sec_dti_registration", file)}
+            />
+          </div>
+          <div className={styles.clientCrmCol}>
+            <FileField
+              label="Valid ID of Signatories"
+              value={form.valid_id_signatories}
+              existingPath={existingFiles.valid_id_signatories}
+              onChange={(file) => setField("valid_id_signatories", file)}
+            />
+            <FileField
+              label="Gen. Info and Customer Info Sheet"
+              value={form.gen_info_sheet}
+              existingPath={existingFiles.gen_info_sheet}
+              onChange={(file) => setField("gen_info_sheet", file)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.clientCrmSection}>
+        <div className={styles.clientCrmSectionHead}>
+          <h4 className={styles.clientCrmSectionTitle}>Address Information</h4>
+          <button type="button" className={styles.clientCrmCopyBtn} onClick={copyBillingToShipping}>
+            Copy Address
+          </button>
+        </div>
+        <div className={styles.clientCrmGrid}>
+          <div className={styles.clientCrmCol}>
+            <Field label="Billing Street">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_street}
+                onChange={(e) => setField("address_street", e.target.value)}
+              />
+            </Field>
+            <Field label="Billing City">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_city}
+                onChange={(e) => setField("address_city", e.target.value)}
+              />
+            </Field>
+            <Field label="Billing Province">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_province}
+                onChange={(e) => setField("address_province", e.target.value)}
+              />
+            </Field>
+            <Field label="Billing Code">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_zip}
+                onChange={(e) => setField("address_zip", e.target.value)}
+              />
+            </Field>
+            <Field label="Billing Country">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_country}
+                onChange={(e) => setField("address_country", e.target.value)}
+              />
+            </Field>
+          </div>
+          <div className={styles.clientCrmCol}>
+            <Field label="Shipping Street">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_street}
+                onChange={(e) => setField("shipping_street", e.target.value)}
+              />
+            </Field>
+            <Field label="Shipping City">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_city}
+                onChange={(e) => setField("shipping_city", e.target.value)}
+              />
+            </Field>
+            <Field label="Shipping Province">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_province}
+                onChange={(e) => setField("shipping_province", e.target.value)}
+              />
+            </Field>
+            <Field label="Shipping Code">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_zip}
+                onChange={(e) => setField("shipping_zip", e.target.value)}
+              />
+            </Field>
+            <Field label="Shipping Country">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_country}
+                onChange={(e) => setField("shipping_country", e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -48,7 +48,7 @@ export function clientIsAssigned(client: CustomerRow) {
 }
 
 export function clientBillingInCharge(client: CustomerRow) {
-  return String(client.email || "").trim() || "—";
+  return String(client.billing_in_charge || client.email || "").trim() || "—";
 }
 
 export function clientActiveServicesCount(client: CustomerRow) {
@@ -64,6 +64,9 @@ export function clientDisplayStatus(client: CustomerRow) {
 }
 
 export function clientClassification(client: CustomerRow): "New" | "Existing" {
+  const stored = String(client.client_classification ?? "").trim().toLowerCase();
+  if (stored === "existing") return "Existing";
+  if (stored === "new") return "New";
   return clientActiveServicesCount(client) > 0 ? "Existing" : "New";
 }
 
