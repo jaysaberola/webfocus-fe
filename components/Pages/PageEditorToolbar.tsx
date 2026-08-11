@@ -1,6 +1,7 @@
 import Link from "next/link";
 import PageSwitcher from "./PageSwitcher";
 import { useCmsHelp } from "@/lib/cmsHelp/CmsHelpContext";
+import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
 
 type PageEditorToolbarProps = {
   mode?: "edit" | "create";
@@ -107,6 +108,7 @@ export default function PageEditorToolbar({
             rel="noopener noreferrer"
             className="btn btn-sm btn-outline-secondary page-editor-toolbar__btn"
             data-cms-tour="page-editor-preview"
+            onClick={() => syncAuthTokenCookieFromStorage()}
           >
             <i className="fa-solid fa-eye" aria-hidden="true" />
             Preview

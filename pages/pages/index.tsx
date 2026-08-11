@@ -8,6 +8,7 @@ import { toast } from "@/lib/toast";
 import { useRouter } from "next/router";
 import { isDefaultProtectedPage } from "@/lib/defaultPages";
 import { buildPublicPageFullUrl, buildPublicPageMenuTarget } from "@/lib/publicMenuLinks";
+import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
 import { TableOptionsMenu, TableRowActions } from "@/components/UI/TableRowActions";
 import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
 import {
@@ -605,7 +606,10 @@ export default function ManagePages() {
             <>
               <button
                 className="btn btn-link p-0 text-secondary"
-                onClick={() => window.open(getPageViewUrl(row), "_blank", "noopener,noreferrer")}
+                onClick={() => {
+                  syncAuthTokenCookieFromStorage();
+                  window.open(getPageViewUrl(row), "_blank", "noopener,noreferrer");
+                }}
                 title="View"
                 type="button"
               >

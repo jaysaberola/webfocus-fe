@@ -1,7 +1,7 @@
 import Head from "next/head";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import NewsArticleView from "@/components/News/NewsArticleView";
-import { requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
+import { ensureClientPreviewAccess, requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
 import { getArticle } from "@/services/articleService";
 import { getMenuById } from "@/services/menuService";
 import styles from "@/styles/news.module.css";
@@ -22,6 +22,10 @@ type PreviewArticle = {
   category?: { name?: string } | null;
   image_url?: string | null;
   thumbnail_url?: string | null;
+};
+
+type Props = {
+  ssrAllowed: boolean;
 };
 
 const renderMenuItems = (items: any[]): string => {
@@ -81,15 +85,42 @@ const resolveMenuPlaceholders = async (contents: string) => {
   return nextContents;
 };
 
-export default function AdminNewsPreview() {
+export default function AdminNewsPreview({ ssrAllowed }: Props) {
   const router = useRouter();
   const { id } = router.query;
+  const [access, setAccess] = useState<"checking" | "allowed" | "denied">(
+    ssrAllowed ? "allowed" : "checking",
+  );
   const [article, setArticle] = useState<PreviewArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!router.isReady || !id) return;
+    if (ssrAllowed) {
+      setAccess("allowed");
+      return;
+    }
+
+    let alive = true;
+    ensureClientPreviewAccess()
+      .then((ok) => {
+        if (!alive) return;
+        setAccess(ok ? "allowed" : "denied");
+        if (!ok) setLoading(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setAccess("denied");
+        setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [ssrAllowed]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !router.isReady || !id) return;
 
     const articleId = Number(id);
     if (!Number.isFinite(articleId) || articleId <= 0) {
@@ -99,6 +130,7 @@ export default function AdminNewsPreview() {
     }
 
     let alive = true;
+    setLoading(true);
 
     (async () => {
       try {
@@ -126,7 +158,7 @@ export default function AdminNewsPreview() {
     return () => {
       alive = false;
     };
-  }, [id, router.isReady]);
+  }, [access, id, router.isReady]);
 
   return (
     <LandingPageLayout
@@ -141,9 +173,15 @@ export default function AdminNewsPreview() {
         <meta name="robots" content="noindex,nofollow,noarchive" />
       </Head>
 
-      {loading ? (
+      {access === "checking" || loading ? (
         <div className="container py-5">
           <div className="text-center text-muted">Loading news preview...</div>
+        </div>
+      ) : access === "denied" ? (
+        <div className="container py-5">
+          <div className="alert alert-warning mb-0">
+            Sign in to the CMS admin portal to preview private news.
+          </div>
         </div>
       ) : error ? (
         <div className="container py-5">
@@ -170,10 +208,6 @@ export default function AdminNewsPreview() {
 }
 
 export async function getServerSideProps(ctx: GetServerSidePropsContext) {
-  const allowed = await requireAdminPreviewAccess(ctx);
-  if (!allowed) {
-    return { notFound: true };
-  }
-
-  return { props: {} };
+  const ssrAllowed = await requireAdminPreviewAccess(ctx);
+  return { props: { ssrAllowed } };
 }

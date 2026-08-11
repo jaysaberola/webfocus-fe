@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuditRow, getAuditTrails } from "@/services/auditService";
-import { scheduleIdleTask } from "@/lib/referenceDataCache";
 import Tooltip from "@/components/UI/Tooltip";
 
 type AuditEventFilter = "all" | "created" | "updated" | "deleted" | "restored";
@@ -153,34 +152,23 @@ export default function RecentActivity({ compact = false }: { compact?: boolean 
   };
 
   useEffect(() => {
+    let cancelled = false;
     const t = setTimeout(() => {
+      if (cancelled) return;
       setCurrentPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventFilter]);
-
-  useEffect(() => {
-    let mounted = true;
-    const cancel = scheduleIdleTask(() => {
-      if (mounted) void fetchActivity({ page: 1, silent: false });
-    }, 400);
+      void fetchActivity({ page: 1, silent: false });
+    }, search || eventFilter !== "all" ? 350 : 0);
 
     return () => {
-      mounted = false;
-      cancel();
+      cancelled = true;
+      clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [search, eventFilter]);
 
   useEffect(() => {
     if (currentPage === 1) return;
-    fetchActivity({ page: currentPage, silent: false });
+    void fetchActivity({ page: currentPage, silent: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 

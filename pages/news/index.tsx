@@ -15,6 +15,7 @@ import {
   ArticleRow,
 } from "@/services/articleService";
 import { useRouter } from "next/router";
+import { syncAuthTokenCookieFromStorage } from "@/lib/authToken";
 import CmsModuleShell, { CmsModuleTrashBanner, CmsModuleCreateButton, CmsModuleAdvancedSearchButton } from "@/components/Modules/CmsModuleShell";
 import {
   CmsModuleStatusBadge,
@@ -479,6 +480,7 @@ function ManageNews() {
                 title="View"
                 type="button"
                 onClick={() => {
+                  syncAuthTokenCookieFromStorage();
                   window.open(getNewsViewUrl(row), "_blank", "noopener,noreferrer");
                 }}
               >

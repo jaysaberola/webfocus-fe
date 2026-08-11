@@ -1,6 +1,6 @@
 import Head from "next/head";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
-import { requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
+import { ensureClientPreviewAccess, requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 import { getPageById } from "@/services/pageService";
 import { useRouter } from "next/router";
@@ -20,16 +20,47 @@ type PreviewPageData = {
   status?: string;
 };
 
-export default function AdminPagePreview() {
+type Props = {
+  ssrAllowed: boolean;
+};
+
+export default function AdminPagePreview({ ssrAllowed }: Props) {
   const router = useRouter();
   const { id } = router.query;
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const [access, setAccess] = useState<"checking" | "allowed" | "denied">(
+    ssrAllowed ? "allowed" : "checking",
+  );
   const [pageData, setPageData] = useState<PreviewPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!router.isReady || !id) return;
+    if (ssrAllowed) {
+      setAccess("allowed");
+      return;
+    }
+
+    let alive = true;
+    ensureClientPreviewAccess()
+      .then((ok) => {
+        if (!alive) return;
+        setAccess(ok ? "allowed" : "denied");
+        if (!ok) setLoading(false);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setAccess("denied");
+        setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [ssrAllowed]);
+
+  useEffect(() => {
+    if (access !== "allowed" || !router.isReady || !id) return;
 
     const pageId = Number(id);
     if (!Number.isFinite(pageId) || pageId <= 0) {
@@ -39,6 +70,7 @@ export default function AdminPagePreview() {
     }
 
     let alive = true;
+    setLoading(true);
 
     getPageById(pageId)
       .then((res) => {
@@ -72,7 +104,7 @@ export default function AdminPagePreview() {
     return () => {
       alive = false;
     };
-  }, [id, router.isReady]);
+  }, [access, id, router.isReady]);
 
   const htmlContent = useMemo(() => {
     if (!pageData) return "";
@@ -165,9 +197,15 @@ export default function AdminPagePreview() {
         <title>{pageData?.title || "Page Preview"}</title>
       </Head>
 
-      {loading ? (
+      {access === "checking" || loading ? (
         <div className="container py-5">
           <div className="text-center text-muted">Loading page preview...</div>
+        </div>
+      ) : access === "denied" ? (
+        <div className="container py-5">
+          <div className="alert alert-warning mb-0">
+            Sign in to the CMS admin portal to preview private pages.
+          </div>
         </div>
       ) : error ? (
         <div className="container py-5">
@@ -189,10 +227,6 @@ export default function AdminPagePreview() {
 }
 
 export async function getServerSideProps(ctx: GetServerSidePropsContext) {
-  const allowed = await requireAdminPreviewAccess(ctx);
-  if (!allowed) {
-    return { notFound: true };
-  }
-
-  return { props: {} };
+  const ssrAllowed = await requireAdminPreviewAccess(ctx);
+  return { props: { ssrAllowed } };
 }
