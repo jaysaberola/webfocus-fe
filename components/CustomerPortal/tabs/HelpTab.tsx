@@ -1,7 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { createPortalTicket, fetchPortalTickets } from "@/services/customerPortalService";
 import type { PortalTicket } from "@/lib/customerPortal/types";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -15,6 +29,12 @@ type TicketSortKey =
   | "date-desc"
   | "status-asc"
   | "status-desc";
+
+const TICKET_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "status", label: "Status" },
+  { id: "subject", label: "Subject", mode: "contains" },
+  { id: "id", label: "Ticket", mode: "contains" },
+];
 
 const TICKET_SORT_ASC: Record<TicketColumnKey, TicketSortKey> = {
   id: "id-asc",
@@ -70,6 +90,11 @@ export default function HelpTab() {
   const [ticketMessage, setTicketMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<TicketSortKey>("date-desc");
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [messages, setMessages] = useState([
     "Mabuhay! Welcome to WebFocus NOC Support. How may we assist your Manila server deployment today?",
   ]);
@@ -80,7 +105,36 @@ export default function HelpTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  const sortedTickets = useMemo(() => sortPortalTickets(tickets, sortBy), [tickets, sortBy]);
+  const getTicketFilterValue = useCallback((ticket: PortalTicket, fieldId: string) => {
+    switch (fieldId) {
+      case "status":
+        return ticket.status;
+      case "subject":
+        return ticket.subject;
+      case "id":
+        return ticket.id;
+      default:
+        return "";
+    }
+  }, []);
+
+  const filteredTickets = useMemo(() => {
+    let rows = tickets.filter((ticket) => {
+      if (!rowMatchesDateRange(ticket.date, dateRange)) return false;
+      return rowMatchesSearch([ticket.id, ticket.subject, ticket.status], search);
+    });
+    rows = applyTableFilter(rows, appliedFilter, TICKET_FILTER_FIELDS, getTicketFilterValue);
+    return sortPortalTickets(rows, sortBy);
+  }, [tickets, search, dateRange, appliedFilter, sortBy, getTicketFilterValue]);
+
+  const applyFilter = () => {
+    setAppliedFilter(draftFilter);
+  };
+
+  const clearFilter = () => {
+    setDraftFilter(emptyTableFilter);
+    setAppliedFilter(emptyTableFilter);
+  };
 
   const sendMessage = () => {
     const text = chatInput.trim();
@@ -153,84 +207,103 @@ export default function HelpTab() {
             </div>
           ) : null}
 
-          {!showTicketForm ? (
-            <div className={styles.portalTableToolbar}>
-              <div className={styles.portalToolbarInner}>
-                <div className={styles.portalToolbarGroup}>
-                  <span className={styles.portalToolbarLabel}>Sort By</span>
-                  <select
-                    className={styles.portalToolbarControl}
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as TicketSortKey)}
-                    aria-label="Sort tickets"
-                  >
-                    <option value="date-desc">Date (Newest)</option>
-                    <option value="date-asc">Date (Oldest)</option>
-                    <option value="status-asc">Status (A-Z)</option>
-                    <option value="subject-asc">Subject (A-Z)</option>
-                    <option value="id-asc">Ticket ID (A-Z)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
+          {!showTicketForm && loading ? (
+            <p className={styles.panelSub}>Loading tickets...</p>
           ) : null}
 
-          {loading ? (
-            <p className={styles.panelSub}>Loading tickets...</p>
-          ) : (
-            <div className={styles.tableWrap}>
-              <table className={styles.dataTable}>
-                <thead>
-                  <tr>
-                    <PortalSortableTableHead
-                      label="Ticket"
-                      active={ticketSortDirection(sortBy, "id") !== null}
-                      direction={ticketSortDirection(sortBy, "id") ?? "asc"}
-                      onClick={() => setSortBy((current) => toggleTicketSort(current, "id"))}
-                    />
-                    <PortalSortableTableHead
-                      label="Subject"
-                      active={ticketSortDirection(sortBy, "subject") !== null}
-                      direction={ticketSortDirection(sortBy, "subject") ?? "asc"}
-                      onClick={() => setSortBy((current) => toggleTicketSort(current, "subject"))}
-                    />
-                    <PortalSortableTableHead
-                      label="Date"
-                      active={ticketSortDirection(sortBy, "date") !== null}
-                      direction={ticketSortDirection(sortBy, "date") ?? "asc"}
-                      onClick={() => setSortBy((current) => toggleTicketSort(current, "date"))}
-                    />
-                    <PortalSortableTableHead
-                      label="Status"
-                      active={ticketSortDirection(sortBy, "status") !== null}
-                      direction={ticketSortDirection(sortBy, "status") ?? "asc"}
-                      onClick={() => setSortBy((current) => toggleTicketSort(current, "status"))}
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTickets.length === 0 ? (
+          {!showTicketForm && !loading ? (
+            <TableFilterShell
+              open={filterOpen}
+              active={isTableFilterActive(appliedFilter)}
+              total={filteredTickets.length}
+              onToggle={() => setFilterOpen((o) => !o)}
+              search={search}
+              onSearchChange={setSearch}
+              searchPlaceholder="Search tickets..."
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              sortControl={
+                <select
+                  className={styles.portalToolbarControl}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as TicketSortKey)}
+                  aria-label="Sort tickets"
+                >
+                  <option value="date-desc">Date (Newest)</option>
+                  <option value="date-asc">Date (Oldest)</option>
+                  <option value="status-asc">Status (A-Z)</option>
+                  <option value="subject-asc">Subject (A-Z)</option>
+                  <option value="id-asc">Ticket ID (A-Z)</option>
+                </select>
+              }
+              panel={
+                <TableFilterPanel
+                  rows={tickets}
+                  fields={TICKET_FILTER_FIELDS}
+                  draft={draftFilter}
+                  applied={appliedFilter}
+                  getValue={getTicketFilterValue}
+                  onDraftChange={setDraftFilter}
+                  onApply={applyFilter}
+                  onClear={clearFilter}
+                  onClose={() => setFilterOpen(false)}
+                />
+              }
+            >
+              <div className={styles.tableWrap}>
+                <table className={styles.dataTable}>
+                  <thead>
                     <tr>
-                      <td colSpan={4}>No support tickets yet.</td>
+                      <PortalSortableTableHead
+                        label="Ticket"
+                        active={ticketSortDirection(sortBy, "id") !== null}
+                        direction={ticketSortDirection(sortBy, "id") ?? "asc"}
+                        onClick={() => setSortBy((current) => toggleTicketSort(current, "id"))}
+                      />
+                      <PortalSortableTableHead
+                        label="Subject"
+                        active={ticketSortDirection(sortBy, "subject") !== null}
+                        direction={ticketSortDirection(sortBy, "subject") ?? "asc"}
+                        onClick={() => setSortBy((current) => toggleTicketSort(current, "subject"))}
+                      />
+                      <PortalSortableTableHead
+                        label="Date"
+                        active={ticketSortDirection(sortBy, "date") !== null}
+                        direction={ticketSortDirection(sortBy, "date") ?? "asc"}
+                        onClick={() => setSortBy((current) => toggleTicketSort(current, "date"))}
+                      />
+                      <PortalSortableTableHead
+                        label="Status"
+                        active={ticketSortDirection(sortBy, "status") !== null}
+                        direction={ticketSortDirection(sortBy, "status") ?? "asc"}
+                        onClick={() => setSortBy((current) => toggleTicketSort(current, "status"))}
+                      />
                     </tr>
-                  ) : (
-                    sortedTickets.map((ticket) => (
-                      <tr key={ticket.id}>
-                        <td className={styles.monoBlue}>{ticket.id}</td>
-                        <td className={styles.serviceNameBold}>{ticket.subject}</td>
-                        <td>{ticket.date}</td>
-                        <td>
-                          <span className={ticket.status === "Resolved" ? styles.badgeGreen : styles.badgeBlue}>
-                            {ticket.status}
-                          </span>
-                        </td>
+                  </thead>
+                  <tbody>
+                    {filteredTickets.length === 0 ? (
+                      <tr>
+                        <td colSpan={4}>No support tickets yet.</td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    ) : (
+                      filteredTickets.map((ticket) => (
+                        <tr key={ticket.id}>
+                          <td className={styles.monoBlue}>{ticket.id}</td>
+                          <td className={styles.serviceNameBold}>{ticket.subject}</td>
+                          <td>{ticket.date}</td>
+                          <td>
+                            <span className={ticket.status === "Resolved" ? styles.badgeGreen : styles.badgeBlue}>
+                              {ticket.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </TableFilterShell>
+          ) : null}
         </section>
 
         <section className={styles.chatPanel}>

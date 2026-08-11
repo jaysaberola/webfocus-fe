@@ -12,10 +12,9 @@ import {
   approvalDueDate,
   approvalIssuedDate,
   approvalPlanLabel,
+  approvalQueueType,
   approvalServiceLabel,
-  filterApprovals,
   sortApprovals,
-  type ApprovalFilterKey,
   type ApprovalSortKey,
 } from "@/lib/commerceAdmin/approvalHelpers";
 import {
@@ -30,13 +29,38 @@ import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import ApprovalReviewModal from "@/components/CommerceAdmin/modals/ApprovalReviewModal";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 5;
+
+const APPROVAL_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "kind", label: "Queue Type" },
+  { id: "status", label: "Status" },
+  { id: "client", label: "Client" },
+  { id: "email", label: "Email" },
+  { id: "invoiceId", label: "Invoice #" },
+  { id: "serviceName", label: "Service Name" },
+  { id: "plan", label: "Plan" },
+  { id: "proofNo", label: "Proof #" },
+];
 
 export default function CommerceApprovalsTab() {
   const [rows, setRows] = useState<CommercePaymentProofRow[]>([]);
@@ -44,10 +68,37 @@ export default function CommerceApprovalsTab() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = useState<ApprovalSortKey>("date-desc");
-  const [filterType, setFilterType] = useState<ApprovalFilterKey>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [page, setPage] = useState(1);
   const [reviewTarget, setReviewTarget] = useState<CommercePaymentProofRow | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const getFilterValue = useCallback((row: CommercePaymentProofRow, fieldId: string) => {
+    switch (fieldId) {
+      case "kind":
+        return approvalQueueType(row);
+      case "status":
+        return String(row.status || "Pending Review").trim();
+      case "client":
+        return String(row.client ?? "").trim();
+      case "email":
+        return String(row.email ?? "").trim();
+      case "invoiceId":
+        return String(row.invoiceId ?? "").trim();
+      case "serviceName":
+        return approvalServiceLabel(row);
+      case "plan":
+        return approvalPlanLabel(row);
+      case "proofNo":
+        return String(row.proofNo ?? "").trim();
+      default:
+        return "";
+    }
+  }, []);
 
   const load = () => {
     setLoading(true);
@@ -63,12 +114,29 @@ export default function CommerceApprovalsTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [sortBy, filterType, viewMode]);
+  }, [sortBy, appliedFilter, viewMode, search, dateRange]);
 
   const processedRows = useMemo(() => {
-    const filtered = filterApprovals(rows, filterType);
+    const filtered = applyTableFilter(rows, appliedFilter, APPROVAL_FILTER_FIELDS, getFilterValue)
+      .filter((row) =>
+        rowMatchesSearch(
+          [
+            row.proofNo,
+            row.invoiceId,
+            row.client,
+            row.email,
+            approvalServiceLabel(row),
+            row.status,
+            approvalQueueType(row),
+          ],
+          search,
+        ),
+      )
+      .filter((row) =>
+        rowMatchesDateRange(row.submittedAt || approvalIssuedDate(row) || row.issuedDate, dateRange),
+      );
     return sortApprovals(filtered, sortBy);
-  }, [rows, filterType, sortBy]);
+  }, [rows, appliedFilter, sortBy, getFilterValue, search, dateRange]);
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / PAGE_SIZE));
   const paginatedRows = useMemo(() => {
@@ -306,166 +374,195 @@ export default function CommerceApprovalsTab() {
           onClear={selection.clearSelection}
           showDelete={false}
         />
+      ) : null}
+
+      {loading ? (
+        <p className={styles.emptyState}>Loading approvals...</p>
       ) : (
-        <div className={styles.toolbarRow}>
-          <div className={styles.toolbarFilters}>
+        <TableFilterShell
+          open={filterOpen}
+          active={isTableFilterActive(appliedFilter)}
+          total={processedRows.length}
+          onToggle={() => setFilterOpen((open) => !open)}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search approvals..."
+          dateRange={dateRange}
+          onDateRangeChange={(next) => {
+            setDateRange(next);
+            setPage(1);
+          }}
+          sortControl={
             <select
               className={styles.selectInline}
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as ApprovalSortKey)}
+              aria-label="Sort approvals"
             >
-              <option value="date-desc">Sort: Newest First</option>
-              <option value="date-asc">Sort: Oldest First</option>
-              <option value="amount-desc">Sort: Amount (High to Low)</option>
-              <option value="amount-asc">Sort: Amount (Low to High)</option>
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="amount-desc">Amount (High to Low)</option>
+              <option value="amount-asc">Amount (Low to High)</option>
             </select>
-            <select
-              className={styles.selectInline}
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as ApprovalFilterKey)}
-            >
-              <option value="all">Filter: All Queue Items</option>
-              <option value="provisioning">Pending Provisioning</option>
-              <option value="receipt">Receipt Verification</option>
-              <option value="profile">Profile Changes</option>
-            </select>
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <p className={styles.emptyState}>Loading approvals...</p>
-      ) : viewMode === "list" ? (
-        <>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <CommerceSelectAllHead
-                    allSelected={selection.allSelected}
-                    someSelected={selection.someSelected}
-                    onToggleAll={selection.toggleAll}
-                    disabled={paginatedRows.length === 0}
-                  />
-                  {renderSortableHead("invoice", "Invoice #")}
-                  {renderSortableHead("service", "Service Name")}
-                  {renderSortableHead("plan", "Plan")}
-                  {renderSortableHead("client", "Client")}
-                  {renderSortableHead("issued", "Issued Date")}
-                  {renderSortableHead("due", "Due Date")}
-                  {renderSortableHead("amount", "Amount")}
-                  {renderSortableHead("status", "Status")}
-                  <th className={styles.tableActionHead}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={10}>No pending approvals or verification items found matching filter.</td>
-                  </tr>
-                ) : (
-                  paginatedRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className={selection.isSelected(row) ? styles.rowSelected : undefined}
-                    >
-                      <CommerceSelectRowCell
-                        checked={selection.isSelected(row)}
-                        onChange={() => selection.toggleRow(row)}
-                        label={`Select approval ${row.invoiceId || row.proofNo}`}
+          }
+          panel={
+            <TableFilterPanel
+              rows={rows}
+              fields={APPROVAL_FILTER_FIELDS}
+              draft={draftFilter}
+              applied={appliedFilter}
+              getValue={getFilterValue}
+              onDraftChange={setDraftFilter}
+              onApply={() => {
+                setAppliedFilter(draftFilter);
+                setPage(1);
+              }}
+              onClear={() => {
+                setDraftFilter(emptyTableFilter);
+                setAppliedFilter(emptyTableFilter);
+                setPage(1);
+              }}
+              onClose={() => setFilterOpen(false)}
+            />
+          }
+        >
+          {viewMode === "list" ? (
+            <>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <CommerceSelectAllHead
+                        allSelected={selection.allSelected}
+                        someSelected={selection.someSelected}
+                        onToggleAll={selection.toggleAll}
+                        disabled={paginatedRows.length === 0}
                       />
-                      <td className={styles.monoCell}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => void handleAction(row, "view")}
-                        >
-                          {row.invoiceId || row.proofNo}
-                        </button>
-                      </td>
-                      <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
-                      <td className={styles.txPlanCell}>
-                        <strong>{approvalPlanLabel(row)}</strong>
-                      </td>
-                      <td>{row.client}</td>
-                      <td>{approvalIssuedDate(row)}</td>
-                      <td>{approvalDueDate(row)}</td>
-                      <td className={styles.amountCell}>{approvalAmountLabel(row)}</td>
-                      <td className={styles.statusCell}>
-                        <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
-                      </td>
-                      <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
+                      {renderSortableHead("invoice", "Invoice #")}
+                      {renderSortableHead("service", "Service Name")}
+                      {renderSortableHead("plan", "Plan")}
+                      {renderSortableHead("client", "Client")}
+                      {renderSortableHead("issued", "Issued Date")}
+                      {renderSortableHead("due", "Due Date")}
+                      {renderSortableHead("amount", "Amount")}
+                      {renderSortableHead("status", "Status")}
+                      <th className={styles.tableActionHead}>Action</th>
                     </tr>
-                  ))
+                  </thead>
+                  <tbody>
+                    {paginatedRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={10}>No pending approvals or verification items found matching filter.</td>
+                      </tr>
+                    ) : (
+                      paginatedRows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className={selection.isSelected(row) ? styles.rowSelected : undefined}
+                        >
+                          <CommerceSelectRowCell
+                            checked={selection.isSelected(row)}
+                            onChange={() => selection.toggleRow(row)}
+                            label={`Select approval ${row.invoiceId || row.proofNo}`}
+                          />
+                          <td className={styles.monoCell}>
+                            <button
+                              type="button"
+                              className={styles.tableCellLink}
+                              onClick={() => void handleAction(row, "view")}
+                            >
+                              {row.invoiceId || row.proofNo}
+                            </button>
+                          </td>
+                          <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
+                          <td className={styles.txPlanCell}>
+                            <strong>{approvalPlanLabel(row)}</strong>
+                          </td>
+                          <td>{row.client}</td>
+                          <td>{approvalIssuedDate(row)}</td>
+                          <td>{approvalDueDate(row)}</td>
+                          <td className={styles.amountCell}>{approvalAmountLabel(row)}</td>
+                          <td className={styles.statusCell}>
+                            <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
+                          </td>
+                          <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className={styles.paginationBar}>
+                <div className={styles.paginationInfo}>
+                  Showing {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                </div>
+                <div className={styles.paginationControls}>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page <= 1 || processedRows.length === 0}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    aria-label="Previous page"
+                  >
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                  </button>
+                  <span className={styles.paginationRange}>
+                    {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page >= totalPages || processedRows.length === 0}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    aria-label="Next page"
+                  >
+                    <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.txGrid}>
+                {paginatedRows.length === 0 ? (
+                  <p className={styles.emptyState}>No pending approvals or verification items found matching filter.</p>
+                ) : (
+                  paginatedRows.map(renderApprovalGridCard)
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
 
-          <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
-            <div className={styles.paginationControls}>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page <= 1 || processedRows.length === 0}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                aria-label="Previous page"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <span className={styles.paginationRange}>
-                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-              </span>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page >= totalPages || processedRows.length === 0}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                aria-label="Next page"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className={styles.txGrid}>
-            {paginatedRows.length === 0 ? (
-              <p className={styles.emptyState}>No pending approvals or verification items found matching filter.</p>
-            ) : (
-              paginatedRows.map(renderApprovalGridCard)
-            )}
-          </div>
-
-          <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
-            <div className={styles.paginationControls}>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page <= 1 || processedRows.length === 0}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                aria-label="Previous page"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <span className={styles.paginationRange}>
-                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-              </span>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page >= totalPages || processedRows.length === 0}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                aria-label="Next page"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </>
+              <div className={styles.paginationBar}>
+                <div className={styles.paginationInfo}>
+                  Showing {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                </div>
+                <div className={styles.paginationControls}>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page <= 1 || processedRows.length === 0}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    aria-label="Previous page"
+                  >
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                  </button>
+                  <span className={styles.paginationRange}>
+                    {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page >= totalPages || processedRows.length === 0}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    aria-label="Next page"
+                  >
+                    <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </TableFilterShell>
       )}
 
       <ApprovalReviewModal

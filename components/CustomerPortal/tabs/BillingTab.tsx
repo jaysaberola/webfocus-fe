@@ -9,6 +9,7 @@ import {
 import BillingPaymentModal from "@/components/CustomerPortal/BillingPaymentModal";
 import BillingPaymentProofListModal from "@/components/CustomerPortal/BillingPaymentProofListModal";
 import BillingPaymentProofModal from "@/components/CustomerPortal/BillingPaymentProofModal";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
@@ -21,6 +22,19 @@ import {
   uploadPortalPaymentProof,
 } from "@/services/customerPortalService";
 import type { PortalInvoice, PortalPaymentProof } from "@/lib/customerPortal/types";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -67,6 +81,14 @@ type InvoiceSortKey =
   | "amount-desc"
   | "status-asc"
   | "status-desc";
+
+const INVOICE_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "status", label: "Status" },
+  { id: "serviceName", label: "Service Name" },
+  { id: "plan", label: "Plan" },
+  { id: "id", label: "Invoice ID", mode: "contains" },
+  { id: "transactionNo", label: "Transaction No", mode: "contains" },
+];
 
 const INVOICE_SORT_ASC: Record<InvoiceColumnKey, InvoiceSortKey> = {
   id: "id-asc",
@@ -153,9 +175,11 @@ export default function BillingTab() {
     buttonLabel?: string;
     canPay?: boolean;
   } | null>(null);
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
@@ -182,11 +206,34 @@ export default function BillingTab() {
     return map;
   }, [paymentProofs]);
 
+  const getInvoiceFilterValue = useCallback((inv: PortalInvoice, fieldId: string) => {
+    switch (fieldId) {
+      case "status":
+        return inv.status;
+      case "serviceName":
+        return invoiceServiceLabel(inv);
+      case "plan":
+        return invoicePlanLabel(inv);
+      case "id":
+        return inv.id;
+      case "transactionNo":
+        return inv.transactionNo ?? "";
+      default:
+        return "";
+    }
+  }, []);
+
   const filteredInvoices = useMemo(() => {
-    const rows =
-      statusFilter === "all" ? invoices : invoices.filter((inv) => inv.status === statusFilter);
+    let rows = invoices.filter((inv) => {
+      if (!rowMatchesDateRange(inv.date, dateRange)) return false;
+      return rowMatchesSearch(
+        [inv.id, inv.serviceName, inv.items, inv.plan, inv.subscription, inv.status, inv.transactionNo],
+        search,
+      );
+    });
+    rows = applyTableFilter(rows, appliedFilter, INVOICE_FILTER_FIELDS, getInvoiceFilterValue);
     return sortPortalInvoices(rows, sortBy);
-  }, [invoices, statusFilter, sortBy]);
+  }, [invoices, search, dateRange, appliedFilter, sortBy, getInvoiceFilterValue]);
 
   const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
   const paginatedInvoices = useMemo(() => {
@@ -208,36 +255,45 @@ export default function BillingTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, sortBy]);
+  }, [search, sortBy, dateRange, appliedFilter]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const loadBilling = (filters?: { dateFrom?: string; dateTo?: string }) =>
-    fetchPortalBilling(filters).then((data) => {
-      setInvoices(data.invoices ?? []);
-      setPaymentProofs(data.paymentProofs ?? []);
-      setReminder(data.reminder ?? null);
-      return data;
-    });
+  const applyFilter = () => {
+    setAppliedFilter(draftFilter);
+    setPage(1);
+  };
+
+  const clearFilter = () => {
+    setDraftFilter(emptyTableFilter);
+    setAppliedFilter(emptyTableFilter);
+    setPage(1);
+  };
+
+  const loadBilling = useCallback(
+    (filters?: { dateFrom?: string; dateTo?: string }) =>
+      fetchPortalBilling(filters).then((data) => {
+        setInvoices(data.invoices ?? []);
+        setPaymentProofs(data.paymentProofs ?? []);
+        setReminder(data.reminder ?? null);
+        return data;
+      }),
+    [],
+  );
 
   useEffect(() => {
     loadBilling().finally(() => setLoading(false));
-  }, []);
+  }, [loadBilling]);
 
-  const applyDateFilter = () => {
+  const handleDateRangeChange = (next: DateRangeValue) => {
+    setDateRange(next);
     setLoading(true);
-    loadBilling({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }).finally(() =>
-      setLoading(false)
-    );
-  };
-
-  const clearDateFilter = () => {
-    setDateFrom("");
-    setDateTo("");
-    setLoading(true);
-    loadBilling().finally(() => setLoading(false));
+    loadBilling({
+      dateFrom: next.from || undefined,
+      dateTo: next.to || undefined,
+    }).finally(() => setLoading(false));
   };
 
   const openInvoicePayment = (payload: {
@@ -384,7 +440,7 @@ export default function BillingTab() {
       toast.success(result?.message || "Payment proof uploaded.");
       setProofModal({ open: false });
       notifyPortalNotificationsUpdated();
-      await loadBilling({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });
+      await loadBilling({ dateFrom: dateRange.from || undefined, dateTo: dateRange.to || undefined });
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Could not upload payment proof.");
     } finally {
@@ -399,7 +455,10 @@ export default function BillingTab() {
     try {
       await deletePortalPaymentProof(proof.recordId);
       toast.success("Payment proof deleted.");
-      const data = await loadBilling({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined });
+      const data = await loadBilling({
+        dateFrom: dateRange.from || undefined,
+        dateTo: dateRange.to || undefined,
+      });
       if (proofListModal.open && proofListModal.invoiceId === proof.invoiceId) {
         const remaining = (data.paymentProofs ?? []).filter((item) => item.invoiceId === proof.invoiceId);
         if (remaining.length === 0) {
@@ -471,231 +530,208 @@ export default function BillingTab() {
             onExport={handleExportSelected}
             onClear={selection.clearSelection}
           />
-        ) : (
-          <div className={styles.portalTableToolbar}>
-            <div className={styles.portalToolbarInner}>
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Filter By</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  aria-label="Filter invoices by status"
-                >
-                  <option value="all">All Status</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Pending Payment">Pending Payment</option>
-                  <option value="Awaiting Approval">Awaiting Approval</option>
-                  <option value="Payment Due">Payment Due</option>
-                  <option value="Overdue">Overdue</option>
-                </select>
-              </div>
+        ) : null}
 
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Sort By</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as InvoiceSortKey)}
-                  aria-label="Sort invoices"
-                >
-                  <option value="issued-desc">Issued (Newest)</option>
-                  <option value="issued-asc">Issued (Oldest)</option>
-                  <option value="due-desc">Due Date (Latest)</option>
-                  <option value="due-asc">Due Date (Earliest)</option>
-                  <option value="amount-desc">Amount (High to Low)</option>
-                  <option value="amount-asc">Amount (Low to High)</option>
-                  <option value="status-asc">Status (A-Z)</option>
-                  <option value="id-asc">Invoice ID (A-Z)</option>
-                </select>
-              </div>
+        <TableFilterShell
+          open={filterOpen}
+          active={isTableFilterActive(appliedFilter)}
+          total={filteredInvoices.length}
+          onToggle={() => setFilterOpen((o) => !o)}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search invoices..."
+          dateRange={dateRange}
+          onDateRangeChange={handleDateRangeChange}
+          sortControl={
+            <select
+              className={styles.portalToolbarControl}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as InvoiceSortKey)}
+              aria-label="Sort invoices"
+            >
+              <option value="issued-desc">Issued (Newest)</option>
+              <option value="issued-asc">Issued (Oldest)</option>
+              <option value="due-desc">Due Date (Latest)</option>
+              <option value="due-asc">Due Date (Earliest)</option>
+              <option value="amount-desc">Amount (High to Low)</option>
+              <option value="amount-asc">Amount (Low to High)</option>
+              <option value="status-asc">Status (A-Z)</option>
+              <option value="id-asc">Invoice ID (A-Z)</option>
+            </select>
+          }
+          panel={
+            <TableFilterPanel
+              rows={invoices}
+              fields={INVOICE_FILTER_FIELDS}
+              draft={draftFilter}
+              applied={appliedFilter}
+              getValue={getInvoiceFilterValue}
+              onDraftChange={setDraftFilter}
+              onApply={applyFilter}
+              onClear={clearFilter}
+              onClose={() => setFilterOpen(false)}
+            />
+          }
+        >
+          <div className={styles.tableWrap}>
+            <table className={styles.dataTable}>
+              <thead>
+                <tr>
+                  <PortalSelectAllHead
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggleAll={selection.toggleAll}
+                    disabled={paginatedInvoices.length === 0}
+                  />
+                  <PortalSortableTableHead
+                    label="Invoice ID"
+                    active={invoiceSortDirection(sortBy, "id") !== null}
+                    direction={invoiceSortDirection(sortBy, "id") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "id"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Service Name"
+                    active={invoiceSortDirection(sortBy, "service") !== null}
+                    direction={invoiceSortDirection(sortBy, "service") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "service"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Plan"
+                    active={invoiceSortDirection(sortBy, "plan") !== null}
+                    direction={invoiceSortDirection(sortBy, "plan") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "plan"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Issued"
+                    active={invoiceSortDirection(sortBy, "issued") !== null}
+                    direction={invoiceSortDirection(sortBy, "issued") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "issued"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Due Date"
+                    active={invoiceSortDirection(sortBy, "due") !== null}
+                    direction={invoiceSortDirection(sortBy, "due") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "due"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Amount"
+                    active={invoiceSortDirection(sortBy, "amount") !== null}
+                    direction={invoiceSortDirection(sortBy, "amount") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "amount"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Status"
+                    active={invoiceSortDirection(sortBy, "status") !== null}
+                    direction={invoiceSortDirection(sortBy, "status") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "status"))}
+                  />
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedInvoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={9}>No invoices found for the selected filters.</td>
+                  </tr>
+                ) : (
+                  paginatedInvoices.map((inv) => {
+                    const invoiceProofs = proofsByInvoice.get(inv.id) ?? [];
 
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Date Range</span>
-                <input
-                  type="date"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarDate}`}
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  aria-label="Filter from date"
-                />
-                <span className={styles.portalToolbarDivider}>to</span>
-                <input
-                  type="date"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarDate}`}
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  aria-label="Filter to date"
-                />
-                <button type="button" className={styles.secondaryBtnSm} onClick={applyDateFilter}>
-                  Apply
-                </button>
-                <button type="button" className={styles.portalToolbarClear} onClick={clearDateFilter}>
-                  Clear Date Filter
-                </button>
-              </div>
+                    return (
+                      <tr
+                        key={inv.id}
+                        className={selection.isSelected(inv) ? styles.rowSelected : undefined}
+                      >
+                        <PortalSelectRowCell
+                          checked={selection.isSelected(inv)}
+                          onChange={() => selection.toggleRow(inv)}
+                          label={`Select invoice ${inv.id}`}
+                        />
+                        <td className={styles.monoBlue}>
+                          <button
+                            type="button"
+                            className={styles.tableCellLink}
+                            onClick={() => openInvoicePrimary(inv)}
+                          >
+                            {inv.id}
+                          </button>
+                        </td>
+                        <td className={styles.serviceNameBold}>{inv.serviceName ?? inv.items}</td>
+                        <td>{inv.plan ?? inv.subscription}</td>
+                        <td>{inv.date}</td>
+                        <td>{inv.due}</td>
+                        <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>
+                        <td>
+                          <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>
+                        </td>
+                        <td className={styles.billingActionsCell}>
+                          <select
+                            className={styles.billingActionsSelect}
+                            defaultValue=""
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (!value) return;
+                              handleInvoiceAction(inv, value);
+                              e.target.value = "";
+                            }}
+                            aria-label={`Actions for ${inv.id}`}
+                          >
+                            <option value="" disabled hidden>
+                              Actions...
+                            </option>
+                            {invoiceProofs.length > 0 ? (
+                              <option value="view-proofs">
+                                View Uploaded Receipts ({invoiceProofs.length})
+                              </option>
+                            ) : null}
+                            {inv.status !== "Paid" ? (
+                              <>
+                                <option value="pay" disabled={!inv.canPay}>
+                                  {inv.canPay ? "Pay Now" : "Pay Now (not due yet)"}
+                                </option>
+                                <option value="proof">Submit Payment Proof</option>
+                              </>
+                            ) : (
+                              <option value="proof">Submit Payment Proof</option>
+                            )}
+                            <option value="orders">View Orders</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className={styles.paginationBar}>
+            <div className={styles.paginationInfo}>Total Records {filteredInvoices.length}</div>
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page <= 1 || filteredInvoices.length === 0}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Previous page"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <span className={styles.paginationRange}>
+                {filteredInvoices.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+              </span>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page >= totalPages || filteredInvoices.length === 0}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Next page"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
             </div>
           </div>
-        )}
-
-        <div className={styles.tableWrap}>
-          <table className={styles.dataTable}>
-            <thead>
-              <tr>
-                <PortalSelectAllHead
-                  allSelected={selection.allSelected}
-                  someSelected={selection.someSelected}
-                  onToggleAll={selection.toggleAll}
-                  disabled={paginatedInvoices.length === 0}
-                />
-                <PortalSortableTableHead
-                  label="Invoice ID"
-                  active={invoiceSortDirection(sortBy, "id") !== null}
-                  direction={invoiceSortDirection(sortBy, "id") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "id"))}
-                />
-                <PortalSortableTableHead
-                  label="Service Name"
-                  active={invoiceSortDirection(sortBy, "service") !== null}
-                  direction={invoiceSortDirection(sortBy, "service") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "service"))}
-                />
-                <PortalSortableTableHead
-                  label="Plan"
-                  active={invoiceSortDirection(sortBy, "plan") !== null}
-                  direction={invoiceSortDirection(sortBy, "plan") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "plan"))}
-                />
-                <PortalSortableTableHead
-                  label="Issued"
-                  active={invoiceSortDirection(sortBy, "issued") !== null}
-                  direction={invoiceSortDirection(sortBy, "issued") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "issued"))}
-                />
-                <PortalSortableTableHead
-                  label="Due Date"
-                  active={invoiceSortDirection(sortBy, "due") !== null}
-                  direction={invoiceSortDirection(sortBy, "due") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "due"))}
-                />
-                <PortalSortableTableHead
-                  label="Amount"
-                  active={invoiceSortDirection(sortBy, "amount") !== null}
-                  direction={invoiceSortDirection(sortBy, "amount") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "amount"))}
-                />
-                <PortalSortableTableHead
-                  label="Status"
-                  active={invoiceSortDirection(sortBy, "status") !== null}
-                  direction={invoiceSortDirection(sortBy, "status") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleInvoiceSort(current, "status"))}
-                />
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedInvoices.length === 0 ? (
-                <tr>
-                  <td colSpan={9}>No invoices found for the selected filters.</td>
-                </tr>
-              ) : (
-                paginatedInvoices.map((inv) => {
-                  const invoiceProofs = proofsByInvoice.get(inv.id) ?? [];
-
-                  return (
-                    <tr
-                      key={inv.id}
-                      className={selection.isSelected(inv) ? styles.rowSelected : undefined}
-                    >
-                      <PortalSelectRowCell
-                        checked={selection.isSelected(inv)}
-                        onChange={() => selection.toggleRow(inv)}
-                        label={`Select invoice ${inv.id}`}
-                      />
-                      <td className={styles.monoBlue}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => openInvoicePrimary(inv)}
-                        >
-                          {inv.id}
-                        </button>
-                      </td>
-                      <td className={styles.serviceNameBold}>{inv.serviceName ?? inv.items}</td>
-                      <td>{inv.plan ?? inv.subscription}</td>
-                      <td>{inv.date}</td>
-                      <td>{inv.due}</td>
-                      <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>
-                      <td>
-                        <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>
-                      </td>
-                      <td className={styles.billingActionsCell}>
-                        <select
-                          className={styles.billingActionsSelect}
-                          defaultValue=""
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (!value) return;
-                            handleInvoiceAction(inv, value);
-                            e.target.value = "";
-                          }}
-                          aria-label={`Actions for ${inv.id}`}
-                        >
-                          <option value="" disabled hidden>
-                            Actions...
-                          </option>
-                          {invoiceProofs.length > 0 ? (
-                            <option value="view-proofs">
-                              View Uploaded Receipts ({invoiceProofs.length})
-                            </option>
-                          ) : null}
-                          {inv.status !== "Paid" ? (
-                            <>
-                              <option value="pay" disabled={!inv.canPay}>
-                                {inv.canPay ? "Pay Now" : "Pay Now (not due yet)"}
-                              </option>
-                              <option value="proof">Submit Payment Proof</option>
-                            </>
-                          ) : (
-                            <option value="proof">Submit Payment Proof</option>
-                          )}
-                          <option value="orders">View Orders</option>
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className={styles.paginationBar}>
-          <div className={styles.paginationInfo}>Total Records {filteredInvoices.length}</div>
-          <div className={styles.paginationControls}>
-            <button
-              type="button"
-              className={styles.secondaryBtnSm}
-              disabled={page <= 1 || filteredInvoices.length === 0}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              aria-label="Previous page"
-            >
-              <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-            </button>
-            <span className={styles.paginationRange}>
-              {filteredInvoices.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-            </span>
-            <button
-              type="button"
-              className={styles.secondaryBtnSm}
-              disabled={page >= totalPages || filteredInvoices.length === 0}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              aria-label="Next page"
-            >
-              <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        </TableFilterShell>
       </section>
 
       <BillingPaymentModal

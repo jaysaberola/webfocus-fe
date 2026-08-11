@@ -71,6 +71,7 @@ export type CustomerRow = UserRow & {
     email?: string | null;
   } | null;
   client_classification?: string | null;
+  client_type?: string | null;
   billing_in_charge?: string | null;
   contact_person?: string | null;
 };

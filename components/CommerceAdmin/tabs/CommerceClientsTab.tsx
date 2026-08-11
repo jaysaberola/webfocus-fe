@@ -9,19 +9,19 @@ import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import ConfirmModal from "@/components/UI/ConfirmModal";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import {
   CLIENT_COLUMN_LABELS,
   DEFAULT_CLIENT_COLUMNS,
   clientBillingInCharge,
   clientClassification,
   clientDisplayName,
+  clientDisplayStatus,
   clientIsAssigned,
   clientOwnerName,
-  filterClients,
   formatClientCreatedTime,
   sortClients,
   type ClientColumnKey,
-  type ClientFilterKey,
   type ClientSortKey,
 } from "@/lib/commerceAdmin/clientHelpers";
 import { exportClientsToExcel } from "@/lib/commerceAdmin/exportClientsExcel";
@@ -30,12 +30,35 @@ import {
   isClientColumnSorted,
   toggleClientSort,
 } from "@/lib/commerceAdmin/tableSortHelpers";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { getCustomers } from "@/services/commerceAdminService";
 import { bulkDeleteCustomers, type CustomerRow } from "@/services/customerService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 10;
+
+const CLIENT_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "owner", label: "Client Owner" },
+  { id: "billing", label: "Billing-in-Charge" },
+  { id: "classification", label: "Client Classification" },
+  { id: "client_type", label: "Client Type" },
+  { id: "contact_person", label: "Billing Contact Information" },
+  { id: "status", label: "Status" },
+  { id: "name", label: "Client Name", mode: "contains" },
+];
 
 type Props = {
   onTabChange?: (tab: CommerceAdminTab) => void;
@@ -47,7 +70,11 @@ export default function CommerceClientsTab(_props: Props) {
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<ClientSortKey>("name-asc");
-  const [filterStatus, setFilterStatus] = useState<ClientFilterKey>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [columnsVisible, setColumnsVisible] = useState(DEFAULT_CLIENT_COLUMNS);
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -60,6 +87,27 @@ export default function CommerceClientsTab(_props: Props) {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
+
+  const getFilterValue = useCallback((client: CustomerRow, fieldId: string) => {
+    switch (fieldId) {
+      case "owner":
+        return clientOwnerName(client);
+      case "billing":
+        return clientBillingInCharge(client);
+      case "classification":
+        return clientClassification(client);
+      case "client_type":
+        return String(client.client_type ?? "").trim();
+      case "contact_person":
+        return String(client.contact_person ?? "").trim();
+      case "status":
+        return clientDisplayStatus(client);
+      case "name":
+        return clientDisplayName(client);
+      default:
+        return "";
+    }
+  }, []);
 
   const loadRows = useCallback(() => {
     setLoading(true);
@@ -75,7 +123,7 @@ export default function CommerceClientsTab(_props: Props) {
 
   useEffect(() => {
     setPage(1);
-  }, [sortBy, filterStatus]);
+  }, [sortBy, appliedFilter, search, dateRange]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -88,9 +136,24 @@ export default function CommerceClientsTab(_props: Props) {
   }, []);
 
   const processedRows = useMemo(() => {
-    const filtered = filterClients(rows, filterStatus);
+    const filtered = applyTableFilter(rows, appliedFilter, CLIENT_FILTER_FIELDS, getFilterValue)
+      .filter((client) =>
+        rowMatchesSearch(
+          [
+            clientDisplayName(client),
+            client.company,
+            client.email,
+            clientOwnerName(client),
+            clientBillingInCharge(client),
+            client.contact_person,
+            clientClassification(client),
+          ],
+          search,
+        ),
+      )
+      .filter((client) => rowMatchesDateRange(client.created_at, dateRange));
     return sortClients(filtered, sortBy);
-  }, [rows, filterStatus, sortBy]);
+  }, [rows, appliedFilter, sortBy, getFilterValue, search, dateRange]);
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / PAGE_SIZE));
   const paginatedRows = useMemo(() => {
@@ -240,31 +303,6 @@ export default function CommerceClientsTab(_props: Props) {
       ) : (
         <div className={styles.toolbarRow}>
           <div className={styles.toolbarFilters}>
-            <select
-              className={styles.selectInline}
-              value={
-                sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
-                  ? sortBy
-                  : "name-asc"
-              }
-              onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
-            >
-              <option value="name-asc">Sort: Client Name (A - Z)</option>
-              <option value="name-desc">Sort: Client Name (Z - A)</option>
-              <option value="newest">Sort: Newest Created</option>
-              <option value="oldest">Sort: Oldest Created</option>
-            </select>
-            <select
-              className={styles.selectInline}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as ClientFilterKey)}
-            >
-              <option value="all">Filter: All Clients</option>
-              <option value="New">New</option>
-              <option value="Existing">Existing</option>
-              <option value="Active">Active</option>
-              <option value="Disabled">Disabled</option>
-            </select>
             <div className={styles.colVisWrap} ref={colVisRef}>
               <button
                 type="button"
@@ -299,121 +337,181 @@ export default function CommerceClientsTab(_props: Props) {
         </div>
       )}
 
-      {loading ? (
-        <p className={styles.emptyState}>Loading clients...</p>
-      ) : (
-        <>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <CommerceSelectAllHead
-                    allSelected={selection.allSelected}
-                    someSelected={selection.someSelected}
-                    onToggleAll={selection.toggleAll}
-                    disabled={paginatedRows.length === 0}
-                  />
-                  {columnsVisible.name ? renderSortableHead("name") : null}
-                  {columnsVisible.owner ? renderSortableHead("owner") : null}
-                  {columnsVisible.created ? renderSortableHead("created") : null}
-                  {columnsVisible.billing ? renderSortableHead("billing") : null}
-                  {columnsVisible.classification ? renderSortableHead("classification") : null}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRows.length === 0 ? (
+      <TableFilterShell
+        open={filterOpen}
+        active={isTableFilterActive(appliedFilter)}
+        total={processedRows.length}
+        onToggle={() => setFilterOpen((open) => !open)}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search clients..."
+        dateRange={dateRange}
+        onDateRangeChange={(next) => {
+          setDateRange(next);
+          setPage(1);
+        }}
+        sortControl={
+          <select
+            className={styles.selectInline}
+            value={
+              sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
+                ? sortBy
+                : "name-asc"
+            }
+            onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
+            aria-label="Sort clients"
+          >
+            <option value="name-asc">Client Name (A - Z)</option>
+            <option value="name-desc">Client Name (Z - A)</option>
+            <option value="newest">Newest Created</option>
+            <option value="oldest">Oldest Created</option>
+          </select>
+        }
+        panel={
+          <TableFilterPanel
+            rows={rows}
+            fields={CLIENT_FILTER_FIELDS}
+            draft={draftFilter}
+            applied={appliedFilter}
+            getValue={getFilterValue}
+            onDraftChange={setDraftFilter}
+            onApply={() => {
+              setAppliedFilter(draftFilter);
+              setPage(1);
+            }}
+            onClear={() => {
+              setDraftFilter(emptyTableFilter);
+              setAppliedFilter(emptyTableFilter);
+              setPage(1);
+            }}
+            onClose={() => setFilterOpen(false)}
+          />
+        }
+      >
+        {loading ? (
+          <p className={styles.emptyState}>Loading clients...</p>
+        ) : (
+          <>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
-                    <td colSpan={visibleColumnCount}>No clients found.</td>
+                    <CommerceSelectAllHead
+                      allSelected={selection.allSelected}
+                      someSelected={selection.someSelected}
+                      onToggleAll={selection.toggleAll}
+                      disabled={paginatedRows.length === 0}
+                    />
+                    {columnsVisible.name ? renderSortableHead("name") : null}
+                    {columnsVisible.owner ? renderSortableHead("owner") : null}
+                    {columnsVisible.created ? renderSortableHead("created") : null}
+                    {columnsVisible.billing ? renderSortableHead("billing") : null}
+                    {columnsVisible.classification ? renderSortableHead("classification") : null}
                   </tr>
-                ) : (
-                  paginatedRows.map((client) => {
-                    const classification = clientClassification(client);
-                    return (
-                      <tr
-                        key={client.id}
-                        className={selection.isSelected(client) ? styles.rowSelected : undefined}
-                      >
-                        <CommerceSelectRowCell
-                          checked={selection.isSelected(client)}
-                          onChange={() => selection.toggleRow(client)}
-                          label={`Select client ${clientDisplayName(client)}`}
-                        />
-                        {columnsVisible.name ? (
-                          <td>
-                            <button
-                              type="button"
-                              className={styles.tableCellLink}
-                              onClick={() => openClient(client)}
-                            >
-                              {clientDisplayName(client)}
-                            </button>
-                          </td>
-                        ) : null}
-                        {columnsVisible.owner ? (
-                          <td>
-                            <button
-                              type="button"
-                              className={
-                                clientIsAssigned(client)
-                                  ? styles.txAssignedBadge
-                                  : styles.txAssignedEmpty
-                              }
-                              onClick={() => setAssignOwnerClient(client)}
-                              title="Assign client owner"
-                            >
-                              {clientOwnerName(client)}
-                            </button>
-                          </td>
-                        ) : null}
-                        {columnsVisible.created ? <td>{formatClientCreatedTime(client)}</td> : null}
-                        {columnsVisible.billing ? <td>{clientBillingInCharge(client)}</td> : null}
-                        {columnsVisible.classification ? (
-                          <td>
-                            <span
-                              className={
-                                classification === "Existing" ? styles.badgePaid : styles.badgePending
-                              }
-                            >
-                              {classification}
-                            </span>
-                          </td>
-                        ) : null}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>Total Records {processedRows.length}</div>
-            <div className={styles.paginationControls}>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page <= 1 || processedRows.length === 0}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                aria-label="Previous page"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <span className={styles.paginationRange}>
-                {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-              </span>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page >= totalPages || processedRows.length === 0}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                aria-label="Next page"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
+                </thead>
+                <tbody>
+                  {paginatedRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={visibleColumnCount}>No clients found.</td>
+                    </tr>
+                  ) : (
+                    paginatedRows.map((client) => {
+                      const classification = clientClassification(client);
+                      return (
+                        <tr
+                          key={client.id}
+                          className={selection.isSelected(client) ? styles.rowSelected : undefined}
+                        >
+                          <CommerceSelectRowCell
+                            checked={selection.isSelected(client)}
+                            onChange={() => selection.toggleRow(client)}
+                            label={`Select client ${clientDisplayName(client)}`}
+                          />
+                          {columnsVisible.name ? (
+                            <td>
+                              <button
+                                type="button"
+                                className={styles.tableCellLink}
+                                onClick={() => openClient(client)}
+                              >
+                                {clientDisplayName(client)}
+                              </button>
+                            </td>
+                          ) : null}
+                          {columnsVisible.owner ? (
+                            <td>
+                              <button
+                                type="button"
+                                className={
+                                  clientIsAssigned(client)
+                                    ? styles.txAssignedBadge
+                                    : styles.txAssignedEmpty
+                                }
+                                onClick={() => setAssignOwnerClient(client)}
+                                title="Assign client owner"
+                              >
+                                {clientOwnerName(client)}
+                              </button>
+                            </td>
+                          ) : null}
+                          {columnsVisible.created ? (
+                            <td>{formatClientCreatedTime(client)}</td>
+                          ) : null}
+                          {columnsVisible.billing ? (
+                            <td>{clientBillingInCharge(client)}</td>
+                          ) : null}
+                          {columnsVisible.classification ? (
+                            <td>
+                              <span
+                                className={
+                                  classification === "Existing"
+                                    ? styles.badgePaid
+                                    : styles.badgePending
+                                }
+                              >
+                                {classification}
+                              </span>
+                            </td>
+                          ) : null}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          </div>
-        </>
-      )}
+
+            <div className={styles.paginationBar}>
+              <div className={styles.paginationInfo}>
+                Showing {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+              </div>
+              <div className={styles.paginationControls}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtnSm}
+                  disabled={page <= 1 || processedRows.length === 0}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  aria-label="Previous page"
+                >
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+                <span className={styles.paginationRange}>
+                  {processedRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                </span>
+                <button
+                  type="button"
+                  className={styles.secondaryBtnSm}
+                  disabled={page >= totalPages || processedRows.length === 0}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  aria-label="Next page"
+                >
+                  <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </TableFilterShell>
 
       <ClientDetailModal
         open={Boolean(detailClient)}

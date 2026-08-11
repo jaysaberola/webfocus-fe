@@ -14,6 +14,40 @@ export type ClientSortKey =
 
 export type ClientFilterKey = "all" | "New" | "Existing" | "Active" | "Disabled";
 
+export type ClientAdvancedFilterField =
+  | "none"
+  | "owner"
+  | "billing"
+  | "classification"
+  | "client_type"
+  | "contact_person"
+  | "status"
+  | "name";
+
+export type ClientAdvancedFilter = {
+  field: ClientAdvancedFilterField;
+  value: string;
+};
+
+export const CLIENT_ADVANCED_FILTER_FIELDS: Array<{
+  id: ClientAdvancedFilterField;
+  label: string;
+}> = [
+  { id: "none", label: "None" },
+  { id: "owner", label: "Client Owner" },
+  { id: "billing", label: "Billing-in-Charge" },
+  { id: "classification", label: "Client Classification" },
+  { id: "client_type", label: "Client Type" },
+  { id: "contact_person", label: "Billing Contact Information" },
+  { id: "status", label: "Status" },
+  { id: "name", label: "Client Name" },
+];
+
+export const emptyClientAdvancedFilter: ClientAdvancedFilter = {
+  field: "none",
+  value: "",
+};
+
 export type ClientColumnKey = "name" | "owner" | "created" | "billing" | "classification";
 
 export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
@@ -91,6 +125,77 @@ export function filterClients(rows: CustomerRow[], filter: ClientFilterKey) {
     return rows.filter((row) => clientClassification(row) === filter);
   }
   return rows.filter((row) => clientDisplayStatus(row) === filter);
+}
+
+export function clientTypeLabel(client: CustomerRow) {
+  return String(client.client_type ?? "").trim() || "—";
+}
+
+export function clientContactPerson(client: CustomerRow) {
+  return String(client.contact_person ?? "").trim() || "—";
+}
+
+function matchesNeedle(haystack: string, needle: string) {
+  return haystack.toLowerCase().includes(needle.toLowerCase());
+}
+
+export function applyClientAdvancedFilter(rows: CustomerRow[], filter: ClientAdvancedFilter) {
+  if (!filter.field || filter.field === "none" || !filter.value.trim()) {
+    return rows;
+  }
+
+  const value = filter.value.trim();
+
+  return rows.filter((row) => {
+    switch (filter.field) {
+      case "owner":
+        return clientOwnerName(row) === value;
+      case "billing":
+        return clientBillingInCharge(row) === value;
+      case "classification":
+        return clientClassification(row) === value;
+      case "client_type":
+        return clientTypeLabel(row) === value;
+      case "contact_person":
+        return clientContactPerson(row) === value;
+      case "status":
+        return clientDisplayStatus(row) === value;
+      case "name":
+        return matchesNeedle(clientDisplayName(row), value);
+      default:
+        return true;
+    }
+  });
+}
+
+export function uniqueClientFilterValues(
+  rows: CustomerRow[],
+  field: ClientAdvancedFilterField,
+): string[] {
+  if (field === "none" || field === "name") return [];
+
+  const values = rows.map((row) => {
+    switch (field) {
+      case "owner":
+        return clientOwnerName(row);
+      case "billing":
+        return clientBillingInCharge(row);
+      case "classification":
+        return clientClassification(row);
+      case "client_type":
+        return clientTypeLabel(row);
+      case "contact_person":
+        return clientContactPerson(row);
+      case "status":
+        return clientDisplayStatus(row);
+      default:
+        return "";
+    }
+  });
+
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  );
 }
 
 function compareStrings(a: string, b: string, direction: "asc" | "desc") {

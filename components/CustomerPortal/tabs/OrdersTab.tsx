@@ -8,21 +8,38 @@ import {
   PortalSelectAllHead,
   PortalSelectRowCell,
 } from "@/components/CustomerPortal/PortalSelectCells";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { joinPlanNames } from "@/lib/serviceCategory";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import { fetchPortalOrders } from "@/services/customerPortalService";
 import type { PortalOrder } from "@/lib/customerPortal/types";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
 type OrderDetailModalState = { open: false } | { open: true; order: PortalOrder };
 
-const STATUS_FILTERS = [
-  { value: "all", label: "All Status / Types" },
-  { value: "Active Live", label: "Active Live" },
-  { value: "Pending Request", label: "Pending Request" },
+const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "status", label: "Status" },
+  { id: "gateway", label: "Payment Method" },
+  { id: "serviceName", label: "Service Name" },
+  { id: "plan", label: "Plan" },
+  { id: "id", label: "Order #", mode: "contains" },
+  { id: "invoiceId", label: "Invoice", mode: "contains" },
 ];
 
 const SORT_OPTIONS = [
@@ -136,11 +153,12 @@ function orderSortDirection(sortBy: OrderSortKey, column: OrderColumnKey): "asc"
 export default function OrdersTab() {
   const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<OrderSortKey>("date-desc");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [detailModal, setDetailModal] = useState<OrderDetailModalState>({ open: false });
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
@@ -152,37 +170,41 @@ export default function OrdersTab() {
       .finally(() => setLoading(false));
   }, []);
 
+  const getOrderFilterValue = useCallback((order: PortalOrder, fieldId: string) => {
+    switch (fieldId) {
+      case "status":
+        return order.status;
+      case "gateway":
+        return order.gateway;
+      case "serviceName":
+        return order.serviceName ?? order.items[0]?.name ?? "";
+      case "plan":
+        return orderPlanLabel(order);
+      case "id":
+        return order.id;
+      case "invoiceId":
+        return order.invoiceId ?? "";
+      default:
+        return "";
+    }
+  }, []);
+
   const filteredOrders = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
     let rows = orders.filter((order) => {
-      if (statusFilter !== "all" && order.status !== statusFilter) return false;
-
-      if (dateFrom && order.date < dateFrom) return false;
-      if (dateTo && order.date > dateTo) return false;
-
-      if (!query) return true;
+      if (!rowMatchesDateRange(order.date, dateRange)) return false;
 
       const item = order.items[0];
-      const haystack = [
-        order.id,
-        order.invoiceId,
-        order.serviceName,
-        item?.name,
-        item?.detail,
-        order.gateway,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(query);
+      return rowMatchesSearch(
+        [order.id, order.invoiceId, order.serviceName, item?.name, item?.detail, order.gateway, order.status],
+        search,
+      );
     });
 
+    rows = applyTableFilter(rows, appliedFilter, ORDER_FILTER_FIELDS, getOrderFilterValue);
     rows = sortPortalOrders(rows, sortBy);
 
     return rows;
-  }, [orders, statusFilter, search, sortBy, dateFrom, dateTo]);
+  }, [orders, search, sortBy, dateRange, appliedFilter, getOrderFilterValue]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
   const paginatedOrders = useMemo(() => {
@@ -204,15 +226,21 @@ export default function OrdersTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, search, sortBy, dateFrom, dateTo]);
+  }, [search, sortBy, dateRange, appliedFilter]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const clearDateFilter = () => {
-    setDateFrom("");
-    setDateTo("");
+  const applyFilter = () => {
+    setAppliedFilter(draftFilter);
+    setPage(1);
+  };
+
+  const clearFilter = () => {
+    setDraftFilter(emptyTableFilter);
+    setAppliedFilter(emptyTableFilter);
+    setPage(1);
   };
 
   const handleExportSelected = () => {
@@ -292,233 +320,202 @@ export default function OrdersTab() {
             onExport={handleExportSelected}
             onClear={selection.clearSelection}
           />
-        ) : (
-          <div className={styles.portalTableToolbar}>
-            <div className={styles.portalToolbarInner}>
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Filter By</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  aria-label="Filter orders by status"
-                >
-                  {STATUS_FILTERS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        ) : null}
 
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Search</span>
-                <input
-                  type="search"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarSearch}`}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search orders..."
-                  aria-label="Search orders"
-                />
-              </div>
+        <TableFilterShell
+          open={filterOpen}
+          active={isTableFilterActive(appliedFilter)}
+          total={filteredOrders.length}
+          onToggle={() => setFilterOpen((o) => !o)}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search orders..."
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          sortControl={
+            <select
+              className={styles.portalToolbarControl}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as OrderSortKey)}
+              aria-label="Sort orders"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          }
+          panel={
+            <TableFilterPanel
+              rows={orders}
+              fields={ORDER_FILTER_FIELDS}
+              draft={draftFilter}
+              applied={appliedFilter}
+              getValue={getOrderFilterValue}
+              onDraftChange={setDraftFilter}
+              onApply={applyFilter}
+              onClear={clearFilter}
+              onClose={() => setFilterOpen(false)}
+            />
+          }
+        >
+          <div className={styles.tableWrap}>
+            <table className={styles.dataTable}>
+              <thead>
+                <tr>
+                  <PortalSelectAllHead
+                    allSelected={selection.allSelected}
+                    someSelected={selection.someSelected}
+                    onToggleAll={selection.toggleAll}
+                    disabled={paginatedOrders.length === 0}
+                  />
+                  <PortalSortableTableHead
+                    label="Order #"
+                    active={orderSortDirection(sortBy, "id") !== null}
+                    direction={orderSortDirection(sortBy, "id") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "id"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Service Name"
+                    active={orderSortDirection(sortBy, "service") !== null}
+                    direction={orderSortDirection(sortBy, "service") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "service"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Plan"
+                    active={orderSortDirection(sortBy, "plan") !== null}
+                    direction={orderSortDirection(sortBy, "plan") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "plan"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Amount"
+                    active={orderSortDirection(sortBy, "amount") !== null}
+                    direction={orderSortDirection(sortBy, "amount") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "amount"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Payment Method"
+                    active={orderSortDirection(sortBy, "gateway") !== null}
+                    direction={orderSortDirection(sortBy, "gateway") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "gateway"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Date Ordered"
+                    active={orderSortDirection(sortBy, "date") !== null}
+                    direction={orderSortDirection(sortBy, "date") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "date"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Due Date"
+                    active={orderSortDirection(sortBy, "due") !== null}
+                    direction={orderSortDirection(sortBy, "due") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "due"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Status"
+                    active={orderSortDirection(sortBy, "status") !== null}
+                    direction={orderSortDirection(sortBy, "status") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "status"))}
+                  />
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={10}>No orders found for the selected filters.</td>
+                  </tr>
+                ) : (
+                  paginatedOrders.map((order) => {
+                    const item = order.items[0];
+                    const pending = order.status === "Pending Request";
 
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Sort By</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as OrderSortKey)}
-                  aria-label="Sort orders"
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                    return (
+                      <tr
+                        key={order.id}
+                        className={selection.isSelected(order) ? styles.rowSelected : undefined}
+                      >
+                        <PortalSelectRowCell
+                          checked={selection.isSelected(order)}
+                          onChange={() => selection.toggleRow(order)}
+                          label={`Select order ${order.id}`}
+                        />
+                        <td className={styles.monoBlue}>
+                          <button
+                            type="button"
+                            className={styles.tableCellLink}
+                            onClick={() => handleOrderAction(order, "details")}
+                          >
+                            {order.id}
+                          </button>
+                        </td>
+                        <td className={styles.serviceNameBold}>{order.serviceName ?? item?.name}</td>
+                        <td>{order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name))}</td>
+                        <td className={styles.monoBold}>{formatPeso(order.total)}</td>
+                        <td>{order.gateway}</td>
+                        <td>{order.date}</td>
+                        <td>{orderDueDate(order)}</td>
+                        <td>
+                          <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
+                            {pending ? "Pending Request" : "Active Live"}
+                          </span>
+                        </td>
+                        <td className={styles.billingActionsCell}>
+                          <select
+                            className={styles.billingActionsSelect}
+                            defaultValue=""
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (!value) return;
+                              handleOrderAction(order, value);
+                              e.target.value = "";
+                            }}
+                            aria-label={`Actions for ${order.id}`}
+                          >
+                            <option value="" disabled hidden>
+                              Actions...
+                            </option>
+                            <option value="renew">Renew Subscription</option>
+                            <option value="receipt">Download Receipt</option>
+                            <option value="details">View Details</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Date Range</span>
-                <input
-                  type="date"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarDate}`}
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  aria-label="Filter orders from date"
-                />
-                <span className={styles.portalToolbarDivider}>to</span>
-                <input
-                  type="date"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarDate}`}
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  aria-label="Filter orders to date"
-                />
-                <button type="button" className={styles.portalToolbarClear} onClick={clearDateFilter}>
-                  Clear Date Filter
-                </button>
-              </div>
+          <div className={styles.paginationBar}>
+            <div className={styles.paginationInfo}>Total Records {filteredOrders.length}</div>
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page <= 1 || filteredOrders.length === 0}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Previous page"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <span className={styles.paginationRange}>
+                {filteredOrders.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+              </span>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page >= totalPages || filteredOrders.length === 0}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Next page"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
             </div>
           </div>
-        )}
-
-        <div className={styles.tableWrap}>
-          <table className={styles.dataTable}>
-            <thead>
-              <tr>
-                <PortalSelectAllHead
-                  allSelected={selection.allSelected}
-                  someSelected={selection.someSelected}
-                  onToggleAll={selection.toggleAll}
-                  disabled={paginatedOrders.length === 0}
-                />
-                <PortalSortableTableHead
-                  label="Order #"
-                  active={orderSortDirection(sortBy, "id") !== null}
-                  direction={orderSortDirection(sortBy, "id") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "id"))}
-                />
-                <PortalSortableTableHead
-                  label="Service Name"
-                  active={orderSortDirection(sortBy, "service") !== null}
-                  direction={orderSortDirection(sortBy, "service") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "service"))}
-                />
-                <PortalSortableTableHead
-                  label="Plan"
-                  active={orderSortDirection(sortBy, "plan") !== null}
-                  direction={orderSortDirection(sortBy, "plan") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "plan"))}
-                />
-                <PortalSortableTableHead
-                  label="Amount"
-                  active={orderSortDirection(sortBy, "amount") !== null}
-                  direction={orderSortDirection(sortBy, "amount") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "amount"))}
-                />
-                <PortalSortableTableHead
-                  label="Payment Method"
-                  active={orderSortDirection(sortBy, "gateway") !== null}
-                  direction={orderSortDirection(sortBy, "gateway") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "gateway"))}
-                />
-                <PortalSortableTableHead
-                  label="Date Ordered"
-                  active={orderSortDirection(sortBy, "date") !== null}
-                  direction={orderSortDirection(sortBy, "date") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "date"))}
-                />
-                <PortalSortableTableHead
-                  label="Due Date"
-                  active={orderSortDirection(sortBy, "due") !== null}
-                  direction={orderSortDirection(sortBy, "due") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "due"))}
-                />
-                <PortalSortableTableHead
-                  label="Status"
-                  active={orderSortDirection(sortBy, "status") !== null}
-                  direction={orderSortDirection(sortBy, "status") ?? "asc"}
-                  onClick={() => setSortBy((current) => toggleOrderSort(current, "status"))}
-                />
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={10}>No orders found for the selected filters.</td>
-                </tr>
-              ) : (
-                paginatedOrders.map((order) => {
-                  const item = order.items[0];
-                  const pending = order.status === "Pending Request";
-
-                  return (
-                    <tr
-                      key={order.id}
-                      className={selection.isSelected(order) ? styles.rowSelected : undefined}
-                    >
-                      <PortalSelectRowCell
-                        checked={selection.isSelected(order)}
-                        onChange={() => selection.toggleRow(order)}
-                        label={`Select order ${order.id}`}
-                      />
-                      <td className={styles.monoBlue}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => handleOrderAction(order, "details")}
-                        >
-                          {order.id}
-                        </button>
-                      </td>
-                      <td className={styles.serviceNameBold}>{order.serviceName ?? item?.name}</td>
-                      <td>{order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name))}</td>
-                      <td className={styles.monoBold}>{formatPeso(order.total)}</td>
-                      <td>{order.gateway}</td>
-                      <td>{order.date}</td>
-                      <td>{orderDueDate(order)}</td>
-                      <td>
-                        <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
-                          {pending ? "Pending Request" : "Active Live"}
-                        </span>
-                      </td>
-                      <td className={styles.billingActionsCell}>
-                        <select
-                          className={styles.billingActionsSelect}
-                          defaultValue=""
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (!value) return;
-                            handleOrderAction(order, value);
-                            e.target.value = "";
-                          }}
-                          aria-label={`Actions for ${order.id}`}
-                        >
-                          <option value="" disabled hidden>
-                            Actions...
-                          </option>
-                          <option value="renew">Renew Subscription</option>
-                          <option value="receipt">Download Receipt</option>
-                          <option value="details">View Details</option>
-                        </select>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className={styles.paginationBar}>
-          <div className={styles.paginationInfo}>Total Records {filteredOrders.length}</div>
-          <div className={styles.paginationControls}>
-            <button
-              type="button"
-              className={styles.secondaryBtnSm}
-              disabled={page <= 1 || filteredOrders.length === 0}
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              aria-label="Previous page"
-            >
-              <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-            </button>
-            <span className={styles.paginationRange}>
-              {filteredOrders.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-            </span>
-            <button
-              type="button"
-              className={styles.secondaryBtnSm}
-              disabled={page >= totalPages || filteredOrders.length === 0}
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              aria-label="Next page"
-            >
-              <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+        </TableFilterShell>
       </section>
 
       <PortalModal

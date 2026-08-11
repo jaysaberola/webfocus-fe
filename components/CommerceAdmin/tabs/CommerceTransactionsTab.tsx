@@ -15,7 +15,6 @@ import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_LABELS,
-  filterTransactions,
   formatTxDate,
   isPaidStatus,
   paymentStatusLabel,
@@ -26,10 +25,23 @@ import {
   transactionOrderType,
   transactionPlanLabel,
   type TxColumnKey,
-  type TxFilterKey,
   type TxSortKey,
 } from "@/lib/commerceAdmin/transactionHelpers";
 import { isTxColumnSorted, toggleTxSort, txSortDirection } from "@/lib/commerceAdmin/tableSortHelpers";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import {
   HOSTING_SERVICE_NAME,
   hostingSubTypesForTransaction,
@@ -64,6 +76,18 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 5;
 
+const TX_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "payment_status", label: "Payment Status" },
+  { id: "order_status", label: "Order Status" },
+  { id: "order_type", label: "Order Type" },
+  { id: "customer_name", label: "Customer Name" },
+  { id: "customer_email", label: "Customer Email" },
+  { id: "assigned", label: "Assigned" },
+  { id: "service", label: "Service" },
+  { id: "plan", label: "Plan" },
+  { id: "transaction_no", label: "Transaction #", mode: "contains" },
+];
+
 function assignedUserLabel(row: SalesTransaction) {
   if (row.user) {
     const name = `${row.user.fname || ""} ${row.user.lname || ""}`.trim();
@@ -92,7 +116,11 @@ export default function CommerceTransactionsTab() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = useState<TxSortKey>("date-desc");
-  const [filterStatus, setFilterStatus] = useState<TxFilterKey>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [columnsVisible, setColumnsVisible] = useState(DEFAULT_TX_COLUMNS);
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -113,6 +141,31 @@ export default function CommerceTransactionsTab() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const canAssign = canAssignSalesTransactions(readStoredCurrentUser());
+
+  const getFilterValue = useCallback((row: SalesTransaction, fieldId: string) => {
+    switch (fieldId) {
+      case "payment_status":
+        return paymentStatusLabel(row.payment_status);
+      case "order_status":
+        return String(row.order_status ?? "").trim();
+      case "order_type":
+        return transactionOrderType(row);
+      case "customer_name":
+        return String(row.customer_name ?? "").trim();
+      case "customer_email":
+        return String(row.customer_email ?? "").trim();
+      case "assigned":
+        return assignedUserLabel(row) ?? "Unassigned";
+      case "service":
+        return transactionItemSummary(row);
+      case "plan":
+        return transactionPlanLabel(row);
+      case "transaction_no":
+        return String(row.transaction_no ?? "").trim();
+      default:
+        return "";
+    }
+  }, []);
 
   const loadRows = useCallback(async () => {
     setLoading(true);
@@ -144,7 +197,7 @@ export default function CommerceTransactionsTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [sortBy, filterStatus, clientFilter]);
+  }, [sortBy, appliedFilter, clientFilter, search, dateRange]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -157,7 +210,7 @@ export default function CommerceTransactionsTab() {
   }, []);
 
   const processedRows = useMemo(() => {
-    let filtered = filterTransactions(rows, filterStatus);
+    let filtered = applyTableFilter(rows, appliedFilter, TX_FILTER_FIELDS, getFilterValue);
     if (clientFilter) {
       const needleName = String(clientFilter.name ?? "").toLowerCase();
       const needleEmail = String(clientFilter.email ?? "").toLowerCase();
@@ -169,8 +222,28 @@ export default function CommerceTransactionsTab() {
         return false;
       });
     }
+    filtered = filtered
+      .filter((row) =>
+        rowMatchesSearch(
+          [
+            row.transaction_no,
+            row.customer_name,
+            row.customer_email,
+            paymentStatusLabel(row.payment_status),
+            assignedUserLabel(row),
+            transactionItemSummary(row),
+          ],
+          search,
+        ),
+      )
+      .filter((row) =>
+        rowMatchesDateRange(
+          transactionIssuedDate(row) || row.transacted_at || row.issued_date,
+          dateRange,
+        ),
+      );
     return sortTransactions(filtered, sortBy);
-  }, [rows, filterStatus, sortBy, clientFilter]);
+  }, [rows, appliedFilter, sortBy, clientFilter, getFilterValue, search, dateRange]);
 
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
@@ -525,22 +598,6 @@ export default function CommerceTransactionsTab() {
       ) : (
         <div className={styles.toolbarRow}>
           <div className={styles.toolbarFilters}>
-            <select className={styles.selectInline} value={sortBy} onChange={(e) => setSortBy(e.target.value as TxSortKey)}>
-              <option value="date-desc">Sort: Newest First</option>
-              <option value="date-asc">Sort: Oldest First</option>
-              <option value="amount-desc">Sort: Amount (High to Low)</option>
-              <option value="amount-asc">Sort: Amount (Low to High)</option>
-              <option value="id-asc">Sort: Invoice ID (A-Z)</option>
-            </select>
-            <select
-              className={styles.selectInline}
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as TxFilterKey)}
-            >
-              <option value="all">Filter: All Statuses</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending Payment</option>
-            </select>
             <div className={styles.colVisWrap} ref={colVisRef}>
               <button
                 type="button"
@@ -577,204 +634,257 @@ export default function CommerceTransactionsTab() {
 
       {loading ? (
         <p className={styles.emptyState}>Loading orders...</p>
-      ) : viewMode === "list" ? (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <CommerceSelectAllHead
-                  allSelected={selection.allSelected}
-                  someSelected={selection.someSelected}
-                  onToggleAll={selection.toggleAll}
-                  disabled={displayRows.length === 0}
-                />
-                {columnsVisible.id ? renderSortableHead("id") : null}
-                {columnsVisible.items ? renderSortableHead("items") : null}
-                {columnsVisible.subscription ? renderSortableHead("subscription") : null}
-                {columnsVisible.orderType ? renderSortableHead("orderType") : null}
-                {columnsVisible.date ? renderSortableHead("date") : null}
-                {columnsVisible.expiredDate ? renderSortableHead("expiredDate") : null}
-                {columnsVisible.amount ? renderSortableHead("amount") : null}
-                {columnsVisible.assigned ? <th>Assigned</th> : null}
-                {columnsVisible.status ? renderSortableHead("status") : null}
-                <th className={styles.tableActionHead}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
+      ) : (
+        <TableFilterShell
+          open={filterOpen}
+          active={isTableFilterActive(appliedFilter)}
+          total={totalCount}
+          onToggle={() => setFilterOpen((open) => !open)}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search transactions..."
+          dateRange={dateRange}
+          onDateRangeChange={(next) => {
+            setDateRange(next);
+            setPage(1);
+          }}
+          sortControl={
+            <select
+              className={styles.selectInline}
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as TxSortKey)}
+              aria-label="Sort transactions"
+            >
+              <option value="date-desc">Newest First</option>
+              <option value="date-asc">Oldest First</option>
+              <option value="amount-desc">Amount (High to Low)</option>
+              <option value="amount-asc">Amount (Low to High)</option>
+              <option value="id-asc">Invoice ID (A-Z)</option>
+            </select>
+          }
+          panel={
+            <TableFilterPanel
+              rows={rows}
+              fields={TX_FILTER_FIELDS}
+              draft={draftFilter}
+              applied={appliedFilter}
+              getValue={getFilterValue}
+              onDraftChange={setDraftFilter}
+              onApply={() => {
+                setAppliedFilter(draftFilter);
+                setPage(1);
+              }}
+              onClear={() => {
+                setDraftFilter(emptyTableFilter);
+                setAppliedFilter(emptyTableFilter);
+                setPage(1);
+              }}
+              onClose={() => setFilterOpen(false)}
+            />
+          }
+        >
+          {viewMode === "list" ? (
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <CommerceSelectAllHead
+                      allSelected={selection.allSelected}
+                      someSelected={selection.someSelected}
+                      onToggleAll={selection.toggleAll}
+                      disabled={displayRows.length === 0}
+                    />
+                    {columnsVisible.id ? renderSortableHead("id") : null}
+                    {columnsVisible.items ? renderSortableHead("items") : null}
+                    {columnsVisible.subscription ? renderSortableHead("subscription") : null}
+                    {columnsVisible.orderType ? renderSortableHead("orderType") : null}
+                    {columnsVisible.date ? renderSortableHead("date") : null}
+                    {columnsVisible.expiredDate ? renderSortableHead("expiredDate") : null}
+                    {columnsVisible.amount ? renderSortableHead("amount") : null}
+                    {columnsVisible.assigned ? <th>Assigned</th> : null}
+                    {columnsVisible.status ? renderSortableHead("status") : null}
+                    <th className={styles.tableActionHead}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={visibleColumnCount}>No orders found matching filter.</td>
+                    </tr>
+                  ) : (
+                    displayRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={selection.isSelected(row) ? styles.rowSelected : undefined}
+                      >
+                        <CommerceSelectRowCell
+                          checked={selection.isSelected(row)}
+                          onChange={() => selection.toggleRow(row)}
+                          label={`Select order ${row.transaction_no}`}
+                        />
+                        {columnsVisible.id ? (
+                          <td className={styles.monoCell}>
+                            <button
+                              type="button"
+                              className={styles.tableCellLink}
+                              onClick={() => openView(row)}
+                            >
+                              {row.transaction_no}
+                            </button>
+                          </td>
+                        ) : null}
+                        {columnsVisible.items ? (
+                          <td className={styles.txServiceCell}>
+                            {transactionItemSummary(row)}
+                            {renderHostingMeta(row)}
+                          </td>
+                        ) : null}
+                        {columnsVisible.subscription ? (
+                          <td className={styles.txPlanCell}>
+                            <strong>{transactionPlanLabel(row)}</strong>
+                          </td>
+                        ) : null}
+                        {columnsVisible.orderType ? <td>{renderOrderTypeBadge(row)}</td> : null}
+                        {columnsVisible.date ? <td>{transactionIssuedDate(row)}</td> : null}
+                        {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}
+                        {columnsVisible.amount ? (
+                          <td className={styles.amountCell}>{transactionAmountLabel(row)}</td>
+                        ) : null}
+                        {columnsVisible.assigned ? (
+                          <td className={styles.txAssignedCell}>
+                            {canAssign ? (
+                              <button
+                                type="button"
+                                className={
+                                  assignedUserLabel(row) ? styles.txAssignedBadge : styles.txAssignedEmpty
+                                }
+                                onClick={() => setAssignTarget(row)}
+                                title="Assign staff"
+                              >
+                                {assignedUserLabel(row) ?? "Unassigned"}
+                              </button>
+                            ) : assignedUserLabel(row) ? (
+                              <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
+                            ) : (
+                              <span className={styles.txAssignedEmpty}>Unassigned</span>
+                            )}
+                          </td>
+                        ) : null}
+                        {columnsVisible.status ? (
+                          <td className={styles.statusCell}>{renderStatusBadge(row)}</td>
+                        ) : null}
+                        <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={styles.txGrid}>
               {displayRows.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumnCount}>No orders found matching filter.</td>
-                </tr>
+                <p className={styles.emptyState}>No orders found matching filter.</p>
               ) : (
                 displayRows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={selection.isSelected(row) ? styles.rowSelected : undefined}
-                  >
-                    <CommerceSelectRowCell
-                      checked={selection.isSelected(row)}
-                      onChange={() => selection.toggleRow(row)}
-                      label={`Select order ${row.transaction_no}`}
-                    />
-                    {columnsVisible.id ? (
-                      <td className={styles.monoCell}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => openView(row)}
-                        >
-                          {row.transaction_no}
-                        </button>
-                      </td>
-                    ) : null}
-                    {columnsVisible.items ? (
-                      <td className={styles.txServiceCell}>
-                        {transactionItemSummary(row)}
-                        {renderHostingMeta(row)}
-                      </td>
-                    ) : null}
-                    {columnsVisible.subscription ? (
-                      <td className={styles.txPlanCell}>
-                        <strong>{transactionPlanLabel(row)}</strong>
-                      </td>
-                    ) : null}
-                    {columnsVisible.orderType ? <td>{renderOrderTypeBadge(row)}</td> : null}
-                    {columnsVisible.date ? <td>{transactionIssuedDate(row)}</td> : null}
-                    {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}
-                    {columnsVisible.amount ? (
-                      <td className={styles.amountCell}>{transactionAmountLabel(row)}</td>
-                    ) : null}
-                    {columnsVisible.assigned ? (
-                      <td className={styles.txAssignedCell}>
-                        {canAssign ? (
-                          <button
-                            type="button"
-                            className={
-                              assignedUserLabel(row) ? styles.txAssignedBadge : styles.txAssignedEmpty
-                            }
-                            onClick={() => setAssignTarget(row)}
-                            title="Assign staff"
-                          >
-                            {assignedUserLabel(row) ?? "Unassigned"}
-                          </button>
-                        ) : assignedUserLabel(row) ? (
+                  <article key={row.id} className={styles.txGridCard}>
+                    <div className={styles.txGridCardTop}>
+                      <span className={styles.monoCell}>{row.transaction_no}</span>
+                      {renderStatusBadge(row)}
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Service Name</div>
+                      <div className={styles.txGridValue}>{transactionItemSummary(row)}</div>
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Plan</div>
+                      <div className={styles.txGridValue}>{transactionPlanLabel(row)}</div>
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Assigned</div>
+                      <div className={styles.txGridValue}>
+                        {assignedUserLabel(row) ? (
                           <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
                         ) : (
                           <span className={styles.txAssignedEmpty}>Unassigned</span>
                         )}
-                      </td>
-                    ) : null}
-                    {columnsVisible.status ? (
-                      <td className={styles.statusCell}>{renderStatusBadge(row)}</td>
-                    ) : null}
-                    <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
-                  </tr>
+                      </div>
+                    </div>
+                    <div>{renderOrderTypeBadge(row)}</div>
+                    <div className={styles.txGridMeta}>
+                      <span>Issued: {transactionIssuedDate(row)}</span>
+                      <span>Due: {transactionDueDate(row)}</span>
+                    </div>
+                    <div className={styles.txGridFooter}>
+                      <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
+                      {isPendingQuotationTransaction(row) ? (
+                        <button
+                          type="button"
+                          className={styles.primaryBtnSm}
+                          onClick={() => setWebDesignPriceTarget(row)}
+                        >
+                          Set Price
+                        </button>
+                      ) : !isPaidStatus(row.payment_status) ? (
+                        <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
+                          Mark Paid
+                        </button>
+                      ) : (
+                        <span className={styles.statusActive}>Verified</span>
+                      )}
+                    </div>
+                    <div>{renderActionSelect(row)}</div>
+                  </article>
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className={styles.txGrid}>
-          {displayRows.length === 0 ? (
-            <p className={styles.emptyState}>No orders found matching filter.</p>
-          ) : (
-            displayRows.map((row) => (
-              <article key={row.id} className={styles.txGridCard}>
-                <div className={styles.txGridCardTop}>
-                  <span className={styles.monoCell}>{row.transaction_no}</span>
-                  {renderStatusBadge(row)}
-                </div>
-                <div>
-                  <div className={styles.txGridLabel}>Service Name</div>
-                  <div className={styles.txGridValue}>{transactionItemSummary(row)}</div>
-                </div>
-                <div>
-                  <div className={styles.txGridLabel}>Plan</div>
-                  <div className={styles.txGridValue}>{transactionPlanLabel(row)}</div>
-                </div>
-                <div>
-                  <div className={styles.txGridLabel}>Assigned</div>
-                  <div className={styles.txGridValue}>
-                    {assignedUserLabel(row) ? (
-                      <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
-                    ) : (
-                      <span className={styles.txAssignedEmpty}>Unassigned</span>
-                    )}
-                  </div>
-                </div>
-                <div>{renderOrderTypeBadge(row)}</div>
-                <div className={styles.txGridMeta}>
-                  <span>Issued: {transactionIssuedDate(row)}</span>
-                  <span>Due: {transactionDueDate(row)}</span>
-                </div>
-                <div className={styles.txGridFooter}>
-                  <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
-                  {isPendingQuotationTransaction(row) ? (
-                    <button
-                      type="button"
-                      className={styles.primaryBtnSm}
-                      onClick={() => setWebDesignPriceTarget(row)}
-                    >
-                      Set Price
-                    </button>
-                  ) : !isPaidStatus(row.payment_status) ? (
-                    <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
-                      Mark Paid
-                    </button>
-                  ) : (
-                    <span className={styles.statusActive}>Verified</span>
-                  )}
-                </div>
-                <div>{renderActionSelect(row)}</div>
-              </article>
-            ))
+            </div>
           )}
-        </div>
-      )}
 
-      <div className={styles.paginationBar}>
-        <div className={styles.paginationInfo}>Total Records {totalCount}</div>
-        <div className={styles.paginationControls}>
-          <button
-            type="button"
-            className={styles.secondaryBtnSm}
-            disabled={page <= 1 || showAll || totalCount === 0}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
-            aria-label="Previous page"
-          >
-            <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-          </button>
-          <span className={styles.paginationRange}>
-            {showAll
-              ? totalCount === 0
-                ? "0 to 0"
-                : `1 to ${totalCount}`
-              : totalCount === 0
-                ? "0 to 0"
-                : `${startNum} to ${endNum}`}
-          </span>
-          <button
-            type="button"
-            className={styles.secondaryBtnSm}
-            disabled={showAll || page >= totalPages || totalCount === 0}
-            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            aria-label="Next page"
-          >
-            <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            className={styles.primaryBtnSm}
-            onClick={() => {
-              setShowAll((current) => !current);
-              setPage(1);
-            }}
-          >
-            {showAll ? "Show Paginated" : "View All"}
-          </button>
-        </div>
-      </div>
+          <div className={styles.paginationBar}>
+            <div className={styles.paginationInfo}>
+              Showing {totalCount === 0 ? "0 to 0" : `${startNum} to ${endNum}`}
+            </div>
+            <div className={styles.paginationControls}>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={page <= 1 || showAll || totalCount === 0}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Previous page"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <span className={styles.paginationRange}>
+                {showAll
+                  ? totalCount === 0
+                    ? "0 to 0"
+                    : `1 to ${totalCount}`
+                  : totalCount === 0
+                    ? "0 to 0"
+                    : `${startNum} to ${endNum}`}
+              </span>
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                disabled={showAll || page >= totalPages || totalCount === 0}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Next page"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.primaryBtnSm}
+                onClick={() => {
+                  setShowAll((current) => !current);
+                  setPage(1);
+                }}
+              >
+                {showAll ? "Show Paginated" : "View All"}
+              </button>
+            </div>
+          </div>
+        </TableFilterShell>
+      )}
 
       <CreateClientOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={loadRows} />
 

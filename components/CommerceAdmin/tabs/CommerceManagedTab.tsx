@@ -7,10 +7,24 @@ import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { groupServicesByType, resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import {
   Coupon,
@@ -26,6 +40,12 @@ type ManagedSubTab = "services" | "discounts";
 
 const GRID_PAGE_SIZE = 6;
 const LIST_PAGE_SIZE = 8;
+
+const SERVICE_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "name", label: "Service Name", mode: "contains" },
+  { id: "status", label: "Status" },
+  { id: "type", label: "Type / Category" },
+];
 
 function serviceTypeIcon(type: string) {
   const normalized = type.toLowerCase();
@@ -68,6 +88,24 @@ export default function CommerceManagedTab() {
     target: "All Services",
   });
   const [exporting, setExporting] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
+
+  const getServiceFilterValue = useCallback((service: any, fieldId: string) => {
+    switch (fieldId) {
+      case "name":
+        return String(service.name ?? service.title ?? "").trim();
+      case "status":
+        return serviceActive(service) ? "Active" : "Disabled";
+      case "type":
+        return resolveServiceTypeLabel(service);
+      default:
+        return "";
+    }
+  }, []);
 
   const loadServices = useCallback(async () => {
     setLoadingServices(true);
@@ -114,12 +152,36 @@ export default function CommerceManagedTab() {
     return group?.services ?? [];
   }, [activeServiceType, groupedServices, services]);
 
-  const totalServicePages = Math.max(1, Math.ceil(activeGroupServices.length / pageSize));
+  const filteredGroupServices = useMemo(
+    () =>
+      applyTableFilter(
+        activeGroupServices,
+        appliedFilter,
+        SERVICE_FILTER_FIELDS,
+        getServiceFilterValue,
+      )
+        .filter((service) =>
+          rowMatchesSearch(
+            [
+              service.name ?? service.title,
+              resolveServiceTypeLabel(service),
+              serviceActive(service) ? "Active" : "Disabled",
+            ],
+            search,
+          ),
+        )
+        .filter((service) =>
+          rowMatchesDateRange(service.created_at ?? service.updated_at, dateRange),
+        ),
+    [activeGroupServices, appliedFilter, getServiceFilterValue, search, dateRange],
+  );
+
+  const totalServicePages = Math.max(1, Math.ceil(filteredGroupServices.length / pageSize));
 
   const paginatedServices = useMemo(() => {
     const start = (servicePage - 1) * pageSize;
-    return activeGroupServices.slice(start, start + pageSize);
-  }, [activeGroupServices, pageSize, servicePage]);
+    return filteredGroupServices.slice(start, start + pageSize);
+  }, [filteredGroupServices, pageSize, servicePage]);
 
   const getServiceRowId = useCallback(
     (service: any) => String(service.id ?? service.service_id ?? service.name),
@@ -130,13 +192,13 @@ export default function CommerceManagedTab() {
 
   const selectedServices = useMemo(() => {
     const ids = new Set(selection.selectedIds);
-    return activeGroupServices.filter((service) =>
+    return filteredGroupServices.filter((service) =>
       ids.has(String(service.id ?? service.service_id ?? service.name)),
     );
-  }, [activeGroupServices, selection.selectedIds]);
+  }, [filteredGroupServices, selection.selectedIds]);
 
-  const serviceRangeStart = activeGroupServices.length ? (servicePage - 1) * pageSize + 1 : 0;
-  const serviceRangeEnd = Math.min(servicePage * pageSize, activeGroupServices.length);
+  const serviceRangeStart = filteredGroupServices.length ? (servicePage - 1) * pageSize + 1 : 0;
+  const serviceRangeEnd = Math.min(servicePage * pageSize, filteredGroupServices.length);
 
   useEffect(() => {
     if (!groupedServices.length) {
@@ -149,7 +211,7 @@ export default function CommerceManagedTab() {
 
   useEffect(() => {
     setServicePage(1);
-  }, [activeServiceType, viewMode]);
+  }, [activeServiceType, viewMode, appliedFilter, search, dateRange]);
 
   useEffect(() => {
     if (servicePage > totalServicePages) setServicePage(totalServicePages);
@@ -254,24 +316,26 @@ export default function CommerceManagedTab() {
 
   const renderServicePagination = () => (
     <div className={styles.paginationBar}>
-      <div className={styles.paginationInfo}>Total Records {activeGroupServices.length}</div>
+      <div className={styles.paginationInfo}>
+        Showing {filteredGroupServices.length === 0 ? "0 to 0" : `${serviceRangeStart} to ${serviceRangeEnd}`}
+      </div>
       <div className={styles.paginationControls}>
         <button
           type="button"
           className={styles.secondaryBtnSm}
-          disabled={servicePage <= 1 || activeGroupServices.length === 0}
+          disabled={servicePage <= 1 || filteredGroupServices.length === 0}
           onClick={() => setServicePage((current) => Math.max(1, current - 1))}
           aria-label="Previous page"
         >
           <i className="fa-solid fa-chevron-left" aria-hidden="true" />
         </button>
         <span className={styles.paginationRange}>
-          {activeGroupServices.length === 0 ? "0 to 0" : `${serviceRangeStart} to ${serviceRangeEnd}`}
+          {filteredGroupServices.length === 0 ? "0 to 0" : `${serviceRangeStart} to ${serviceRangeEnd}`}
         </span>
         <button
           type="button"
           className={styles.secondaryBtnSm}
-          disabled={servicePage >= totalServicePages || activeGroupServices.length === 0}
+          disabled={servicePage >= totalServicePages || filteredGroupServices.length === 0}
           onClick={() => setServicePage((current) => Math.min(totalServicePages, current + 1))}
           aria-label="Next page"
         >
@@ -470,48 +534,83 @@ export default function CommerceManagedTab() {
                 />
               ) : null}
 
-              {viewMode === "list" ? (
-                <div className={styles.tableWrap}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <CommerceSelectAllHead
-                          allSelected={selection.allSelected}
-                          someSelected={selection.someSelected}
-                          onToggleAll={selection.toggleAll}
-                          disabled={paginatedServices.length === 0}
-                        />
-                        <th>Service Name</th>
-                        <th>Type</th>
-                        <th>Base Price</th>
-                        <th>Status</th>
-                        <th>Date create</th>
-                        <th>Date Modified</th>
-                        <th className={styles.tableActionHead}>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedServices.length === 0 ? (
+              <TableFilterShell
+                open={filterOpen}
+                active={isTableFilterActive(appliedFilter)}
+                total={filteredGroupServices.length}
+                onToggle={() => setFilterOpen((open) => !open)}
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search services..."
+                dateRange={dateRange}
+                onDateRangeChange={(next) => {
+                  setDateRange(next);
+                  setServicePage(1);
+                }}
+                panel={
+                  <TableFilterPanel
+                    rows={activeGroupServices}
+                    fields={SERVICE_FILTER_FIELDS}
+                    draft={draftFilter}
+                    applied={appliedFilter}
+                    getValue={getServiceFilterValue}
+                    onDraftChange={setDraftFilter}
+                    onApply={() => {
+                      setAppliedFilter(draftFilter);
+                      setServicePage(1);
+                    }}
+                    onClear={() => {
+                      setDraftFilter(emptyTableFilter);
+                      setAppliedFilter(emptyTableFilter);
+                      setServicePage(1);
+                    }}
+                    onClose={() => setFilterOpen(false)}
+                  />
+                }
+              >
+                {viewMode === "list" ? (
+                  <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                      <thead>
                         <tr>
-                          <td colSpan={8}>No plans in this category.</td>
+                          <CommerceSelectAllHead
+                            allSelected={selection.allSelected}
+                            someSelected={selection.someSelected}
+                            onToggleAll={selection.toggleAll}
+                            disabled={paginatedServices.length === 0}
+                          />
+                          <th>Service Name</th>
+                          <th>Type</th>
+                          <th>Base Price</th>
+                          <th>Status</th>
+                          <th>Date create</th>
+                          <th>Date Modified</th>
+                          <th className={styles.tableActionHead}>Action</th>
                         </tr>
-                      ) : (
-                        paginatedServices.map(renderServiceTableRow)
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className={styles.managedServiceGrid}>
-                  {paginatedServices.length === 0 ? (
-                    <p className={styles.emptyState}>No plans in this category.</p>
-                  ) : (
-                    paginatedServices.map(renderServiceGridCard)
-                  )}
-                </div>
-              )}
+                      </thead>
+                      <tbody>
+                        {paginatedServices.length === 0 ? (
+                          <tr>
+                            <td colSpan={8}>No plans in this category.</td>
+                          </tr>
+                        ) : (
+                          paginatedServices.map(renderServiceTableRow)
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className={styles.managedServiceGrid}>
+                    {paginatedServices.length === 0 ? (
+                      <p className={styles.emptyState}>No plans in this category.</p>
+                    ) : (
+                      paginatedServices.map(renderServiceGridCard)
+                    )}
+                  </div>
+                )}
 
-              {renderServicePagination()}
+                {renderServicePagination()}
+              </TableFilterShell>
             </div>
           )}
         </section>

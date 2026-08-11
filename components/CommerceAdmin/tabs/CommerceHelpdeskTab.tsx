@@ -9,26 +9,84 @@ import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
+import {
+  emptyDateRange,
+  rowMatchesDateRange,
+  rowMatchesSearch,
+  type DateRangeValue,
+} from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const STATUS_OPTIONS = ["Open", "In Progress", "Resolved", "Closed"];
 const PAGE_SIZE = 10;
 
+const HELPDESK_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "status", label: "Status" },
+  { id: "client", label: "Client" },
+  { id: "email", label: "Email" },
+  { id: "subject", label: "Subject", mode: "contains" },
+  { id: "ticketNo", label: "Ticket #", mode: "contains" },
+];
+
 export default function CommerceHelpdeskTab() {
   const [rows, setRows] = useState<CommerceTicketAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
 
-  const filteredRows = useMemo(() => {
-    if (statusFilter === "all") return rows;
-    return rows.filter((ticket) => ticket.status === statusFilter);
-  }, [rows, statusFilter]);
+  const getFilterValue = useCallback((ticket: CommerceTicketAdminRow, fieldId: string) => {
+    switch (fieldId) {
+      case "status":
+        return String(ticket.status ?? "").trim();
+      case "client":
+        return String(ticket.client ?? "").trim();
+      case "email":
+        return String(ticket.email ?? "").trim();
+      case "subject":
+        return String(ticket.subject ?? "").trim();
+      case "ticketNo":
+        return String(ticket.ticketNo ?? "").trim();
+      default:
+        return "";
+    }
+  }, []);
+
+  const filteredRows = useMemo(
+    () =>
+      applyTableFilter(rows, appliedFilter, HELPDESK_FILTER_FIELDS, getFilterValue)
+        .filter((ticket) =>
+          rowMatchesSearch(
+            [
+              ticket.ticketNo,
+              ticket.subject,
+              ticket.message,
+              ticket.client,
+              ticket.email,
+              ticket.status,
+            ],
+            search,
+          ),
+        )
+        .filter((ticket) => rowMatchesDateRange(ticket.updatedAt, dateRange)),
+    [rows, appliedFilter, getFilterValue, search, dateRange],
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const paginatedRows = useMemo(() => {
@@ -62,7 +120,7 @@ export default function CommerceHelpdeskTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [statusFilter]);
+  }, [appliedFilter, search, dateRange]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -125,121 +183,147 @@ export default function CommerceHelpdeskTab() {
           onClear={selection.clearSelection}
           showDelete={false}
         />
-      ) : (
-        <div className={styles.toolbarRow}>
-          <div className={styles.toolbarFilters}>
-            <select
-              className={styles.selectInline}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Filter: All Statuses</option>
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {loading ? (
         <p className={styles.emptyState}>Loading tickets...</p>
-      ) : filteredRows.length === 0 ? (
-        <p className={styles.emptyState}>No support tickets yet.</p>
       ) : (
-        <>
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <CommerceSelectAllHead
-                    allSelected={selection.allSelected}
-                    someSelected={selection.someSelected}
-                    onToggleAll={selection.toggleAll}
-                    disabled={paginatedRows.length === 0}
-                  />
-                  <th>Ticket</th>
-                  <th>Subject</th>
-                  <th>Client</th>
-                  <th>Updated</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedRows.map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    className={selection.isSelected(ticket) ? styles.rowSelected : undefined}
-                  >
-                    <CommerceSelectRowCell
-                      checked={selection.isSelected(ticket)}
-                      onChange={() => selection.toggleRow(ticket)}
-                      label={`Select ticket ${ticket.ticketNo}`}
-                    />
-                    <td className={styles.monoCell}>
-                      <button type="button" className={styles.tableCellLink}>
-                        {ticket.ticketNo}
-                      </button>
-                    </td>
-                    <td>
-                      <strong>{ticket.subject}</strong>
-                      {ticket.message ? <div className={styles.panelSubtitle}>{ticket.message}</div> : null}
-                    </td>
-                    <td>
-                      {ticket.client}
-                      {ticket.email ? <div className={styles.panelSubtitle}>{ticket.email}</div> : null}
-                    </td>
-                    <td>{ticket.updatedAt}</td>
-                    <td>
-                      <select
-                        className={styles.selectInline}
-                        value={ticket.status}
-                        disabled={busyId === ticket.id}
-                        onChange={(e) => handleStatusChange(ticket, e.target.value)}
-                        aria-label={`Status for ${ticket.ticketNo}`}
+        <TableFilterShell
+          open={filterOpen}
+          active={isTableFilterActive(appliedFilter)}
+          total={filteredRows.length}
+          onToggle={() => setFilterOpen((open) => !open)}
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search tickets..."
+          dateRange={dateRange}
+          onDateRangeChange={(next) => {
+            setDateRange(next);
+            setPage(1);
+          }}
+          panel={
+            <TableFilterPanel
+              rows={rows}
+              fields={HELPDESK_FILTER_FIELDS}
+              draft={draftFilter}
+              applied={appliedFilter}
+              getValue={getFilterValue}
+              onDraftChange={setDraftFilter}
+              onApply={() => {
+                setAppliedFilter(draftFilter);
+                setPage(1);
+              }}
+              onClear={() => {
+                setDraftFilter(emptyTableFilter);
+                setAppliedFilter(emptyTableFilter);
+                setPage(1);
+              }}
+              onClose={() => setFilterOpen(false)}
+            />
+          }
+        >
+          {filteredRows.length === 0 ? (
+            <p className={styles.emptyState}>No support tickets yet.</p>
+          ) : (
+            <>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <CommerceSelectAllHead
+                        allSelected={selection.allSelected}
+                        someSelected={selection.someSelected}
+                        onToggleAll={selection.toggleAll}
+                        disabled={paginatedRows.length === 0}
+                      />
+                      <th>Ticket</th>
+                      <th>Subject</th>
+                      <th>Client</th>
+                      <th>Updated</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedRows.map((ticket) => (
+                      <tr
+                        key={ticket.id}
+                        className={selection.isSelected(ticket) ? styles.rowSelected : undefined}
                       >
-                        {STATUS_OPTIONS.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        <CommerceSelectRowCell
+                          checked={selection.isSelected(ticket)}
+                          onChange={() => selection.toggleRow(ticket)}
+                          label={`Select ticket ${ticket.ticketNo}`}
+                        />
+                        <td className={styles.monoCell}>
+                          <button type="button" className={styles.tableCellLink}>
+                            {ticket.ticketNo}
+                          </button>
+                        </td>
+                        <td>
+                          <strong>{ticket.subject}</strong>
+                          {ticket.message ? (
+                            <div className={styles.panelSubtitle}>{ticket.message}</div>
+                          ) : null}
+                        </td>
+                        <td>
+                          {ticket.client}
+                          {ticket.email ? (
+                            <div className={styles.panelSubtitle}>{ticket.email}</div>
+                          ) : null}
+                        </td>
+                        <td>{ticket.updatedAt}</td>
+                        <td>
+                          <select
+                            className={styles.selectInline}
+                            value={ticket.status}
+                            disabled={busyId === ticket.id}
+                            onChange={(e) => handleStatusChange(ticket, e.target.value)}
+                            aria-label={`Status for ${ticket.ticketNo}`}
+                          >
+                            {STATUS_OPTIONS.map((status) => (
+                              <option key={status} value={status}>
+                                {status}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          <div className={styles.paginationBar}>
-            <div className={styles.paginationInfo}>Total Records {filteredRows.length}</div>
-            <div className={styles.paginationControls}>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page <= 1 || filteredRows.length === 0}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                aria-label="Previous page"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <span className={styles.paginationRange}>
-                {filteredRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
-              </span>
-              <button
-                type="button"
-                className={styles.secondaryBtnSm}
-                disabled={page >= totalPages || filteredRows.length === 0}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                aria-label="Next page"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-        </>
+              <div className={styles.paginationBar}>
+                <div className={styles.paginationInfo}>
+                  Showing {filteredRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                </div>
+                <div className={styles.paginationControls}>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page <= 1 || filteredRows.length === 0}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    aria-label="Previous page"
+                  >
+                    <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                  </button>
+                  <span className={styles.paginationRange}>
+                    {filteredRows.length === 0 ? "0 to 0" : `${rangeStart} to ${rangeEnd}`}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtnSm}
+                    disabled={page >= totalPages || filteredRows.length === 0}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    aria-label="Next page"
+                  >
+                    <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </TableFilterShell>
       )}
     </section>
   );
