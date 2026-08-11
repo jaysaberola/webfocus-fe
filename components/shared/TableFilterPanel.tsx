@@ -20,6 +20,7 @@ type Props<T> = {
   onApply: () => void;
   onClear: () => void;
   onClose: () => void;
+  sortControl?: React.ReactNode;
 };
 
 function fieldLabel(fields: TableFilterFieldDef[], fieldId: string) {
@@ -36,6 +37,7 @@ export default function TableFilterPanel<T>({
   onApply,
   onClear,
   onClose,
+  sortControl,
 }: Props<T>) {
   const allFields = useMemo(() => withNoneField(fields), [fields]);
   const [fieldOpen, setFieldOpen] = useState(false);
@@ -216,6 +218,16 @@ export default function TableFilterPanel<T>({
         ) : null}
       </div>
 
+      {sortControl ? (
+        <div className={styles.sortWrap}>
+          <span className={styles.toolLabel}>Sort By</span>
+          <div className={styles.sortControlWrap}>
+            <div className={styles.sortControl}>{sortControl}</div>
+            <i className={`fa-solid fa-chevron-down ${styles.sortChevron}`} aria-hidden="true" />
+          </div>
+        </div>
+      ) : null}
+
       <div className={styles.actions}>
         {hasApplied || draft.field !== "none" ? (
           <button type="button" className={styles.clearBtn} onClick={onClear}>
@@ -242,7 +254,6 @@ type ShellProps = {
   searchPlaceholder?: string;
   dateRange?: DateRangeValue;
   onDateRangeChange?: (next: DateRangeValue) => void;
-  sortControl?: React.ReactNode;
 };
 
 export function TableFilterShell({
@@ -257,11 +268,10 @@ export function TableFilterShell({
   searchPlaceholder = "Search table...",
   dateRange,
   onDateRangeChange,
-  sortControl,
 }: ShellProps) {
   const showSearch = typeof search === "string" && typeof onSearchChange === "function";
   const showDateRange = Boolean(dateRange && onDateRangeChange);
-  const showTools = showSearch || showDateRange || Boolean(sortControl);
+  const showTools = showSearch || showDateRange;
 
   return (
     <div className={[styles.layout, open ? styles.layoutWithPanel : ""].filter(Boolean).join(" ")}>
@@ -280,12 +290,6 @@ export function TableFilterShell({
 
           {showTools ? (
             <div className={styles.tools}>
-              {sortControl ? (
-                <div className={styles.toolGroup}>
-                  <span className={styles.toolLabel}>Sort By</span>
-                  {sortControl}
-                </div>
-              ) : null}
               {showSearch ? (
                 <label className={styles.searchWrap}>
                   <span className={styles.searchLabel}>Search</span>

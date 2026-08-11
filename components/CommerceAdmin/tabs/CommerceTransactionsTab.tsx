@@ -648,20 +648,6 @@ export default function CommerceTransactionsTab() {
             setDateRange(next);
             setPage(1);
           }}
-          sortControl={
-            <select
-              className={styles.selectInline}
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as TxSortKey)}
-              aria-label="Sort transactions"
-            >
-              <option value="date-desc">Newest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="amount-desc">Amount (High to Low)</option>
-              <option value="amount-asc">Amount (Low to High)</option>
-              <option value="id-asc">Invoice ID (A-Z)</option>
-            </select>
-          }
           panel={
             <TableFilterPanel
               rows={rows}
@@ -680,6 +666,20 @@ export default function CommerceTransactionsTab() {
                 setPage(1);
               }}
               onClose={() => setFilterOpen(false)}
+              sortControl={
+                <select
+                  className={styles.selectInline}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as TxSortKey)}
+                  aria-label="Sort transactions"
+                >
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="amount-desc">Amount (High to Low)</option>
+                  <option value="amount-asc">Amount (Low to High)</option>
+                  <option value="id-asc">Invoice ID (A-Z)</option>
+                </select>
+              }
             />
           }
         >

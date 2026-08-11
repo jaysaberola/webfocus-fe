@@ -10,7 +10,15 @@ export type ClientSortKey =
   | "billing-asc"
   | "billing-desc"
   | "classification-asc"
-  | "classification-desc";
+  | "classification-desc"
+  | "status-asc"
+  | "status-desc"
+  | "service-asc"
+  | "service-desc"
+  | "plan-asc"
+  | "plan-desc"
+  | "domain-asc"
+  | "domain-desc";
 
 export type ClientFilterKey = "all" | "New" | "Existing" | "Active" | "Disabled";
 
@@ -22,7 +30,11 @@ export type ClientAdvancedFilterField =
   | "client_type"
   | "contact_person"
   | "status"
-  | "name";
+  | "name"
+  | "service"
+  | "plan"
+  | "subject"
+  | "domain";
 
 export type ClientAdvancedFilter = {
   field: ClientAdvancedFilterField;
@@ -41,6 +53,10 @@ export const CLIENT_ADVANCED_FILTER_FIELDS: Array<{
   { id: "contact_person", label: "Billing Contact Information" },
   { id: "status", label: "Status" },
   { id: "name", label: "Client Name" },
+  { id: "service", label: "Service Name" },
+  { id: "plan", label: "Plan Name" },
+  { id: "subject", label: "Subject" },
+  { id: "domain", label: "Domain" },
 ];
 
 export const emptyClientAdvancedFilter: ClientAdvancedFilter = {
@@ -48,10 +64,25 @@ export const emptyClientAdvancedFilter: ClientAdvancedFilter = {
   value: "",
 };
 
-export type ClientColumnKey = "name" | "owner" | "created" | "billing" | "classification";
+export type ClientColumnKey =
+  | "name"
+  | "status"
+  | "service"
+  | "plan"
+  | "subject"
+  | "domain"
+  | "owner"
+  | "created"
+  | "billing"
+  | "classification";
 
 export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
   name: "Client Name",
+  status: "Status",
+  service: "Service Name",
+  plan: "Plan Name",
+  subject: "Subject",
+  domain: "Domain",
   owner: "Client Owner",
   created: "Created Time",
   billing: "Billing-In-Charge",
@@ -59,15 +90,62 @@ export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
 };
 
 export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
+  // What users asked to be visible by default in the Clients table.
   name: true,
-  owner: true,
-  created: true,
+  status: true,
+  service: true,
+  plan: true,
+  subject: true,
+  domain: true,
   billing: true,
-  classification: true,
+
+  // Everything else should be toggled via Column Visibility.
+  owner: false,
+  created: false,
+  classification: false,
 };
 
 export function clientDisplayName(client: CustomerRow) {
   return String(client.company || client.name || "").trim() || "—";
+}
+
+export function clientServiceName(client: CustomerRow) {
+  return String(client.service_name ?? "").trim() || "—";
+}
+
+export function clientPlanName(client: CustomerRow) {
+  return String(client.plan_name ?? "").trim() || "—";
+}
+
+function extractDomainLike(text: string): string | null {
+  const input = String(text ?? "").trim();
+  if (!input) return null;
+
+  // Extract the first domain-like token from a mixed string, e.g.:
+  // "Dedicated Server www.acestar.com.ph" => "www.acestar.com.ph"
+  const match = input.match(/([a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\.[a-z]{2,})?)/gi);
+  if (!match || !match[0]) return null;
+  return String(match[0]).trim();
+}
+
+export function clientDomain(client: CustomerRow) {
+  return extractDomainLike(client.subject_domain ?? client.website ?? "") || "—";
+}
+
+export function clientSubject(client: CustomerRow) {
+  const combined = String(client.subject_domain ?? client.website ?? "").trim();
+  if (!combined) return "—";
+
+  const domain = extractDomainLike(combined);
+  if (!domain) return combined || "—";
+
+  const cleaned = combined.replace(domain, "").replace(/[\s,;]+/g, " ").trim();
+  return cleaned || "—";
+}
+
+// Backward-compatible helper (used by Excel export / other parts).
+export function clientSubjectDomain(client: CustomerRow) {
+  return String(client.subject_domain ?? client.website ?? "").trim() || "—";
 }
 
 export function clientOwnerName(client: CustomerRow) {
@@ -162,6 +240,14 @@ export function applyClientAdvancedFilter(rows: CustomerRow[], filter: ClientAdv
         return clientDisplayStatus(row) === value;
       case "name":
         return matchesNeedle(clientDisplayName(row), value);
+      case "service":
+        return matchesNeedle(clientServiceName(row), value);
+      case "plan":
+        return matchesNeedle(clientPlanName(row), value);
+      case "subject":
+        return matchesNeedle(clientSubject(row), value);
+      case "domain":
+        return matchesNeedle(clientDomain(row), value);
       default:
         return true;
     }
@@ -172,7 +258,16 @@ export function uniqueClientFilterValues(
   rows: CustomerRow[],
   field: ClientAdvancedFilterField,
 ): string[] {
-  if (field === "none" || field === "name") return [];
+  if (
+    field === "none" ||
+    field === "name" ||
+    field === "service" ||
+    field === "plan" ||
+    field === "subject" ||
+    field === "domain"
+  ) {
+    return [];
+  }
 
   const values = rows.map((row) => {
     switch (field) {
@@ -231,6 +326,28 @@ export function sortClients(rows: CustomerRow[], sortBy: ClientSortKey) {
         return compareStrings(clientClassification(a), clientClassification(b), "asc");
       case "classification-desc":
         return compareStrings(clientClassification(a), clientClassification(b), "desc");
+      case "status-asc": {
+        const aActive = clientDisplayStatus(a) === "Active";
+        const bActive = clientDisplayStatus(b) === "Active";
+        return Number(aActive) - Number(bActive);
+      }
+      case "status-desc": {
+        const aActive = clientDisplayStatus(a) === "Active";
+        const bActive = clientDisplayStatus(b) === "Active";
+        return Number(bActive) - Number(aActive);
+      }
+      case "service-asc":
+        return compareStrings(clientServiceName(a), clientServiceName(b), "asc");
+      case "service-desc":
+        return compareStrings(clientServiceName(a), clientServiceName(b), "desc");
+      case "plan-asc":
+        return compareStrings(clientPlanName(a), clientPlanName(b), "asc");
+      case "plan-desc":
+        return compareStrings(clientPlanName(a), clientPlanName(b), "desc");
+      case "domain-asc":
+        return compareStrings(clientDomain(a), clientDomain(b), "asc");
+      case "domain-desc":
+        return compareStrings(clientDomain(a), clientDomain(b), "desc");
       default:
         return 0;
     }

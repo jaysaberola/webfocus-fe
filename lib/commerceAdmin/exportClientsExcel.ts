@@ -3,6 +3,9 @@ import {
   clientClassification,
   clientDisplayName,
   clientOwnerName,
+  clientPlanName,
+  clientServiceName,
+  clientSubjectDomain,
   formatClientCreatedTime,
 } from "@/lib/commerceAdmin/clientHelpers";
 import { fetchCommerceServices } from "@/services/commerceAdminService";
@@ -225,6 +228,9 @@ function buildWorkbookXml(bundles: ExportBundle[]) {
   const clientMatrix: CellValue[][] = bundles.map(({ listRow, detail, transactions, services }) => [
     { value: listRow.id, type: "Number" },
     { value: resolveClientName(listRow, detail) },
+    { value: clientServiceName(listRow) },
+    { value: clientPlanName(listRow) },
+    { value: clientSubjectDomain(listRow) },
     { value: resolveContactName(listRow, detail) },
     { value: detail?.email ?? listRow.email ?? "" },
     { value: detail?.address_street ?? "" },
@@ -366,6 +372,9 @@ function buildWorkbookXml(bundles: ExportBundle[]) {
     [
       "Client ID",
       "Client Name",
+      "Service Name",
+      "Plan Name",
+      "Subject Domain",
       "Contact Person",
       "Email",
       "Address",
@@ -385,7 +394,7 @@ function buildWorkbookXml(bundles: ExportBundle[]) {
       "Avatar Path",
     ],
     clientMatrix,
-    [10, 22, 18, 28, 32, 16, 14, 10, 16, 18, 16, 24, 28, 14, 18, 16, 12, 12, 34],
+    [10, 22, 18, 18, 22, 18, 28, 32, 16, 14, 10, 16, 18, 16, 24, 28, 14, 18, 16, 12, 12, 34],
   )}
   ${sheet(
     "Transactions",

@@ -74,6 +74,10 @@ export type CustomerRow = UserRow & {
   client_type?: string | null;
   billing_in_charge?: string | null;
   contact_person?: string | null;
+  website?: string | null;
+  service_name?: string | null;
+  plan_name?: string | null;
+  subject_domain?: string | null;
 };
 
 export const createCustomer = async (payload: CreateCustomerPayload) => {

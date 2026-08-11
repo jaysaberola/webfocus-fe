@@ -98,6 +98,10 @@ export function isApprovalColumnSorted(sortBy: ApprovalSortKey, column: Approval
 
 const CLIENT_ASC: Partial<Record<ClientColumnKey, ClientSortKey>> = {
   name: "name-asc",
+  status: "status-asc",
+  service: "service-asc",
+  plan: "plan-asc",
+  domain: "domain-asc",
   owner: "owner-asc",
   created: "oldest",
   billing: "billing-asc",
@@ -106,6 +110,10 @@ const CLIENT_ASC: Partial<Record<ClientColumnKey, ClientSortKey>> = {
 
 const CLIENT_DESC: Partial<Record<ClientColumnKey, ClientSortKey>> = {
   name: "name-desc",
+  status: "status-desc",
+  service: "service-desc",
+  plan: "plan-desc",
+  domain: "domain-desc",
   owner: "owner-desc",
   created: "newest",
   billing: "billing-desc",

@@ -88,6 +88,9 @@ export type CommerceServiceAdminRow = {
   title: string;
   category?: string | null;
   plan?: string | null;
+  serviceName?: string | null;
+  planName?: string | null;
+  subjectDomain?: string | null;
   status: string;
   client: string;
   company?: string | null;

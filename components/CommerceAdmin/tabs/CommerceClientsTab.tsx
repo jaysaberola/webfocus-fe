@@ -19,6 +19,10 @@ import {
   clientDisplayStatus,
   clientIsAssigned,
   clientOwnerName,
+  clientPlanName,
+  clientServiceName,
+  clientDomain,
+  clientSubject,
   formatClientCreatedTime,
   sortClients,
   type ClientColumnKey,
@@ -58,6 +62,10 @@ const CLIENT_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "contact_person", label: "Billing Contact Information" },
   { id: "status", label: "Status" },
   { id: "name", label: "Client Name", mode: "contains" },
+  { id: "service", label: "Service Name", mode: "contains" },
+  { id: "plan", label: "Plan Name", mode: "contains" },
+  { id: "subject", label: "Subject", mode: "contains" },
+  { id: "domain", label: "Domain", mode: "contains" },
 ];
 
 type Props = {
@@ -104,6 +112,14 @@ export default function CommerceClientsTab(_props: Props) {
         return clientDisplayStatus(client);
       case "name":
         return clientDisplayName(client);
+      case "service":
+        return clientServiceName(client);
+      case "plan":
+        return clientPlanName(client);
+      case "subject":
+        return clientSubject(client);
+      case "domain":
+        return clientDomain(client);
       default:
         return "";
     }
@@ -147,6 +163,10 @@ export default function CommerceClientsTab(_props: Props) {
             clientBillingInCharge(client),
             client.contact_person,
             clientClassification(client),
+            clientServiceName(client),
+            clientPlanName(client),
+            clientSubject(client),
+            clientDomain(client),
           ],
           search,
         ),
@@ -350,23 +370,6 @@ export default function CommerceClientsTab(_props: Props) {
           setDateRange(next);
           setPage(1);
         }}
-        sortControl={
-          <select
-            className={styles.selectInline}
-            value={
-              sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
-                ? sortBy
-                : "name-asc"
-            }
-            onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
-            aria-label="Sort clients"
-          >
-            <option value="name-asc">Client Name (A - Z)</option>
-            <option value="name-desc">Client Name (Z - A)</option>
-            <option value="newest">Newest Created</option>
-            <option value="oldest">Oldest Created</option>
-          </select>
-        }
         panel={
           <TableFilterPanel
             rows={rows}
@@ -385,6 +388,23 @@ export default function CommerceClientsTab(_props: Props) {
               setPage(1);
             }}
             onClose={() => setFilterOpen(false)}
+            sortControl={
+              <select
+                className={styles.selectInline}
+                value={
+                  sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
+                    ? sortBy
+                    : "name-asc"
+                }
+                onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
+                aria-label="Sort clients"
+              >
+                <option value="name-asc">Client Name (A - Z)</option>
+                <option value="name-desc">Client Name (Z - A)</option>
+                <option value="newest">Newest Created</option>
+                <option value="oldest">Oldest Created</option>
+              </select>
+            }
           />
         }
       >
@@ -403,9 +423,14 @@ export default function CommerceClientsTab(_props: Props) {
                       disabled={paginatedRows.length === 0}
                     />
                     {columnsVisible.name ? renderSortableHead("name") : null}
+                    {columnsVisible.service ? renderSortableHead("service") : null}
+                    {columnsVisible.plan ? renderSortableHead("plan") : null}
+                    {columnsVisible.subject ? <th>Subject</th> : null}
+                    {columnsVisible.domain ? renderSortableHead("domain") : null}
                     {columnsVisible.owner ? renderSortableHead("owner") : null}
                     {columnsVisible.created ? renderSortableHead("created") : null}
                     {columnsVisible.billing ? renderSortableHead("billing") : null}
+                    {columnsVisible.status ? renderSortableHead("status") : null}
                     {columnsVisible.classification ? renderSortableHead("classification") : null}
                   </tr>
                 </thead>
@@ -432,12 +457,16 @@ export default function CommerceClientsTab(_props: Props) {
                               <button
                                 type="button"
                                 className={styles.tableCellLink}
-                                onClick={() => openClient(client)}
+                                onClick={() => openEdit(client)}
                               >
                                 {clientDisplayName(client)}
                               </button>
                             </td>
                           ) : null}
+                          {columnsVisible.service ? <td>{clientServiceName(client)}</td> : null}
+                          {columnsVisible.plan ? <td>{clientPlanName(client)}</td> : null}
+                          {columnsVisible.subject ? <td>{clientSubject(client)}</td> : null}
+                          {columnsVisible.domain ? <td>{clientDomain(client)}</td> : null}
                           {columnsVisible.owner ? (
                             <td>
                               <button
@@ -459,6 +488,15 @@ export default function CommerceClientsTab(_props: Props) {
                           ) : null}
                           {columnsVisible.billing ? (
                             <td>{clientBillingInCharge(client)}</td>
+                          ) : null}
+                          {columnsVisible.status ? (
+                            <td>
+                              {clientDisplayStatus(client) === "Active" ? (
+                                <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
+                              ) : (
+                                <span className={styles.badgeMuted}>{clientDisplayStatus(client)}</span>
+                              )}
+                            </td>
                           ) : null}
                           {columnsVisible.classification ? (
                             <td>

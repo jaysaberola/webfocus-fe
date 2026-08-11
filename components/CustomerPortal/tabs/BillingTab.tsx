@@ -557,23 +557,6 @@ export default function BillingTab() {
           searchPlaceholder="Search invoices..."
           dateRange={dateRange}
           onDateRangeChange={handleDateRangeChange}
-          sortControl={
-            <select
-              className={styles.portalToolbarControl}
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as InvoiceSortKey)}
-              aria-label="Sort invoices"
-            >
-              <option value="issued-desc">Issued (Newest)</option>
-              <option value="issued-asc">Issued (Oldest)</option>
-              <option value="due-desc">Due Date (Latest)</option>
-              <option value="due-asc">Due Date (Earliest)</option>
-              <option value="amount-desc">Amount (High to Low)</option>
-              <option value="amount-asc">Amount (Low to High)</option>
-              <option value="status-asc">Status (A-Z)</option>
-              <option value="id-asc">Invoice ID (A-Z)</option>
-            </select>
-          }
           panel={
             <TableFilterPanel
               rows={invoices}
@@ -585,6 +568,23 @@ export default function BillingTab() {
               onApply={applyFilter}
               onClear={clearFilter}
               onClose={() => setFilterOpen(false)}
+              sortControl={
+                <select
+                  className={styles.portalToolbarControl}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as InvoiceSortKey)}
+                  aria-label="Sort invoices"
+                >
+                  <option value="issued-desc">Issued (Newest)</option>
+                  <option value="issued-asc">Issued (Oldest)</option>
+                  <option value="due-desc">Due Date (Latest)</option>
+                  <option value="due-asc">Due Date (Earliest)</option>
+                  <option value="amount-desc">Amount (High to Low)</option>
+                  <option value="amount-asc">Amount (Low to High)</option>
+                  <option value="status-asc">Status (A-Z)</option>
+                  <option value="id-asc">Invoice ID (A-Z)</option>
+                </select>
+              }
             />
           }
         >

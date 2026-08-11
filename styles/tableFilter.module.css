@@ -135,6 +135,54 @@
   font-weight: 600;
 }
 
+.sortWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sortControlWrap {
+  position: relative;
+  width: 100%;
+}
+
+.sortChevron {
+  position: absolute;
+  right: 0.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.sortControl select {
+  min-height: 2.125rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.35rem;
+  background: #fff !important;
+  color: #0f172a !important;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  appearance: none !important;
+  padding-right: 2.15rem;
+  background-image: none !important;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.sortControl select:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+  outline: none;
+}
+
 .total {
   font-size: 0.875rem;
   font-weight: 700;

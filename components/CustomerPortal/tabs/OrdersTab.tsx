@@ -336,20 +336,6 @@ export default function OrdersTab() {
           searchPlaceholder="Search orders..."
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
-          sortControl={
-            <select
-              className={styles.portalToolbarControl}
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as OrderSortKey)}
-              aria-label="Sort orders"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          }
           panel={
             <TableFilterPanel
               rows={orders}
@@ -361,6 +347,20 @@ export default function OrdersTab() {
               onApply={applyFilter}
               onClear={clearFilter}
               onClose={() => setFilterOpen(false)}
+            sortControl={
+              <select
+                className={styles.portalToolbarControl}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as OrderSortKey)}
+                aria-label="Sort orders"
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            }
             />
           }
         >

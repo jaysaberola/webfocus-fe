@@ -226,20 +226,6 @@ export default function HelpTab() {
               searchPlaceholder="Search tickets..."
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
-              sortControl={
-                <select
-                  className={styles.portalToolbarControl}
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as TicketSortKey)}
-                  aria-label="Sort tickets"
-                >
-                  <option value="date-desc">Date (Newest)</option>
-                  <option value="date-asc">Date (Oldest)</option>
-                  <option value="status-asc">Status (A-Z)</option>
-                  <option value="subject-asc">Subject (A-Z)</option>
-                  <option value="id-asc">Ticket ID (A-Z)</option>
-                </select>
-              }
               panel={
                 <TableFilterPanel
                   rows={tickets}
@@ -251,6 +237,20 @@ export default function HelpTab() {
                   onApply={applyFilter}
                   onClear={clearFilter}
                   onClose={() => setFilterOpen(false)}
+                  sortControl={
+                    <select
+                      className={styles.portalToolbarControl}
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as TicketSortKey)}
+                      aria-label="Sort tickets"
+                    >
+                      <option value="date-desc">Date (Newest)</option>
+                      <option value="date-asc">Date (Oldest)</option>
+                      <option value="status-asc">Status (A-Z)</option>
+                      <option value="subject-asc">Subject (A-Z)</option>
+                      <option value="id-asc">Ticket ID (A-Z)</option>
+                    </select>
+                  }
                 />
               }
             >

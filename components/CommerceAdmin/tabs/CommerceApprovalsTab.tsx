@@ -392,19 +392,6 @@ export default function CommerceApprovalsTab() {
             setDateRange(next);
             setPage(1);
           }}
-          sortControl={
-            <select
-              className={styles.selectInline}
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as ApprovalSortKey)}
-              aria-label="Sort approvals"
-            >
-              <option value="date-desc">Newest First</option>
-              <option value="date-asc">Oldest First</option>
-              <option value="amount-desc">Amount (High to Low)</option>
-              <option value="amount-asc">Amount (Low to High)</option>
-            </select>
-          }
           panel={
             <TableFilterPanel
               rows={rows}
@@ -423,6 +410,19 @@ export default function CommerceApprovalsTab() {
                 setPage(1);
               }}
               onClose={() => setFilterOpen(false)}
+              sortControl={
+                <select
+                  className={styles.selectInline}
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as ApprovalSortKey)}
+                  aria-label="Sort approvals"
+                >
+                  <option value="date-desc">Newest First</option>
+                  <option value="date-asc">Oldest First</option>
+                  <option value="amount-desc">Amount (High to Low)</option>
+                  <option value="amount-asc">Amount (Low to High)</option>
+                </select>
+              }
             />
           }
         >
