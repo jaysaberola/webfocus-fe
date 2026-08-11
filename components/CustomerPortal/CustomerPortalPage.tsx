@@ -59,6 +59,14 @@ export default function CustomerPortalPage() {
     );
   }
 
+  if (!customer) {
+    return (
+      <div className={styles.page}>
+        <PortalTabLoader label="Redirecting..." />
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <CustomerPortalTabs

@@ -167,10 +167,19 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
 
             <nav className={styles.accountMenu}>
               {showCmsPortalLink ? (
-                <Link href="/dashboard" className={styles.menuItem} role="menuitem" onClick={close}>
+                <a
+                  href="/dashboard"
+                  className={styles.menuItem}
+                  role="menuitem"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    close();
+                    window.location.assign("/dashboard");
+                  }}
+                >
                   <i className="fa-solid fa-layer-group" aria-hidden="true" />
                   CMS Admin
-                </Link>
+                </a>
               ) : null}
               <Link href="/public/commerce-admin" className={styles.menuItem} role="menuitem" onClick={close}>
                 <i className="fa-solid fa-store" aria-hidden="true" />

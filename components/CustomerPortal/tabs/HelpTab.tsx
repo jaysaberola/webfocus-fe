@@ -102,6 +102,10 @@ export default function HelpTab() {
   useEffect(() => {
     fetchPortalTickets()
       .then(setTickets)
+      .catch(() => {
+        toast.error("Failed to load support tickets.");
+        setTickets([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 

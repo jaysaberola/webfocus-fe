@@ -7,8 +7,8 @@ import {
 } from "@/services/publicCustomerService";
 import { readStoredAuthToken } from "@/lib/authToken";
 import { getCurrentUserCached } from "@/lib/currentUser";
-import { isAdminLikeUser } from "@/lib/userRoles";
-import { scheduleIdleTask, useStoredPublicAuthState } from "@/lib/publicAuthState";
+import { isStaffUser, resolveStaffLoginRedirect } from "@/lib/userRoles";
+import { useStoredPublicAuthState } from "@/lib/publicAuthState";
 
 export function useCustomerPortalAuth() {
   const router = useRouter();
@@ -19,17 +19,21 @@ export function useCustomerPortalAuth() {
   useEffect(() => {
     if (storedCustomer) {
       setCustomer(storedCustomer);
-      setLoading(false);
     }
   }, [storedCustomer]);
 
   useEffect(() => {
     if (!router.isReady) return;
 
-    const redirectTarget = router.asPath || "/public/dashboard";
+    const redirectTarget =
+      typeof router.asPath === "string" && router.asPath.startsWith("/")
+        ? router.asPath
+        : "/public/dashboard";
 
     if (!readStoredAuthToken()) {
-      router.replace(`/public/login?redirect=${encodeURIComponent(redirectTarget)}`);
+      storeCustomer(null, { notify: false });
+      setCustomer(null);
+      void router.replace(`/public/login?redirect=${encodeURIComponent(redirectTarget)}`);
       setLoading(false);
       return;
     }
@@ -37,47 +41,47 @@ export function useCustomerPortalAuth() {
     let alive = true;
 
     const redirectToLogin = () => {
-      router.replace(`/public/login?redirect=${encodeURIComponent(redirectTarget)}`);
+      void router.replace(`/public/login?redirect=${encodeURIComponent(redirectTarget)}`);
     };
 
-    const verifySession = () =>
-      fetchCurrentCustomer({ silent: true, force: true })
-        .then((user) => {
-          if (alive) setCustomer(user);
-        })
-        .catch(async () => {
-          if (!alive) return;
+    const redirectStaffAway = async () => {
+      try {
+        const staffUser = await getCurrentUserCached({ force: false });
+        if (isStaffUser(staffUser)) {
+          void router.replace(resolveStaffLoginRedirect(staffUser));
+          return true;
+        }
+      } catch {
+        // fall through to customer login
+      }
+      return false;
+    };
 
-          try {
-            const adminUser = await getCurrentUserCached();
-            if (isAdminLikeUser(adminUser)) {
-              router.replace("/dashboard");
-              return;
-            }
-          } catch {
-            // fall through to customer login
-          }
+    setLoading(true);
 
-          redirectToLogin();
-        })
-        .finally(() => {
-          if (alive) setLoading(false);
-        });
+    fetchCurrentCustomer({ silent: true, force: true })
+      .then((user) => {
+        if (!alive) return;
+        setCustomer(user);
+      })
+      .catch(async () => {
+        if (!alive) return;
+        storeCustomer(null, { notify: false });
+        setCustomer(null);
 
-    if (storedCustomer) {
-      const cancelIdle = scheduleIdleTask(verifySession, 1500);
-      return () => {
-        alive = false;
-        cancelIdle();
-      };
-    }
-
-    verifySession();
+        const redirected = await redirectStaffAway();
+        if (!alive || redirected) return;
+        redirectToLogin();
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
     return () => {
       alive = false;
     };
-  }, [router.isReady, router.asPath, storedCustomer]);
+    // Verify once when the portal route is ready — do not re-run on tab query changes.
+  }, [router.isReady]);
 
   const updateCustomer = useCallback((next: PublicCustomer | null) => {
     if (next) storeCustomer(next);

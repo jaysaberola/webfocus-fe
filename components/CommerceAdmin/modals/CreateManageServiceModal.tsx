@@ -3,7 +3,6 @@ import { axiosInstance } from "@/services/axios";
 import { createService, getServices } from "@/services/serviceService";
 import { resolveServiceTypeLabel } from "@/lib/commerceAdmin/serviceHelpers";
 import { toast } from "@/lib/toast";
-import styles from "@/styles/commerceAdmin.module.css";
 
 const ADDONS = [
   { name: "WhoIs Privacy", price: 780 },
@@ -49,10 +48,7 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    Promise.all([
-      loadCategories(),
-      getServices({ per_page: 200 }, { silent: true }),
-    ])
+    Promise.all([loadCategories(), getServices({ per_page: 200 }, { silent: true })])
       .then(([, serviceRes]) => {
         setPlans(Array.isArray(serviceRes?.data) ? serviceRes.data : []);
       })
@@ -61,13 +57,23 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
   }, [open]);
 
   const loadCategories = async () => {
-    const endpoints = ["/fetch-service-categories", "/service-categories", "/categories?type=service", "/categories"];
+    const endpoints = [
+      "/fetch-service-categories",
+      "/service-categories",
+      "/categories?type=service",
+      "/categories",
+    ];
     for (const ep of endpoints) {
       try {
         const res = await axiosInstance.get(ep, { headers: { "X-No-Loading": true } });
         const data = res.data?.data ?? res.data ?? [];
         if (Array.isArray(data) && data.length) {
-          setCategories(data.map((c: any) => ({ id: c.id ?? c.slug ?? c.name, name: c.name ?? c.title ?? String(c) })));
+          setCategories(
+            data.map((c: any) => ({
+              id: c.id ?? c.slug ?? c.name,
+              name: c.name ?? c.title ?? String(c),
+            })),
+          );
           return;
         }
       } catch {
@@ -153,7 +159,7 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
 
   const resolveCategoryId = async () => {
     const matched = categories.find(
-      (category) => category.name.toLowerCase() === serviceType.toLowerCase()
+      (category) => category.name.toLowerCase() === serviceType.toLowerCase(),
     );
     if (matched) return matched.id;
 
@@ -163,7 +169,7 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
         const res = await axiosInstance.post(
           ep,
           { name: serviceType, title: serviceType },
-          { headers: { "X-No-Loading": true } }
+          { headers: { "X-No-Loading": true } },
         );
         const data = res.data?.data ?? res.data ?? {};
         const id = data?.id ?? data?.category_id ?? data?.data?.id;
@@ -177,7 +183,9 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    let planName = isCustomPlan ? customPlanName.trim() : String(selectedPlan?.name ?? selectedPlan?.title ?? "");
+    let planName = isCustomPlan
+      ? customPlanName.trim()
+      : String(selectedPlan?.name ?? selectedPlan?.title ?? "");
     if (isCustomPlan && !planName) {
       planName = serviceType;
     }
@@ -241,116 +249,133 @@ export default function CreateManageServiceModal({ open, onClose, onCreated }: P
   if (!open) return null;
 
   return (
-    <div className={styles.modalOverlay} role="dialog" aria-modal="true">
-      <div className={styles.modalCard}>
-        <div className={styles.modalHeader}>
-          <h3 className={styles.modalTitle}>Add Manage Service</h3>
-          <button type="button" className={styles.modalCloseBtn} onClick={handleClose} aria-label="Close">
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
-        </div>
-
-        {loading ? (
-          <p className={styles.emptyState}>Loading service catalog...</p>
-        ) : (
-          <form className={styles.modalForm} onSubmit={handleSubmit}>
-            <label className={styles.modalLabel}>
-              Service Name
-              <select
-                className={styles.select}
-                value={serviceType}
-                onChange={(e) => setServiceType(e.target.value)}
-                required
-              >
-                {serviceTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className={styles.modalLabel}>
-              Plan
-              <select className={styles.select} value={planKey} onChange={(e) => handlePlanChange(e.target.value)} required>
-                {filteredPlans.map((plan) => (
-                  <option key={plan.id} value={String(plan.id)}>
-                    {plan.name ?? plan.title} (₱{Number(plan.price ?? 0).toLocaleString("en-PH")})
-                  </option>
-                ))}
-                <option value="new_plan_service">+ New Plan Service (Custom)</option>
-              </select>
-            </label>
-
-            {isCustomPlan ? (
-              <label className={styles.modalLabel}>
-                Custom Plan Name
-                <input
-                  className={styles.modalInput}
-                  value={customPlanName}
-                  onChange={(e) => setCustomPlanName(e.target.value)}
-                  placeholder="Enter custom plan name..."
-                  required
-                />
-              </label>
-            ) : null}
-
-            <label className={styles.modalLabel}>
-              Add-on (Optional)
-              <select className={styles.select} value={addonName} onChange={(e) => handleAddonChange(e.target.value)}>
-                <option value="">-- No Add-on Selected --</option>
-                {ADDONS.map((addon) => (
-                  <option key={addon.name} value={addon.name}>
-                    {addon.name} (₱{addon.price.toLocaleString("en-PH")}/yr)
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className={styles.modalGrid2}>
-              <label className={styles.modalLabel}>
-                Amount (₱)
-                <input
-                  className={styles.modalInput}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  required
-                />
-              </label>
-              <label className={styles.modalLabel}>
-                Billing Cycle
-                <select className={styles.select} value={billing} onChange={(e) => setBilling(e.target.value)}>
-                  <option value="yr">Yearly (/yr)</option>
-                  <option value="mo">Monthly (/mo)</option>
-                  <option value="one-time">One-Time</option>
-                </select>
-              </label>
+    <div className="modal show d-block" tabIndex={-1} style={{ background: "rgba(15,23,42,0.35)" }}>
+      <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div className="modal-content">
+          <form onSubmit={handleSubmit}>
+            <div className="modal-header">
+              <h5 className="modal-title">Add Manage Service</h5>
+              <button type="button" className="btn-close" aria-label="Close" onClick={handleClose} />
             </div>
 
-            <label className={styles.modalLabel}>
-              Note (Optional)
-              <textarea
-                className={styles.modalTextarea}
-                rows={2}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Enter optional notes or remarks..."
-              />
-            </label>
+            <div className="modal-body">
+              {loading ? (
+                <p className="text-muted mb-0">Loading service catalog...</p>
+              ) : (
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Service Name</label>
+                    <select
+                      className="form-select"
+                      value={serviceType}
+                      onChange={(e) => setServiceType(e.target.value)}
+                      required
+                    >
+                      {serviceTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryBtnSm} onClick={handleClose}>
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Plan</label>
+                    <select
+                      className="form-select"
+                      value={planKey}
+                      onChange={(e) => handlePlanChange(e.target.value)}
+                      required
+                    >
+                      {filteredPlans.map((plan) => (
+                        <option key={plan.id} value={String(plan.id)}>
+                          {plan.name ?? plan.title} (₱
+                          {Number(plan.price ?? 0).toLocaleString("en-PH")})
+                        </option>
+                      ))}
+                      <option value="new_plan_service">+ New Plan Service (Custom)</option>
+                    </select>
+                  </div>
+
+                  {isCustomPlan ? (
+                    <div className="col-12">
+                      <label className="form-label fw-semibold">Custom Plan Name</label>
+                      <input
+                        className="form-control"
+                        value={customPlanName}
+                        onChange={(e) => setCustomPlanName(e.target.value)}
+                        placeholder="Enter custom plan name..."
+                        required
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Add-on (Optional)</label>
+                    <select
+                      className="form-select"
+                      value={addonName}
+                      onChange={(e) => handleAddonChange(e.target.value)}
+                    >
+                      <option value="">-- No Add-on Selected --</option>
+                      {ADDONS.map((addon) => (
+                        <option key={addon.name} value={addon.name}>
+                          {addon.name} (₱{addon.price.toLocaleString("en-PH")}/yr)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Amount (₱)</label>
+                    <input
+                      className="form-control"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Billing Cycle</label>
+                    <select
+                      className="form-select"
+                      value={billing}
+                      onChange={(e) => setBilling(e.target.value)}
+                    >
+                      <option value="yr">Yearly (/yr)</option>
+                      <option value="mo">Monthly (/mo)</option>
+                      <option value="one-time">One-Time</option>
+                    </select>
+                  </div>
+
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Note (Optional)</label>
+                    <textarea
+                      className="form-control"
+                      rows={3}
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Enter optional notes or remarks..."
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button type="button" className="btn btn-outline-secondary" onClick={handleClose}>
                 Cancel
               </button>
-              <button type="submit" className={styles.primaryBtnSm} disabled={submitting}>
+              <button type="submit" className="btn btn-primary" disabled={loading || submitting}>
                 {submitting ? "Saving..." : "Add Manage Service"}
               </button>
             </div>
           </form>
-        )}
+        </div>
       </div>
     </div>
   );

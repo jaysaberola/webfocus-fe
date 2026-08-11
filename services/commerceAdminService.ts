@@ -84,11 +84,13 @@ export type CommerceTicketAdminRow = {
 
 export type CommerceServiceAdminRow = {
   id: number;
+  customerId?: number | null;
   title: string;
   category?: string | null;
   plan?: string | null;
   status: string;
   client: string;
+  company?: string | null;
   email?: string;
   renewLabel?: string | null;
   renewAt?: string | null;
@@ -172,13 +174,15 @@ export async function updateCommerceTicket(id: number, status: string) {
 export async function fetchCommerceServices(
   status?: string,
   customerId?: number,
-  options?: { perPage?: number },
+  options?: { perPage?: number; plan?: string; search?: string },
 ) {
   const res = await axiosInstance.get("/commerce-admin/services", {
     params: {
       status,
       per_page: options?.perPage ?? (customerId ? 200 : 50),
       ...(customerId ? { customer_id: customerId } : {}),
+      ...(options?.plan ? { plan: options.plan } : {}),
+      ...(options?.search ? { search: options.search } : {}),
     },
     headers: { "X-No-Loading": true },
   });

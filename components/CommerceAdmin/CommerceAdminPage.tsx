@@ -21,9 +21,15 @@ export default function CommerceAdminPage() {
   useEffect(() => {
     if (!router.isReady || loading) return;
 
-    const requested = typeof router.query.tab === "string"
-      ? (router.query.tab as CommerceAdminTab)
-      : undefined;
+    const requestedRaw = typeof router.query.tab === "string" ? router.query.tab : undefined;
+
+    // Managed moved to CMS Admin portal.
+    if (requestedRaw === "managed") {
+      void router.replace("/managed");
+      return;
+    }
+
+    const requested = requestedRaw as CommerceAdminTab | undefined;
     const resolved = resolveCommerceTab(user, requested);
 
     setActiveTab(resolved);

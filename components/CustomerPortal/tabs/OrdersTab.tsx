@@ -167,6 +167,10 @@ export default function OrdersTab() {
   useEffect(() => {
     fetchPortalOrders()
       .then(setOrders)
+      .catch(() => {
+        toast.error("Failed to load orders.");
+        setOrders([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 

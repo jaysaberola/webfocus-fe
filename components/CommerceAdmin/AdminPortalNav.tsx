@@ -19,13 +19,17 @@ export default function AdminPortalNav({ active }: Props) {
   return (
     <nav className={styles.portalNav} aria-label="Admin portals">
       {showCmsPortalLink ? (
-        <Link
+        <a
           href="/dashboard"
           className={active === "cms" ? styles.portalNavItemActive : styles.portalNavItem}
+          onClick={(event) => {
+            event.preventDefault();
+            window.location.assign("/dashboard");
+          }}
         >
           <i className="fa-solid fa-layer-group" aria-hidden="true" />
           CMS Admin
-        </Link>
+        </a>
       ) : null}
       <Link
         href={COMMERCE_ADMIN_PATH}

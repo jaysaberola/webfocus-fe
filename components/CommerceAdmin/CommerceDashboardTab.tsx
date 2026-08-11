@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import {
   COMMERCE_MONTHLY_RENEWALS,
@@ -40,6 +41,7 @@ function monthlyChartGeometry() {
 }
 
 export default function CommerceDashboardTab({ onTabChange }: Props) {
+  const router = useRouter();
   const [queueView, setQueueView] = useState<QueueView>("list");
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [dashboardData, setDashboardData] = useState<CommerceDashboardData | null>(() => readCommerceDashboardCache());
@@ -196,7 +198,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("managed")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => void router.push("/managed")}>
                   View All Expiring Services
                 </button>
               </article>

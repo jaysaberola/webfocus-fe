@@ -274,12 +274,27 @@ export default function BillingTab() {
 
   const loadBilling = useCallback(
     (filters?: { dateFrom?: string; dateTo?: string }) =>
-      fetchPortalBilling(filters).then((data) => {
-        setInvoices(data.invoices ?? []);
-        setPaymentProofs(data.paymentProofs ?? []);
-        setReminder(data.reminder ?? null);
-        return data;
-      }),
+      fetchPortalBilling(filters)
+        .then((data) => {
+          setInvoices(data.invoices ?? []);
+          setPaymentProofs(data.paymentProofs ?? []);
+          setReminder(data.reminder ?? null);
+          return data;
+        })
+        .catch((err: any) => {
+          const status = err?.response?.status;
+          const message =
+            status === 403
+              ? "Customer portal access only. Please sign in with a customer account."
+              : err?.response?.data?.message || "Failed to load billing.";
+          toast.error(message);
+          setInvoices([]);
+          setPaymentProofs([]);
+          setReminder(null);
+          return { invoices: [], reminder: null, paymentProofs: [] } as Awaited<
+            ReturnType<typeof fetchPortalBilling>
+          >;
+        }),
     [],
   );
 
