@@ -3833,9 +3833,9 @@
 }
 
 .clientCrmCopyBtn {
-  border: 1px solid #c4b5fd;
+  border: 1px solid #93c5fd;
   background: #fff;
-  color: #6d28d9;
+  color: #1d4ed8;
   border-radius: 0.35rem;
   padding: 0.35rem 0.7rem;
   font: inherit;
@@ -3845,7 +3845,7 @@
 }
 
 .clientCrmCopyBtn:hover {
-  background: #f5f3ff;
+  background: #eff6ff;
 }
 
 .clientsListLayout {
@@ -3900,9 +3900,9 @@
 }
 
 .clientsFilterToggleBtnActive {
-  border-color: #c4b5fd !important;
-  background: #f5f3ff !important;
-  color: #6d28d9 !important;
+  border-color: #93c5fd !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 .clientsFilterTotal {
@@ -4083,8 +4083,8 @@
 }
 
 .clientsFilterOptionActive {
-  background: #f5f3ff !important;
-  color: #6d28d9 !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 .clientsFilterEmpty {
@@ -4107,9 +4107,9 @@
   justify-content: center;
   min-height: var(--ca-control-height);
   padding: 0.45rem 0.95rem;
-  border: 1px solid #7c3aed !important;
+  border: 1px solid #2563eb !important;
   border-radius: 0.35rem;
-  background: #7c3aed !important;
+  background: #2563eb !important;
   color: #fff !important;
   font: inherit;
   font-size: var(--ca-text-sm);
@@ -4118,7 +4118,7 @@
 }
 
 .clientsFilterApplyBtn:hover:not(:disabled) {
-  background: #6d28d9 !important;
+  background: #1d4ed8 !important;
 }
 
 .clientsFilterApplyBtn:disabled {

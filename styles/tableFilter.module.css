@@ -58,9 +58,9 @@
 }
 
 .toggleBtnActive {
-  border-color: #c4b5fd !important;
-  background: #f5f3ff !important;
-  color: #6d28d9 !important;
+  border-color: #93c5fd !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 .tools {
@@ -324,8 +324,8 @@
 }
 
 .optionActive {
-  background: #f5f3ff !important;
-  color: #6d28d9 !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 .empty {
@@ -364,9 +364,9 @@
   justify-content: center;
   min-height: 2.125rem;
   padding: 0.45rem 0.95rem;
-  border: 1px solid #7c3aed !important;
+  border: 1px solid #2563eb !important;
   border-radius: 0.35rem;
-  background: #7c3aed !important;
+  background: #2563eb !important;
   color: #fff !important;
   font: inherit;
   font-size: 0.875rem;
@@ -375,7 +375,7 @@
 }
 
 .applyBtn:hover:not(:disabled) {
-  background: #6d28d9 !important;
+  background: #1d4ed8 !important;
 }
 
 .applyBtn:disabled {
