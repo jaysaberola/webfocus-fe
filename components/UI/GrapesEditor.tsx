@@ -2218,14 +2218,12 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       ensureUrlTraits(component);
       setHasSelection(true);
       setSelectionLabel(getComponentBreadcrumb(component));
-      setIsRightSidebarHidden(false);
-      setActiveRightPanel("styles");
-      handleTextComponentSelected(component);
-
-      const tagName = String(component?.get?.("tagName") || "").toLowerCase();
-      if (["a", "button", "video", "iframe"].includes(tagName)) {
-        setActiveRightPanel("settings");
+      // Keep right sidebar state as-is so selecting components does not shift the canvas.
+      if (!isRightSidebarHiddenRef.current) {
+        const tagName = String(component?.get?.("tagName") || "").toLowerCase();
+        setActiveRightPanel(["a", "button", "video", "iframe"].includes(tagName) ? "settings" : "styles");
       }
+      handleTextComponentSelected(component);
     });
 
     editor.on("component:deselected", handleComponentDeselected);
@@ -2612,47 +2610,52 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               <i className={`fa-solid fa-${device === "desktop" ? "desktop" : device === "tablet" ? "tablet-screen-button" : "mobile-screen-button"}`} />
             </button>
           ))}
-          {hasSelection && (
-            <>
-              <span className="cms-grapes-studio-bar__divider" />
-              <button
-                type="button"
-                className="cms-grapes-studio-btn"
-                title="Duplicate (Ctrl+D)"
-                disabled={!editorReady}
-                onClick={() => runEditorCommand("cms:duplicate")}
-              >
-                <i className="fa-solid fa-clone" />
-              </button>
-              <button
-                type="button"
-                className="cms-grapes-studio-btn"
-                title="Move up"
-                disabled={!editorReady}
-                onClick={() => runEditorCommand("cms:move-up")}
-              >
-                <i className="fa-solid fa-arrow-up" />
-              </button>
-              <button
-                type="button"
-                className="cms-grapes-studio-btn"
-                title="Move down"
-                disabled={!editorReady}
-                onClick={() => runEditorCommand("cms:move-down")}
-              >
-                <i className="fa-solid fa-arrow-down" />
-              </button>
-              <button
-                type="button"
-                className="cms-grapes-studio-btn cms-grapes-studio-btn--danger"
-                title="Delete (Del)"
-                disabled={!editorReady}
-                onClick={() => runEditorCommand("cms:delete")}
-              >
-                <i className="fa-solid fa-trash-can" />
-              </button>
-            </>
-          )}
+          <span
+            className={`cms-grapes-studio-bar__selection-tools${hasSelection ? " is-visible" : ""}`}
+            aria-hidden={!hasSelection}
+          >
+            <span className="cms-grapes-studio-bar__divider" />
+            <button
+              type="button"
+              className="cms-grapes-studio-btn"
+              title="Duplicate (Ctrl+D)"
+              disabled={!editorReady || !hasSelection}
+              tabIndex={hasSelection ? 0 : -1}
+              onClick={() => runEditorCommand("cms:duplicate")}
+            >
+              <i className="fa-solid fa-clone" />
+            </button>
+            <button
+              type="button"
+              className="cms-grapes-studio-btn"
+              title="Move up"
+              disabled={!editorReady || !hasSelection}
+              tabIndex={hasSelection ? 0 : -1}
+              onClick={() => runEditorCommand("cms:move-up")}
+            >
+              <i className="fa-solid fa-arrow-up" />
+            </button>
+            <button
+              type="button"
+              className="cms-grapes-studio-btn"
+              title="Move down"
+              disabled={!editorReady || !hasSelection}
+              tabIndex={hasSelection ? 0 : -1}
+              onClick={() => runEditorCommand("cms:move-down")}
+            >
+              <i className="fa-solid fa-arrow-down" />
+            </button>
+            <button
+              type="button"
+              className="cms-grapes-studio-btn cms-grapes-studio-btn--danger"
+              title="Delete (Del)"
+              disabled={!editorReady || !hasSelection}
+              tabIndex={hasSelection ? 0 : -1}
+              onClick={() => runEditorCommand("cms:delete")}
+            >
+              <i className="fa-solid fa-trash-can" />
+            </button>
+          </span>
         </div>
         <div className="cms-grapes-studio-bar__actions">
           <button
@@ -2722,13 +2725,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         onRteAction={handleDocRteAction}
       />
 
-      {selectionLabel && (
-        <div className="cms-grapes-selection-bar">
-          <i className="fa-solid fa-crosshairs" />
-          <span>{selectionLabel}</span>
-        </div>
-      )}
       <div className="cms-grapes-shell__workspace">
+        <div
+          className={`cms-grapes-selection-bar${selectionLabel ? " is-visible" : ""}`}
+          aria-hidden={!selectionLabel}
+        >
+          <i className="fa-solid fa-crosshairs" />
+          <span>{selectionLabel || "No selection"}</span>
+        </div>
         <aside className={`cms-grapes-sidebar cms-grapes-sidebar--left${isLeftSidebarHidden ? " is-hidden" : ""}`} data-cms-tour="grapes-blocks">
           <div className="cms-grapes-sidebar__toolbar">
             <button
@@ -2770,7 +2774,28 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         </aside>
 
         <div className="cms-grapes-shell__host-wrap" data-cms-tour="grapes-canvas">
+          <button
+            type="button"
+            className="cms-grapes-shell__edge-toggle cms-grapes-shell__edge-toggle--left"
+            onClick={() => setIsLeftSidebarHidden((hidden) => !hidden)}
+            title={isLeftSidebarHidden ? "Show left sidebar" : "Hide left sidebar"}
+            aria-label={isLeftSidebarHidden ? "Show left sidebar" : "Hide left sidebar"}
+          >
+            <span className={`fa ${isLeftSidebarHidden ? "fa-chevron-right" : "fa-chevron-left"}`} aria-hidden="true" />
+          </button>
+
           <div ref={hostRef} className="cms-grapes-shell__host" />
+
+          <button
+            type="button"
+            className="cms-grapes-shell__edge-toggle cms-grapes-shell__edge-toggle--right"
+            onClick={() => setIsRightSidebarHidden((hidden) => !hidden)}
+            title={isRightSidebarHidden ? "Show right sidebar" : "Hide right sidebar"}
+            aria-label={isRightSidebarHidden ? "Show right sidebar" : "Hide right sidebar"}
+          >
+            <span className={`fa ${isRightSidebarHidden ? "fa-chevron-left" : "fa-chevron-right"}`} aria-hidden="true" />
+          </button>
+
           {editorReady && canvasEmpty && (
             <div className="cms-grapes-empty-guide">
               <div className="cms-grapes-empty-guide__card">
@@ -2835,26 +2860,6 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         </aside>
       </div>
 
-      <button
-        type="button"
-        className="cms-grapes-shell__edge-toggle cms-grapes-shell__edge-toggle--left"
-        onClick={() => setIsLeftSidebarHidden((hidden) => !hidden)}
-        title={isLeftSidebarHidden ? "Show left sidebar" : "Hide left sidebar"}
-        aria-label={isLeftSidebarHidden ? "Show left sidebar" : "Hide left sidebar"}
-      >
-        <span className={`fa ${isLeftSidebarHidden ? "fa-chevron-right" : "fa-chevron-left"}`} aria-hidden="true" />
-      </button>
-
-      <button
-        type="button"
-        className="cms-grapes-shell__edge-toggle cms-grapes-shell__edge-toggle--right"
-        onClick={() => setIsRightSidebarHidden((hidden) => !hidden)}
-        title={isRightSidebarHidden ? "Show right sidebar" : "Hide right sidebar"}
-        aria-label={isRightSidebarHidden ? "Show right sidebar" : "Hide right sidebar"}
-      >
-        <span className={`fa ${isRightSidebarHidden ? "fa-chevron-left" : "fa-chevron-right"}`} aria-hidden="true" />
-      </button>
-
       <style jsx global>{`
         .cms-grapes-shell {
           --cms-left-sidebar-width: 320px;
@@ -2912,7 +2917,21 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-studio-bar__actions {
           display: inline-flex;
           align-items: center;
+          flex-wrap: nowrap;
           gap: 4px;
+        }
+
+        .cms-grapes-studio-bar__selection-tools {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          visibility: hidden;
+          pointer-events: none;
+        }
+
+        .cms-grapes-studio-bar__selection-tools.is-visible {
+          visibility: visible;
+          pointer-events: auto;
         }
 
         .cms-grapes-studio-bar__divider {
@@ -2978,10 +2997,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-doc-bar {
           display: flex;
           align-items: center;
+          height: 38px;
           min-height: 38px;
+          max-height: 38px;
           background: #fff;
           border-bottom: 1px solid #e2e8f0;
           flex-shrink: 0;
+          overflow: hidden;
         }
 
         .cms-grapes-doc-bar.is-rte-mode {
@@ -2992,11 +3014,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-doc-bar__menus {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           align-items: center;
           gap: 2px 8px;
           padding: 4px 10px;
           width: 100%;
+          min-height: 0;
+          overflow: hidden;
         }
 
         .cms-grapes-doc-bar__hint {
@@ -3125,15 +3149,32 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-selection-bar {
+          position: absolute;
+          top: 0;
+          left: var(--cms-left-sidebar-width);
+          right: var(--cms-right-sidebar-width);
+          z-index: 25;
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 6px 14px;
-          background: rgba(99, 102, 241, 0.12);
-          border-bottom: 1px solid rgba(99, 102, 241, 0.18);
+          height: 32px;
+          padding: 0 14px;
+          box-sizing: border-box;
+          background: rgba(15, 23, 42, 0.92);
+          border-bottom: 1px solid rgba(99, 102, 241, 0.28);
           color: #c7d2fe;
           font-size: 12px;
           font-weight: 600;
+          opacity: 0;
+          pointer-events: none;
+          transform: translateY(-100%);
+          transition: opacity 120ms ease, transform 120ms ease;
+        }
+
+        .cms-grapes-selection-bar.is-visible {
+          opacity: 1;
+          pointer-events: none;
+          transform: translateY(0);
         }
 
         .cms-grapes-selection-bar i {
@@ -3360,10 +3401,13 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell__workspace {
+          position: relative;
           display: grid;
           grid-template-columns: var(--cms-left-sidebar-width) minmax(0, 1fr) var(--cms-right-sidebar-width);
           height: ${studioHeight}px;
           min-height: 640px;
+          overflow: hidden;
+          isolation: isolate;
         }
 
         .cms-grapes-sidebar {
@@ -3496,44 +3540,45 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           overflow: hidden !important;
         }
 
+        /* Anchored to the canvas host — never repositioned by sidebar/selection layout. */
         .cms-grapes-shell__edge-toggle {
           position: absolute;
-          top: 50%;
+          top: 0;
+          bottom: 0;
           z-index: 40;
           width: 28px;
-          height: 48px;
+          height: 56px;
+          margin-top: auto;
+          margin-bottom: auto;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(148, 163, 184, 0.2);
-          border-radius: 8px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+          border-radius: 10px;
           background: #1e293b;
-          color: #94a3b8;
-          box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
-          transform: translateY(-50%);
-          transition: left 220ms ease, right 220ms ease, border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+          color: #e2e8f0;
+          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
+          transform: none;
+          transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+          pointer-events: auto;
         }
 
         .cms-grapes-shell__edge-toggle:hover {
-          border-color: rgba(129, 140, 248, 0.45);
+          border-color: rgba(129, 140, 248, 0.55);
           background: #334155;
-          color: #e2e8f0;
+          color: #fff;
         }
 
         .cms-grapes-shell__edge-toggle--left {
-          left: calc(var(--cms-left-sidebar-width) - 8px);
+          left: 0;
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
         }
 
         .cms-grapes-shell__edge-toggle--right {
-          right: calc(var(--cms-right-sidebar-width) - 8px);
-        }
-
-        .cms-grapes-shell.cms-grapes-shell--left-hidden .cms-grapes-shell__edge-toggle--left {
-          left: 10px;
-        }
-
-        .cms-grapes-shell.cms-grapes-shell--right-hidden .cms-grapes-shell__edge-toggle--right {
-          right: 10px;
+          right: 0;
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
         }
 
         .cms-grapes-shell .gjs-editor {
@@ -4663,6 +4708,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             display: flex;
             flex-direction: column;
             height: auto;
+            position: relative;
           }
 
           .cms-grapes-sidebar.is-hidden {
@@ -4670,7 +4716,23 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           }
 
           .cms-grapes-shell__edge-toggle {
-            top: 50%;
+            top: 0;
+            bottom: 0;
+            margin-top: auto;
+            margin-bottom: auto;
+            transform: none;
+          }
+
+          .cms-grapes-shell__edge-toggle--left {
+            left: 0;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+          }
+
+          .cms-grapes-shell__edge-toggle--right {
+            right: 0;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
           }
 
           .cms-grapes-sidebar {

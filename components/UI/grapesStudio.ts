@@ -21,15 +21,17 @@ export const cmsStudioCanvasCss = `
 
   body {
     line-height: 1.5;
+    position: relative;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   img, video, iframe {
     max-width: 100%;
   }
 
-  section, header, footer, main {
-    position: relative;
-  }
+  /* Keep structural tags free for Grapes absolute dragMode.
+     Nested widgets (carousels, overlays) set their own position. */
 
   h1, h2, h3, h4, h5, h6 {
     margin: 0 0 0.5em;

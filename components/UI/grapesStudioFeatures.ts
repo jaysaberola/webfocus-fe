@@ -44,6 +44,101 @@ export function isEditorCanvasEmpty(editor: any): boolean {
   }
 }
 
+function resolveDroppedRoot(component: any) {
+  if (!component) return null;
+  if (Array.isArray(component)) return component[0] || null;
+  if (component.models?.length) return component.models[0] || null;
+  return component;
+}
+
+/**
+ * WebWave-style: force a dropped block into the center of the page canvas.
+ * Grapes absolute mode places at the pointer — this overrides that after drop.
+ */
+export function centerComponentOnCanvas(editor: any, component: any) {
+  const root = resolveDroppedRoot(component);
+  if (!editor || !root) return;
+
+  try {
+    const wrapper = editor.getWrapper?.();
+    if (!wrapper) return;
+
+    const parent = root.parent?.();
+    if (parent && parent !== wrapper) {
+      try {
+        root.move?.(wrapper, { at: wrapper.components?.()?.length ?? 0 });
+      } catch {
+        // keep current parent if move is blocked
+      }
+    }
+
+    root.set?.("dmode", "absolute");
+    root.setDragMode?.("absolute");
+
+    const frameEl = editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
+    const body = frameEl?.contentDocument?.body as HTMLElement | undefined;
+    const canvasEl = editor.Canvas?.getElement?.() as HTMLElement | undefined;
+    if (!body) return;
+
+    // Center on the white page (frame body), not the outer editor chrome.
+    const pageWidth = Math.max(body.clientWidth || 0, 960);
+    const viewHeight = Math.max(canvasEl?.clientHeight || 0, 560);
+    const scrollTop = body.ownerDocument?.defaultView?.scrollY || canvasEl?.scrollTop || 0;
+
+    const el = root.getEl?.() as HTMLElement | null | undefined;
+    let width = el?.offsetWidth || 0;
+    let height = el?.offsetHeight || 0;
+
+    if (!width || width > pageWidth * 0.9) {
+      width = Math.min(720, Math.round(pageWidth * 0.7));
+    }
+    if (!height || height < 48) {
+      height = 180;
+    }
+
+    const left = Math.max(0, Math.round((pageWidth - width) / 2));
+    const top = Math.max(32, Math.round(scrollTop + (viewHeight - height) / 2));
+
+    const nextStyle: Record<string, string> = {
+      position: "absolute",
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${width}px`,
+      maxWidth: "100%",
+      margin: "0",
+      transform: "none",
+    };
+
+    if (typeof root.setStyle === "function") {
+      const current = root.getStyle?.() || {};
+      root.setStyle({ ...current, ...nextStyle });
+    }
+    root.addStyle?.(nextStyle);
+
+    if (el) {
+      el.style.setProperty("position", "absolute", "important");
+      el.style.setProperty("left", nextStyle.left, "important");
+      el.style.setProperty("top", nextStyle.top, "important");
+      el.style.setProperty("width", nextStyle.width, "important");
+      el.style.setProperty("max-width", "100%", "important");
+      el.style.setProperty("margin", "0", "important");
+      el.style.setProperty("transform", "none", "important");
+    }
+
+    editor.select?.(root);
+  } catch {
+    // ignore centering errors
+  }
+}
+
+/** Re-apply center several times so Grapes mouse-drop coords cannot win the race. */
+export function scheduleCenterComponentOnCanvas(editor: any, component: any) {
+  if (!editor || !component) return;
+  [0, 16, 48, 100, 200, 350].forEach((ms) => {
+    window.setTimeout(() => centerComponentOnCanvas(editor, component), ms);
+  });
+}
+
 export function filterBlockPanel(root: HTMLElement | null, query: string) {
   if (!root) return;
 
@@ -141,7 +236,13 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
     const content = block.get?.("content");
     if (!content) return;
     const wrapper = editor.getWrapper?.();
-    wrapper?.append?.(content);
+    const added = wrapper?.append?.(content);
+    const models = Array.isArray(added) ? added : added ? [added] : [];
+    models.forEach((model: any) => scheduleCenterComponentOnCanvas(editor, model));
+    if (!models.length) {
+      const last = wrapper?.components?.()?.last?.();
+      if (last) scheduleCenterComponentOnCanvas(editor, last);
+    }
     editor.trigger?.("update");
   };
 
@@ -184,6 +285,7 @@ export function installCanvasInteractionGuards(
   isEditorAlive: () => boolean,
 ) {
   let dragging = false;
+  let blockDragActive = false;
 
   const getCanvasElement = () => editor.Canvas?.getElement?.() as HTMLElement | undefined;
 
@@ -212,10 +314,34 @@ export function installCanvasInteractionGuards(
     pinCanvasScroll();
   };
 
+  const onBlockDragStart = () => {
+    blockDragActive = true;
+    onDragStart();
+  };
+
   const onDragEnd = () => {
     dragging = false;
     shellEl?.classList.remove("cms-grapes-shell--dragging");
     pinCanvasScroll();
+  };
+
+  const centerDropped = (component: any) => {
+    const dropped = resolveDroppedRoot(component) || editor.getSelected?.();
+    if (!dropped) return;
+    scheduleCenterComponentOnCanvas(editor, dropped);
+  };
+
+  const onBlockDragStop = (component: any) => {
+    blockDragActive = false;
+    onDragEnd();
+    centerDropped(component);
+  };
+
+  const onCanvasDrop = (_dataTransfer: unknown, model: any) => {
+    // Absolute-mode block drops land here with mouse coords — force center.
+    if (blockDragActive || model) {
+      centerDropped(model);
+    }
   };
 
   const preventCanvasPan = () => {
@@ -246,8 +372,9 @@ export function installCanvasInteractionGuards(
 
   editor.on("sorter:drag:start", onDragStart);
   editor.on("sorter:drag:end", onDragEnd);
-  editor.on("block:drag:start", onDragStart);
-  editor.on("block:drag:stop", onDragEnd);
+  editor.on("block:drag:start", onBlockDragStart);
+  editor.on("block:drag:stop", onBlockDragStop);
+  editor.on("canvas:drop", onCanvasDrop);
   editor.on("canvas:move", preventCanvasPan);
   editor.on("canvas:move:end", preventCanvasPan);
   editor.on("load", () => {
@@ -260,11 +387,13 @@ export function installCanvasInteractionGuards(
     rememberViewport: () => {},
     cleanup: () => {
       onDragEnd();
+      blockDragActive = false;
       detachCanvasListeners();
       editor.off("sorter:drag:start", onDragStart);
       editor.off("sorter:drag:end", onDragEnd);
-      editor.off("block:drag:start", onDragStart);
-      editor.off("block:drag:stop", onDragEnd);
+      editor.off("block:drag:start", onBlockDragStart);
+      editor.off("block:drag:stop", onBlockDragStop);
+      editor.off("canvas:drop", onCanvasDrop);
       editor.off("canvas:move", preventCanvasPan);
       editor.off("canvas:move:end", preventCanvasPan);
     },
