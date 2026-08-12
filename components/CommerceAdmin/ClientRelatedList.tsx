@@ -1,13 +1,13 @@
 import styles from "@/styles/commerceAdmin.module.css";
 
-export type ClientRelatedSection = "info" | "files" | "address" | "timeline" | "deals";
+export type ClientRelatedSection = "info" | "files" | "address" | "timeline" | "orders";
 
 const RELATED_ITEMS: Array<{ id: ClientRelatedSection; label: string; icon: string }> = [
   { id: "info", label: "Client Information", icon: "fa-solid fa-user" },
   { id: "files", label: "File Attachments", icon: "fa-solid fa-paperclip" },
   { id: "address", label: "Address Information", icon: "fa-solid fa-location-dot" },
   { id: "timeline", label: "Timeline", icon: "fa-solid fa-clock-rotate-left" },
-  { id: "deals", label: "Deals", icon: "fa-solid fa-handshake" },
+  { id: "orders", label: "Orders", icon: "fa-solid fa-receipt" },
 ];
 
 type Props = {

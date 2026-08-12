@@ -16,9 +16,11 @@ import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFil
 import {
   CLIENT_COLUMN_LABELS,
   DEFAULT_CLIENT_COLUMNS,
+  clientAllServiceText,
   clientBillingInCharge,
   clientClassification,
   clientDisplayName,
+  clientDisplayNameWithOrderCount,
   clientDisplayStatus,
   clientIsAssigned,
   clientOwnerName,
@@ -27,7 +29,6 @@ import {
   clientServiceName,
   clientDomain,
   clientSubject,
-  expandClientServiceRows,
   formatClientCreatedTime,
   sortClients,
   type ClientColumnKey,
@@ -165,8 +166,7 @@ export default function CommerceClientsTab(_props: Props) {
   }, []);
 
   const processedRows = useMemo(() => {
-    const expanded = expandClientServiceRows(rows);
-    const filtered = applyTableFilter(expanded, appliedFilter, CLIENT_FILTER_FIELDS, getFilterValue)
+    const filtered = applyTableFilter(rows, appliedFilter, CLIENT_FILTER_FIELDS, getFilterValue)
       .filter((client) =>
         rowMatchesSearch(
           [
@@ -182,6 +182,7 @@ export default function CommerceClientsTab(_props: Props) {
             clientSubject(client),
             clientProductCategory(client),
             clientDomain(client),
+            clientAllServiceText(client),
           ],
           search,
         ),
@@ -202,14 +203,8 @@ export default function CommerceClientsTab(_props: Props) {
 
   const selectedRows = useMemo(() => {
     const ids = new Set(selection.selectedIds);
-    const seen = new Set<string>();
-    return processedRows.filter((row) => {
-      const id = String(row.id);
-      if (!ids.has(id) || seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-  }, [processedRows, selection.selectedIds]);
+    return rows.filter((row) => ids.has(String(row.id)));
+  }, [rows, selection.selectedIds]);
 
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, processedRows.length);
@@ -257,7 +252,7 @@ export default function CommerceClientsTab(_props: Props) {
 
   const navigateToSection = useCallback((section: ClientRelatedSection) => {
     setActiveSection(section);
-    if (section === "deals") {
+    if (section === "orders") {
       scrollToClientSection(dealsRef.current);
       return;
     }
@@ -337,7 +332,7 @@ export default function CommerceClientsTab(_props: Props) {
             <section
               className={`${styles.panel} ${styles.clientEditScrollTarget}`}
               ref={dealsRef}
-              id="client-section-deals"
+              id="client-section-orders"
             >
               <ClientDealsPanel
                 client={editClient}
@@ -551,7 +546,7 @@ export default function CommerceClientsTab(_props: Props) {
                       const classification = clientClassification(client);
                       return (
                         <tr
-                          key={client.rowKey ?? String(client.id)}
+                          key={String(client.id)}
                           className={selection.isSelected(client) ? styles.rowSelected : undefined}
                         >
                           <CommerceSelectRowCell
@@ -566,7 +561,7 @@ export default function CommerceClientsTab(_props: Props) {
                                 className={styles.tableCellLink}
                                 onClick={() => openEdit(client)}
                               >
-                                {clientDisplayName(client)}
+                                {clientDisplayNameWithOrderCount(client)}
                               </button>
                             </td>
                           ) : null}

@@ -115,11 +115,71 @@ export function clientDisplayName(client: CustomerRow) {
   return String(client.company || client.name || "").trim() || "—";
 }
 
+export function clientOrdersCount(client: CustomerRow) {
+  const orders = Number(client.orders_count);
+  if (Number.isFinite(orders) && orders > 0) return orders;
+  return clientServiceLines(client).length;
+}
+
+export function clientDisplayNameWithOrderCount(client: CustomerRow) {
+  const name = clientDisplayName(client);
+  const count = clientOrdersCount(client);
+  return count > 0 ? `${name} (${count})` : name;
+}
+
+function clientServiceLines(client: CustomerRow) {
+  return Array.isArray(client.services) ? client.services.filter(Boolean) : [];
+}
+
+export function clientHasMultipleServices(client: CustomerRow) {
+  return clientServiceLines(client).length > 1;
+}
+
+function primaryClientServiceLine(client: CustomerRow) {
+  const lines = clientServiceLines(client);
+  if (lines.length > 0) return lines[0];
+  return null;
+}
+
+export function clientAllServiceText(client: CustomerRow) {
+  const lines = clientServiceLines(client);
+  if (!lines.length) {
+    return [
+      client.service_name,
+      client.plan_name,
+      client.subject,
+      client.product_category,
+      client.domain,
+    ]
+      .map((value) => String(value ?? "").trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return lines
+    .map((line) =>
+      [line.service_name, line.plan_name, line.subject, line.product_category, line.domain]
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+        .join(" "),
+    )
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function clientServiceName(client: CustomerRow) {
+  if (clientHasMultipleServices(client)) return "Multiple services";
+  const line = primaryClientServiceLine(client);
+  const fromLine = String(line?.service_name ?? "").trim();
+  if (fromLine) return fromLine;
   return String(client.service_name ?? "").trim() || "—";
 }
 
 export function clientPlanName(client: CustomerRow) {
+  if (clientHasMultipleServices(client)) return "—";
+  const line = primaryClientServiceLine(client);
+  const fromLine = String(line?.plan_name ?? "").trim();
+  if (fromLine) return fromLine;
   return String(client.plan_name ?? "").trim() || "—";
 }
 
@@ -135,13 +195,17 @@ function extractDomainLike(text: string): string | null {
 }
 
 export function clientDomain(client: CustomerRow) {
-  const explicit = String(client.domain ?? "").trim();
+  if (clientHasMultipleServices(client)) return "—";
+  const line = primaryClientServiceLine(client);
+  const explicit = String(line?.domain ?? client.domain ?? "").trim();
   if (explicit) return explicit;
   return extractDomainLike(client.subject_domain ?? client.website ?? "") || "—";
 }
 
 export function clientSubject(client: CustomerRow) {
-  const explicit = String(client.subject ?? "").trim();
+  if (clientHasMultipleServices(client)) return "—";
+  const line = primaryClientServiceLine(client);
+  const explicit = String(line?.subject ?? client.subject ?? "").trim();
   if (explicit) return explicit;
 
   const combined = String(client.subject_domain ?? "").trim();
@@ -155,6 +219,10 @@ export function clientSubject(client: CustomerRow) {
 }
 
 export function clientProductCategory(client: CustomerRow) {
+  if (clientHasMultipleServices(client)) return "—";
+  const line = primaryClientServiceLine(client);
+  const fromLine = String(line?.product_category ?? "").trim();
+  if (fromLine) return fromLine;
   return String(client.product_category ?? "").trim() || "—";
 }
 
@@ -289,15 +357,21 @@ export function applyClientAdvancedFilter(rows: CustomerRow[], filter: ClientAdv
       case "name":
         return matchesNeedle(clientDisplayName(row), value);
       case "service":
-        return matchesNeedle(clientServiceName(row), value);
+        return (
+          matchesNeedle(clientServiceName(row), value) ||
+          matchesNeedle(clientAllServiceText(row), value)
+        );
       case "plan":
-        return matchesNeedle(clientPlanName(row), value);
+        return matchesNeedle(clientPlanName(row), value) || matchesNeedle(clientAllServiceText(row), value);
       case "subject":
-        return matchesNeedle(clientSubject(row), value);
+        return matchesNeedle(clientSubject(row), value) || matchesNeedle(clientAllServiceText(row), value);
       case "productCategory":
-        return matchesNeedle(clientProductCategory(row), value);
+        return (
+          matchesNeedle(clientProductCategory(row), value) ||
+          matchesNeedle(clientAllServiceText(row), value)
+        );
       case "domain":
-        return matchesNeedle(clientDomain(row), value);
+        return matchesNeedle(clientDomain(row), value) || matchesNeedle(clientAllServiceText(row), value);
       default:
         return true;
     }

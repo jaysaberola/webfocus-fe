@@ -130,7 +130,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
   const goToSection = useCallback(
     (section: ClientRelatedSection) => {
-      if (section === "deals") return;
+      if (section === "orders") return;
 
       onSectionChange?.(section);
 

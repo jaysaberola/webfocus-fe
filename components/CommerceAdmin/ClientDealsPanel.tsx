@@ -82,7 +82,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     <div className={styles.clientDealsBlock}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Deals</h3>
+          <h3 className={styles.panelTitle}>Orders</h3>
           <p className={styles.panelSubtitle}>Orders and services for this client.</p>
         </div>
         <div className={styles.dealsHeaderActions}>
@@ -90,7 +90,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
             Assign
           </button>
           <button type="button" className={styles.dealsActionBtn} onClick={() => setNewDealOpen(true)}>
-            New Deal
+            New Order
           </button>
           <button type="button" className={styles.dealsActionBtn} onClick={() => onEditClient?.()}>
             Edit
@@ -102,22 +102,22 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
         <table className={`${styles.table} ${styles.dealsTable}`}>
           <thead>
             <tr>
-              <th>Deal Owner</th>
+              <th>Order Owner</th>
               <th>Status</th>
               <th>Subject</th>
               <th>Domain Name</th>
-              <th>Deal Status</th>
+              <th>Order Status</th>
               <th className={styles.dealsAmount}>Amount</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>Loading deals...</td>
+                <td colSpan={6}>Loading orders...</td>
               </tr>
             ) : paginatedDeals.length === 0 ? (
               <tr>
-                <td colSpan={6}>No deals found for this client.</td>
+                <td colSpan={6}>No orders found for this client.</td>
               </tr>
             ) : (
               paginatedDeals.map((deal) => (
@@ -153,7 +153,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
             className={styles.secondaryBtnSm}
             disabled={page <= 1 || dealRows.length === 0}
             onClick={() => setPage((current) => Math.max(1, current - 1))}
-            aria-label="Previous deals page"
+            aria-label="Previous orders page"
           >
             <i className="fa-solid fa-chevron-left" aria-hidden="true" />
           </button>
@@ -165,7 +165,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
             className={styles.secondaryBtnSm}
             disabled={page >= totalPages || dealRows.length === 0}
             onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-            aria-label="Next deals page"
+            aria-label="Next orders page"
           >
             <i className="fa-solid fa-chevron-right" aria-hidden="true" />
           </button>
