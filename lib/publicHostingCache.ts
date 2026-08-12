@@ -1,7 +1,7 @@
 import type { HostingPlanType } from "@/lib/servicesCatalog";
 import type { PublicHostingAddon, PublicHostingPlan } from "@/services/publicHostingService";
 
-export const PUBLIC_HOSTING_CACHE_KEY = "cms4.publicHosting.v1";
+export const PUBLIC_HOSTING_CACHE_KEY = "cms4.publicHosting.v2";
 
 export type PublicHostingCache = {
   plans: Partial<Record<HostingPlanType, PublicHostingPlan[]>>;

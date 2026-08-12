@@ -27,8 +27,12 @@ import styles from "@/styles/services.module.css";
 
 const HOSTING_TYPES: HostingPlanType[] = ["cloud", "shared", "dedicated", "baremetal"];
 
+function sortPlansByPrice(plans: PublicHostingPlan[]) {
+  return [...plans].sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0));
+}
+
 function mapFallbackPlans(type: HostingPlanType): PublicHostingPlan[] {
-  return HOSTING_PLANS.filter((plan) => plan.type === type).map((plan) => ({
+  return sortPlansByPrice(HOSTING_PLANS.filter((plan) => plan.type === type).map((plan) => ({
     id: plan.id,
     slug: plan.id,
     name: plan.name,
@@ -37,7 +41,7 @@ function mapFallbackPlans(type: HostingPlanType): PublicHostingPlan[] {
     billing: plan.billing,
     ram: plan.ram,
     ssd: plan.ssd,
-  }));
+  })));
 }
 
 function mapFallbackAddons(type: HostingPlanType): PublicHostingAddon[] {
@@ -95,7 +99,7 @@ export default function ServicesHostingTab() {
     const cachedTypeAddons = readCachedHostingTypeAddons(hostingType);
     const cachedUniversalAddons = readCachedUniversalHostingAddons();
 
-    setPlans(cachedPlans ?? initialPlans(hostingType));
+    setPlans(sortPlansByPrice(cachedPlans ?? initialPlans(hostingType)));
     setTypeAddons(cachedTypeAddons ?? initialTypeAddons(hostingType));
     setUniversalAddons(cachedUniversalAddons ?? initialUniversalAddons());
 
@@ -109,7 +113,7 @@ export default function ServicesHostingTab() {
 
         if (cancelled) return;
 
-        const nextPlans = planRows.length ? planRows : initialPlans(hostingType);
+        const nextPlans = sortPlansByPrice(planRows.length ? planRows : initialPlans(hostingType));
         const nextTypeAddons = addonRows.length ? addonRows : initialTypeAddons(hostingType);
         const nextUniversalAddons = universalRows.length ? universalRows : initialUniversalAddons();
 
