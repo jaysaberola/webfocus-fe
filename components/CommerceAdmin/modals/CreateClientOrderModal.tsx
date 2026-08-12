@@ -21,9 +21,15 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  defaultCustomerId?: number | null;
 };
 
-export default function CreateClientOrderModal({ open, onClose, onCreated }: Props) {
+export default function CreateClientOrderModal({
+  open,
+  onClose,
+  onCreated,
+  defaultCustomerId = null,
+}: Props) {
   const [clients, setClients] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +61,11 @@ export default function CreateClientOrderModal({ open, onClose, onCreated }: Pro
       })
       .finally(() => setLoading(false));
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (defaultCustomerId) setClientKey(String(defaultCustomerId));
+  }, [open, defaultCustomerId]);
 
   const serviceTypes = useMemo(() => {
     const types = new Set<string>();

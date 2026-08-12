@@ -17,6 +17,10 @@ export type ClientSortKey =
   | "service-desc"
   | "plan-asc"
   | "plan-desc"
+  | "subject-asc"
+  | "subject-desc"
+  | "productCategory-asc"
+  | "productCategory-desc"
   | "domain-asc"
   | "domain-desc";
 
@@ -34,6 +38,7 @@ export type ClientAdvancedFilterField =
   | "service"
   | "plan"
   | "subject"
+  | "productCategory"
   | "domain";
 
 export type ClientAdvancedFilter = {
@@ -56,6 +61,7 @@ export const CLIENT_ADVANCED_FILTER_FIELDS: Array<{
   { id: "service", label: "Service Name" },
   { id: "plan", label: "Plan Name" },
   { id: "subject", label: "Subject" },
+  { id: "productCategory", label: "Product Category" },
   { id: "domain", label: "Domain" },
 ];
 
@@ -66,40 +72,40 @@ export const emptyClientAdvancedFilter: ClientAdvancedFilter = {
 
 export type ClientColumnKey =
   | "name"
-  | "status"
   | "service"
   | "plan"
   | "subject"
+  | "productCategory"
   | "domain"
+  | "billing"
+  | "status"
   | "owner"
   | "created"
-  | "billing"
   | "classification";
 
 export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
   name: "Client Name",
-  status: "Status",
   service: "Service Name",
   plan: "Plan Name",
   subject: "Subject",
+  productCategory: "Product Category",
   domain: "Domain",
+  billing: "Billing-in-Charge",
+  status: "Status",
   owner: "Client Owner",
   created: "Created Time",
-  billing: "Billing-In-Charge",
   classification: "Client Classification",
 };
 
 export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
-  // What users asked to be visible by default in the Clients table.
   name: true,
-  status: true,
   service: true,
-  plan: true,
+  plan: false,
   subject: true,
+  productCategory: true,
   domain: true,
   billing: true,
-
-  // Everything else should be toggled via Column Visibility.
+  status: false,
   owner: false,
   created: false,
   classification: false,
@@ -129,11 +135,16 @@ function extractDomainLike(text: string): string | null {
 }
 
 export function clientDomain(client: CustomerRow) {
+  const explicit = String(client.domain ?? "").trim();
+  if (explicit) return explicit;
   return extractDomainLike(client.subject_domain ?? client.website ?? "") || "—";
 }
 
 export function clientSubject(client: CustomerRow) {
-  const combined = String(client.subject_domain ?? client.website ?? "").trim();
+  const explicit = String(client.subject ?? "").trim();
+  if (explicit) return explicit;
+
+  const combined = String(client.subject_domain ?? "").trim();
   if (!combined) return "—";
 
   const domain = extractDomainLike(combined);
@@ -143,9 +154,46 @@ export function clientSubject(client: CustomerRow) {
   return cleaned || "—";
 }
 
+export function clientProductCategory(client: CustomerRow) {
+  return String(client.product_category ?? "").trim() || "—";
+}
+
 // Backward-compatible helper (used by Excel export / other parts).
 export function clientSubjectDomain(client: CustomerRow) {
+  const subject = clientSubject(client);
+  const domain = clientDomain(client);
+  const parts = [subject !== "—" ? subject : "", domain !== "—" ? domain : ""].filter(Boolean);
+  if (parts.length > 0) return parts.join(" ");
   return String(client.subject_domain ?? client.website ?? "").trim() || "—";
+}
+
+export function expandClientServiceRows(customers: CustomerRow[]): CustomerRow[] {
+  return customers.flatMap((customer) => {
+    const lines = Array.isArray(customer.services) && customer.services.length > 0
+      ? customer.services
+      : [
+          {
+            id: "none",
+            service_name: customer.service_name,
+            plan_name: customer.plan_name,
+            subject: customer.subject,
+            product_category: customer.product_category,
+            domain: customer.domain,
+          },
+        ];
+
+    return lines.map((line, index) => ({
+      ...customer,
+      rowKey: `${customer.id}:${line.id ?? index}`,
+      service_name: line.service_name ?? customer.service_name,
+      plan_name: line.plan_name ?? customer.plan_name,
+      subject: line.subject ?? customer.subject,
+      product_category: line.product_category ?? customer.product_category,
+      domain: line.domain ?? customer.domain,
+      subject_domain:
+        [line.subject, line.domain].filter(Boolean).join(" ") || customer.subject_domain,
+    }));
+  });
 }
 
 export function clientOwnerName(client: CustomerRow) {
@@ -246,6 +294,8 @@ export function applyClientAdvancedFilter(rows: CustomerRow[], filter: ClientAdv
         return matchesNeedle(clientPlanName(row), value);
       case "subject":
         return matchesNeedle(clientSubject(row), value);
+      case "productCategory":
+        return matchesNeedle(clientProductCategory(row), value);
       case "domain":
         return matchesNeedle(clientDomain(row), value);
       default:
@@ -264,6 +314,7 @@ export function uniqueClientFilterValues(
     field === "service" ||
     field === "plan" ||
     field === "subject" ||
+    field === "productCategory" ||
     field === "domain"
   ) {
     return [];
@@ -344,6 +395,14 @@ export function sortClients(rows: CustomerRow[], sortBy: ClientSortKey) {
         return compareStrings(clientPlanName(a), clientPlanName(b), "asc");
       case "plan-desc":
         return compareStrings(clientPlanName(a), clientPlanName(b), "desc");
+      case "subject-asc":
+        return compareStrings(clientSubject(a), clientSubject(b), "asc");
+      case "subject-desc":
+        return compareStrings(clientSubject(a), clientSubject(b), "desc");
+      case "productCategory-asc":
+        return compareStrings(clientProductCategory(a), clientProductCategory(b), "asc");
+      case "productCategory-desc":
+        return compareStrings(clientProductCategory(a), clientProductCategory(b), "desc");
       case "domain-asc":
         return compareStrings(clientDomain(a), clientDomain(b), "asc");
       case "domain-desc":

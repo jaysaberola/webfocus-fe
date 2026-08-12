@@ -59,6 +59,19 @@ export type ClientCrmAccountPayload = {
   gen_info_sheet?: File | null;
 };
 
+export type CustomerServiceLine = {
+  id?: number | string;
+  title?: string | null;
+  category?: string | null;
+  plan?: string | null;
+  status?: string | null;
+  service_name?: string | null;
+  plan_name?: string | null;
+  subject?: string | null;
+  product_category?: string | null;
+  domain?: string | null;
+};
+
 export type CustomerRow = UserRow & {
   active_services_count?: number;
   company?: string;
@@ -77,7 +90,12 @@ export type CustomerRow = UserRow & {
   website?: string | null;
   service_name?: string | null;
   plan_name?: string | null;
+  subject?: string | null;
+  product_category?: string | null;
+  domain?: string | null;
   subject_domain?: string | null;
+  services?: CustomerServiceLine[];
+  rowKey?: string;
 };
 
 export const createCustomer = async (payload: CreateCustomerPayload) => {

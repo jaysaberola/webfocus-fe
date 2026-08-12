@@ -6,6 +6,7 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
+import ClientDealsPanel from "@/components/CommerceAdmin/ClientDealsPanel";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import ConfirmModal from "@/components/UI/ConfirmModal";
@@ -20,9 +21,11 @@ import {
   clientIsAssigned,
   clientOwnerName,
   clientPlanName,
+  clientProductCategory,
   clientServiceName,
   clientDomain,
   clientSubject,
+  expandClientServiceRows,
   formatClientCreatedTime,
   sortClients,
   type ClientColumnKey,
@@ -65,6 +68,7 @@ const CLIENT_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "service", label: "Service Name", mode: "contains" },
   { id: "plan", label: "Plan Name", mode: "contains" },
   { id: "subject", label: "Subject", mode: "contains" },
+  { id: "productCategory", label: "Product Category", mode: "contains" },
   { id: "domain", label: "Domain", mode: "contains" },
 ];
 
@@ -95,6 +99,7 @@ export default function CommerceClientsTab(_props: Props) {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
+  const editFormRef = useRef<HTMLElement | null>(null);
 
   const getFilterValue = useCallback((client: CustomerRow, fieldId: string) => {
     switch (fieldId) {
@@ -118,6 +123,8 @@ export default function CommerceClientsTab(_props: Props) {
         return clientPlanName(client);
       case "subject":
         return clientSubject(client);
+      case "productCategory":
+        return clientProductCategory(client);
       case "domain":
         return clientDomain(client);
       default:
@@ -152,7 +159,8 @@ export default function CommerceClientsTab(_props: Props) {
   }, []);
 
   const processedRows = useMemo(() => {
-    const filtered = applyTableFilter(rows, appliedFilter, CLIENT_FILTER_FIELDS, getFilterValue)
+    const expanded = expandClientServiceRows(rows);
+    const filtered = applyTableFilter(expanded, appliedFilter, CLIENT_FILTER_FIELDS, getFilterValue)
       .filter((client) =>
         rowMatchesSearch(
           [
@@ -166,6 +174,7 @@ export default function CommerceClientsTab(_props: Props) {
             clientServiceName(client),
             clientPlanName(client),
             clientSubject(client),
+            clientProductCategory(client),
             clientDomain(client),
           ],
           search,
@@ -187,7 +196,13 @@ export default function CommerceClientsTab(_props: Props) {
 
   const selectedRows = useMemo(() => {
     const ids = new Set(selection.selectedIds);
-    return processedRows.filter((row) => ids.has(String(row.id)));
+    const seen = new Set<string>();
+    return processedRows.filter((row) => {
+      const id = String(row.id);
+      if (!ids.has(id) || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
   }, [processedRows, selection.selectedIds]);
 
   const rangeStart = processedRows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
@@ -226,8 +241,9 @@ export default function CommerceClientsTab(_props: Props) {
   };
 
   const openEdit = (client: CustomerRow) => {
+    const source = rows.find((row) => row.id === client.id) ?? client;
     setDetailClient(null);
-    setEditClient(client);
+    setEditClient(source);
     setView("edit");
   };
 
@@ -265,14 +281,50 @@ export default function CommerceClientsTab(_props: Props) {
 
   if (view === "create" || view === "edit") {
     return (
-      <section className={styles.panel}>
-        <ClientCrmForm
-          mode={view === "edit" ? "edit" : "create"}
-          client={view === "edit" ? editClient : null}
-          onBack={backToList}
-          onSaved={loadRows}
-        />
-      </section>
+      <div className={styles.clientEditLayout}>
+        <section className={styles.panel} ref={editFormRef}>
+          <ClientCrmForm
+            mode={view === "edit" ? "edit" : "create"}
+            client={view === "edit" ? editClient : null}
+            onBack={backToList}
+            onSaved={loadRows}
+          />
+        </section>
+        {view === "edit" && editClient?.id ? (
+          <section className={styles.panel}>
+            <ClientDealsPanel
+              client={editClient}
+              onEditClient={() => {
+                editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+              onClientUpdated={(payload) => {
+                setEditClient((current) =>
+                  current && current.id === payload.id
+                    ? {
+                        ...current,
+                        owner_id: payload.owner_id,
+                        owner: payload.owner,
+                        owner_name: payload.owner_name,
+                      }
+                    : current,
+                );
+                setRows((current) =>
+                  current.map((row) =>
+                    row.id === payload.id
+                      ? {
+                          ...row,
+                          owner_id: payload.owner_id,
+                          owner: payload.owner,
+                          owner_name: payload.owner_name,
+                        }
+                      : row,
+                  ),
+                );
+              }}
+            />
+          </section>
+        ) : null}
+      </div>
     );
   }
 
@@ -391,16 +443,24 @@ export default function CommerceClientsTab(_props: Props) {
             sortControl={
               <select
                 className={styles.selectInline}
-                value={
-                  sortBy === "name-asc" || sortBy === "name-desc" || sortBy === "newest" || sortBy === "oldest"
-                    ? sortBy
-                    : "name-asc"
-                }
+                value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as ClientSortKey)}
                 aria-label="Sort clients"
               >
                 <option value="name-asc">Client Name (A - Z)</option>
                 <option value="name-desc">Client Name (Z - A)</option>
+                <option value="service-asc">Service Name (A - Z)</option>
+                <option value="service-desc">Service Name (Z - A)</option>
+                <option value="plan-asc">Plan Name (A - Z)</option>
+                <option value="plan-desc">Plan Name (Z - A)</option>
+                <option value="subject-asc">Subject (A - Z)</option>
+                <option value="subject-desc">Subject (Z - A)</option>
+                <option value="productCategory-asc">Product Category (A - Z)</option>
+                <option value="productCategory-desc">Product Category (Z - A)</option>
+                <option value="domain-asc">Domain (A - Z)</option>
+                <option value="domain-desc">Domain (Z - A)</option>
+                <option value="billing-asc">Billing-in-Charge (A - Z)</option>
+                <option value="billing-desc">Billing-in-Charge (Z - A)</option>
                 <option value="newest">Newest Created</option>
                 <option value="oldest">Oldest Created</option>
               </select>
@@ -425,11 +485,12 @@ export default function CommerceClientsTab(_props: Props) {
                     {columnsVisible.name ? renderSortableHead("name") : null}
                     {columnsVisible.service ? renderSortableHead("service") : null}
                     {columnsVisible.plan ? renderSortableHead("plan") : null}
-                    {columnsVisible.subject ? <th>Subject</th> : null}
+                    {columnsVisible.subject ? renderSortableHead("subject") : null}
+                    {columnsVisible.productCategory ? renderSortableHead("productCategory") : null}
                     {columnsVisible.domain ? renderSortableHead("domain") : null}
+                    {columnsVisible.billing ? renderSortableHead("billing") : null}
                     {columnsVisible.owner ? renderSortableHead("owner") : null}
                     {columnsVisible.created ? renderSortableHead("created") : null}
-                    {columnsVisible.billing ? renderSortableHead("billing") : null}
                     {columnsVisible.status ? renderSortableHead("status") : null}
                     {columnsVisible.classification ? renderSortableHead("classification") : null}
                   </tr>
@@ -444,7 +505,7 @@ export default function CommerceClientsTab(_props: Props) {
                       const classification = clientClassification(client);
                       return (
                         <tr
-                          key={client.id}
+                          key={client.rowKey ?? String(client.id)}
                           className={selection.isSelected(client) ? styles.rowSelected : undefined}
                         >
                           <CommerceSelectRowCell
@@ -466,7 +527,11 @@ export default function CommerceClientsTab(_props: Props) {
                           {columnsVisible.service ? <td>{clientServiceName(client)}</td> : null}
                           {columnsVisible.plan ? <td>{clientPlanName(client)}</td> : null}
                           {columnsVisible.subject ? <td>{clientSubject(client)}</td> : null}
+                          {columnsVisible.productCategory ? <td>{clientProductCategory(client)}</td> : null}
                           {columnsVisible.domain ? <td>{clientDomain(client)}</td> : null}
+                          {columnsVisible.billing ? (
+                            <td>{clientBillingInCharge(client)}</td>
+                          ) : null}
                           {columnsVisible.owner ? (
                             <td>
                               <button
@@ -485,9 +550,6 @@ export default function CommerceClientsTab(_props: Props) {
                           ) : null}
                           {columnsVisible.created ? (
                             <td>{formatClientCreatedTime(client)}</td>
-                          ) : null}
-                          {columnsVisible.billing ? (
-                            <td>{clientBillingInCharge(client)}</td>
                           ) : null}
                           {columnsVisible.status ? (
                             <td>

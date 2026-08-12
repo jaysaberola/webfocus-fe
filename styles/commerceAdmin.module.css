@@ -4126,4 +4126,88 @@
   cursor: not-allowed;
 }
 
+.rowDealOpen {
+  background: #eff6ff !important;
+}
+
+.clientEditLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.clientDealsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.clientDealsBlock .panelHeader {
+  margin-bottom: 0.25rem;
+  align-items: flex-start;
+}
+
+.dealsHeaderActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dealsActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ca-control-height);
+  padding: 0 0.9rem;
+  border: 1px solid #93c5fd;
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  color: #1d4ed8;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dealsActionBtn:hover {
+  background: #eff6ff;
+}
+
+.dealsTable {
+  min-width: 760px;
+}
+
+.dealsTable th {
+  background: #eef2ff;
+  color: #334155;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  padding: 0.85rem 0.75rem;
+  white-space: nowrap;
+}
+
+.dealsTable td {
+  padding: 0.9rem 0.75rem;
+}
+
+.dealsTable tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.dealsNowrap {
+  white-space: nowrap;
+}
+
+.dealsSubject {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.dealsAmount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 
