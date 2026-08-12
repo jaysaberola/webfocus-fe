@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import {
   CLIENT_CLASSIFICATION_OPTIONS,
   CLIENT_CURRENCY_OPTIONS,
@@ -21,6 +21,10 @@ import {
   updateCustomerCrmAccount,
   type CustomerRow,
 } from "@/services/customerService";
+import ClientTimeline, { type ClientAuditEntry } from "@/components/CommerceAdmin/ClientTimeline";
+import type { ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
+import { scrollToClientSectionById } from "@/lib/commerceAdmin/clientScrollHelpers";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -29,6 +33,19 @@ type Props = {
   client?: CustomerRow | null;
   onBack: () => void;
   onSaved: () => void;
+  onSectionChange?: (section: ClientRelatedSection) => void;
+};
+
+type ClientTab = "overview" | "timeline";
+
+export type ClientCrmFormHandle = {
+  goToSection: (section: ClientRelatedSection) => void;
+};
+
+const OVERVIEW_SECTION_IDS: Partial<Record<ClientRelatedSection, string>> = {
+  info: "client-section-info",
+  files: "client-section-files",
+  address: "client-section-address",
 };
 
 function Field({
@@ -46,41 +63,97 @@ function Field({
   );
 }
 
+function fileLabelFromPath(path?: string | null) {
+  if (!path) return null;
+  const parts = String(path).replace(/\\/g, "/").split("/");
+  return parts[parts.length - 1] || path;
+}
+
 function FileField({
   label,
   value,
   existingPath,
+  existingUrl,
   onChange,
 }: {
   label: string;
   value: File | null;
   existingPath?: string | null;
+  existingUrl?: string | null;
   onChange: (file: File | null) => void;
 }) {
+  const viewUrl = resolveStorageAssetUrl(existingUrl || existingPath);
+  const existingName = fileLabelFromPath(existingPath);
+
   return (
     <Field label={label}>
-      <div>
+      <div className={styles.clientCrmFileBlock}>
         <input
           className={styles.clientCrmInput}
           type="file"
           onChange={(e) => onChange(e.target.files?.[0] ?? null)}
         />
         {value ? (
-          <span className={styles.clientCrmFileHint}>{value.name}</span>
-        ) : existingPath ? (
-          <span className={styles.clientCrmFileHint}>Current file on file</span>
-        ) : null}
+          <span className={styles.clientCrmFileHint}>Selected: {value.name}</span>
+        ) : existingName || viewUrl ? (
+          <div className={styles.clientCrmFileView}>
+            <span className={styles.clientCrmFileHint}>
+              Uploaded: {existingName || "file on record"}
+            </span>
+            {viewUrl ? (
+              <a className={styles.clientCrmFileLink} href={viewUrl} target="_blank" rel="noreferrer">
+                View / Download
+              </a>
+            ) : null}
+          </div>
+        ) : (
+          <span className={styles.clientCrmFileHint}>No file uploaded</span>
+        )}
       </div>
     </Field>
   );
 }
 
-export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) {
+const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmForm(
+  { mode, client, onBack, onSaved, onSectionChange },
+  ref,
+) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
   const [loading, setLoading] = useState(mode === "edit");
   const [submitting, setSubmitting] = useState(false);
   const [existingFiles, setExistingFiles] = useState<Record<string, string | null>>({});
+  const [existingFileUrls, setExistingFileUrls] = useState<Record<string, string | null>>({});
+  const [audits, setAudits] = useState<ClientAuditEntry[]>([]);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ClientTab>("overview");
+
+  const goToSection = useCallback(
+    (section: ClientRelatedSection) => {
+      if (section === "deals") return;
+
+      onSectionChange?.(section);
+
+      if (section === "timeline") {
+        setActiveTab("timeline");
+        requestAnimationFrame(() => {
+          scrollToClientSectionById("client-section-timeline");
+        });
+        return;
+      }
+
+      setActiveTab("overview");
+      const sectionId = OVERVIEW_SECTION_IDS[section];
+      if (sectionId) {
+        requestAnimationFrame(() => {
+          scrollToClientSectionById(sectionId);
+        });
+      }
+    },
+    [onSectionChange],
+  );
+
+  useImperativeHandle(ref, () => ({ goToSection }), [goToSection]);
 
   useEffect(() => {
     fetchCommerceAssignableUsers()
@@ -92,6 +165,10 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
     if (mode !== "edit" || !client?.id) {
       setForm(emptyClientCrmForm);
       setExistingFiles({});
+      setExistingFileUrls({});
+      setAudits([]);
+      setCreatedAt(null);
+      setActiveTab("overview");
       setLoading(false);
       return;
     }
@@ -141,6 +218,15 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
           valid_id_signatories: detail?.valid_id_signatories ?? null,
           gen_info_sheet: detail?.gen_info_sheet ?? null,
         });
+        setExistingFileUrls({
+          bir_certificate: detail?.bir_certificate_url ?? null,
+          business_permit: detail?.business_permit_url ?? null,
+          sec_dti_registration: detail?.sec_dti_registration_url ?? null,
+          valid_id_signatories: detail?.valid_id_signatories_url ?? null,
+          gen_info_sheet: detail?.gen_info_sheet_url ?? null,
+        });
+        setAudits(Array.isArray(detail?.audits) ? detail.audits : []);
+        setCreatedAt(detail?.created_at ?? client.created_at ?? null);
       })
       .catch(() => {
         toast.error("Failed to load client details.");
@@ -150,6 +236,7 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
           email: client.email ?? "",
           owner_id: client.owner_id ?? null,
         });
+        setAudits([]);
       })
       .finally(() => setLoading(false));
   }, [mode, client]);
@@ -230,6 +317,7 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
       if (andNew) {
         setForm(emptyClientCrmForm);
         setExistingFiles({});
+        setExistingFileUrls({});
       } else {
         onBack();
       }
@@ -274,18 +362,59 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
               Save and New
             </button>
           ) : null}
-          <button
-            type="button"
-            className={styles.primaryBtnSm}
-            onClick={() => void save(false)}
-            disabled={submitting}
-          >
-            {submitting ? "Saving..." : "Save"}
-          </button>
+          {activeTab === "overview" ? (
+            <button
+              type="button"
+              className={styles.primaryBtnSm}
+              onClick={() => void save(false)}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Save"}
+            </button>
+          ) : null}
         </div>
       </div>
 
-      <section className={styles.clientCrmSection}>
+      {mode === "edit" ? (
+        <div className={styles.clientCrmTabs} role="tablist" aria-label="Client sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "overview"}
+            className={`${styles.clientCrmTab}${activeTab === "overview" ? ` ${styles.clientCrmTabActive}` : ""}`}
+            onClick={() => {
+              setActiveTab("overview");
+              onSectionChange?.("info");
+            }}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "timeline"}
+            className={`${styles.clientCrmTab}${activeTab === "timeline" ? ` ${styles.clientCrmTabActive}` : ""}`}
+            onClick={() => {
+              setActiveTab("timeline");
+              onSectionChange?.("timeline");
+            }}
+          >
+            Timeline
+          </button>
+        </div>
+      ) : null}
+
+      {activeTab === "timeline" && mode === "edit" ? (
+        <div id="client-section-timeline" className={styles.clientEditScrollTarget}>
+          <ClientTimeline
+            audits={audits}
+            createdAt={createdAt}
+            clientName={form.company || client?.company || client?.name || null}
+          />
+        </div>
+      ) : (
+        <>
+      <section id="client-section-info" className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>Client Information</h4>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
@@ -498,7 +627,7 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
         </div>
       </section>
 
-      <section className={styles.clientCrmSection}>
+      <section id="client-section-files" className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>File Attachments</h4>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
@@ -506,18 +635,21 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
               label="BIR Certificate of Registration"
               value={form.bir_certificate}
               existingPath={existingFiles.bir_certificate}
+              existingUrl={existingFileUrls.bir_certificate}
               onChange={(file) => setField("bir_certificate", file)}
             />
             <FileField
               label="Business Permit"
               value={form.business_permit}
               existingPath={existingFiles.business_permit}
+              existingUrl={existingFileUrls.business_permit}
               onChange={(file) => setField("business_permit", file)}
             />
             <FileField
               label="SEC/DTI Registration"
               value={form.sec_dti_registration}
               existingPath={existingFiles.sec_dti_registration}
+              existingUrl={existingFileUrls.sec_dti_registration}
               onChange={(file) => setField("sec_dti_registration", file)}
             />
           </div>
@@ -526,19 +658,21 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
               label="Valid ID of Signatories"
               value={form.valid_id_signatories}
               existingPath={existingFiles.valid_id_signatories}
+              existingUrl={existingFileUrls.valid_id_signatories}
               onChange={(file) => setField("valid_id_signatories", file)}
             />
             <FileField
               label="Gen. Info and Customer Info Sheet"
               value={form.gen_info_sheet}
               existingPath={existingFiles.gen_info_sheet}
+              existingUrl={existingFileUrls.gen_info_sheet}
               onChange={(file) => setField("gen_info_sheet", file)}
             />
           </div>
         </div>
       </section>
 
-      <section className={styles.clientCrmSection}>
+      <section id="client-section-address" className={styles.clientCrmSection}>
         <div className={styles.clientCrmSectionHead}>
           <h4 className={styles.clientCrmSectionTitle}>Address Information</h4>
           <button type="button" className={styles.clientCrmCopyBtn} onClick={copyBillingToShipping}>
@@ -622,6 +756,10 @@ export default function ClientCrmForm({ mode, client, onBack, onSaved }: Props) 
           </div>
         </div>
       </section>
+        </>
+      )}
     </div>
   );
-}
+});
+
+export default ClientCrmForm;

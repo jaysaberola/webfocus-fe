@@ -3744,6 +3744,11 @@
   flex-direction: column;
   gap: 0.9rem;
   padding: 0.25rem 0 0.5rem;
+  scroll-margin-top: calc(80px + 1rem);
+}
+
+.clientEditScrollTarget {
+  scroll-margin-top: calc(80px + 1rem);
 }
 
 .clientCrmSectionHead {
@@ -3798,18 +3803,23 @@
 .clientCrmInput {
   width: 100%;
   min-height: var(--ca-control-height);
-  height: var(--ca-control-height);
-  padding: 0.55rem 0.7rem;
+  padding: 0.5rem 0.7rem;
   border: 1px solid var(--ca-slate-200) !important;
   border-radius: 0.35rem;
   background: #fff !important;
   font: inherit;
   font-size: var(--ca-text-sm);
   font-weight: 600;
+  line-height: 1.4;
   color: var(--ca-slate-900) !important;
   box-sizing: border-box;
   box-shadow: none;
   outline: none;
+}
+
+select.clientCrmInput {
+  padding-right: 1.85rem;
+  appearance: auto;
 }
 
 .clientCrmInput:focus {
@@ -3830,6 +3840,164 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--ca-slate-400);
+}
+
+.clientCrmFileBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.clientCrmFileView {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.clientCrmFileLink {
+  display: inline-flex;
+  align-items: center;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.clientCrmFileLink:hover {
+  text-decoration: underline;
+}
+
+.clientCrmTabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 999px;
+  background: #f8fafc;
+  width: fit-content;
+}
+
+.clientCrmTab,
+.clientCrmTabActive {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clientCrmTabActive {
+  background: #fff;
+  color: #4f46e5;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.clientTimeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.35rem;
+}
+
+.clientTimelineHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.clientTimelineList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.clientTimelineItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.clientTimelineDate {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.clientTimelineRow {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.clientTimelineRail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.clientTimelineRail::before {
+  content: "";
+  position: absolute;
+  top: 1.75rem;
+  bottom: -1.1rem;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.clientTimelineItem:last-child .clientTimelineRail::before {
+  display: none;
+}
+
+.clientTimelineDot {
+  z-index: 1;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  font-size: 0.7rem;
+}
+
+.clientTimelineCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.85rem;
+  background: #fff;
+  padding: 0.85rem 1rem;
+}
+
+.clientTimelineMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.clientTimelineBody {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: var(--ca-text-sm);
+}
+
+.clientTimelineBody p {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .clientCrmCopyBtn {
@@ -4134,6 +4302,177 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-width: 0;
+}
+
+.clientEditShell {
+  display: grid;
+  grid-template-columns: minmax(11rem, 13.5rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.clientEditShellExpanded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 960px) {
+  .clientEditShell {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clientRelatedListWrap {
+  position: sticky;
+  top: calc(80px + 1rem);
+  z-index: 5;
+  align-self: start;
+}
+
+.clientRelatedList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  box-shadow: var(--ca-shadow-sm);
+}
+
+.clientRelatedListTitle {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ca-slate-500);
+}
+
+.clientRelatedListTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0 0.35rem 0.55rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+}
+
+.clientRelatedListTitleRow .clientRelatedListTitle {
+  padding: 0;
+  border-bottom: none;
+}
+
+.clientRelatedListHideBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.35rem;
+  background: #fff;
+  color: var(--ca-slate-500);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.clientRelatedListHideBtn:hover {
+  background: var(--ca-slate-50);
+  color: var(--ca-blue);
+  border-color: #93c5fd;
+}
+
+.clientRelatedListShowBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  min-height: var(--ca-control-height);
+  padding: 0 0.85rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  color: var(--ca-slate-700);
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--ca-shadow-sm);
+}
+
+.clientRelatedListShowBtn:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+}
+
+.clientRelatedListItems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.clientRelatedListBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--ca-slate-700);
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clientRelatedListBtn i {
+  width: 1rem;
+  color: var(--ca-slate-400);
+  font-size: 0.85rem;
+}
+
+.clientRelatedListBtn:hover {
+  background: var(--ca-slate-50);
+  color: var(--ca-blue);
+}
+
+.clientRelatedListBtn:hover i {
+  color: var(--ca-blue);
+}
+
+.clientRelatedListBtnActive {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.clientRelatedListBtnActive i {
+  color: #1d4ed8;
+}
+
+@media (max-width: 960px) {
+  .clientRelatedListWrap {
+    position: static;
+  }
+
+  .clientRelatedListItems {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .clientRelatedListBtn {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: fit-content;
+  }
 }
 
 .clientDealsBlock {

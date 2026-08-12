@@ -5,8 +5,10 @@ import {
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
-import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
+import ClientCrmForm, { type ClientCrmFormHandle } from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientDealsPanel from "@/components/CommerceAdmin/ClientDealsPanel";
+import ClientRelatedList, { type ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
+import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import ConfirmModal from "@/components/UI/ConfirmModal";
@@ -100,6 +102,10 @@ export default function CommerceClientsTab(_props: Props) {
   const [exporting, setExporting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const editFormRef = useRef<HTMLElement | null>(null);
+  const formRef = useRef<ClientCrmFormHandle>(null);
+  const dealsRef = useRef<HTMLElement | null>(null);
+  const [activeSection, setActiveSection] = useState<ClientRelatedSection>("info");
+  const [relatedListVisible, setRelatedListVisible] = useState(true);
 
   const getFilterValue = useCallback((client: CustomerRow, fieldId: string) => {
     switch (fieldId) {
@@ -244,8 +250,19 @@ export default function CommerceClientsTab(_props: Props) {
     const source = rows.find((row) => row.id === client.id) ?? client;
     setDetailClient(null);
     setEditClient(source);
+    setActiveSection("info");
+    setRelatedListVisible(true);
     setView("edit");
   };
+
+  const navigateToSection = useCallback((section: ClientRelatedSection) => {
+    setActiveSection(section);
+    if (section === "deals") {
+      scrollToClientSection(dealsRef.current);
+      return;
+    }
+    formRef.current?.goToSection(section);
+  }, []);
 
   const backToList = () => {
     setView("list");
@@ -281,22 +298,50 @@ export default function CommerceClientsTab(_props: Props) {
 
   if (view === "create" || view === "edit") {
     return (
-      <div className={styles.clientEditLayout}>
-        <section className={styles.panel} ref={editFormRef}>
-          <ClientCrmForm
-            mode={view === "edit" ? "edit" : "create"}
-            client={view === "edit" ? editClient : null}
-            onBack={backToList}
-            onSaved={loadRows}
+      <div
+        className={
+          view === "edit"
+            ? `${styles.clientEditShell}${relatedListVisible ? "" : ` ${styles.clientEditShellExpanded}`}`
+            : undefined
+        }
+      >
+        {view === "edit" && relatedListVisible ? (
+          <ClientRelatedList
+            activeSection={activeSection}
+            onNavigate={navigateToSection}
+            onHide={() => setRelatedListVisible(false)}
           />
-        </section>
-        {view === "edit" && editClient?.id ? (
-          <section className={styles.panel}>
-            <ClientDealsPanel
-              client={editClient}
-              onEditClient={() => {
-                editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
+        ) : null}
+        <div className={styles.clientEditLayout}>
+          {view === "edit" && !relatedListVisible ? (
+            <button
+              type="button"
+              className={styles.clientRelatedListShowBtn}
+              onClick={() => setRelatedListVisible(true)}
+            >
+              <i className="fa-solid fa-list" aria-hidden="true" />
+              Show Related List
+            </button>
+          ) : null}
+          <section className={styles.panel} ref={editFormRef}>
+            <ClientCrmForm
+              ref={view === "edit" ? formRef : undefined}
+              mode={view === "edit" ? "edit" : "create"}
+              client={view === "edit" ? editClient : null}
+              onBack={backToList}
+              onSaved={loadRows}
+              onSectionChange={view === "edit" ? setActiveSection : undefined}
+            />
+          </section>
+          {view === "edit" && editClient?.id ? (
+            <section
+              className={`${styles.panel} ${styles.clientEditScrollTarget}`}
+              ref={dealsRef}
+              id="client-section-deals"
+            >
+              <ClientDealsPanel
+                client={editClient}
+                onEditClient={() => navigateToSection("info")}
               onClientUpdated={(payload) => {
                 setEditClient((current) =>
                   current && current.id === payload.id
@@ -324,6 +369,7 @@ export default function CommerceClientsTab(_props: Props) {
             />
           </section>
         ) : null}
+        </div>
       </div>
     );
   }
