@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getWebDesignPackageById,
   type TemplateGroup,
@@ -43,6 +43,8 @@ export default function TemplatePreviewModal({
 }: TemplatePreviewModalProps) {
   const [viewport, setViewport] = useState("desktop" as PreviewViewport);
   const [frameLoading, setFrameLoading] = useState(true);
+  const [frameScale, setFrameScale] = useState(1);
+  const stageRef = useRef<HTMLDivElement>(null);
   const packageInfo = template ? getWebDesignPackageById(template.packageId) : undefined;
 
   useEffect(() => {
@@ -68,7 +70,24 @@ export default function TemplatePreviewModal({
 
   useEffect(() => {
     setFrameLoading(true);
-  }, [template?.previewUrl]);
+  }, [template?.previewUrl, viewport]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const designWidth = viewport === "desktop" ? 1440 : viewport === "tablet" ? 834 : 390;
+
+    const update = () => {
+      const width = stage.clientWidth || designWidth;
+      setFrameScale(Math.min(1, width / designWidth));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [open, viewport, template?.id]);
 
   useEffect(() => {
     if (!open || !group || !template) return;
@@ -86,8 +105,7 @@ export default function TemplatePreviewModal({
   const templateIndex = group.templates.findIndex((item) => item.id === template.id);
   const showNavigation = Boolean(onNavigate && group.templates.length > 1);
 
-  const viewportWidth =
-    viewport === "desktop" ? "100%" : viewport === "tablet" ? "834px" : "390px";
+  const designWidth = viewport === "desktop" ? 1440 : viewport === "tablet" ? 834 : 390;
 
   const handleOpenNewTab = () => {
     openCanvas7TemplatePreview(template.previewUrl);
@@ -168,37 +186,58 @@ export default function TemplatePreviewModal({
 
         <div className={styles.templatePreviewFrameWrap}>
           <div
-            key={template.id}
-            className={`${styles.templatePreviewFrameShell} ${templateSlideClass(styles, slideDirection)}`}
-            style={{ width: viewportWidth }}
+            key={`${template.id}-${viewport}`}
+            ref={stageRef}
+            className={`${styles.templatePreviewFrameShell} ${
+              viewport === "tablet"
+                ? styles.templatePreviewFrameShellTablet
+                : viewport === "mobile"
+                  ? styles.templatePreviewFrameShellMobile
+                  : styles.templatePreviewFrameShellDesktop
+            } ${templateSlideClass(styles, slideDirection)}`}
           >
-            {frameLoading ? (
-              <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
-                {template.image ? (
-                  <img
-                    src={template.image}
-                    alt=""
-                    className={styles.templatePreviewPoster}
-                    width={400}
-                    height={260}
-                    decoding="async"
-                  />
-                ) : null}
-                <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
-                <span>Loading live preview…</span>
-              </div>
-            ) : null}
-            <iframe
-              key={template.previewUrl}
-              title={`${template.label} Canvas 7 preview`}
-              className={`${styles.templatePreviewFrame} ${
-                frameLoading ? styles.templatePreviewFrameHidden : ""
-              }`}
-              src={template.previewUrl}
-              loading="eager"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-              onLoad={() => setFrameLoading(false)}
-            />
+            <div className={styles.templatePreviewChrome} aria-hidden="true">
+              <span className={styles.templatePreviewChromeDots}>
+                <i />
+                <i />
+                <i />
+              </span>
+              <span className={styles.templatePreviewChromeUrl}>{template.label}</span>
+            </div>
+            <div className={styles.templatePreviewStage}>
+              {frameLoading ? (
+                <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
+                  {template.image ? (
+                    <img
+                      src={template.image}
+                      alt=""
+                      className={styles.templatePreviewPoster}
+                      width={1200}
+                      height={780}
+                      decoding="async"
+                    />
+                  ) : null}
+                  <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
+                  <span>Loading live preview…</span>
+                </div>
+              ) : null}
+              <iframe
+                key={template.previewUrl}
+                title={`${template.label} Canvas 7 preview`}
+                className={`${styles.templatePreviewFrame} ${
+                  frameLoading ? styles.templatePreviewFrameHidden : ""
+                }`}
+                src={template.previewUrl}
+                loading="eager"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                style={{
+                  width: designWidth,
+                  height: frameScale > 0 ? `calc(100% / ${frameScale})` : "100%",
+                  transform: `scale(${frameScale})`,
+                }}
+                onLoad={() => setFrameLoading(false)}
+              />
+            </div>
           </div>
         </div>
 

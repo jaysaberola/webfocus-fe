@@ -1,7 +1,7 @@
 import dynamic from "next/dynamic";
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { TemplateSlideDirection } from "@/lib/templateNav";
 import {
   ensureCanvasOriginHints,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/servicesCatalog";
 import { useServiceCart } from "./useServiceCart";
 import DeferredMount from "./DeferredMount";
-import TemplateCatalogCarousel from "./TemplateCatalogCarousel";
+import TemplateCategoryGallery from "./TemplateCategoryGallery";
 import styles from "@/styles/services.module.css";
 
 const TemplatePreviewModal = dynamic(() => import("./TemplatePreviewModal"), {
@@ -35,12 +35,19 @@ type SetupContext = {
   templateId?: string;
 };
 
+const DEFAULT_SETUP: SetupContext = {
+  packageId: WEBDESIGN_PACKAGES[1]?.id ?? WEBDESIGN_PACKAGES[0]?.id,
+  packageName: WEBDESIGN_PACKAGES[1]?.name ?? WEBDESIGN_PACKAGES[0]?.name ?? "Custom Professional Corporate",
+  packagePrice: WEBDESIGN_PACKAGES[1]?.price ?? WEBDESIGN_PACKAGES[0]?.price ?? 32000,
+};
+
 export default function ServicesWebDesignTab() {
   const { addWebDesignSetupToCart } = useServiceCart();
   const [previewTemplate, setPreviewTemplate] = useState<WebsiteTemplate | null>(null);
   const [previewGroup, setPreviewGroup] = useState<TemplateGroup | null>(null);
   const [previewSlideDirection, setPreviewSlideDirection] = useState<TemplateSlideDirection>("next");
-  const [setupContext, setSetupContext] = useState<SetupContext | null>(null);
+  const [setupContext, setSetupContext] = useState<SetupContext>(DEFAULT_SETUP);
+  const setupRef = useRef<HTMLDivElement>(null);
 
   const firstPageImages = ALL_WEBSITE_TEMPLATES_GROUP.templates.slice(0, 5).map((t) => t.image);
 
@@ -64,12 +71,17 @@ export default function ServicesWebDesignTab() {
     setPreviewGroup(null);
   };
 
+  const scrollToSetup = () => {
+    setupRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const openSetupWizard = (context: SetupContext) => {
     setSetupContext(context);
+    window.requestAnimationFrame(scrollToSetup);
   };
 
   const closeSetupWizard = () => {
-    setSetupContext(null);
+    setSetupContext(DEFAULT_SETUP);
   };
 
   const navigatePreview = (direction: TemplateSlideDirection) => {
@@ -112,32 +124,40 @@ export default function ServicesWebDesignTab() {
       </Head>
 
       <div className={styles.webdesignWrap}>
-        <section className={styles.webdesignHero} aria-label="Web design services overview">
-          <div className={styles.webdesignHeroInner}>
-            <p className={styles.webdesignEyebrow}>Web Design Services</p>
-            <h2 className={styles.webdesignHeroTitle}>Website Templates &amp; Agency Packages</h2>
+        <section className={styles.webdesignShowcase} aria-label="Web design services overview">
+          <div className={styles.webdesignHero}>
+            <div className={styles.webdesignHeroInner}>
+              <p className={styles.webdesignEyebrow}>Web Design Services</p>
+              <h2 className={styles.webdesignHeroTitle}>Website Templates &amp; Agency Packages</h2>
+            </div>
           </div>
+          <DeferredMount eager rootMargin="240px 0px" delayMs={0} minHeight={360}>
+            <TemplateCategoryGallery
+              group={ALL_WEBSITE_TEMPLATES_GROUP}
+              onPreview={openPreview}
+              priorityImages
+            />
+          </DeferredMount>
         </section>
 
+        <div ref={setupRef} id="webdesign-package-setup">
+          <WebDesignSetupWizard
+            open
+            variant="inline"
+            packageId={setupContext.packageId}
+            packageName={setupContext.packageName}
+            packagePrice={setupContext.packagePrice}
+            templateLabel={setupContext.templateLabel}
+            templateId={setupContext.templateId}
+            onClose={closeSetupWizard}
+            onComplete={(selection) => {
+              addWebDesignSetupToCart(selection);
+              closeSetupWizard();
+            }}
+          />
+        </div>
+
         <section className={styles.webdesignContent}>
-          <div className={styles.webdesignSectionHead}>
-            <h3 className={styles.webdesignSectionTitle}>Website Templates</h3>
-            <p className={styles.webdesignSectionHint}>
-              Explore ready-made website templates. The carousel advances automatically — use the
-              arrows anytime, or click the center design to preview.
-            </p>
-          </div>
-
-          <DeferredMount eager rootMargin="240px 0px" delayMs={0} minHeight={520}>
-            <section className={`${styles.webdesignTemplateGroup} ${styles.webdesignDeferredSection}`}>
-              <TemplateCatalogCarousel
-                group={ALL_WEBSITE_TEMPLATES_GROUP}
-                onPreview={openPreview}
-                priorityImages
-              />
-            </section>
-          </DeferredMount>
-
           <DeferredMount minHeight={360} rootMargin="200px 0px" delayMs={600}>
             <section className={`${styles.webdesignConvert} ${styles.webdesignDeferredSection}`}>
               <div className={styles.webdesignConvertPanel}>
@@ -204,22 +224,6 @@ export default function ServicesWebDesignTab() {
           onContinueSetup={handlePreviewContinue}
           onNavigate={previewGroup.templates.length > 1 ? navigatePreview : undefined}
           slideDirection={previewSlideDirection}
-        />
-      ) : null}
-
-      {setupContext ? (
-        <WebDesignSetupWizard
-          open
-          packageId={setupContext.packageId}
-          packageName={setupContext.packageName}
-          packagePrice={setupContext.packagePrice}
-          templateLabel={setupContext.templateLabel}
-          templateId={setupContext.templateId}
-          onClose={closeSetupWizard}
-          onComplete={(selection) => {
-            addWebDesignSetupToCart(selection);
-            closeSetupWizard();
-          }}
         />
       ) : null}
     </div>

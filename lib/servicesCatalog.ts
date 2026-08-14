@@ -41,6 +41,14 @@ export type WebDesignPackage = {
   features: string[];
 };
 
+export type WebsiteTemplateCategory =
+  | "portfolio"
+  | "business"
+  | "store"
+  | "blog"
+  | "link-in-bio"
+  | "other";
+
 export type WebsiteTemplate = {
   id: string;
   image: string;
@@ -49,7 +57,36 @@ export type WebsiteTemplate = {
   summary: string;
   packageId: string;
   previewUrl: string;
+  category?: WebsiteTemplateCategory;
 };
+
+export const WEBSITE_TEMPLATE_CATEGORIES: Array<{
+  id: "all" | WebsiteTemplateCategory;
+  label: string;
+}> = [
+  { id: "all", label: "All" },
+  { id: "portfolio", label: "Portfolio" },
+  { id: "business", label: "Business showcase" },
+  { id: "store", label: "Online store" },
+  { id: "blog", label: "Blog" },
+  { id: "link-in-bio", label: "Link in bio" },
+  { id: "other", label: "Other" },
+];
+
+export function getWebsiteTemplateCategory(template: WebsiteTemplate): WebsiteTemplateCategory {
+  if (template.category) return template.category;
+  const id = `${template.id} ${template.label}`.toLowerCase();
+  if (template.packageId === "design-ecommerce" || /shop|store|ecommerce|commerce/.test(id)) {
+    return "store";
+  }
+  if (/writer|blog|article/.test(id)) return "blog";
+  if (/resume|freelancer|link/.test(id)) return "link-in-bio";
+  if (/forum|crowd|community/.test(id)) return "other";
+  if (template.packageId === "design-corporate" || /agency|real-estate|construction|travel/.test(id)) {
+    return "business";
+  }
+  return "portfolio";
+}
 
 export type TemplateGroup = {
   title: string;

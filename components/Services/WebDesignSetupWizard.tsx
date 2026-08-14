@@ -9,6 +9,7 @@ import styles from "@/styles/services.module.css";
 
 type WebDesignSetupWizardProps = {
   open: boolean;
+  variant?: "modal" | "inline";
   packageId?: string;
   packageName: string;
   packagePrice: number;
@@ -20,6 +21,7 @@ type WebDesignSetupWizardProps = {
 
 export default function WebDesignSetupWizard({
   open,
+  variant = "modal",
   packageName,
   packagePrice,
   templateLabel,
@@ -29,12 +31,15 @@ export default function WebDesignSetupWizard({
 }: WebDesignSetupWizardProps) {
   const [serviceFeatures, setServiceFeatures] = useState<string[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const inline = variant === "inline";
 
   useEffect(() => {
     if (!open) return;
 
     setServiceFeatures([]);
     setPaymentMethods([]);
+
+    if (inline) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -48,7 +53,7 @@ export default function WebDesignSetupWizard({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose, templateId]);
+  }, [open, onClose, templateId, inline]);
 
   const templatePreview = useMemo(
     () => (templateId ? getWebsiteTemplateById(templateId) : null),
@@ -86,17 +91,19 @@ export default function WebDesignSetupWizard({
   };
 
   return (
-    <div className={styles.setupWizardOverlay} role="presentation">
-      <button
-        type="button"
-        className={styles.setupWizardBackdrop}
-        aria-label="Close setup"
-        onClick={onClose}
-      />
+    <div className={inline ? styles.setupWizardInline : styles.setupWizardOverlay} role="presentation">
+      {inline ? null : (
+        <button
+          type="button"
+          className={styles.setupWizardBackdrop}
+          aria-label="Close setup"
+          onClick={onClose}
+        />
+      )}
       <div
         className={styles.setupWizardDialog}
-        role="dialog"
-        aria-modal="true"
+        role={inline ? "region" : "dialog"}
+        aria-modal={inline ? undefined : "true"}
         aria-labelledby="webdesign-setup-title"
       >
         <div className={styles.setupWizardHeader}>
@@ -112,14 +119,16 @@ export default function WebDesignSetupWizard({
               {packageName}
             </p>
           </div>
-          <button
-            type="button"
-            className={styles.setupWizardClose}
-            aria-label="Close setup"
-            onClick={onClose}
-          >
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
+          {inline ? null : (
+            <button
+              type="button"
+              className={styles.setupWizardClose}
+              aria-label="Close setup"
+              onClick={onClose}
+            >
+              <i className="fa-solid fa-xmark" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         <div className={styles.setupWizardBody}>

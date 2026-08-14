@@ -36,10 +36,10 @@ export default function TemplateCatalogImage({
           ref={imgRef}
           src={src}
           alt={alt}
-          width={400}
-          height={260}
+          width={1200}
+          height={780}
           loading={priority ? "eager" : "lazy"}
-          decoding={priority ? "sync" : "async"}
+          decoding="async"
           fetchPriority={priority ? "high" : "low"}
           className={`${styles.templateCatalogImage} ${loaded ? styles.templateCatalogImageLoaded : ""}`}
           onLoad={() => setLoaded(true)}
