@@ -24,6 +24,7 @@ const COMMERCE_PORTAL_PERMISSIONS = [
   "sales_transactions.view",
   "sales_transactions.manage",
   "commerce_approvals.view",
+  "commerce_managed.view",
   "commerce_notifications.view",
   "commerce_helpdesk.view",
   "reports.view",
@@ -96,6 +97,7 @@ export const COMMERCE_TAB_PERMISSIONS: Record<CommerceAdminTab, string[]> = {
   clients: ["customers.manage"],
   orders: ["sales_transactions.view", "sales_transactions.manage"],
   approvals: ["commerce_approvals.view", "commerce_approvals.manage"],
+  managed: ["commerce_managed.view", "commerce_managed.manage"],
   contracts: ["commerce_contracts.view", "commerce_contracts.manage"],
   notifications: ["commerce_notifications.view", "commerce_notifications.manage"],
   helpdesk: ["commerce_helpdesk.view", "commerce_helpdesk.create", "commerce_helpdesk.update", "commerce_helpdesk.delete"],
@@ -144,9 +146,7 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
   const normalized: CommerceAdminTab | undefined =
     requested === "transactions" || requested === "catalog"
       ? "orders"
-      : requested === "managed"
-        ? undefined
-        : (requested as CommerceAdminTab | undefined);
+      : (requested as CommerceAdminTab | undefined);
 
   if (normalized && allowed.includes(normalized)) return normalized;
   return allowed[0];

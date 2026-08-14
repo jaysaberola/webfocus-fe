@@ -228,6 +228,7 @@ export type CommerceAssignableUser = {
   name: string;
   email?: string | null;
   role?: string | null;
+  roles?: string[];
 };
 
 export async function fetchCommerceAssignableUsers() {

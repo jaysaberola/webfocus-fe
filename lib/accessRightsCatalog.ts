@@ -5,6 +5,7 @@ export type AccessRightsArea = "cms" | "commerce";
 const COMMERCE_PERMISSION_PREFIXES = new Set([
   "commerce_dashboard",
   "commerce_approvals",
+  "commerce_managed",
   "commerce_notifications",
   "commerce_helpdesk",
   "customers",

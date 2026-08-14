@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import {
   CLIENT_CLASSIFICATION_OPTIONS,
   CLIENT_INDUSTRY_OPTIONS,
@@ -20,16 +20,19 @@ import {
   updateCustomerCrmAccount,
   type CustomerRow,
 } from "@/services/customerService";
+import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import ClientTimeline, { type ClientAuditEntry } from "@/components/CommerceAdmin/ClientTimeline";
 import type { ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
 import { scrollToClientSectionById } from "@/lib/commerceAdmin/clientScrollHelpers";
 import {
   citiesForProvince,
   findPlaceByCity,
+  findPlaceByStreet,
   findPlaceByZip,
   PH_ADDRESS_PLACES,
   PH_COUNTRIES,
   PH_PROVINCES,
+  streetsForPlace,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
@@ -67,53 +70,6 @@ function Field({
       <span>{label}</span>
       {children}
     </label>
-  );
-}
-
-function SuggestField({
-  label,
-  value,
-  listId,
-  options,
-  autoComplete,
-  required,
-  placeholder,
-  onChange,
-  onSelect,
-}: {
-  label: string;
-  value: string;
-  listId: string;
-  options: string[];
-  autoComplete?: string;
-  required?: boolean;
-  placeholder?: string;
-  onChange: (value: string) => void;
-  onSelect?: (value: string) => void;
-}) {
-  return (
-    <Field label={label}>
-      <input
-        className={styles.clientCrmInput}
-        list={listId}
-        value={value}
-        autoComplete={autoComplete}
-        required={required}
-        placeholder={placeholder}
-        onChange={(e) => {
-          const next = e.target.value;
-          onChange(next);
-          if (options.some((option) => option.toLowerCase() === next.trim().toLowerCase())) {
-            onSelect?.(next);
-          }
-        }}
-      />
-      <datalist id={listId}>
-        {options.map((option) => (
-          <option key={`${listId}-${option}`} value={option} />
-        ))}
-      </datalist>
-    </Field>
   );
 }
 
@@ -181,6 +137,25 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   const [audits, setAudits] = useState<ClientAuditEntry[]>([]);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClientTab>("overview");
+
+  const billingOfficers = useMemo(() => {
+    const isBillingRole = (value?: string | null) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ") === "billing in charge";
+
+    const officers = owners.filter((owner) => {
+      const roles = [owner.role, ...(owner.roles || [])];
+      return roles.some((role) => isBillingRole(role));
+    });
+
+    if (form.billing_in_charge && !officers.some((owner) => owner.name === form.billing_in_charge)) {
+      return [{ id: -1, name: form.billing_in_charge }, ...officers];
+    }
+
+    return officers;
+  }, [owners, form.billing_in_charge]);
 
   const goToSection = useCallback(
     (section: ClientRelatedSection) => {
@@ -312,31 +287,123 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
   const applyPlace = (
     prefix: "billing" | "shipping",
-    place: { city: string; province: string; zip: string; country: string } | null,
+    place: { street?: string; city: string; province: string; zip: string; country: string } | null,
+    includeStreet = false,
   ) => {
     if (!place) return;
+    const country = place.country || "Philippines";
     if (prefix === "billing") {
       setForm((current) => ({
         ...current,
+        ...(includeStreet && place.street ? { address_street: place.street } : {}),
         address_city: place.city,
         address_province: place.province,
         address_zip: place.zip,
-        address_country: place.country,
+        address_country: country,
       }));
       return;
     }
     setForm((current) => ({
       ...current,
+      ...(includeStreet && place.street ? { shipping_street: place.street } : {}),
       shipping_city: place.city,
       shipping_province: place.province,
       shipping_zip: place.zip,
-      shipping_country: place.country,
+      shipping_country: country,
     }));
   };
 
-  const billingCityOptions = citiesForProvince(form.address_province).map((place) => place.city);
-  const shippingCityOptions = citiesForProvince(form.shipping_province).map((place) => place.city);
-  const zipOptions = PH_ADDRESS_PLACES.map((place) => place.zip);
+  const billingStreetOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return streetsForPlace(form.address_city, form.address_province)
+      .filter((place) => {
+        const key = `${place.street}|${place.city}|${place.zip}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.street || "",
+        label: `${place.street} — ${place.city}, ${place.province} (${place.zip})`,
+        street: place.street,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+        country: place.country,
+      }));
+  }, [form.address_city, form.address_province]);
+
+  const shippingStreetOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return streetsForPlace(form.shipping_city, form.shipping_province)
+      .filter((place) => {
+        const key = `${place.street}|${place.city}|${place.zip}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.street || "",
+        label: `${place.street} — ${place.city}, ${place.province} (${place.zip})`,
+        street: place.street,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+        country: place.country,
+      }));
+  }, [form.shipping_city, form.shipping_province]);
+
+  const billingCityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return citiesForProvince(form.address_province)
+      .filter((place) => {
+        const key = `${place.city}|${place.province}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.city,
+        label: `${place.city} — ${place.province} (${place.zip})`,
+      }));
+  }, [form.address_province]);
+
+  const shippingCityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return citiesForProvince(form.shipping_province)
+      .filter((place) => {
+        const key = `${place.city}|${place.province}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.city,
+        label: `${place.city} — ${place.province} (${place.zip})`,
+      }));
+  }, [form.shipping_province]);
+
+  const provinceOptions = useMemo(
+    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
+    []
+  );
+
+  const zipOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return PH_ADDRESS_PLACES.filter((place) => {
+      if (seen.has(place.zip)) return false;
+      seen.add(place.zip);
+      return true;
+    }).map((place) => ({
+      value: place.zip,
+      label: `${place.zip} — ${place.city}, ${place.province}`,
+    }));
+  }, []);
+
+  const countryOptions = useMemo(
+    () => PH_COUNTRIES.map((country) => ({ value: country, label: country })),
+    []
+  );
 
   const toPayload = () => ({
     company: form.company.trim(),
@@ -654,7 +721,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                 onChange={(e) => setField("billing_in_charge", e.target.value)}
               >
                 <option value="">-None-</option>
-                {owners.map((owner) => (
+                {billingOfficers.map((owner) => (
                   <option key={owner.id} value={owner.name}>
                     {owner.name}
                   </option>
@@ -718,102 +785,122 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </button>
         </div>
         <p className={styles.panelSubtitle}>
-          Use validated Philippine city, province, and ZIP suggestions. Billing address is required
+          Use Philippine street/barangay, city, province, and ZIP suggestions. Billing address is required
           for the LBC copy of the Service Invoice.
         </p>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
-            <Field label="Billing Street">
-              <input
-                className={styles.clientCrmInput}
-                value={form.address_street}
-                autoComplete="street-address"
-                placeholder="Street, building, barangay"
-                onChange={(e) => setField("address_street", e.target.value)}
-              />
-            </Field>
-            <SuggestField
+            <AddressSuggestField
+              label="Billing Province"
+              value={form.address_province}
+              options={provinceOptions}
+              autoComplete="address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) => setField("address_province", value)}
+            />
+            <AddressSuggestField
               label="Billing City"
               value={form.address_city}
-              listId="billing-city-suggestions"
-              options={billingCityOptions.length ? billingCityOptions : PH_ADDRESS_PLACES.map((place) => place.city)}
+              options={billingCityOptions}
               autoComplete="address-level2"
               placeholder="Start typing a city"
               onChange={(value) => setField("address_city", value)}
               onSelect={(value) => applyPlace("billing", findPlaceByCity(value, form.address_province))}
             />
-            <SuggestField
-              label="Billing Province"
-              value={form.address_province}
-              listId="billing-province-suggestions"
-              options={[...PH_PROVINCES]}
-              autoComplete="address-level1"
-              placeholder="Start typing a province"
-              onChange={(value) => setField("address_province", value)}
+            <AddressSuggestField
+              label="Billing Street"
+              value={form.address_street}
+              options={billingStreetOptions}
+              autoComplete="street-address"
+              placeholder="Start typing a street or barangay"
+              onChange={(value) => setField("address_street", value)}
+              onSelect={(_value, option) =>
+                applyPlace(
+                  "billing",
+                  option.city
+                    ? {
+                        street: option.street || option.value,
+                        city: option.city,
+                        province: option.province || "",
+                        zip: option.zip || "",
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByStreet(option.value, form.address_city, form.address_province),
+                  true,
+                )
+              }
             />
-            <SuggestField
+            <AddressSuggestField
               label="Billing Code"
               value={form.address_zip}
-              listId="billing-zip-suggestions"
               options={zipOptions}
               autoComplete="postal-code"
               placeholder="ZIP / postal code"
               onChange={(value) => setField("address_zip", value)}
               onSelect={(value) => applyPlace("billing", findPlaceByZip(value))}
             />
-            <SuggestField
+            <AddressSuggestField
               label="Billing Country"
               value={form.address_country}
-              listId="billing-country-suggestions"
-              options={PH_COUNTRIES}
+              options={countryOptions}
               autoComplete="country-name"
               onChange={(value) => setField("address_country", value)}
             />
           </div>
           <div className={styles.clientCrmCol}>
-            <Field label="Shipping Street">
-              <input
-                className={styles.clientCrmInput}
-                value={form.shipping_street}
-                autoComplete="shipping street-address"
-                placeholder="Street, building, barangay"
-                onChange={(e) => setField("shipping_street", e.target.value)}
-              />
-            </Field>
-            <SuggestField
+            <AddressSuggestField
+              label="Shipping Province"
+              value={form.shipping_province}
+              options={provinceOptions}
+              autoComplete="shipping address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) => setField("shipping_province", value)}
+            />
+            <AddressSuggestField
               label="Shipping City"
               value={form.shipping_city}
-              listId="shipping-city-suggestions"
-              options={shippingCityOptions.length ? shippingCityOptions : PH_ADDRESS_PLACES.map((place) => place.city)}
+              options={shippingCityOptions}
               autoComplete="shipping address-level2"
               placeholder="Start typing a city"
               onChange={(value) => setField("shipping_city", value)}
               onSelect={(value) => applyPlace("shipping", findPlaceByCity(value, form.shipping_province))}
             />
-            <SuggestField
-              label="Shipping Province"
-              value={form.shipping_province}
-              listId="shipping-province-suggestions"
-              options={[...PH_PROVINCES]}
-              autoComplete="shipping address-level1"
-              placeholder="Start typing a province"
-              onChange={(value) => setField("shipping_province", value)}
+            <AddressSuggestField
+              label="Shipping Street"
+              value={form.shipping_street}
+              options={shippingStreetOptions}
+              autoComplete="shipping street-address"
+              placeholder="Start typing a street or barangay"
+              onChange={(value) => setField("shipping_street", value)}
+              onSelect={(_value, option) =>
+                applyPlace(
+                  "shipping",
+                  option.city
+                    ? {
+                        street: option.street || option.value,
+                        city: option.city,
+                        province: option.province || "",
+                        zip: option.zip || "",
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByStreet(option.value, form.shipping_city, form.shipping_province),
+                  true,
+                )
+              }
             />
-            <SuggestField
+            <AddressSuggestField
               label="Shipping Code"
               value={form.shipping_zip}
-              listId="shipping-zip-suggestions"
               options={zipOptions}
               autoComplete="shipping postal-code"
               placeholder="ZIP / postal code"
               onChange={(value) => setField("shipping_zip", value)}
               onSelect={(value) => applyPlace("shipping", findPlaceByZip(value))}
             />
-            <SuggestField
+            <AddressSuggestField
               label="Shipping Country"
               value={form.shipping_country}
-              listId="shipping-country-suggestions"
-              options={PH_COUNTRIES}
+              options={countryOptions}
               autoComplete="shipping country-name"
               onChange={(value) => setField("shipping_country", value)}
             />

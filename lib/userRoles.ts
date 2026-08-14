@@ -48,11 +48,18 @@ export function isCmsPortalUser(user: unknown) {
   return isStaffUser(user);
 }
 
+export function isBillingInChargeUser(user: unknown) {
+  if (!user || typeof user !== "object") return false;
+  return getUserRoleNames(user).some(
+    (role) => role === "billing in charge" || role === "billing-in-charge"
+  );
+}
+
 export function resolveStaffLoginRedirect(user: unknown, requestedRedirect?: string) {
   const redirect = typeof requestedRedirect === "string" ? requestedRedirect.trim() : "";
   const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "";
 
-  if (isCommerceOnlyStaffUser(user)) {
+  if (isCommerceOnlyStaffUser(user) || isBillingInChargeUser(user)) {
     if (safeRedirect.startsWith(COMMERCE_ADMIN_PATH)) return safeRedirect;
     return COMMERCE_ADMIN_PATH;
   }
@@ -75,6 +82,9 @@ const COMMERCE_STAFF_ROLES = new Set([
   "customer_care",
   "technical support",
   "technical_support",
+  "billing in charge",
+  "billing_in_charge",
+  "billing-in-charge",
   "editor",
 ]);
 
@@ -85,6 +95,7 @@ const ROLE_LABELS: Record<string, string> = {
   marketing: "Marketing",
   customer_care: "Customer Care",
   technical_support: "Technical Support",
+  billing_in_charge: "Billing-in-Charge",
   customer: "Customer",
   editor: "Editor",
 };
