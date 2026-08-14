@@ -791,6 +791,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
             <AddressSuggestField
+              label="Billing Country"
+              value={form.address_country}
+              options={countryOptions}
+              autoComplete="country-name"
+              onChange={(value) => setField("address_country", value)}
+            />
+            <AddressSuggestField
               label="Billing Province"
               value={form.address_province}
               options={provinceOptions}
@@ -841,15 +848,15 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               onChange={(value) => setField("address_zip", value)}
               onSelect={(value) => applyPlace("billing", findPlaceByZip(value))}
             />
-            <AddressSuggestField
-              label="Billing Country"
-              value={form.address_country}
-              options={countryOptions}
-              autoComplete="country-name"
-              onChange={(value) => setField("address_country", value)}
-            />
           </div>
           <div className={styles.clientCrmCol}>
+            <AddressSuggestField
+              label="Shipping Country"
+              value={form.shipping_country}
+              options={countryOptions}
+              autoComplete="shipping country-name"
+              onChange={(value) => setField("shipping_country", value)}
+            />
             <AddressSuggestField
               label="Shipping Province"
               value={form.shipping_province}
@@ -900,13 +907,6 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               placeholder="ZIP / postal code"
               onChange={(value) => setField("shipping_zip", value)}
               onSelect={(value) => applyPlace("shipping", findPlaceByZip(value))}
-            />
-            <AddressSuggestField
-              label="Shipping Country"
-              value={form.shipping_country}
-              options={countryOptions}
-              autoComplete="shipping country-name"
-              onChange={(value) => setField("shipping_country", value)}
             />
           </div>
         </div>
