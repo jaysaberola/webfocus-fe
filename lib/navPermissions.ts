@@ -146,7 +146,7 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
   const normalized: CommerceAdminTab | undefined =
     requested === "transactions" || requested === "catalog"
       ? "orders"
-      : requested === "managed"
+      : requested === "managed" || requested === "contracts"
         ? undefined
         : (requested as CommerceAdminTab | undefined);
 
