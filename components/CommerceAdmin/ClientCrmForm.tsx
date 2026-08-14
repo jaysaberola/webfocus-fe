@@ -804,6 +804,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               options={billingCityOptions}
               autoComplete="address-level2"
               placeholder="Start typing a city"
+              maxVisible={400}
               onChange={(value) => setField("address_city", value)}
               onSelect={(value) => applyPlace("billing", findPlaceByCity(value, form.address_province))}
             />
@@ -813,6 +814,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               options={billingStreetOptions}
               autoComplete="street-address"
               placeholder="Start typing a street or barangay"
+              maxVisible={400}
               onChange={(value) => setField("address_street", value)}
               onSelect={(_value, option) =>
                 applyPlace(
@@ -862,6 +864,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               options={shippingCityOptions}
               autoComplete="shipping address-level2"
               placeholder="Start typing a city"
+              maxVisible={400}
               onChange={(value) => setField("shipping_city", value)}
               onSelect={(value) => applyPlace("shipping", findPlaceByCity(value, form.shipping_province))}
             />
@@ -871,6 +874,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               options={shippingStreetOptions}
               autoComplete="shipping street-address"
               placeholder="Start typing a street or barangay"
+              maxVisible={400}
               onChange={(value) => setField("shipping_street", value)}
               onSelect={(_value, option) =>
                 applyPlace(

@@ -22,6 +22,12 @@ export default function CommerceAdminPage() {
     if (!router.isReady || loading) return;
 
     const requestedRaw = typeof router.query.tab === "string" ? router.query.tab : undefined;
+
+    if (requestedRaw === "managed") {
+      void router.replace("/managed");
+      return;
+    }
+
     const requested = requestedRaw as CommerceAdminTab | undefined;
     const resolved = resolveCommerceTab(user, requested);
 

@@ -518,20 +518,14 @@ export default function CommerceClientsTab(_props: Props) {
               >
                 <option value="name-asc">Client Name (A - Z)</option>
                 <option value="name-desc">Client Name (Z - A)</option>
-                <option value="service-asc">Service Name (A - Z)</option>
-                <option value="service-desc">Service Name (Z - A)</option>
-                <option value="plan-asc">Plan Name (A - Z)</option>
-                <option value="plan-desc">Plan Name (Z - A)</option>
-                <option value="subject-asc">Subject (A - Z)</option>
-                <option value="subject-desc">Subject (Z - A)</option>
-                <option value="productCategory-asc">Product Category (A - Z)</option>
-                <option value="productCategory-desc">Product Category (Z - A)</option>
-                <option value="domain-asc">Domain (A - Z)</option>
-                <option value="domain-desc">Domain (Z - A)</option>
-                <option value="billing-asc">Billing-in-Charge (A - Z)</option>
-                <option value="billing-desc">Billing-in-Charge (Z - A)</option>
+                <option value="owner-asc">Client Owner (A - Z)</option>
+                <option value="owner-desc">Client Owner (Z - A)</option>
                 <option value="newest">Newest Created</option>
                 <option value="oldest">Oldest Created</option>
+                <option value="billing-asc">Billing-in-Charge (A - Z)</option>
+                <option value="billing-desc">Billing-in-Charge (Z - A)</option>
+                <option value="status-asc">Client Status (A - Z)</option>
+                <option value="status-desc">Client Status (Z - A)</option>
               </select>
             }
           />
@@ -558,15 +552,15 @@ export default function CommerceClientsTab(_props: Props) {
                       disabled={paginatedRows.length === 0}
                     />
                     {columnsVisible.name ? renderSortableHead("name") : null}
+                    {columnsVisible.owner ? renderSortableHead("owner") : null}
+                    {columnsVisible.created ? renderSortableHead("created") : null}
+                    {columnsVisible.billing ? renderSortableHead("billing") : null}
+                    {columnsVisible.status ? renderSortableHead("status") : null}
                     {columnsVisible.service ? renderSortableHead("service") : null}
                     {columnsVisible.plan ? renderSortableHead("plan") : null}
                     {columnsVisible.subject ? renderSortableHead("subject") : null}
                     {columnsVisible.productCategory ? renderSortableHead("productCategory") : null}
                     {columnsVisible.domain ? renderSortableHead("domain") : null}
-                    {columnsVisible.billing ? renderSortableHead("billing") : null}
-                    {columnsVisible.status ? renderSortableHead("status") : null}
-                    {columnsVisible.owner ? renderSortableHead("owner") : null}
-                    {columnsVisible.created ? renderSortableHead("created") : null}
                     {columnsVisible.classification ? renderSortableHead("classification") : null}
                   </tr>
                 </thead>
@@ -599,23 +593,6 @@ export default function CommerceClientsTab(_props: Props) {
                               </button>
                             </td>
                           ) : null}
-                          {columnsVisible.service ? <td>{clientServiceName(client)}</td> : null}
-                          {columnsVisible.plan ? <td>{clientPlanName(client)}</td> : null}
-                          {columnsVisible.subject ? <td>{clientSubject(client)}</td> : null}
-                          {columnsVisible.productCategory ? <td>{clientProductCategory(client)}</td> : null}
-                          {columnsVisible.domain ? <td>{clientDomain(client)}</td> : null}
-                          {columnsVisible.billing ? (
-                            <td>{clientBillingInCharge(client)}</td>
-                          ) : null}
-                          {columnsVisible.status ? (
-                            <td>
-                              {clientDisplayStatus(client) === "Active" ? (
-                                <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
-                              ) : (
-                                <span className={styles.badgeMuted}>{clientDisplayStatus(client)}</span>
-                              )}
-                            </td>
-                          ) : null}
                           {columnsVisible.owner ? (
                             <td>
                               <button
@@ -635,6 +612,23 @@ export default function CommerceClientsTab(_props: Props) {
                           {columnsVisible.created ? (
                             <td>{formatClientCreatedTime(client)}</td>
                           ) : null}
+                          {columnsVisible.billing ? (
+                            <td>{clientBillingInCharge(client)}</td>
+                          ) : null}
+                          {columnsVisible.status ? (
+                            <td>
+                              {clientDisplayStatus(client) === "Active" ? (
+                                <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
+                              ) : (
+                                <span className={styles.badgeMuted}>{clientDisplayStatus(client)}</span>
+                              )}
+                            </td>
+                          ) : null}
+                          {columnsVisible.service ? <td>{clientServiceName(client)}</td> : null}
+                          {columnsVisible.plan ? <td>{clientPlanName(client)}</td> : null}
+                          {columnsVisible.subject ? <td>{clientSubject(client)}</td> : null}
+                          {columnsVisible.productCategory ? <td>{clientProductCategory(client)}</td> : null}
+                          {columnsVisible.domain ? <td>{clientDomain(client)}</td> : null}
                           {columnsVisible.classification ? (
                             <td>
                               <span

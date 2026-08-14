@@ -72,42 +72,42 @@ export const emptyClientAdvancedFilter: ClientAdvancedFilter = {
 
 export type ClientColumnKey =
   | "name"
+  | "owner"
+  | "created"
+  | "billing"
+  | "status"
   | "service"
   | "plan"
   | "subject"
   | "productCategory"
   | "domain"
-  | "billing"
-  | "status"
-  | "owner"
-  | "created"
   | "classification";
 
 export const CLIENT_COLUMN_LABELS: Record<ClientColumnKey, string> = {
   name: "Client Name",
+  owner: "Client Owner",
+  created: "Created Date",
+  billing: "Billing-in-Charge",
+  status: "Client Status",
   service: "Service Name",
   plan: "Plan Name",
   subject: "Subject",
   productCategory: "Product Category",
   domain: "Domain",
-  billing: "Billing-in-Charge",
-  status: "Status",
-  owner: "Client Owner",
-  created: "Created Time",
   classification: "Client Classification",
 };
 
 export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
   name: true,
-  service: true,
-  plan: false,
-  subject: true,
-  productCategory: true,
-  domain: true,
+  owner: true,
+  created: true,
   billing: true,
   status: true,
-  owner: false,
-  created: false,
+  service: false,
+  plan: false,
+  subject: false,
+  productCategory: false,
+  domain: false,
   classification: false,
 };
 
@@ -312,13 +312,10 @@ export function formatClientCreatedTime(client: CustomerRow) {
   if (!raw) return "—";
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return String(client.date_registered || "—");
-  return date.toLocaleString("en-US", {
+  return date.toLocaleDateString("en-US", {
     month: "2-digit",
     day: "2-digit",
     year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
   });
 }
 

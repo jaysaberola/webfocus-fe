@@ -127,8 +127,8 @@ export function canAccessCommercePortal(user: unknown): boolean {
 }
 
 export function canAccessCommerceTab(user: unknown, tab: CommerceAdminTab): boolean {
-  // Contracts module is temporarily hidden across Commerce admin.
-  if (tab === "contracts") return false;
+  // Contracts and Managed are not Commerce Control Center tabs (Managed lives in CMS Admin).
+  if (tab === "contracts" || tab === "managed") return false;
   return hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS[tab]);
 }
 
@@ -146,7 +146,9 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
   const normalized: CommerceAdminTab | undefined =
     requested === "transactions" || requested === "catalog"
       ? "orders"
-      : (requested as CommerceAdminTab | undefined);
+      : requested === "managed"
+        ? undefined
+        : (requested as CommerceAdminTab | undefined);
 
   if (normalized && allowed.includes(normalized)) return normalized;
   return allowed[0];

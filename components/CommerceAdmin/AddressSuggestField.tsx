@@ -20,9 +20,10 @@ type Props = {
   required?: boolean;
   onChange: (value: string) => void;
   onSelect?: (value: string, option: AddressSuggestOption) => void;
+  maxVisible?: number;
 };
 
-const MAX_VISIBLE = 80;
+const DEFAULT_MAX_VISIBLE = 80;
 
 export default function AddressSuggestField({
   label,
@@ -33,6 +34,7 @@ export default function AddressSuggestField({
   required,
   onChange,
   onSelect,
+  maxVisible = DEFAULT_MAX_VISIBLE,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -47,8 +49,8 @@ export default function AddressSuggestField({
             option.value.toLowerCase().includes(needle)
         )
       : options;
-    return next.slice(0, MAX_VISIBLE);
-  }, [options, value]);
+    return next.slice(0, maxVisible);
+  }, [options, value, maxVisible]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
