@@ -1,7 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import {
   CLIENT_CLASSIFICATION_OPTIONS,
-  CLIENT_CURRENCY_OPTIONS,
   CLIENT_INDUSTRY_OPTIONS,
   CLIENT_OWNERSHIP_OPTIONS,
   CLIENT_TAX_CLASSIFICATION_OPTIONS,
@@ -24,6 +23,14 @@ import {
 import ClientTimeline, { type ClientAuditEntry } from "@/components/CommerceAdmin/ClientTimeline";
 import type { ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
 import { scrollToClientSectionById } from "@/lib/commerceAdmin/clientScrollHelpers";
+import {
+  citiesForProvince,
+  findPlaceByCity,
+  findPlaceByZip,
+  PH_ADDRESS_PLACES,
+  PH_COUNTRIES,
+  PH_PROVINCES,
+} from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -60,6 +67,53 @@ function Field({
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function SuggestField({
+  label,
+  value,
+  listId,
+  options,
+  autoComplete,
+  required,
+  placeholder,
+  onChange,
+  onSelect,
+}: {
+  label: string;
+  value: string;
+  listId: string;
+  options: string[];
+  autoComplete?: string;
+  required?: boolean;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onSelect?: (value: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <input
+        className={styles.clientCrmInput}
+        list={listId}
+        value={value}
+        autoComplete={autoComplete}
+        required={required}
+        placeholder={placeholder}
+        onChange={(e) => {
+          const next = e.target.value;
+          onChange(next);
+          if (options.some((option) => option.toLowerCase() === next.trim().toLowerCase())) {
+            onSelect?.(next);
+          }
+        }}
+      />
+      <datalist id={listId}>
+        {options.map((option) => (
+          <option key={`${listId}-${option}`} value={option} />
+        ))}
+      </datalist>
+    </Field>
   );
 }
 
@@ -204,12 +258,12 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           address_city: detail?.address_city ?? "",
           address_province: detail?.address_province ?? "",
           address_zip: detail?.address_zip ?? "",
-          address_country: detail?.address_country ?? "",
+          address_country: detail?.address_country || "Philippines",
           shipping_street: detail?.shipping_street ?? "",
           shipping_city: detail?.shipping_city ?? "",
           shipping_province: detail?.shipping_province ?? "",
           shipping_zip: detail?.shipping_zip ?? "",
-          shipping_country: detail?.shipping_country ?? "",
+          shipping_country: detail?.shipping_country || "Philippines",
         });
         setExistingFiles({
           bir_certificate: detail?.bir_certificate ?? null,
@@ -255,6 +309,34 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       shipping_country: current.address_country,
     }));
   };
+
+  const applyPlace = (
+    prefix: "billing" | "shipping",
+    place: { city: string; province: string; zip: string; country: string } | null,
+  ) => {
+    if (!place) return;
+    if (prefix === "billing") {
+      setForm((current) => ({
+        ...current,
+        address_city: place.city,
+        address_province: place.province,
+        address_zip: place.zip,
+        address_country: place.country,
+      }));
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      shipping_city: place.city,
+      shipping_province: place.province,
+      shipping_zip: place.zip,
+      shipping_country: place.country,
+    }));
+  };
+
+  const billingCityOptions = citiesForProvince(form.address_province).map((place) => place.city);
+  const shippingCityOptions = citiesForProvince(form.shipping_province).map((place) => place.city);
+  const zipOptions = PH_ADDRESS_PLACES.map((place) => place.zip);
 
   const toPayload = () => ({
     company: form.company.trim(),
@@ -483,26 +565,6 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                 onChange={(e) => setField("other_numbers", e.target.value)}
               />
             </Field>
-            <Field label="Currency">
-              <select
-                className={styles.clientCrmInput}
-                value={form.currency}
-                onChange={(e) => setField("currency", e.target.value)}
-              >
-                {CLIENT_CURRENCY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Workdrive Folder URL">
-              <input
-                className={styles.clientCrmInput}
-                value={form.workdrive_folder_url}
-                onChange={(e) => setField("workdrive_folder_url", e.target.value)}
-              />
-            </Field>
           </div>
 
           <div className={styles.clientCrmCol}>
@@ -571,13 +633,6 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                 onChange={(e) => setField("email", e.target.value)}
               />
             </Field>
-            <Field label="Website">
-              <input
-                className={styles.clientCrmInput}
-                value={form.website}
-                onChange={(e) => setField("website", e.target.value)}
-              />
-            </Field>
             <Field label="Ownership">
               <select
                 className={styles.clientCrmInput}
@@ -605,23 +660,6 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                   </option>
                 ))}
               </select>
-            </Field>
-            <Field label="Exchange Rate">
-              <input
-                className={styles.clientCrmInput}
-                type="number"
-                min="0"
-                step="0.0001"
-                value={form.exchange_rate}
-                onChange={(e) => setField("exchange_rate", e.target.value)}
-              />
-            </Field>
-            <Field label="Workdrive Folder ID">
-              <input
-                className={styles.clientCrmInput}
-                value={form.workdrive_folder_id}
-                onChange={(e) => setField("workdrive_folder_id", e.target.value)}
-              />
             </Field>
           </div>
         </div>
@@ -679,80 +717,106 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             Copy Address
           </button>
         </div>
+        <p className={styles.panelSubtitle}>
+          Use validated Philippine city, province, and ZIP suggestions. Billing address is required
+          for the LBC copy of the Service Invoice.
+        </p>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
             <Field label="Billing Street">
               <input
                 className={styles.clientCrmInput}
                 value={form.address_street}
+                autoComplete="street-address"
+                placeholder="Street, building, barangay"
                 onChange={(e) => setField("address_street", e.target.value)}
               />
             </Field>
-            <Field label="Billing City">
-              <input
-                className={styles.clientCrmInput}
-                value={form.address_city}
-                onChange={(e) => setField("address_city", e.target.value)}
-              />
-            </Field>
-            <Field label="Billing Province">
-              <input
-                className={styles.clientCrmInput}
-                value={form.address_province}
-                onChange={(e) => setField("address_province", e.target.value)}
-              />
-            </Field>
-            <Field label="Billing Code">
-              <input
-                className={styles.clientCrmInput}
-                value={form.address_zip}
-                onChange={(e) => setField("address_zip", e.target.value)}
-              />
-            </Field>
-            <Field label="Billing Country">
-              <input
-                className={styles.clientCrmInput}
-                value={form.address_country}
-                onChange={(e) => setField("address_country", e.target.value)}
-              />
-            </Field>
+            <SuggestField
+              label="Billing City"
+              value={form.address_city}
+              listId="billing-city-suggestions"
+              options={billingCityOptions.length ? billingCityOptions : PH_ADDRESS_PLACES.map((place) => place.city)}
+              autoComplete="address-level2"
+              placeholder="Start typing a city"
+              onChange={(value) => setField("address_city", value)}
+              onSelect={(value) => applyPlace("billing", findPlaceByCity(value, form.address_province))}
+            />
+            <SuggestField
+              label="Billing Province"
+              value={form.address_province}
+              listId="billing-province-suggestions"
+              options={[...PH_PROVINCES]}
+              autoComplete="address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) => setField("address_province", value)}
+            />
+            <SuggestField
+              label="Billing Code"
+              value={form.address_zip}
+              listId="billing-zip-suggestions"
+              options={zipOptions}
+              autoComplete="postal-code"
+              placeholder="ZIP / postal code"
+              onChange={(value) => setField("address_zip", value)}
+              onSelect={(value) => applyPlace("billing", findPlaceByZip(value))}
+            />
+            <SuggestField
+              label="Billing Country"
+              value={form.address_country}
+              listId="billing-country-suggestions"
+              options={PH_COUNTRIES}
+              autoComplete="country-name"
+              onChange={(value) => setField("address_country", value)}
+            />
           </div>
           <div className={styles.clientCrmCol}>
             <Field label="Shipping Street">
               <input
                 className={styles.clientCrmInput}
                 value={form.shipping_street}
+                autoComplete="shipping street-address"
+                placeholder="Street, building, barangay"
                 onChange={(e) => setField("shipping_street", e.target.value)}
               />
             </Field>
-            <Field label="Shipping City">
-              <input
-                className={styles.clientCrmInput}
-                value={form.shipping_city}
-                onChange={(e) => setField("shipping_city", e.target.value)}
-              />
-            </Field>
-            <Field label="Shipping Province">
-              <input
-                className={styles.clientCrmInput}
-                value={form.shipping_province}
-                onChange={(e) => setField("shipping_province", e.target.value)}
-              />
-            </Field>
-            <Field label="Shipping Code">
-              <input
-                className={styles.clientCrmInput}
-                value={form.shipping_zip}
-                onChange={(e) => setField("shipping_zip", e.target.value)}
-              />
-            </Field>
-            <Field label="Shipping Country">
-              <input
-                className={styles.clientCrmInput}
-                value={form.shipping_country}
-                onChange={(e) => setField("shipping_country", e.target.value)}
-              />
-            </Field>
+            <SuggestField
+              label="Shipping City"
+              value={form.shipping_city}
+              listId="shipping-city-suggestions"
+              options={shippingCityOptions.length ? shippingCityOptions : PH_ADDRESS_PLACES.map((place) => place.city)}
+              autoComplete="shipping address-level2"
+              placeholder="Start typing a city"
+              onChange={(value) => setField("shipping_city", value)}
+              onSelect={(value) => applyPlace("shipping", findPlaceByCity(value, form.shipping_province))}
+            />
+            <SuggestField
+              label="Shipping Province"
+              value={form.shipping_province}
+              listId="shipping-province-suggestions"
+              options={[...PH_PROVINCES]}
+              autoComplete="shipping address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) => setField("shipping_province", value)}
+            />
+            <SuggestField
+              label="Shipping Code"
+              value={form.shipping_zip}
+              listId="shipping-zip-suggestions"
+              options={zipOptions}
+              autoComplete="shipping postal-code"
+              placeholder="ZIP / postal code"
+              onChange={(value) => setField("shipping_zip", value)}
+              onSelect={(value) => applyPlace("shipping", findPlaceByZip(value))}
+            />
+            <SuggestField
+              label="Shipping Country"
+              value={form.shipping_country}
+              listId="shipping-country-suggestions"
+              options={PH_COUNTRIES}
+              autoComplete="shipping country-name"
+              onChange={(value) => setField("shipping_country", value)}
+            />
           </div>
         </div>
       </section>

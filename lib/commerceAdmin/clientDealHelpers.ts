@@ -7,14 +7,34 @@ import {
   type SalesTransaction,
 } from "@/services/salesTransactionService";
 
+export type ClientDealLineItem = {
+  id: string;
+  name: string;
+  domain: string;
+  period: string;
+  listPrice: number;
+  quantity: number;
+  amount: number;
+  discount: number;
+  tax: number;
+};
+
 export type ClientDealRow = {
   id: string;
+  transactionId?: number | null;
+  transactionNo?: string | null;
   dealOwner: string;
   status: string;
   subject: string;
   domainName: string;
   dealStatus: string;
   amount: number | null;
+  items: ClientDealLineItem[];
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  adjustment: number;
+  grandTotal: number;
 };
 
 export function formatDealAmount(amount: number | null) {
@@ -166,6 +186,80 @@ function resolveDealType(
   return "New Service";
 }
 
+function money(value: unknown) {
+  const amount = Number(value);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+function formatPeriod(start?: string | null, end?: string | null) {
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+  const validStart = startDate && !Number.isNaN(startDate.getTime()) ? startDate : null;
+  const validEnd = endDate && !Number.isNaN(endDate.getTime()) ? endDate : null;
+  if (!validStart && !validEnd) return "";
+  const fmt = (date: Date) =>
+    date.toLocaleDateString("en-US", { month: "long", day: "2-digit", year: "numeric" });
+  if (validStart && validEnd) return `${fmt(validStart)} - ${fmt(validEnd)}`;
+  return fmt((validStart ?? validEnd) as Date);
+}
+
+function vatFromInclusive(amount: number) {
+  if (amount <= 0) return 0;
+  return Math.round((amount * 12) / 112 * 100) / 100;
+}
+
+function buildLineItems(
+  transaction: SalesTransaction,
+  items: Array<{
+    id?: number | string;
+    name?: string | null;
+    price?: string | number | null;
+    quantity?: string | number | null;
+    total_price?: string | number | null;
+  }>,
+  domainFallback: string,
+): ClientDealLineItem[] {
+  const headerTax = money(transaction.tax_total);
+  const period = formatPeriod(transaction.issued_date ?? transaction.transacted_at, transaction.due_date);
+  const mapped = items.map((item, index) => {
+    const quantity = Math.max(1, money(item.quantity) || 1);
+    const listPrice = money(item.price);
+    let amount = money(item.total_price);
+    if (amount <= 0) amount = listPrice * quantity;
+    const domain =
+      formatDomain(looksLikeDomain(String(item.name ?? "")) ? String(item.name) : extractDomain(String(item.name ?? ""))) ||
+      domainFallback;
+    return {
+      id: String(item.id ?? `${transaction.id}-${index}`),
+      name: String(item.name ?? transaction.transaction_no ?? "Item").trim() || "Item",
+      domain: domain === "—" ? "" : domain,
+      period,
+      listPrice,
+      quantity,
+      amount,
+      discount: 0,
+      tax: 0,
+    };
+  });
+
+  const amountSum = mapped.reduce((sum, item) => sum + item.amount, 0);
+  return mapped.map((item) => ({
+    ...item,
+    tax:
+      headerTax > 0 && amountSum > 0
+        ? Math.round((headerTax * (item.amount / amountSum)) * 100) / 100
+        : vatFromInclusive(item.amount),
+  }));
+}
+
+function totalsFromItems(items: ClientDealLineItem[], transaction?: SalesTransaction | null) {
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const discountTotal = transaction ? money(transaction.discount_total) : items.reduce((sum, item) => sum + item.discount, 0);
+  const taxTotal = transaction ? money(transaction.tax_total) : items.reduce((sum, item) => sum + item.tax, 0);
+  const grandTotal = transaction ? money(transaction.grand_total) || subtotal : subtotal;
+  return { subtotal, discountTotal, taxTotal, adjustment: 0, grandTotal };
+}
+
 function resolveDealStatus(transaction: SalesTransaction, serviceStatus?: string | null) {
   const service = String(serviceStatus ?? "").toLowerCase();
   if (service === "active") return "Active";
@@ -244,6 +338,9 @@ export function buildClientDealRows(
           },
         ];
 
+    const lineItems = buildLineItems(transaction, items, clientDomainValue || "");
+    const totals = totalsFromItems(lineItems, transaction);
+
     for (const item of items) {
       const itemName = String(item.name ?? "").trim();
       let amount = Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 1));
@@ -260,12 +357,16 @@ export function buildClientDealRows(
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
+        transactionId: transaction.id,
+        transactionNo: transaction.transaction_no,
         dealOwner: owner,
         status: resolveDealType(itemName, transaction, seenItemNames),
         subject: dealSubjectFromName(itemName),
         domainName: domain,
         dealStatus: resolveDealStatus(transaction, matchingServiceStatus(itemName, client, adminServices)),
         amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+        items: lineItems,
+        ...totals,
       });
 
       if (itemName) seenItemNames.add(itemName.toLowerCase());
@@ -275,24 +376,62 @@ export function buildClientDealRows(
   if (rows.length > 0) return rows.reverse();
 
   if (client.services?.length) {
-    return client.services.map((service, index) => ({
+    return client.services.map((service, index) => {
+      const domain = formatDomain(service.domain) || clientDomainValue || "—";
+      const name = String(service.title || service.plan_name || service.subject || "Service");
+      const items: ClientDealLineItem[] = [
+        {
+          id: `service:${service.id ?? index}`,
+          name,
+          domain: domain === "—" ? "" : domain,
+          period: "",
+          listPrice: 0,
+          quantity: 1,
+          amount: 0,
+          discount: 0,
+          tax: 0,
+        },
+      ];
+      return {
+        id: `service:${service.id ?? index}`,
+        dealOwner: ownerFallback || "—",
+        status: "New Service",
+        subject: dealSubjectFromName(String(service.product_category || service.subject || service.plan_name || service.title || "")),
+        domainName: domain,
+        dealStatus: String(service.status || "Active"),
+        amount: null,
+        items,
+        ...totalsFromItems(items),
+      };
+    });
+  }
+
+  return adminServices.map((service, index) => {
+    const domain = formatDomain(service.domain ?? service.subjectDomain) || clientDomainValue || "—";
+    const name = String(service.title || service.planName || service.subject || "Service");
+    const items: ClientDealLineItem[] = [
+      {
+        id: `service:${service.id ?? index}`,
+        name,
+        domain: domain === "—" ? "" : domain,
+        period: "",
+        listPrice: 0,
+        quantity: 1,
+        amount: 0,
+        discount: 0,
+        tax: 0,
+      },
+    ];
+    return {
       id: `service:${service.id ?? index}`,
       dealOwner: ownerFallback || "—",
       status: "New Service",
-      subject: dealSubjectFromName(String(service.product_category || service.subject || service.plan_name || service.title || "")),
-      domainName: formatDomain(service.domain) || clientDomainValue || "—",
+      subject: dealSubjectFromName(String(service.productCategory || service.subject || service.planName || service.title || "")),
+      domainName: domain,
       dealStatus: String(service.status || "Active"),
       amount: null,
-    }));
-  }
-
-  return adminServices.map((service, index) => ({
-    id: `service:${service.id ?? index}`,
-    dealOwner: ownerFallback || "—",
-    status: "New Service",
-    subject: dealSubjectFromName(String(service.productCategory || service.subject || service.planName || service.title || "")),
-    domainName: formatDomain(service.domain ?? service.subjectDomain) || clientDomainValue || "—",
-    dealStatus: String(service.status || "Active"),
-    amount: null,
-  }));
+      items,
+      ...totalsFromItems(items),
+    };
+  });
 }

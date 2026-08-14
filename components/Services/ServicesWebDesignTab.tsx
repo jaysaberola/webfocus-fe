@@ -128,7 +128,7 @@ export default function ServicesWebDesignTab() {
             </p>
           </div>
 
-          <DeferredMount eager rootMargin="240px 0px" delayMs={0} minHeight={400}>
+          <DeferredMount eager rootMargin="240px 0px" delayMs={0} minHeight={520}>
             <section className={`${styles.webdesignTemplateGroup} ${styles.webdesignDeferredSection}`}>
               <TemplateCatalogCarousel
                 group={ALL_WEBSITE_TEMPLATES_GROUP}
@@ -138,66 +138,37 @@ export default function ServicesWebDesignTab() {
             </section>
           </DeferredMount>
 
-          <DeferredMount minHeight={520} rootMargin="200px 0px" delayMs={600}>
-            <div className={`${styles.webdesignPackagesSection} ${styles.webdesignDeferredSection}`}>
-              <div className={styles.webdesignSectionHead}>
-                <h3 className={styles.webdesignSectionTitle}>Agency Web Design Packages</h3>
-                <p className={styles.webdesignSectionHint}>
-                  Start with a mobile-friendly site and upgrade to a paid plan for more business-building
-                  features.
-                </p>
+          <DeferredMount minHeight={360} rootMargin="200px 0px" delayMs={600}>
+            <section className={`${styles.webdesignConvert} ${styles.webdesignDeferredSection}`}>
+              <div className={styles.webdesignConvertPanel}>
+                <div className={styles.webdesignConvertCopy}>
+                  <p className={styles.webdesignConvertEyebrow}>Agency Web Design</p>
+                  <h3 className={styles.webdesignConvertTitle}>Our expertise, your prosperity.</h3>
+                </div>
+                <div className={styles.webdesignConvertBox}>
+                  <p className={styles.webdesignConvertBoxLabel}>Launch with us</p>
+                  <button
+                    type="button"
+                    className={styles.webdesignConvertCta}
+                    onClick={() => {
+                      const pkg = WEBDESIGN_PACKAGES[1] ?? WEBDESIGN_PACKAGES[0];
+                      if (!pkg) return;
+                      openSetupWizard({
+                        packageId: pkg.id,
+                        packageName: pkg.name,
+                        packagePrice: pkg.price,
+                      });
+                    }}
+                  >
+                    SECURE YOUR PACKAGE
+                  </button>
+                  <Link href="/public/contact-us" className={styles.webdesignConvertCall}>
+                    <i className="fa-solid fa-phone" aria-hidden="true" />
+                    BOOK A CALL
+                  </Link>
+                </div>
               </div>
-
-              <div className={styles.agencyPlanGrid}>
-                {WEBDESIGN_PACKAGES.map((pkg, index) => {
-                  const cardVariant =
-                    index === 1
-                      ? styles.agencyPlanCardFeatured
-                      : index === 2
-                        ? styles.agencyPlanCardPro
-                        : styles.agencyPlanCardStarter;
-
-                  return (
-                    <article key={pkg.id} className={`${styles.agencyPlanCard} ${cardVariant}`}>
-                      <div className={styles.agencyPlanHeader}>
-                        <span className={styles.agencyPlanBadge}>Agency Code deployment</span>
-                        <h4 className={styles.agencyPlanTitle}>{pkg.name}</h4>
-                        <button
-                          type="button"
-                          className={styles.agencyPlanCta}
-                          onClick={() =>
-                            openSetupWizard({
-                              packageId: pkg.id,
-                              packageName: pkg.name,
-                              packagePrice: pkg.price,
-                            })
-                          }
-                        >
-                          Secure your Package
-                        </button>
-                        <Link href="/public/contact-us" className={styles.agencyPlanCall}>
-                          <i className="fa-solid fa-phone" aria-hidden="true" />
-                          BOOK A CALL
-                        </Link>
-                      </div>
-                      <div className={styles.agencyPlanFeatures}>
-                        <p className={styles.agencyPlanFeaturesLabel}>Features:</p>
-                        <ul className={styles.agencyPlanFeaturesList}>
-                          {pkg.features.map((feature) => (
-                            <li key={feature}>
-                              <span className={styles.agencyPlanFeatureIcon} aria-hidden="true">
-                                <i className="fa-solid fa-check" />
-                              </span>
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
+            </section>
           </DeferredMount>
 
           <DeferredMount minHeight={220} rootMargin="160px 0px" delayMs={800}>

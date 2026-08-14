@@ -454,7 +454,7 @@ export default function CmsManagedContent() {
       }
       toolbar={
         <div className="cms-managed__toolbar">
-          <div className="cms-settings-pills" role="tablist" aria-label="Manage Services sections">
+          <div className="cms-settings-pills" role="tablist" aria-label="Manage Services sections" data-cms-tour="managed-tabs">
             <button
               type="button"
               role="tab"
@@ -490,6 +490,7 @@ export default function CmsManagedContent() {
                   value={activeServiceType}
                   onChange={(e) => setActiveServiceType(e.target.value)}
                   aria-label="Filter by category"
+                  data-cms-tour="managed-category"
                 >
                   <option value="all">All categories</option>
                   {serviceTypes.map((type) => (

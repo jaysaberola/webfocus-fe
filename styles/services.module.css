@@ -1777,7 +1777,7 @@
 .templateCoverflowViewport {
   position: relative;
   width: 100%;
-  height: clamp(18rem, 40vw, 23rem);
+  height: clamp(24rem, 48vw, 32rem);
   border-radius: 1rem;
   background: linear-gradient(180deg, #f1f5f9 0%, #e8eef6 100%);
   border: 1px solid #e2e8f0;
@@ -1795,7 +1795,7 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: min(72%, 28rem);
+  width: min(74%, 32rem);
   border-radius: 0.85rem;
   background: #ffffff;
   border: 1px solid rgba(226, 232, 240, 0.95);
@@ -1904,282 +1904,144 @@
   transform: translateY(-50%) scale(0.96);
 }
 
-.webdesignPackagesSection {
-  margin-top: 1.5rem;
-  padding-top: 1.25rem;
-  padding-bottom: 0.75rem;
-  border-top: 1px solid #dde3ec;
+.webdesignConvert {
+  margin-top: 2rem;
+  padding: 0.25rem 0 0.5rem;
 }
 
-/* Agency packages — blue tier cards (matches hosting) */
-.agencyPlanGrid {
-  --agency-accent: #2563eb;
-  --agency-accent-dark: #1d4ed8;
-  --agency-accent-soft: #eff6ff;
-  --agency-gold: #2563eb;
-  --agency-gold-hover: #1d4ed8;
-  --agency-ink: #111827;
-  --agency-muted: #6b7280;
-
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  align-items: stretch;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  overflow: visible;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
-  margin: 0.65rem 0 0.85rem;
-}
-
-.agencyPlanCard {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  background: #ffffff;
-  border-right: 1px solid #e2e8f0;
+.webdesignConvertPanel {
   position: relative;
-  z-index: 0;
-  transform: translate3d(0, 0, 0) scale(1);
-  transform-origin: center center;
-  backface-visibility: hidden;
-  box-shadow: 0 0 0 rgba(15, 23, 42, 0);
-  transition:
-    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .agencyPlanCard:hover,
-  .agencyPlanCard:focus-within {
-    z-index: 3;
-    transform: translate3d(0, -4px, 0) scale(1.04);
-    box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
-  }
-
-  .agencyPlanCardFeatured:hover,
-  .agencyPlanCardFeatured:focus-within {
-    box-shadow: 0 26px 54px rgba(37, 99, 235, 0.32);
-  }
-}
-
-.agencyPlanCard:last-child {
-  border-right: 0;
-}
-
-.agencyPlanHeader {
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(16rem, 0.85fr);
+  gap: 1.75rem;
   align-items: center;
-  padding: 1.85rem 1.4rem 1.45rem;
-  text-align: center;
-  border-bottom: 1px solid #eef2f7;
+  width: 100%;
+  padding: 1.75rem;
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.78) 48%, rgba(255, 255, 255, 0.28) 100%),
+    url("/images/agency-web-design-bg.png");
+  background-size: cover;
+  background-position: center right;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
 }
 
-.agencyPlanBadge {
-  display: block;
-  flex-shrink: 0;
-  margin-bottom: 0.7rem;
-  color: var(--agency-accent);
-  font-size: 0.625rem;
+.webdesignConvertCopy {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.webdesignConvertEyebrow {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  color: #2563eb;
 }
 
-.agencyPlanTitle {
+.webdesignConvertTitle {
+  margin: 0;
+  max-width: 14ch;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.7rem, 3.4vw, 2.45rem);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.webdesignConvertBox {
+  position: relative;
+  z-index: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: calc(3 * 1.2em);
-  margin: 0 0 1.35rem;
-  color: var(--agency-ink);
-  font-size: clamp(1.25rem, 1.8vw, 1.65rem);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  text-align: center;
+  padding: 1.45rem 1.2rem 1.25rem;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 16px;
+  box-shadow: 0 18px 32px rgba(29, 78, 216, 0.28);
 }
 
-.agencyPlanCta {
-  display: block;
-  width: 100%;
-  flex-shrink: 0;
-  margin: 0 0 0.9rem;
-  padding: 0.92rem 1rem;
-  border: 0;
-  border-radius: 2px;
-  background: var(--agency-ink);
-  color: #ffffff;
-  font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background 0.18s ease, opacity 0.18s ease;
-}
-
-.agencyPlanCta:hover {
-  background: #0b1220;
-}
-
-.agencyPlanCall {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  color: var(--agency-gold);
-  font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  text-decoration: none;
-}
-
-.agencyPlanCall:hover,
-.agencyPlanCall:focus {
-  color: var(--agency-gold-hover);
-  text-decoration: underline;
-}
-
-.agencyPlanFeatures {
-  flex: 1;
-  padding: 1.25rem 1.4rem 1.55rem;
-  background: #ffffff;
-}
-
-.agencyPlanFeaturesLabel {
-  margin: 0 0 0.9rem;
-  color: var(--agency-muted);
-  font-size: 0.625rem;
+.webdesignConvertBoxLabel {
+  margin: 0 0 0.85rem;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.agencyPlanFeaturesList {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.webdesignConvertCta {
+  display: block;
+  width: 100%;
+  margin: 0 0 0.85rem;
+  padding: 0.95rem 1rem;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.agencyPlanFeaturesList li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  margin-bottom: 0.68rem;
-  color: #374151;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+.webdesignConvertCta:hover,
+.webdesignConvertCta:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.2);
 }
 
-.agencyPlanFeatureIcon {
-  flex-shrink: 0;
-  width: 1.3rem;
-  height: 1.3rem;
-  margin-top: 0.05rem;
+.webdesignConvertCall,
+.webdesignConvertCall:link,
+.webdesignConvertCall:visited {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  background: var(--agency-accent);
+  gap: 0.45rem;
   color: #ffffff;
-  font-size: 0.52rem;
-  line-height: 1;
-}
-
-.agencyPlanFeatureIcon i {
-  font-size: 0.52rem;
-  line-height: 1;
-}
-
-/* Middle card — featured blue */
-.agencyPlanCardFeatured {
-  background: linear-gradient(180deg, var(--agency-accent) 0%, var(--agency-accent-dark) 100%);
-  border-right-color: rgba(255, 255, 255, 0.12);
-}
-
-.agencyPlanCardFeatured .agencyPlanHeader {
-  border-bottom-color: rgba(255, 255, 255, 0.16);
-}
-
-.agencyPlanCardFeatured .agencyPlanBadge,
-.agencyPlanCardFeatured .agencyPlanTitle,
-.agencyPlanCardFeatured .agencyPlanFeaturesLabel {
-  color: #ffffff;
-}
-
-.agencyPlanCardFeatured .agencyPlanCta {
-  background: #ffffff;
-  color: var(--agency-ink);
-}
-
-.agencyPlanCardFeatured .agencyPlanCta:hover {
-  background: #f8fafc;
-}
-
-.agencyPlanCardFeatured .agencyPlanCall {
-  color: #bfdbfe;
-}
-
-.agencyPlanCardFeatured .agencyPlanCall:hover,
-.agencyPlanCardFeatured .agencyPlanCall:focus {
-  color: #dbeafe;
-}
-
-.agencyPlanCardFeatured .agencyPlanFeatures {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
   background: transparent;
+  box-shadow: none;
 }
 
-.agencyPlanCardFeatured .agencyPlanFeaturesList li {
-  color: #ffffff;
+.webdesignConvertCall:hover,
+.webdesignConvertCall:focus,
+.webdesignConvertCall:focus-visible,
+.webdesignConvertCall:active {
+  color: #ffffff !important;
+  text-decoration: none !important;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  opacity: 0.88;
 }
 
-.agencyPlanCardFeatured .agencyPlanFeatureIcon {
-  background: #ffffff;
-  color: var(--agency-accent-dark);
-}
-
-/* Third card — blue CTA */
-.agencyPlanCardPro .agencyPlanCta {
-  background: var(--agency-accent);
-  color: #ffffff;
-}
-
-.agencyPlanCardPro .agencyPlanCta:hover {
-  background: var(--agency-accent-dark);
-}
-
-@media (max-width: 991px) {
-  .agencyPlanGrid {
+@media (max-width: 860px) {
+  .webdesignConvertPanel {
     grid-template-columns: 1fr;
+    padding: 1.35rem;
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.72) 100%),
+      url("/images/agency-web-design-bg.png");
+    background-position: center;
   }
 
-  .agencyPlanCard {
-    border-right: 0;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .agencyPlanCard:last-child {
-    border-bottom: 0;
-  }
-
-  .agencyPlanCardFeatured {
-    border-bottom-color: rgba(255, 255, 255, 0.16);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .agencyPlanCard {
-    transition: box-shadow 0.25s ease;
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .agencyPlanCard:hover,
-    .agencyPlanCard:focus-within {
-      transform: none;
-    }
+  .webdesignConvertTitle {
+    max-width: none;
   }
 }
 
@@ -2741,27 +2603,28 @@
 
 .setupWizardDialog {
   position: relative;
-  width: min(100%, 760px);
+  width: min(100%, 820px);
   max-height: calc(100vh - 2rem);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: #ffffff;
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
 
 .setupWizardHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: center;
   gap: 1rem;
-  padding: 1.5rem 1.75rem 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 1.75rem 3.5rem 0.85rem;
+  text-align: center;
+  border-bottom: 0;
 }
 
 .setupWizardKicker {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.45rem;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -2770,15 +2633,19 @@
 }
 
 .setupWizardHeader h2 {
-  margin: 0;
-  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
-  line-height: 1.25;
-  color: #0f172a;
+  margin: 0 auto;
+  max-width: 18ch;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.55rem, 3vw, 2.05rem);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: #1f2937;
 }
 
 .setupWizardHint {
-  margin: 0.65rem 0 0;
-  color: #64748b;
+  margin: 0.7rem auto 0;
+  max-width: 36rem;
+  color: #6b7280;
   line-height: 1.6;
   font-size: 0.9375rem;
 }
@@ -2791,6 +2658,9 @@
 }
 
 .setupWizardClose {
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
   border: none;
   background: #f8fafc;
   color: #64748b;
@@ -2810,7 +2680,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 1.5rem 1.75rem;
+  padding: 1.15rem 1.75rem 1.5rem;
 }
 
 .setupWizardChoiceGrid {
@@ -2877,47 +2747,61 @@
 }
 
 .setupWizardChecklist {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem 0.7rem;
 }
 
 .setupWizardCheckItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.75rem;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0.72rem 1.2rem;
+  border: 1px solid #d7dde6;
+  border-radius: 999px;
   background: #ffffff;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .setupWizardCheckItem:hover {
   border-color: #94a3b8;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .setupWizardCheckItemActive {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  box-shadow: 0 8px 16px rgba(29, 78, 216, 0.2);
 }
 
 .setupWizardCheckItem input {
-  margin-top: 0.15rem;
-  accent-color: #2563eb;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .setupWizardCheckItem span {
-  color: #0f172a;
-  font-size: 0.875rem;
-  line-height: 1.45;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.setupWizardCheckItemActive span {
+  color: #ffffff;
 }
 
 .setupWizardSubsection {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
   border-top: 1px solid #e2e8f0;
+  text-align: center;
 }
 
 .setupWizardSubsection h3 {
@@ -3198,7 +3082,7 @@
   }
 
   .templateCoverflowViewport {
-    height: clamp(16rem, 62vw, 19rem);
+    height: clamp(18rem, 70vw, 24rem);
   }
 
   .templateCoverflowCard {
@@ -3237,8 +3121,7 @@
     padding-right: 1rem;
   }
 
-  .setupWizardChoiceGrid,
-  .setupWizardChecklist {
+  .setupWizardChoiceGrid {
     grid-template-columns: 1fr;
   }
 

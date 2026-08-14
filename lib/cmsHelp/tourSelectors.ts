@@ -18,6 +18,9 @@ export const tour = {
   moduleTable: '[data-cms-tour="module-table"]',
   modulePagination: '[data-cms-tour="module-pagination"]',
 
+  managedTabs: '[data-cms-tour="managed-tabs"]',
+  managedCategory: '[data-cms-tour="managed-category"]',
+
   sidebarUser: ".sb-user",
 
   settingsLayout: ".cms-settings-layout",

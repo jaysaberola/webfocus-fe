@@ -102,9 +102,10 @@ export default function WebDesignSetupWizard({
         <div className={styles.setupWizardHeader}>
           <div>
             <p className={styles.setupWizardKicker}>Package setup</p>
-            <h2 id="webdesign-setup-title">Select the online service features you need</h2>
+            <h2 id="webdesign-setup-title">Everything starts with a website</h2>
             <p className={styles.setupWizardHint}>
-              Choose all items that apply. You can select multiple options.
+              These are just some of the website features we can help you create, launch, and grow.
+              Choose all that apply.
             </p>
             <p className={styles.setupWizardPackageMeta}>
               {resolvedTemplateLabel ? `${resolvedTemplateLabel} · ` : ""}

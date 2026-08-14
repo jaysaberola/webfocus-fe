@@ -59,12 +59,12 @@ export const emptyClientCrmForm: ClientCrmFormState = {
   address_city: "",
   address_province: "",
   address_zip: "",
-  address_country: "",
+  address_country: "Philippines",
   shipping_street: "",
   shipping_city: "",
   shipping_province: "",
   shipping_zip: "",
-  shipping_country: "",
+  shipping_country: "Philippines",
   bir_certificate: null,
   business_permit: null,
   sec_dti_registration: null,
@@ -124,6 +124,22 @@ export function validateClientCrmForm(form: ClientCrmFormState) {
 
   if (form.mobile.trim() && !/^\d{9}$/.test(form.mobile.trim())) {
     return "Contact Number must be exactly 9 digits (e.g. 917123456).";
+  }
+
+  if (!form.address_street.trim()) {
+    return "Billing Street is required for the LBC copy of the Service Invoice.";
+  }
+  if (!form.address_city.trim()) {
+    return "Billing City is required for the LBC copy of the Service Invoice.";
+  }
+  if (!form.address_province.trim()) {
+    return "Billing Province is required for the LBC copy of the Service Invoice.";
+  }
+  if (!form.address_zip.trim()) {
+    return "Billing Code is required for the LBC copy of the Service Invoice.";
+  }
+  if (!form.address_country.trim()) {
+    return "Billing Country is required for the LBC copy of the Service Invoice.";
   }
 
   return null;

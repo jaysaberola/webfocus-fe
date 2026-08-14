@@ -105,7 +105,7 @@ export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
   productCategory: true,
   domain: true,
   billing: true,
-  status: false,
+  status: true,
   owner: false,
   created: false,
   classification: false,
@@ -289,6 +289,15 @@ export function clientDisplayStatus(client: CustomerRow) {
     return "Disabled";
   }
   return "Active";
+}
+
+export function clientHasExpiringService(client: CustomerRow, withinDays = 30) {
+  const cutoff = Date.now() + withinDays * 24 * 60 * 60 * 1000;
+  return (client.services ?? []).some((service) => {
+    if (String(service.status ?? "").toLowerCase() === "expired") return false;
+    const renewAt = Date.parse(String(service.renew_at ?? ""));
+    return Number.isFinite(renewAt) && renewAt <= cutoff;
+  });
 }
 
 export function clientClassification(client: CustomerRow): "New" | "Existing" {

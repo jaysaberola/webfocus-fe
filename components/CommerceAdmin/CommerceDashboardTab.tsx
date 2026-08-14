@@ -9,6 +9,7 @@ import {
   formatCommerceMoney,
 } from "@/lib/commerceAdmin/mockData";
 import type { CommerceDashboardData } from "@/services/commerceAdminService";
+import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import { useCommerceDashboardWidgets } from "@/lib/commerceAdmin/useCommerceDashboardWidgets";
 import CommerceCustomizeDashboardModal from "./CommerceCustomizeDashboardModal";
@@ -73,6 +74,28 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
   const actualTotal = 36720;
   const collectionRate = ((actualTotal / projectedTotal) * 100).toFixed(2);
 
+  const goToOrdersQueue = (queue: "new" | "overdue") => {
+    void router.replace(
+      {
+        pathname: COMMERCE_ADMIN_PATH,
+        query: { tab: "orders", queue },
+      },
+      undefined,
+      { shallow: true },
+    );
+  };
+
+  const goToExpiringServices = () => {
+    void router.replace(
+      {
+        pathname: COMMERCE_ADMIN_PATH,
+        query: { tab: "clients", queue: "expiring" },
+      },
+      undefined,
+      { shallow: true },
+    );
+  };
+
   const showQueueSection =
     isVisible("new-orders") || isVisible("expiring-services") || isVisible("overdue");
 
@@ -124,9 +147,13 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
           <div className={queueLayoutClass}>
             {isVisible("new-orders") && (
               <article className={styles.queueCard}>
-                <header className={styles.queueCardHeaderBlue}>
+                <button
+                  type="button"
+                  className={`${styles.queueCardHeaderBlue} ${styles.queueCardHeaderClickable}`}
+                  onClick={() => goToOrdersQueue("new")}
+                >
                   <span><i className="fa-regular fa-file-lines" aria-hidden="true" /> New Orders</span>
-                </header>
+                </button>
                 <div className={styles.queueTableWrap}>
                   <table className={styles.queueTable}>
                       <thead>
@@ -157,7 +184,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("orders")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => goToOrdersQueue("new")}>
                   View All New Orders
                 </button>
               </article>
@@ -165,9 +192,13 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
 
             {isVisible("expiring-services") && (
               <article className={styles.queueCard}>
-                <header className={styles.queueCardHeaderAmber}>
+                <button
+                  type="button"
+                  className={`${styles.queueCardHeaderAmber} ${styles.queueCardHeaderClickable}`}
+                  onClick={goToExpiringServices}
+                >
                   <span><i className="fa-regular fa-calendar" aria-hidden="true" /> Expiring Services</span>
-                </header>
+                </button>
                 <div className={styles.queueTableWrap}>
                   <table className={styles.queueTable}>
                       <thead>
@@ -198,7 +229,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => void router.push("/managed")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={goToExpiringServices}>
                   View All Expiring Services
                 </button>
               </article>
@@ -206,9 +237,13 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
 
             {isVisible("overdue") && (
               <article className={styles.queueCard}>
-                <header className={styles.queueCardHeaderRed}>
+                <button
+                  type="button"
+                  className={`${styles.queueCardHeaderRed} ${styles.queueCardHeaderClickable}`}
+                  onClick={() => goToOrdersQueue("overdue")}
+                >
                   <span><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /> Overdue</span>
-                </header>
+                </button>
                 <div className={styles.queueTableWrap}>
                   <table className={styles.queueTable}>
                       <thead>
@@ -239,7 +274,7 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => onTabChange("orders")}>
+                <button type="button" className={styles.queueViewAllLink} onClick={() => goToOrdersQueue("overdue")}>
                   View All Overdue
                 </button>
               </article>

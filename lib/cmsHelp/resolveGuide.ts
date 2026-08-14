@@ -22,6 +22,8 @@ export function resolveGuideIdFromPath(pathname: string): string {
   if (path.startsWith("/news/edit")) return "news";
   if (path.startsWith("/news")) return "news";
 
+  if (path.startsWith("/managed") || path.startsWith("/services")) return "managed";
+
   if (path.startsWith("/settings/account")) return "settings-account";
   if (path.startsWith("/settings/website")) return "settings-website";
   if (path.startsWith("/settings/audit")) return "settings-audit";

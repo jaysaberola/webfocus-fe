@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/router";
+import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import AssignTransactionModal from "@/components/CommerceAdmin/modals/AssignTransactionModal";
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
@@ -112,6 +114,7 @@ const emptyForm = {
 };
 
 export default function CommerceTransactionsTab() {
+  const router = useRouter();
   const [rows, setRows] = useState<SalesTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -126,9 +129,11 @@ export default function CommerceTransactionsTab() {
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createCustomerId, setCreateCustomerId] = useState<number | null>(null);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
   );
+  const [queueFilter, setQueueFilter] = useState<"new" | "overdue" | null>(null);
   const [modalMode, setModalMode] = useState<"view" | "edit" | null>(null);
   const [selected, setSelected] = useState<SalesTransaction | null>(null);
   const [rejectTarget, setRejectTarget] = useState<SalesTransaction | null>(null);
@@ -141,6 +146,29 @@ export default function CommerceTransactionsTab() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const canAssign = canAssignSalesTransactions(readStoredCurrentUser());
+
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const queue = router.query.queue;
+    const shouldOpenCreate = router.query.createOrder === "1";
+    const shouldApplyQueue = queue === "new" || queue === "overdue";
+
+    if (!shouldOpenCreate && !shouldApplyQueue) return;
+
+    if (shouldApplyQueue) setQueueFilter(queue);
+    if (shouldOpenCreate) {
+      const parsedId = Number(router.query.customerId);
+      setCreateCustomerId(Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null);
+      setCreateOpen(true);
+    }
+
+    void router.replace(
+      { pathname: COMMERCE_ADMIN_PATH, query: { tab: "orders" } },
+      undefined,
+      { shallow: true },
+    );
+  }, [router.isReady, router.query.createOrder, router.query.customerId, router.query.queue, router]);
 
   const getFilterValue = useCallback((row: SalesTransaction, fieldId: string) => {
     switch (fieldId) {
@@ -197,7 +225,7 @@ export default function CommerceTransactionsTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [sortBy, appliedFilter, clientFilter, search, dateRange]);
+  }, [sortBy, appliedFilter, clientFilter, queueFilter, search, dateRange]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -222,6 +250,18 @@ export default function CommerceTransactionsTab() {
         return false;
       });
     }
+    if (queueFilter === "new") {
+      filtered = filtered.filter((row) =>
+        ["new", "pending", "processing"].includes(String(row.order_status ?? "").toLowerCase()),
+      );
+    } else if (queueFilter === "overdue") {
+      const cutoff = Date.now() - 14 * 24 * 60 * 60 * 1000;
+      filtered = filtered.filter((row) => {
+        if (isPaidStatus(row.payment_status)) return false;
+        const issued = Date.parse(String(row.transacted_at || row.issued_date || ""));
+        return Number.isFinite(issued) && issued <= cutoff;
+      });
+    }
     filtered = filtered
       .filter((row) =>
         rowMatchesSearch(
@@ -243,7 +283,7 @@ export default function CommerceTransactionsTab() {
         ),
       );
     return sortTransactions(filtered, sortBy);
-  }, [rows, appliedFilter, sortBy, clientFilter, getFilterValue, search, dateRange]);
+  }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
@@ -574,6 +614,19 @@ export default function CommerceTransactionsTab() {
         </div>
       </div>
 
+      {queueFilter ? (
+        <div className={styles.filterBanner}>
+          <span>
+            {queueFilter === "new"
+              ? "Showing new orders in queue"
+              : "Showing overdue invoices"}
+          </span>
+          <button type="button" className={styles.secondaryBtnSm} onClick={() => setQueueFilter(null)}>
+            Clear filter
+          </button>
+        </div>
+      ) : null}
+
       {clientFilter ? (
         <div className={styles.filterBanner}>
           <span>
@@ -626,7 +679,14 @@ export default function CommerceTransactionsTab() {
               ) : null}
             </div>
           </div>
-          <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateOpen(true)}>
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            onClick={() => {
+              setCreateCustomerId(null);
+              setCreateOpen(true);
+            }}
+          >
             <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client Order
           </button>
         </div>
@@ -886,7 +946,19 @@ export default function CommerceTransactionsTab() {
         </TableFilterShell>
       )}
 
-      <CreateClientOrderModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={loadRows} />
+      <CreateClientOrderModal
+        open={createOpen}
+        defaultCustomerId={createCustomerId}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateCustomerId(null);
+        }}
+        onCreated={() => {
+          setCreateOpen(false);
+          setCreateCustomerId(null);
+          loadRows();
+        }}
+      />
 
       <HostingTransactionModal
         open={!!hostingTarget}

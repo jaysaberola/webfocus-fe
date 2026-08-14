@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/router";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
-import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
+import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
+import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import {
   buildClientDealRows,
   fetchCustomerDealTransactions,
   formatDealAmount,
   type ClientDealRow,
 } from "@/lib/commerceAdmin/clientDealHelpers";
+import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
 import { fetchCommerceServices } from "@/services/commerceAdminService";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -25,12 +28,14 @@ type Props = {
 };
 
 export default function ClientDealsPanel({ client, onClientUpdated, onEditClient }: Props) {
+  const router = useRouter();
   const [dealRows, setDealRows] = useState<ClientDealRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [newDealOpen, setNewDealOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<ClientDealRow | null>(null);
+  const productDetailsRef = useRef<HTMLDivElement | null>(null);
 
   const reloadDeals = useCallback(() => {
     setReloadKey((current) => current + 1);
@@ -40,6 +45,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     let cancelled = false;
     setLoading(true);
     setPage(1);
+    setSelectedOrder(null);
 
     Promise.all([
       fetchCustomerDealTransactions(Number(client.id)),
@@ -78,6 +84,13 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  useEffect(() => {
+    if (!selectedOrder) return;
+    requestAnimationFrame(() => {
+      scrollToClientSection(productDetailsRef.current);
+    });
+  }, [selectedOrder]);
+
   return (
     <div className={styles.clientDealsBlock}>
       <div className={styles.panelHeader}>
@@ -89,7 +102,24 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           <button type="button" className={styles.dealsActionBtn} onClick={() => setAssignOpen(true)}>
             Assign
           </button>
-          <button type="button" className={styles.dealsActionBtn} onClick={() => setNewDealOpen(true)}>
+          <button
+            type="button"
+            className={styles.dealsActionBtn}
+            onClick={() => {
+              void router.replace(
+                {
+                  pathname: COMMERCE_ADMIN_PATH,
+                  query: {
+                    tab: "orders",
+                    createOrder: "1",
+                    customerId: String(client.id),
+                  },
+                },
+                undefined,
+                { shallow: true },
+              );
+            }}
+          >
             New Order
           </button>
           <button type="button" className={styles.dealsActionBtn} onClick={() => onEditClient?.()}>
@@ -121,11 +151,22 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
               </tr>
             ) : (
               paginatedDeals.map((deal) => (
-                <tr key={deal.id}>
+                <tr
+                  key={deal.id}
+                  className={selectedOrder?.id === deal.id ? styles.rowDealOpen : undefined}
+                >
                   <td className={styles.dealsNowrap}>{deal.dealOwner}</td>
                   <td className={styles.dealsNowrap}>{deal.status}</td>
                   <td>
-                    <span className={styles.dealsSubject}>{deal.subject}</span>
+                    <button
+                      type="button"
+                      className={styles.dealsSubject}
+                      onClick={() =>
+                        setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
+                      }
+                    >
+                      {deal.subject}
+                    </button>
                   </td>
                   <td className={styles.dealsNowrap}>{deal.domainName || "—"}</td>
                   <td className={styles.dealsNowrap}>
@@ -172,21 +213,22 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
         </div>
       </div>
 
+      {selectedOrder ? (
+        <div
+          ref={productDetailsRef}
+          id="client-section-product-details"
+          className={styles.clientEditScrollTarget}
+        >
+          <OrderProductDetailsPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} />
+        </div>
+      ) : null}
+
       <AssignClientOwnerModal
         open={assignOpen}
         client={client}
         onClose={() => setAssignOpen(false)}
         onAssigned={(payload) => {
           onClientUpdated?.(payload);
-          reloadDeals();
-        }}
-      />
-      <CreateClientOrderModal
-        open={newDealOpen}
-        defaultCustomerId={Number(client.id)}
-        onClose={() => setNewDealOpen(false)}
-        onCreated={() => {
-          setNewDealOpen(false);
           reloadDeals();
         }}
       />

@@ -7,6 +7,7 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import ClientCrmForm, { type ClientCrmFormHandle } from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientDealsPanel from "@/components/CommerceAdmin/ClientDealsPanel";
+import ClientSearchResults from "@/components/CommerceAdmin/ClientSearchResults";
 import ClientRelatedList, { type ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
 import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
 import ClientDetailModal from "@/components/CommerceAdmin/modals/ClientDetailModal";
@@ -22,6 +23,7 @@ import {
   clientDisplayName,
   clientDisplayNameWithOrderCount,
   clientDisplayStatus,
+  clientHasExpiringService,
   clientIsAssigned,
   clientOwnerName,
   clientPlanName,
@@ -56,6 +58,8 @@ import {
 import { getCustomers } from "@/services/commerceAdminService";
 import { bulkDeleteCustomers, type CustomerRow } from "@/services/customerService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
+import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
+import { useRouter } from "next/router";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 10;
@@ -82,6 +86,7 @@ type Props = {
 type ClientView = "list" | "create" | "edit";
 
 export default function CommerceClientsTab(_props: Props) {
+  const router = useRouter();
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<ClientSortKey>("name-asc");
@@ -107,6 +112,7 @@ export default function CommerceClientsTab(_props: Props) {
   const dealsRef = useRef<HTMLElement | null>(null);
   const [activeSection, setActiveSection] = useState<ClientRelatedSection>("info");
   const [relatedListVisible, setRelatedListVisible] = useState(true);
+  const [expiringOnly, setExpiringOnly] = useState(false);
 
   const getFilterValue = useCallback((client: CustomerRow, fieldId: string) => {
     switch (fieldId) {
@@ -152,8 +158,20 @@ export default function CommerceClientsTab(_props: Props) {
   }, [loadRows]);
 
   useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.queue !== "expiring") return;
+    setExpiringOnly(true);
+    setView("list");
+    void router.replace(
+      { pathname: COMMERCE_ADMIN_PATH, query: { tab: "clients" } },
+      undefined,
+      { shallow: true },
+    );
+  }, [router.isReady, router.query.queue, router]);
+
+  useEffect(() => {
     setPage(1);
-  }, [sortBy, appliedFilter, search, dateRange]);
+  }, [sortBy, appliedFilter, search, dateRange, expiringOnly]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -187,9 +205,10 @@ export default function CommerceClientsTab(_props: Props) {
           search,
         ),
       )
-      .filter((client) => rowMatchesDateRange(client.created_at, dateRange));
+      .filter((client) => rowMatchesDateRange(client.created_at, dateRange))
+      .filter((client) => (expiringOnly ? clientHasExpiringService(client) : true));
     return sortClients(filtered, sortBy);
-  }, [rows, appliedFilter, sortBy, getFilterValue, search, dateRange]);
+  }, [rows, appliedFilter, sortBy, getFilterValue, search, dateRange, expiringOnly]);
 
   const totalPages = Math.max(1, Math.ceil(processedRows.length / PAGE_SIZE));
   const paginatedRows = useMemo(() => {
@@ -380,6 +399,15 @@ export default function CommerceClientsTab(_props: Props) {
         </div>
       </div>
 
+      {expiringOnly ? (
+        <div className={styles.filterBanner}>
+          <span>Showing clients with services expiring within 30 days</span>
+          <button type="button" className={styles.secondaryBtnSm} onClick={() => setExpiringOnly(false)}>
+            Clear filter
+          </button>
+        </div>
+      ) : null}
+
       {hasSelection ? (
         <div className={styles.bulkSelectionBar}>
           <span>
@@ -511,6 +539,12 @@ export default function CommerceClientsTab(_props: Props) {
       >
         {loading ? (
           <p className={styles.emptyState}>Loading clients...</p>
+        ) : search.trim() ? (
+          <ClientSearchResults
+            search={search}
+            clients={processedRows}
+            onOpenClient={openEdit}
+          />
         ) : (
           <>
             <div className={styles.tableWrap}>
@@ -530,9 +564,9 @@ export default function CommerceClientsTab(_props: Props) {
                     {columnsVisible.productCategory ? renderSortableHead("productCategory") : null}
                     {columnsVisible.domain ? renderSortableHead("domain") : null}
                     {columnsVisible.billing ? renderSortableHead("billing") : null}
+                    {columnsVisible.status ? renderSortableHead("status") : null}
                     {columnsVisible.owner ? renderSortableHead("owner") : null}
                     {columnsVisible.created ? renderSortableHead("created") : null}
-                    {columnsVisible.status ? renderSortableHead("status") : null}
                     {columnsVisible.classification ? renderSortableHead("classification") : null}
                   </tr>
                 </thead>
@@ -573,6 +607,15 @@ export default function CommerceClientsTab(_props: Props) {
                           {columnsVisible.billing ? (
                             <td>{clientBillingInCharge(client)}</td>
                           ) : null}
+                          {columnsVisible.status ? (
+                            <td>
+                              {clientDisplayStatus(client) === "Active" ? (
+                                <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
+                              ) : (
+                                <span className={styles.badgeMuted}>{clientDisplayStatus(client)}</span>
+                              )}
+                            </td>
+                          ) : null}
                           {columnsVisible.owner ? (
                             <td>
                               <button
@@ -591,15 +634,6 @@ export default function CommerceClientsTab(_props: Props) {
                           ) : null}
                           {columnsVisible.created ? (
                             <td>{formatClientCreatedTime(client)}</td>
-                          ) : null}
-                          {columnsVisible.status ? (
-                            <td>
-                              {clientDisplayStatus(client) === "Active" ? (
-                                <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
-                              ) : (
-                                <span className={styles.badgeMuted}>{clientDisplayStatus(client)}</span>
-                              )}
-                            </td>
                           ) : null}
                           {columnsVisible.classification ? (
                             <td>
