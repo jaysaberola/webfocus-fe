@@ -22,6 +22,7 @@ export interface SalesTransaction {
   order_status: string;
   notes?: string | null;
   transacted_at?: string | null;
+  created_at?: string | null;
   issued_date?: string | null;
   due_date?: string | null;
   items?: SalesTransactionItem[];

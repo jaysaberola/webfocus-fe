@@ -139,7 +139,7 @@ export function filterTransactions(rows: SalesTransaction[], filter: TxFilterKey
 export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
   const copy = [...rows];
   const dateValue = (row: SalesTransaction) =>
-    Date.parse(String(row.transacted_at || row.issued_date || "")) || 0;
+    Date.parse(String(row.created_at || row.transacted_at || row.issued_date || "")) || 0;
   const dueValue = (row: SalesTransaction) =>
     Date.parse(String(row.due_date || transactionDueDate(row) || "")) || 0;
   const rowId = (row: SalesTransaction) => Number(row.id) || 0;
