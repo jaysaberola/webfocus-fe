@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import {
   cartCategoryLabel,
@@ -14,6 +15,7 @@ import { usePublicCartDrawer } from "./PublicCartDrawerContext";
 import styles from "@/styles/publicCartDrawer.module.css";
 
 export default function PublicCartDrawer() {
+  const router = useRouter();
   const { isOpen, closeDrawer } = usePublicCartDrawer();
   const [items, setItems] = useState<PublicCartItem[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -46,17 +48,25 @@ export default function PublicCartDrawer() {
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.classList.add("public-cart-drawer-open");
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
+      document.body.classList.remove("public-cart-drawer-open");
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [isOpen, closeDrawer]);
 
   const itemCount = cartCount(items);
   const checkoutHref = isLoggedIn ? "/public/cart" : "/public/cart?signin=1";
+  const browseHref =
+    router.pathname === "/public/services"
+      ? router.asPath || "/public/services"
+      : router.pathname.startsWith("/public/product")
+        ? "/public/products"
+        : "/public/services";
   const staffBlockReason = getStaffCartBlockReason();
 
   const removeItem = (key: string) => {
@@ -134,9 +144,13 @@ export default function PublicCartDrawer() {
             </Link>
           )}
 
-          <button type="button" className={styles.browseBtn} onClick={closeDrawer}>
+          <Link
+            href={browseHref}
+            className={styles.browseBtn}
+            onClick={closeDrawer}
+          >
             Keep Browsing
-          </button>
+          </Link>
 
           
         </div>

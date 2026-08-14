@@ -533,6 +533,22 @@ body {
   bottom: 100px !important;
 }
 
+body.public-cart-drawer-open .custom_fc_frame,
+body.public-cart-drawer-open .fc-widget,
+body.public-cart-drawer-open .fc-frame,
+body.public-cart-drawer-open .fc-button,
+body.public-cart-drawer-open .fw-chat,
+body.public-cart-drawer-open .fw-widget,
+body.public-cart-drawer-open .fw-widget-container,
+body.public-cart-drawer-open .fw-cdn-widget,
+body.public-cart-drawer-open iframe[src*="fw-cdn.com"],
+body.public-cart-drawer-open iframe[src*="wchat.freshchat.com"],
+body.public-cart-drawer-open div[id^="fcWidget"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 .custom_fc_frame,
 .fc-widget,
 .fc-frame,
