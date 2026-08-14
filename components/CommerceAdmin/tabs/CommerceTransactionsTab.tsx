@@ -956,6 +956,8 @@ export default function CommerceTransactionsTab() {
         onCreated={() => {
           setCreateOpen(false);
           setCreateCustomerId(null);
+          setSortBy("date-desc");
+          setPage(1);
           loadRows();
         }}
       />

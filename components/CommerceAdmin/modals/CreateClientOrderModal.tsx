@@ -210,7 +210,6 @@ export default function CreateClientOrderModal({
         grand_total: grandTotal,
         payment_status: statusMap[paymentStatus] ?? paymentStatus,
         order_status: "pending",
-        transacted_at: new Date().toISOString().slice(0, 10),
         notes: `Client Order · Payment: ${paymentMethod}${selectedAddon ? ` · Add-on: ${selectedAddon.name}` : ""}`,
         items: lineItems,
       });

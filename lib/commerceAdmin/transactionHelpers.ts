@@ -139,9 +139,10 @@ export function filterTransactions(rows: SalesTransaction[], filter: TxFilterKey
 export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
   const copy = [...rows];
   const dateValue = (row: SalesTransaction) =>
-    Date.parse(String(row.issued_date || row.transacted_at || "")) || 0;
+    Date.parse(String(row.transacted_at || row.issued_date || "")) || 0;
   const dueValue = (row: SalesTransaction) =>
     Date.parse(String(row.due_date || transactionDueDate(row) || "")) || 0;
+  const rowId = (row: SalesTransaction) => Number(row.id) || 0;
   copy.sort((a, b) => {
     const compareText = (left: string, right: string, desc: boolean) => {
       const result = left.localeCompare(right);
@@ -149,10 +150,12 @@ export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
     };
 
     if (sortBy === "date-desc") {
-      return dateValue(b) - dateValue(a);
+      const byDate = dateValue(b) - dateValue(a);
+      return byDate !== 0 ? byDate : rowId(b) - rowId(a);
     }
     if (sortBy === "date-asc") {
-      return dateValue(a) - dateValue(b);
+      const byDate = dateValue(a) - dateValue(b);
+      return byDate !== 0 ? byDate : rowId(a) - rowId(b);
     }
     if (sortBy === "due-desc") {
       return dueValue(b) - dueValue(a);
