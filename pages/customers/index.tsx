@@ -28,8 +28,8 @@ function ManageCustomers() {
   const [currentPage, setCurrentPage] = useState(() => listCache?.currentPage ?? 1);
   const [totalPages, setTotalPages] = useState(() => listCache?.totalPages ?? 1);
   const [perPage, setPerPage] = useState(() => listCache?.perPage ?? 5);
-  const [sortBy, setSortBy] = useState<string>("name");
-  const [sortOrder, setSortOrder] = useState<string>("asc");
+  const [sortBy, setSortBy] = useState<string>("updated_at");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showInactiveOnly, setShowInactiveOnly] = useState<boolean>(false);
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   const [advancedSearchValues, setAdvancedSearchValues] = useState<AdvancedSearchValues>({});

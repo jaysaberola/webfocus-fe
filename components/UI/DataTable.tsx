@@ -92,9 +92,13 @@ export default function DataTable<T>({
     typeof onPageChange === "function";
 
   const sortableColumns = useMemo(() => columns.filter((c) => c.sortable), [columns]);
-  const firstSortableField = sortableColumns[0]?.sortField ?? sortableColumns[0]?.key;
+  const newestField = sortableColumns.find((col) =>
+    /created|updated|modified|date|issued/i.test(String(col.sortField ?? col.key)),
+  );
+  const firstSortableField =
+    newestField?.sortField ?? newestField?.key ?? sortableColumns[0]?.sortField ?? sortableColumns[0]?.key;
   const [localSortBy, setLocalSortBy] = useState<string | undefined>(firstSortableField);
-  const [localSortOrder, setLocalSortOrder] = useState<SortOrder>("asc");
+  const [localSortOrder, setLocalSortOrder] = useState<SortOrder>(newestField ? "desc" : "asc");
   const [internalSelectedIds, setInternalSelectedIds] = useState<string[]>([]);
 
   const effectiveSortBy = onSortChange ? sortBy : (sortBy ?? localSortBy);

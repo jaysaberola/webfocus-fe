@@ -62,7 +62,11 @@ function sortPortalTickets(rows: PortalTicket[], sortBy: TicketSortKey) {
     if (sortBy.startsWith("subject")) {
       return compareText(a.subject, b.subject, sortBy === "subject-desc");
     }
-    if (sortBy.startsWith("date")) return compareText(a.date, b.date, sortBy === "date-desc");
+    if (sortBy.startsWith("date")) {
+      const left = Date.parse(String(a.date ?? "")) || 0;
+      const right = Date.parse(String(b.date ?? "")) || 0;
+      return sortBy === "date-desc" ? right - left : left - right;
+    }
     if (sortBy.startsWith("status")) return compareText(a.status, b.status, sortBy === "status-desc");
     return 0;
   });

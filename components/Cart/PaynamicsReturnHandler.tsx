@@ -48,13 +48,12 @@ export default function PaynamicsReturnHandler() {
     );
   }, [router, router.isReady, router.pathname, router.query]);
 
-  // Browser Back from Paynamics usually has no ?paynamics= — restore on pageshow.
+  // Browser Back from Paynamics usually has no ?paynamics= — restore only from bfcache, not on every public page load.
   useEffect(() => {
-    const onPageShow = () => {
-      restorePublicCartFromCheckoutBackup();
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) restorePublicCartFromCheckoutBackup();
     };
     window.addEventListener("pageshow", onPageShow);
-    restorePublicCartFromCheckoutBackup();
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 

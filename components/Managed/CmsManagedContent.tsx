@@ -113,31 +113,43 @@ export default function CmsManagedContent() {
 
   const filteredServices = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return services.filter((service) => {
-      const type = resolveServiceTypeLabel(service);
-      if (activeServiceType !== "all" && type !== activeServiceType) return false;
-      if (!query) return true;
-      const haystack = [
-        service.name ?? service.title,
-        type,
-        serviceActive(service) ? "active" : "inactive",
-        String(service.price ?? ""),
-      ]
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(query);
-    });
+    return services
+      .filter((service) => {
+        const type = resolveServiceTypeLabel(service);
+        if (activeServiceType !== "all" && type !== activeServiceType) return false;
+        if (!query) return true;
+        const haystack = [
+          service.name ?? service.title,
+          type,
+          serviceActive(service) ? "active" : "inactive",
+          String(service.price ?? ""),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      })
+      .sort(
+        (a, b) =>
+          (Date.parse(String(b.updated_at ?? b.created_at ?? "")) || 0) -
+          (Date.parse(String(a.updated_at ?? a.created_at ?? "")) || 0),
+      );
   }, [services, activeServiceType, search]);
 
   const filteredCoupons = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return coupons;
-    return coupons.filter((coupon) =>
-      [coupon.code, coupon.name, coupon.description, coupon.status]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
+    const rows = !query
+      ? coupons
+      : coupons.filter((coupon) =>
+          [coupon.code, coupon.name, coupon.description, coupon.status]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(query),
+        );
+    return [...rows].sort(
+      (a, b) =>
+        (Date.parse(String(b.updated_at ?? b.created_at ?? "")) || Number(b.id) || 0) -
+        (Date.parse(String(a.updated_at ?? a.created_at ?? "")) || Number(a.id) || 0),
     );
   }, [coupons, search]);
 

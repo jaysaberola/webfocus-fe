@@ -138,6 +138,10 @@ export function filterTransactions(rows: SalesTransaction[], filter: TxFilterKey
 
 export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
   const copy = [...rows];
+  const dateValue = (row: SalesTransaction) =>
+    Date.parse(String(row.issued_date || row.transacted_at || "")) || 0;
+  const dueValue = (row: SalesTransaction) =>
+    Date.parse(String(row.due_date || transactionDueDate(row) || "")) || 0;
   copy.sort((a, b) => {
     const compareText = (left: string, right: string, desc: boolean) => {
       const result = left.localeCompare(right);
@@ -145,16 +149,16 @@ export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
     };
 
     if (sortBy === "date-desc") {
-      return compareText(transactionIssuedDate(b), transactionIssuedDate(a), true);
+      return dateValue(b) - dateValue(a);
     }
     if (sortBy === "date-asc") {
-      return compareText(transactionIssuedDate(a), transactionIssuedDate(b), false);
+      return dateValue(a) - dateValue(b);
     }
     if (sortBy === "due-desc") {
-      return compareText(transactionDueDate(b), transactionDueDate(a), true);
+      return dueValue(b) - dueValue(a);
     }
     if (sortBy === "due-asc") {
-      return compareText(transactionDueDate(a), transactionDueDate(b), false);
+      return dueValue(a) - dueValue(b);
     }
     if (sortBy === "amount-desc") {
       return Number(b.grand_total ?? 0) - Number(a.grand_total ?? 0);

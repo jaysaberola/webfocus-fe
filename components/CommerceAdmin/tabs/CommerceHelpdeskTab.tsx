@@ -84,7 +84,12 @@ export default function CommerceHelpdeskTab() {
             search,
           ),
         )
-        .filter((ticket) => rowMatchesDateRange(ticket.updatedAt, dateRange)),
+        .filter((ticket) => rowMatchesDateRange(ticket.updatedAt, dateRange))
+        .sort(
+          (a, b) =>
+            (Date.parse(String(b.updatedAt ?? "")) || 0) -
+            (Date.parse(String(a.updatedAt ?? "")) || 0),
+        ),
     [rows, appliedFilter, getFilterValue, search, dateRange],
   );
 

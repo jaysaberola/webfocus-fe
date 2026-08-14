@@ -125,10 +125,14 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
       return compareText(a.gateway, b.gateway, sortBy === "gateway-desc");
     }
     if (sortBy.startsWith("date")) {
-      return compareText(a.date, b.date, sortBy === "date-desc");
+      const left = Date.parse(String(a.date ?? "")) || 0;
+      const right = Date.parse(String(b.date ?? "")) || 0;
+      return sortBy === "date-desc" ? right - left : left - right;
     }
     if (sortBy.startsWith("due")) {
-      return compareText(orderDueDate(a), orderDueDate(b), sortBy === "due-desc");
+      const left = Date.parse(String(orderDueDate(a) ?? "")) || 0;
+      const right = Date.parse(String(orderDueDate(b) ?? "")) || 0;
+      return sortBy === "due-desc" ? right - left : left - right;
     }
     if (sortBy.startsWith("status")) {
       return compareText(a.status, b.status, sortBy === "status-desc");

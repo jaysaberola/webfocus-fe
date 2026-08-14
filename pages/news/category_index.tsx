@@ -37,8 +37,8 @@ function ManageCategories() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [perPage, setPerPage] = useState(5);
-  const [sortBy, setSortBy] = useState<string>("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<string>("updated_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [showDeleted, setShowDeleted] = useState(false);
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   const [advancedSearchValues, setAdvancedSearchValues] = useState<AdvancedSearchValues>({});

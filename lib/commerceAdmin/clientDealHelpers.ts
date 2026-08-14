@@ -318,7 +318,9 @@ export function buildClientDealRows(
   const clientDomainValue = resolveClientDomain(client, adminServices);
 
   const sorted = [...transactions].sort(
-    (a, b) => new Date(a.transacted_at ?? 0).getTime() - new Date(b.transacted_at ?? 0).getTime(),
+    (a, b) =>
+      new Date(b.transacted_at ?? 0).getTime() -
+      new Date(a.transacted_at ?? 0).getTime(),
   );
 
   const seenItemNames = new Set<string>();

@@ -134,9 +134,33 @@ export const readPublicCart = (): PublicCartItem[] => {
   }
 };
 
+function persistCheckoutBackup(items: PublicCartItem[]) {
+  if (typeof window === "undefined") return;
+  const payload = JSON.stringify(items.map(normalizeCartItem));
+  try {
+    sessionStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+  } catch {
+    // ignore
+  }
+}
+
+/** Keep Paynamics backup aligned with the live cart so restore cannot resurrect deleted rows. */
+function syncCheckoutBackupWithCart(items: PublicCartItem[]) {
+  if (typeof window === "undefined") return;
+  if (!readCheckoutBackup()?.length) return;
+  persistCheckoutBackup(items);
+}
+
 export const writePublicCart = (items: PublicCartItem[]) => {
   if (typeof window === "undefined") return;
-  localStorage.setItem(CART_KEY, JSON.stringify(items.map(normalizeCartItem)));
+  const normalized = items.map(normalizeCartItem);
+  localStorage.setItem(CART_KEY, JSON.stringify(normalized));
+  syncCheckoutBackupWithCart(normalized);
   window.dispatchEvent(new Event("public-cart-updated"));
   try {
     sessionStorage.removeItem("cms4.checkoutAgreementAccepted.v1");
@@ -185,8 +209,18 @@ export const updatePublicCartQty = (key: string, qty: number) => {
   return next;
 };
 
+function cartItemMatchesKey(item: PublicCartItem, key: string) {
+  const needle = String(key || "").trim();
+  if (!needle) return false;
+  return (
+    String(item.key || "") === needle ||
+    String(item.id || "") === needle ||
+    String(item.slug || "") === needle
+  );
+}
+
 export const removePublicCartItem = (key: string) => {
-  const next = readPublicCart().filter((item) => item.key !== key);
+  const next = readPublicCart().filter((item) => !cartItemMatchesKey(item, key));
   writePublicCart(next);
   return next;
 };
@@ -218,17 +252,7 @@ function readCheckoutBackup(): PublicCartItem[] | null {
 export function stashPublicCartForCheckout(items: PublicCartItem[]) {
   if (typeof window === "undefined") return;
   const snapshot = items.map(normalizeCartItem);
-  const payload = JSON.stringify(snapshot);
-  try {
-    sessionStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
-  } catch {
-    // ignore
-  }
-  try {
-    localStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
-  } catch {
-    // ignore
-  }
+  persistCheckoutBackup(snapshot);
   // Always persist the full cart (payable + Pending Quotation) until payment succeeds.
   writePublicCart(snapshot);
 }

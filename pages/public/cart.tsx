@@ -29,7 +29,6 @@ import {
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
-  restorePublicCartFromCheckoutBackup,
   stashPublicCartForCheckout,
   writePublicCart,
 } from "@/lib/publicCart";
@@ -96,7 +95,6 @@ export default function PublicCartCheckoutPage() {
   };
 
   const refreshCart = () => {
-    restorePublicCartFromCheckoutBackup();
     const nextItems = readPublicCart();
     setItems(nextItems);
     setAgreementAccepted(hasCheckoutAgreementAccepted(nextItems));

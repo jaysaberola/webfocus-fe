@@ -133,8 +133,16 @@ function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
     if (sortBy.startsWith("plan")) {
       return compareText(invoicePlanLabel(a), invoicePlanLabel(b), sortBy === "plan-desc");
     }
-    if (sortBy.startsWith("issued")) return compareText(a.date, b.date, sortBy === "issued-desc");
-    if (sortBy.startsWith("due")) return compareText(a.due, b.due, sortBy === "due-desc");
+    if (sortBy.startsWith("issued")) {
+      const left = Date.parse(String(a.date ?? "")) || 0;
+      const right = Date.parse(String(b.date ?? "")) || 0;
+      return sortBy === "issued-desc" ? right - left : left - right;
+    }
+    if (sortBy.startsWith("due")) {
+      const left = Date.parse(String(a.due ?? "")) || 0;
+      const right = Date.parse(String(b.due ?? "")) || 0;
+      return sortBy === "due-desc" ? right - left : left - right;
+    }
     if (sortBy.startsWith("amount")) {
       return sortBy === "amount-desc" ? b.amount - a.amount : a.amount - b.amount;
     }

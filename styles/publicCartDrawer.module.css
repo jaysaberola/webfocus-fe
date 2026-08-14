@@ -131,11 +131,14 @@
 }
 
 .removeBtn {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: #ef4444;
   cursor: pointer;
-  padding: 0.15rem;
+  padding: 0.35rem;
   font-size: 0.95rem;
   line-height: 1;
 }

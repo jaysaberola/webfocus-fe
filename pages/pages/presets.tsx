@@ -24,8 +24,8 @@ function PresetPage() {
   const [perPage, setPerPage] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [sortBy, setSortBy] = useState<string>("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState<string>("updated_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [showAdvancedModal, setShowAdvancedModal] = useState(false);
   const [advancedSearchValues, setAdvancedSearchValues] = useState<AdvancedSearchValues>({});
   const [selectedIds, setSelectedIds] = useState<number[]>([]);

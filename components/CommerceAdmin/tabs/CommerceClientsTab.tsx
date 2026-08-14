@@ -89,7 +89,7 @@ export default function CommerceClientsTab(_props: Props) {
   const router = useRouter();
   const [rows, setRows] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<ClientSortKey>("name-asc");
+  const [sortBy, setSortBy] = useState<ClientSortKey>("newest");
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
   const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);

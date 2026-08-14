@@ -197,11 +197,13 @@
 }
 
 .removeIconBtn {
+  position: relative;
+  z-index: 2;
   border: none;
   background: transparent;
   color: #64748b;
   cursor: pointer;
-  padding: 0.15rem;
+  padding: 0.35rem;
   font-size: 0.95rem;
   line-height: 1;
 }
