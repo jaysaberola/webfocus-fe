@@ -4564,6 +4564,15 @@ select.clientCrmInput {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.dealsColVisPanel {
+  left: 0;
+  right: auto;
+  width: 18rem;
+  max-height: 22rem;
+  overflow-y: auto;
 }
 
 .dealsActionBtn {
@@ -4587,7 +4596,7 @@ select.clientCrmInput {
 }
 
 .dealsTable {
-  min-width: 760px;
+  min-width: 1100px;
 }
 
 .dealsTable th {

@@ -14,6 +14,17 @@ import {
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { toast } from "@/lib/toast";
+import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
+import {
+  PH_ADDRESS_PLACES,
+  PH_COUNTRIES,
+  PH_PROVINCES,
+  citiesForProvince,
+  findPlaceByCity,
+  findPlaceByStreet,
+  findPlaceByZip,
+  streetsForPlace,
+} from "@/lib/commerceAdmin/phAddressCatalog";
 import styles from "@/styles/customerPortal.module.css";
 
 type ProfileForm = {
@@ -21,7 +32,11 @@ type ProfileForm = {
   email: string;
   phone: string;
   company: string;
-  address: string;
+  address_country: string;
+  address_province: string;
+  address_city: string;
+  address_street: string;
+  address_zip: string;
 };
 
 function splitRepresentativeName(name: string) {
@@ -53,7 +68,11 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     email: "",
     phone: defaults.phone,
     company: defaults.company,
-    address: defaults.address,
+    address_country: "Philippines",
+    address_province: "",
+    address_city: "",
+    address_street: "",
+    address_zip: "",
   });
   const [baseline, setBaseline] = useState<ProfileForm | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -70,10 +89,11 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       email: customer.email || "",
       phone: customer.mobile || defaults.phone,
       company: customer.mname || defaults.company,
-      address:
-        [customer.address_street, customer.address_city, customer.address_province]
-          .filter(Boolean)
-          .join(", ") || defaults.address,
+      address_country: customer.address_country || "Philippines",
+      address_province: customer.address_province || "",
+      address_city: customer.address_city || "",
+      address_street: customer.address_street || "",
+      address_zip: customer.address_zip || "",
     };
     setForm(nextForm);
     setBaseline(nextForm);
@@ -121,6 +141,78 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     return (parts[0]?.[0] || "C").toUpperCase();
   }, [displayName]);
 
+  const applyPlace = (
+    place: { street?: string; city: string; province: string; zip: string; country: string } | null,
+    includeStreet = false,
+  ) => {
+    if (!place) return;
+    setForm((current) => ({
+      ...current,
+      ...(includeStreet && place.street ? { address_street: place.street } : {}),
+      address_city: place.city,
+      address_province: place.province,
+      address_zip: place.zip,
+      address_country: place.country || "Philippines",
+    }));
+  };
+
+  const streetOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return streetsForPlace(form.address_city, form.address_province)
+      .filter((place) => {
+        const key = `${place.street}|${place.city}|${place.zip}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.street || "",
+        label: `${place.street} — ${place.city}, ${place.province} (${place.zip})`,
+        street: place.street,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+        country: place.country,
+      }));
+  }, [form.address_city, form.address_province]);
+
+  const cityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return citiesForProvince(form.address_province)
+      .filter((place) => {
+        const key = `${place.city}|${place.province}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.city,
+        label: `${place.city} — ${place.province} (${place.zip})`,
+      }));
+  }, [form.address_province]);
+
+  const provinceOptions = useMemo(
+    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
+    [],
+  );
+
+  const zipOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return PH_ADDRESS_PLACES.filter((place) => {
+      if (seen.has(place.zip)) return false;
+      seen.add(place.zip);
+      return true;
+    }).map((place) => ({
+      value: place.zip,
+      label: `${place.zip} — ${place.city}, ${place.province}`,
+    }));
+  }, []);
+
+  const countryOptions = useMemo(
+    () => PH_COUNTRIES.map((country) => ({ value: country, label: country })),
+    [],
+  );
+
   const avatarUrl = avatarPreview || pendingAvatarUrl || resolveAvatarUrl(customer?.avatar);
   const showAvatarImage = Boolean(avatarUrl && !avatarLoadFailed);
 
@@ -129,7 +221,11 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     (form.name !== baseline.name ||
       form.phone !== baseline.phone ||
       form.company !== baseline.company ||
-      form.address !== baseline.address);
+      form.address_country !== baseline.address_country ||
+      form.address_province !== baseline.address_province ||
+      form.address_city !== baseline.address_city ||
+      form.address_street !== baseline.address_street ||
+      form.address_zip !== baseline.address_zip);
 
   const hasChanges = Boolean(hasFormChanges || pendingAvatarFile);
 
@@ -154,7 +250,11 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
         lname,
         mobile: form.phone,
         mname: form.company,
-        address_street: form.address,
+        address_country: form.address_country,
+        address_province: form.address_province,
+        address_city: form.address_city,
+        address_street: form.address_street,
+        address_zip: form.address_zip,
         summary: buildSubmissionSummary(),
         avatar: pendingAvatarFile ?? undefined,
       });
@@ -297,14 +397,84 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
             onChange={(e) => setForm({ ...form, company: e.target.value })}
           />
         </label>
-        <label className={styles.fullWidth}>
-          <span>Billing Headquarters Address</span>
-          <input
-            className={styles.cpControl}
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-        </label>
+        <div className={`${styles.fullWidth} ${styles.accountAddressBlock}`}>
+          <div className={styles.accountAddressHead}>
+            <span>Billing Address</span>
+            <p>
+              Use Philippine street/barangay, city, province, and ZIP suggestions. Same fields as
+              the admin client Address Information.
+            </p>
+          </div>
+          <div className={styles.accountAddressGrid}>
+            <AddressSuggestField
+              label="Country"
+              value={form.address_country}
+              options={countryOptions}
+              autoComplete="country-name"
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) => setForm((current) => ({ ...current, address_country: value }))}
+            />
+            <AddressSuggestField
+              label="Province"
+              value={form.address_province}
+              options={provinceOptions}
+              autoComplete="address-level1"
+              placeholder="Start typing a province"
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) => setForm((current) => ({ ...current, address_province: value }))}
+            />
+            <AddressSuggestField
+              label="City"
+              value={form.address_city}
+              options={cityOptions}
+              autoComplete="address-level2"
+              placeholder="Start typing a city"
+              maxVisible={400}
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) => setForm((current) => ({ ...current, address_city: value }))}
+              onSelect={(value) => applyPlace(findPlaceByCity(value, form.address_province))}
+            />
+            <AddressSuggestField
+              label="Street"
+              value={form.address_street}
+              options={streetOptions}
+              autoComplete="street-address"
+              placeholder="Start typing a street or barangay"
+              maxVisible={400}
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) => setForm((current) => ({ ...current, address_street: value }))}
+              onSelect={(_value, option) =>
+                applyPlace(
+                  option.city
+                    ? {
+                        street: option.street || option.value,
+                        city: option.city,
+                        province: option.province || "",
+                        zip: option.zip || "",
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByStreet(option.value, form.address_city, form.address_province),
+                  true,
+                )
+              }
+            />
+            <AddressSuggestField
+              label="Code"
+              value={form.address_zip}
+              options={zipOptions}
+              autoComplete="postal-code"
+              placeholder="ZIP / postal code"
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
+              onSelect={(value) => applyPlace(findPlaceByZip(value))}
+            />
+          </div>
+        </div>
 
         <div className={styles.accountActions}>
           <p className={styles.accountHint}>

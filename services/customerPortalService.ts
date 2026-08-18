@@ -167,7 +167,11 @@ export async function submitPortalProfileChange(payload: {
   lname: string;
   mobile?: string;
   mname?: string;
+  address_country?: string;
+  address_province?: string;
+  address_city?: string;
   address_street?: string;
+  address_zip?: string;
   summary?: string;
   avatar?: File;
 }) {
@@ -176,7 +180,11 @@ export async function submitPortalProfileChange(payload: {
   formData.append("lname", payload.lname);
   if (payload.mobile != null) formData.append("mobile", payload.mobile);
   if (payload.mname != null) formData.append("mname", payload.mname);
+  if (payload.address_country != null) formData.append("address_country", payload.address_country);
+  if (payload.address_province != null) formData.append("address_province", payload.address_province);
+  if (payload.address_city != null) formData.append("address_city", payload.address_city);
   if (payload.address_street != null) formData.append("address_street", payload.address_street);
+  if (payload.address_zip != null) formData.append("address_zip", payload.address_zip);
   if (payload.summary) formData.append("summary", payload.summary);
   if (payload.avatar) formData.append("avatar", payload.avatar);
 

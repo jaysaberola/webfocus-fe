@@ -1,5 +1,7 @@
 import { parseHostingClassification } from "@/lib/commerceAdmin/hostingTransactionTypes";
-import { clientBillingInCharge, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
+import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
+import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
+import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import type { CustomerRow } from "@/services/customerService";
 import {
@@ -23,11 +25,34 @@ export type ClientDealRow = {
   id: string;
   transactionId?: number | null;
   transactionNo?: string | null;
+  clientOwner: string;
+  clientName: string;
+  planName: string;
+  stage: string;
+  clientStatus: string;
+  productStatus: string;
+  subject: string;
+  productCategory: string;
+  domainName: string;
+  contactName: string;
+  closingDate: string;
+  salesStatus: string;
+  paymentTerms: string;
+  paymentMethod: string;
+  paymentStatus: string;
+  expectedRevenue: number | null;
+  probability: string;
+  statusTriggerDate: string;
+  joNumber: string;
+  billingInCharge: string;
+  dealStatus: string;
+  invoiceStatus: string;
+  invoiceSentDate: string;
+  invoiceReceivedDate: string;
+  paymentCommitmentDate: string;
+  collectionNote: string;
   dealOwner: string;
   status: string;
-  subject: string;
-  domainName: string;
-  dealStatus: string;
   amount: number | null;
   items: ClientDealLineItem[];
   subtotal: number;
@@ -37,6 +62,94 @@ export type ClientDealRow = {
   grandTotal: number;
 };
 
+export type DealColumnKey =
+  | "clientOwner"
+  | "clientName"
+  | "planName"
+  | "stage"
+  | "clientStatus"
+  | "productStatus"
+  | "subject"
+  | "productCategory"
+  | "domain"
+  | "contactName"
+  | "closingDate"
+  | "salesStatus"
+  | "paymentTerms"
+  | "paymentMethod"
+  | "paymentStatus"
+  | "expectedRevenue"
+  | "probability"
+  | "statusTriggerDate"
+  | "joNumber"
+  | "billingInCharge"
+  | "dealStatus"
+  | "invoiceStatus"
+  | "invoiceSentDate"
+  | "invoiceReceivedDate"
+  | "paymentCommitmentDate"
+  | "collectionNote";
+
+export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
+  clientOwner: "Client Owner",
+  clientName: "Client Name",
+  planName: "Plan Name",
+  stage: "Stage",
+  clientStatus: "Client Status",
+  productStatus: "Product Status",
+  subject: "Subject",
+  productCategory: "Product Category",
+  domain: "Domain",
+  contactName: "Contact Name",
+  closingDate: "Closing Date",
+  salesStatus: "Sales Status",
+  paymentTerms: "Payment Terms",
+  paymentMethod: "Payment Method",
+  paymentStatus: "Payment Status",
+  expectedRevenue: "Expected Revenue ₱",
+  probability: "Probability (%)",
+  statusTriggerDate: "Status Trigger Date",
+  joNumber: "JO Number",
+  billingInCharge: "Billing-in-Charge",
+  dealStatus: "Deal Status",
+  invoiceStatus: "Invoice Status",
+  invoiceSentDate: "Invoice Sent Date",
+  invoiceReceivedDate: "Invoice Received Date",
+  paymentCommitmentDate: "Payment Commitment Date",
+  collectionNote: "Collection Note",
+};
+
+export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
+  clientOwner: true,
+  clientName: true,
+  planName: false,
+  stage: true,
+  clientStatus: true,
+  productStatus: false,
+  subject: true,
+  productCategory: true,
+  domain: false,
+  contactName: false,
+  closingDate: false,
+  salesStatus: false,
+  paymentTerms: false,
+  paymentMethod: false,
+  paymentStatus: false,
+  expectedRevenue: false,
+  probability: false,
+  statusTriggerDate: false,
+  joNumber: false,
+  billingInCharge: false,
+  dealStatus: false,
+  invoiceStatus: false,
+  invoiceSentDate: false,
+  invoiceReceivedDate: false,
+  paymentCommitmentDate: false,
+  collectionNote: false,
+};
+
+export const DEAL_COLUMN_KEYS = Object.keys(DEAL_COLUMN_LABELS) as DealColumnKey[];
+
 export function formatDealAmount(amount: number | null) {
   if (amount == null || !Number.isFinite(amount)) return "—";
   return `₱ ${amount.toLocaleString("en-PH", {
@@ -45,9 +158,87 @@ export function formatDealAmount(amount: number | null) {
   })}`;
 }
 
-function staffDisplayName(user?: SalesTransaction["user"] | null) {
-  if (!user) return "";
-  return [user.fname, user.lname].filter(Boolean).join(" ").trim() || String(user.email ?? "").trim();
+function dash(value?: string | null) {
+  const text = String(value ?? "").trim();
+  return text || "—";
+}
+
+export function formatDealDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return dash(value);
+  return date.toLocaleDateString("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  });
+}
+
+function titleCaseStatus(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "—";
+  return text.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function dealStage(transaction?: SalesTransaction | null) {
+  if (!transaction) return "Open";
+  const order = String(transaction.order_status ?? "").toLowerCase();
+  const payment = String(transaction.payment_status ?? "").toLowerCase();
+  if (["paid", "completed", "success"].includes(payment) || ["completed", "delivered", "closed won"].includes(order)) {
+    return "Closed Won";
+  }
+  if (["cancelled", "canceled", "failed"].includes(order)) return "Closed Lost";
+  if (["pending", "processing"].includes(order) || payment === "pending") return "Pending";
+  return titleCaseStatus(transaction.order_status) === "—" ? "Open" : titleCaseStatus(transaction.order_status);
+}
+
+function dealProbability(stage: string) {
+  if (stage === "Closed Won") return "100%";
+  if (stage === "Closed Lost") return "0%";
+  if (stage === "Pending") return "50%";
+  return "20%";
+}
+
+function extractPaymentMethod(notes?: string | null) {
+  const match = String(notes ?? "").match(/Payment:\s*([^·\n]+)/i);
+  return dash(match?.[1]);
+}
+
+function extractJoNumber(notes?: string | null, transactionNo?: string | null) {
+  const match = String(notes ?? "").match(/\bJO[- ]?\d[\w-]*/i);
+  if (match?.[0]) return match[0];
+  const fromNo = String(transactionNo ?? "").match(/\bJO[- ]?\d[\w-]*/i);
+  return fromNo?.[0] || "—";
+}
+
+function paymentTermsFrom(transaction?: SalesTransaction | null) {
+  if (!transaction) return "—";
+  const issued = Date.parse(String(transaction.issued_date || transaction.transacted_at || ""));
+  const due = Date.parse(String(transaction.due_date || ""));
+  if (!Number.isFinite(due)) return "—";
+  if (!Number.isFinite(issued)) return `Due ${formatDealDate(transaction.due_date)}`;
+  const days = Math.round((due - issued) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return "Due on receipt";
+  return `Net ${days}`;
+}
+
+function invoiceStatusFrom(transaction?: SalesTransaction | null) {
+  if (!transaction) return "—";
+  const payment = String(transaction.payment_status ?? "").toLowerCase();
+  if (payment === "paid") return "Paid";
+  if (payment === "overdue") return "Overdue";
+  if (payment === "failed") return "Failed";
+  if (payment === "refunded") return "Refunded";
+  return "Unpaid";
+}
+
+function collectionNoteFrom(notes?: string | null) {
+  const cleaned = userFacingNotes(notes)
+    .replace(/Client Order\s*·\s*/gi, "")
+    .replace(/Payment:\s*[^·\n]+/gi, "")
+    .replace(/\s*·\s*/g, " ")
+    .trim();
+  return dash(cleaned);
 }
 
 function looksLikeDomain(value: string) {
@@ -92,7 +283,7 @@ function resolveClientDomain(
   return null;
 }
 
-function matchingServiceStatus(
+function matchingServiceLine(
   itemName: string,
   client: CustomerRow,
   adminServices: CommerceServiceAdminRow[] = [],
@@ -101,20 +292,42 @@ function matchingServiceStatus(
   if (!needle) return null;
 
   const fromClient = (client.services ?? []).find((service) => {
-    const hay = [service.title, service.plan, service.subject, service.product_category]
+    const hay = [service.title, service.plan, service.plan_name, service.subject, service.product_category]
       .map((value) => String(value ?? "").toLowerCase())
       .join(" ");
     return hay.includes(needle) || needle.includes(String(service.title ?? "").toLowerCase());
   });
-  if (fromClient?.status) return fromClient.status;
+  if (fromClient) return fromClient;
 
-  const fromAdmin = adminServices.find((service) => {
-    const hay = [service.title, service.plan, service.subject, service.productCategory, service.planName]
-      .map((value) => String(value ?? "").toLowerCase())
-      .join(" ");
-    return hay.includes(needle) || needle.includes(String(service.title ?? "").toLowerCase());
-  });
-  return fromAdmin?.status ?? null;
+  return (
+    adminServices.find((service) => {
+      const hay = [service.title, service.plan, service.subject, service.productCategory, service.planName]
+        .map((value) => String(value ?? "").toLowerCase())
+        .join(" ");
+      return hay.includes(needle) || needle.includes(String(service.title ?? "").toLowerCase());
+    }) ?? null
+  );
+}
+
+function matchingServiceStatus(
+  itemName: string,
+  client: CustomerRow,
+  adminServices: CommerceServiceAdminRow[] = [],
+) {
+  const line = matchingServiceLine(itemName, client, adminServices);
+  if (!line) return null;
+  return "status" in line ? line.status : null;
+}
+
+function matchingPlanName(
+  itemName: string,
+  client: CustomerRow,
+  adminServices: CommerceServiceAdminRow[] = [],
+) {
+  const line = matchingServiceLine(itemName, client, adminServices);
+  if (!line) return "—";
+  if ("plan_name" in line) return dash(line.plan_name || line.plan);
+  return dash(line.planName || line.plan);
 }
 
 export function dealSubjectFromName(name: string): string {
@@ -165,6 +378,64 @@ export function dealSubjectFromName(name: string): string {
   }
 
   return "Dedicated Server";
+}
+
+function resolveProductStatus(
+  transaction: SalesTransaction | null,
+  dealType: string,
+) {
+  const subType = String(parseHostingClassification(transaction?.notes)?.subType ?? "").trim();
+  if (subType) return subType;
+  if (dealType === "Renewal - New Price") return "Renewal - New Price";
+  if (dealType === "Renewal") return "Renewal";
+  return "New";
+}
+
+function crmFields(params: {
+  client: CustomerRow;
+  transaction?: SalesTransaction | null;
+  itemName: string;
+  dealType: string;
+  domain: string;
+  amount: number | null;
+  dealStatus: string;
+  adminServices?: CommerceServiceAdminRow[];
+}) {
+  const { client, transaction, itemName, dealType, domain, amount, dealStatus, adminServices = [] } = params;
+  const stage = dealStage(transaction);
+  const clientOwner = clientOwnerName(client);
+  const ownerFallback = clientOwner !== "Unassigned" ? clientOwner : clientBillingInCharge(client);
+
+  return {
+    clientOwner: ownerFallback || "—",
+    clientName: clientDisplayName(client),
+    planName: matchingPlanName(itemName, client, adminServices),
+    stage,
+    clientStatus: dealType,
+    productStatus: resolveProductStatus(transaction ?? null, dealType),
+    productCategory: dash(itemName),
+    domainName: domain,
+    contactName: dash(client.contact_person),
+    closingDate: formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
+    salesStatus: titleCaseStatus(transaction?.order_status),
+    paymentTerms: paymentTermsFrom(transaction),
+    paymentMethod: extractPaymentMethod(transaction?.notes),
+    paymentStatus: transaction ? paymentStatusLabel(transaction.payment_status) : "—",
+    expectedRevenue: amount,
+    probability: dealProbability(stage),
+    statusTriggerDate: formatDealDate(transaction?.created_at ?? transaction?.transacted_at),
+    joNumber: extractJoNumber(transaction?.notes, transaction?.transaction_no),
+    billingInCharge: clientBillingInCharge(client),
+    dealStatus,
+    invoiceStatus: invoiceStatusFrom(transaction),
+    invoiceSentDate: formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
+    invoiceReceivedDate: "—",
+    paymentCommitmentDate: formatDealDate(transaction?.due_date),
+    collectionNote: collectionNoteFrom(transaction?.notes),
+    dealOwner: ownerFallback || "—",
+    status: dealType,
+    amount,
+  };
 }
 
 function resolveDealType(
@@ -312,22 +583,19 @@ export function buildClientDealRows(
   transactions: SalesTransaction[],
   adminServices: CommerceServiceAdminRow[] = [],
 ): ClientDealRow[] {
-  const ownerName = clientOwnerName(client);
-  const ownerFallback =
-    ownerName !== "Unassigned" ? ownerName : clientBillingInCharge(client);
   const clientDomainValue = resolveClientDomain(client, adminServices);
 
-  const sorted = [...transactions].sort(
-    (a, b) =>
-      new Date(b.transacted_at ?? 0).getTime() -
-      new Date(a.transacted_at ?? 0).getTime(),
-  );
+  const sorted = [...transactions].sort((a, b) => {
+    const byCreated =
+      new Date(b.created_at ?? b.transacted_at ?? 0).getTime() -
+      new Date(a.created_at ?? a.transacted_at ?? 0).getTime();
+    return byCreated !== 0 ? byCreated : Number(b.id) - Number(a.id);
+  });
 
   const seenItemNames = new Set<string>();
   const rows: ClientDealRow[] = [];
 
   for (const transaction of sorted) {
-    const owner = staffDisplayName(transaction.user) || ownerFallback || "—";
     const items = transaction.items?.length
       ? transaction.items
       : [
@@ -356,17 +624,24 @@ export function buildClientDealRows(
         formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) ||
         clientDomainValue ||
         "—";
+      const dealType = resolveDealType(itemName, transaction, seenItemNames);
+      const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : null;
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
         transactionId: transaction.id,
         transactionNo: transaction.transaction_no,
-        dealOwner: owner,
-        status: resolveDealType(itemName, transaction, seenItemNames),
         subject: dealSubjectFromName(itemName),
-        domainName: domain,
-        dealStatus: resolveDealStatus(transaction, matchingServiceStatus(itemName, client, adminServices)),
-        amount: Number.isFinite(amount) && amount > 0 ? amount : null,
+        ...crmFields({
+          client,
+          transaction,
+          itemName,
+          dealType,
+          domain,
+          amount: resolvedAmount,
+          dealStatus: resolveDealStatus(transaction, matchingServiceStatus(itemName, client, adminServices)),
+          adminServices,
+        }),
         items: lineItems,
         ...totals,
       });
@@ -375,7 +650,7 @@ export function buildClientDealRows(
     }
   }
 
-  if (rows.length > 0) return rows.reverse();
+  if (rows.length > 0) return rows;
 
   if (client.services?.length) {
     return client.services.map((service, index) => {
@@ -396,12 +671,16 @@ export function buildClientDealRows(
       ];
       return {
         id: `service:${service.id ?? index}`,
-        dealOwner: ownerFallback || "—",
-        status: "New Service",
         subject: dealSubjectFromName(String(service.product_category || service.subject || service.plan_name || service.title || "")),
-        domainName: domain,
-        dealStatus: String(service.status || "Active"),
-        amount: null,
+        ...crmFields({
+          client,
+          itemName: name,
+          dealType: "New Service",
+          domain,
+          amount: null,
+          dealStatus: String(service.status || "Active"),
+          adminServices,
+        }),
         items,
         ...totalsFromItems(items),
       };
@@ -426,12 +705,16 @@ export function buildClientDealRows(
     ];
     return {
       id: `service:${service.id ?? index}`,
-      dealOwner: ownerFallback || "—",
-      status: "New Service",
       subject: dealSubjectFromName(String(service.productCategory || service.subject || service.planName || service.title || "")),
-      domainName: domain,
-      dealStatus: String(service.status || "Active"),
-      amount: null,
+      ...crmFields({
+        client,
+        itemName: name,
+        dealType: "New Service",
+        domain,
+        amount: null,
+        dealStatus: String(service.status || "Active"),
+        adminServices,
+      }),
       items,
       ...totalsFromItems(items),
     };

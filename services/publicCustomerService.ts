@@ -22,6 +22,7 @@ export type PublicCustomer = {
   address_municipality?: string | null;
   address_province?: string | null;
   address_zip?: string | null;
+  address_country?: string | null;
   avatar?: string | null;
   role?: string | null;
   roles?: string[];

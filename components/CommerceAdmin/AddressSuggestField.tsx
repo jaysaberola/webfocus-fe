@@ -18,6 +18,8 @@ type Props = {
   placeholder?: string;
   autoComplete?: string;
   required?: boolean;
+  className?: string;
+  inputClassName?: string;
   onChange: (value: string) => void;
   onSelect?: (value: string, option: AddressSuggestOption) => void;
   maxVisible?: number;
@@ -32,6 +34,8 @@ export default function AddressSuggestField({
   placeholder,
   autoComplete = "off",
   required,
+  className,
+  inputClassName,
   onChange,
   onSelect,
   maxVisible = DEFAULT_MAX_VISIBLE,
@@ -73,11 +77,11 @@ export default function AddressSuggestField({
   };
 
   return (
-    <label className={styles.clientCrmField}>
+    <label className={className || styles.clientCrmField}>
       <span>{label}</span>
       <div className={styles.addressSuggestWrap} ref={wrapRef}>
         <input
-          className={styles.clientCrmInput}
+          className={inputClassName || styles.clientCrmInput}
           value={value}
           autoComplete={autoComplete}
           required={required}

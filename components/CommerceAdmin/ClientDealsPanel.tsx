@@ -5,9 +5,13 @@ import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDet
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import {
   buildClientDealRows,
+  DEAL_COLUMN_KEYS,
+  DEAL_COLUMN_LABELS,
+  DEFAULT_DEAL_COLUMNS,
   fetchCustomerDealTransactions,
   formatDealAmount,
   type ClientDealRow,
+  type DealColumnKey,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
 import { fetchCommerceServices } from "@/services/commerceAdminService";
@@ -27,6 +31,61 @@ type Props = {
   onEditClient?: () => void;
 };
 
+function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
+  switch (column) {
+    case "clientOwner":
+      return deal.clientOwner;
+    case "clientName":
+      return deal.clientName;
+    case "planName":
+      return deal.planName;
+    case "stage":
+      return deal.stage;
+    case "clientStatus":
+      return deal.clientStatus;
+    case "productStatus":
+      return deal.productStatus;
+    case "productCategory":
+      return deal.productCategory;
+    case "domain":
+      return deal.domainName;
+    case "contactName":
+      return deal.contactName;
+    case "closingDate":
+      return deal.closingDate;
+    case "salesStatus":
+      return deal.salesStatus;
+    case "paymentTerms":
+      return deal.paymentTerms;
+    case "paymentMethod":
+      return deal.paymentMethod;
+    case "paymentStatus":
+      return deal.paymentStatus;
+    case "expectedRevenue":
+      return formatDealAmount(deal.expectedRevenue);
+    case "probability":
+      return deal.probability;
+    case "statusTriggerDate":
+      return deal.statusTriggerDate;
+    case "joNumber":
+      return deal.joNumber;
+    case "billingInCharge":
+      return deal.billingInCharge;
+    case "invoiceStatus":
+      return deal.invoiceStatus;
+    case "invoiceSentDate":
+      return deal.invoiceSentDate;
+    case "invoiceReceivedDate":
+      return deal.invoiceReceivedDate;
+    case "paymentCommitmentDate":
+      return deal.paymentCommitmentDate;
+    case "collectionNote":
+      return deal.collectionNote;
+    default:
+      return "—";
+  }
+}
+
 export default function ClientDealsPanel({ client, onClientUpdated, onEditClient }: Props) {
   const router = useRouter();
   const [dealRows, setDealRows] = useState<ClientDealRow[]>([]);
@@ -35,6 +94,9 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ClientDealRow | null>(null);
+  const [columnsVisible, setColumnsVisible] = useState(DEFAULT_DEAL_COLUMNS);
+  const [colVisOpen, setColVisOpen] = useState(false);
+  const colVisRef = useRef<HTMLDivElement>(null);
   const productDetailsRef = useRef<HTMLDivElement | null>(null);
 
   const reloadDeals = useCallback(() => {
@@ -57,6 +119,11 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
         const enriched: CustomerRow = {
           ...client,
           website: detail?.website ?? client.website,
+          contact_person: detail?.contact_person ?? client.contact_person,
+          billing_in_charge: detail?.billing_in_charge ?? client.billing_in_charge,
+          owner: detail?.owner ?? client.owner,
+          owner_name: detail?.owner_name ?? client.owner_name,
+          owner_id: detail?.owner_id ?? client.owner_id,
         };
         setDealRows(buildClientDealRows(enriched, transactions, services));
       })
@@ -71,6 +138,21 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
       cancelled = true;
     };
   }, [client, reloadKey]);
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (colVisRef.current && !colVisRef.current.contains(event.target as Node)) {
+        setColVisOpen(false);
+      }
+    };
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, []);
+
+  const visibleColumns = useMemo(
+    () => DEAL_COLUMN_KEYS.filter((key) => columnsVisible[key]),
+    [columnsVisible],
+  );
 
   const totalPages = Math.max(1, Math.ceil(dealRows.length / DEAL_PAGE_SIZE));
   const paginatedDeals = useMemo(() => {
@@ -99,6 +181,35 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           <p className={styles.panelSubtitle}>Orders and services for this client.</p>
         </div>
         <div className={styles.dealsHeaderActions}>
+          <div className={styles.colVisWrap} ref={colVisRef}>
+            <button
+              type="button"
+              className={styles.colVisBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                setColVisOpen((open) => !open);
+              }}
+            >
+              <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+            </button>
+            {colVisOpen ? (
+              <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
+                <div className={styles.colVisTitle}>Toggle Columns</div>
+                {DEAL_COLUMN_KEYS.map((key) => (
+                  <label key={key} className={styles.colVisItem}>
+                    <input
+                      type="checkbox"
+                      checked={columnsVisible[key]}
+                      onChange={(e) =>
+                        setColumnsVisible((current) => ({ ...current, [key]: e.target.checked }))
+                      }
+                    />
+                    {DEAL_COLUMN_LABELS[key]}
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <button type="button" className={styles.dealsActionBtn} onClick={() => setAssignOpen(true)}>
             Assign
           </button>
@@ -132,22 +243,24 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
         <table className={`${styles.table} ${styles.dealsTable}`}>
           <thead>
             <tr>
-              <th>Order Owner</th>
-              <th>Status</th>
-              <th>Subject</th>
-              <th>Domain Name</th>
-              <th>Order Status</th>
-              <th className={styles.dealsAmount}>Amount</th>
+              {visibleColumns.map((column) => (
+                <th
+                  key={column}
+                  className={column === "expectedRevenue" ? styles.dealsAmount : undefined}
+                >
+                  {DEAL_COLUMN_LABELS[column]}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>Loading orders...</td>
+                <td colSpan={Math.max(visibleColumns.length, 1)}>Loading orders...</td>
               </tr>
             ) : paginatedDeals.length === 0 ? (
               <tr>
-                <td colSpan={6}>No orders found for this client.</td>
+                <td colSpan={Math.max(visibleColumns.length, 1)}>No orders found for this client.</td>
               </tr>
             ) : (
               paginatedDeals.map((deal) => (
@@ -155,28 +268,48 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   key={deal.id}
                   className={selectedOrder?.id === deal.id ? styles.rowDealOpen : undefined}
                 >
-                  <td className={styles.dealsNowrap}>{deal.dealOwner}</td>
-                  <td className={styles.dealsNowrap}>{deal.status}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className={styles.dealsSubject}
-                      onClick={() =>
-                        setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
-                      }
-                    >
-                      {deal.subject}
-                    </button>
-                  </td>
-                  <td className={styles.dealsNowrap}>{deal.domainName || "—"}</td>
-                  <td className={styles.dealsNowrap}>
-                    {deal.dealStatus.toLowerCase() === "active" ? (
-                      <span className={styles.badgePaid}>ACTIVE</span>
-                    ) : (
-                      <span className={styles.badgeMuted}>{deal.dealStatus}</span>
-                    )}
-                  </td>
-                  <td className={styles.dealsAmount}>{formatDealAmount(deal.amount)}</td>
+                  {visibleColumns.map((column) => {
+                    if (column === "subject") {
+                      return (
+                        <td key={column}>
+                          <button
+                            type="button"
+                            className={styles.dealsSubject}
+                            onClick={() =>
+                              setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
+                            }
+                          >
+                            {deal.subject}
+                          </button>
+                        </td>
+                      );
+                    }
+                    if (column === "dealStatus") {
+                      return (
+                        <td key={column} className={styles.dealsNowrap}>
+                          {deal.dealStatus.toLowerCase() === "active" ? (
+                            <span className={styles.badgePaid}>ACTIVE</span>
+                          ) : (
+                            <span className={styles.badgeMuted}>{deal.dealStatus}</span>
+                          )}
+                        </td>
+                      );
+                    }
+                    return (
+                      <td
+                        key={column}
+                        className={
+                          column === "expectedRevenue"
+                            ? styles.dealsAmount
+                            : column === "collectionNote"
+                              ? undefined
+                              : styles.dealsNowrap
+                        }
+                      >
+                        {dealCellValue(deal, column)}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}
