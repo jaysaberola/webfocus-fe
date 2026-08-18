@@ -7,11 +7,12 @@ import styles from "@/styles/customerPortal.module.css";
 type ViewMode = "grid" | "list";
 type FilterValue = (typeof PORTAL_SERVICE_FILTERS)[number];
 
-const STATUS_CLASS: Record<PortalServiceStatus["status"], string> = {
-  Active: styles.serviceBadgeActive,
-  Provisioning: styles.serviceBadgeProvisioning,
-  Expired: styles.serviceBadgeExpired,
-};
+function serviceStatusClass(status: PortalServiceStatus["status"]) {
+  if (status === "Active" || status === "Active Live") return styles.serviceBadgeActive;
+  if (status === "Expired") return styles.serviceBadgeExpired;
+  if (status === "Pending Request" || status === "Awaiting Approval") return styles.serviceBadgePending;
+  return styles.serviceBadgeProvisioning;
+}
 
 type ServiceStatusPanelProps = {
   services: PortalServiceStatus[];
@@ -103,7 +104,7 @@ function ServiceCard({ service }: { service: PortalServiceStatus }) {
             {service.category} - Plan: {service.plan}
           </p>
         </div>
-        <span className={STATUS_CLASS[service.status]}>{service.status}</span>
+        <span className={serviceStatusClass(service.status)}>{service.status}</span>
       </div>
       <div className={styles.serviceCardRenew}>
         <span className={styles.serviceRenewLabel}>{service.renewLabel}</span>
@@ -128,7 +129,7 @@ function ServiceRow({ service }: { service: PortalServiceStatus }) {
         {service.renewDate && <strong className={styles.serviceRenewDate}>{service.renewDate}</strong>}
         <p className={styles.serviceRenewNote}>{service.renewNote}</p>
       </div>
-      <span className={STATUS_CLASS[service.status]}>{service.status}</span>
+      <span className={serviceStatusClass(service.status)}>{service.status}</span>
     </article>
   );
 }

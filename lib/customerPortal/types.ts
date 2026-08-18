@@ -39,7 +39,7 @@ export type PortalOrder = {
   dueDate?: string;
   expiredDate: string;
   total: number;
-  status: "Active Live" | "Pending Request";
+  status: "Active Live" | "Pending Request" | "Awaiting Approval" | "Provisioning" | "Expired";
   gateway: string;
   items: Array<{ name: string; detail: string; price: number }>;
 };
@@ -97,7 +97,7 @@ export type PortalServiceStatus = {
   renewLabel: "Renews" | "Renewal Schedule";
   renewDate?: string;
   renewNote: string;
-  status: "Active" | "Provisioning" | "Expired";
+  status: "Active" | "Active Live" | "Provisioning" | "Pending Request" | "Awaiting Approval" | "Expired";
 };
 
 export type PortalOverviewAlert = {

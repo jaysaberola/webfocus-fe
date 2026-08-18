@@ -31,6 +31,12 @@ import {
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
+function orderStatusClass(status: PortalOrder["status"]) {
+  if (status === "Active Live") return styles.badgeGreen;
+  if (status === "Provisioning") return styles.badgeBlue;
+  return styles.badgeAmber;
+}
+
 type OrderDetailModalState = { open: false } | { open: true; order: PortalOrder };
 
 const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
@@ -439,7 +445,6 @@ export default function OrdersTab() {
                 ) : (
                   paginatedOrders.map((order) => {
                     const item = order.items[0];
-                    const pending = order.status === "Pending Request";
 
                     return (
                       <tr
@@ -467,8 +472,8 @@ export default function OrdersTab() {
                         <td>{order.date}</td>
                         <td>{orderDueDate(order)}</td>
                         <td>
-                          <span className={pending ? styles.badgeAmber : styles.badgeGreen}>
-                            {pending ? "Pending Request" : "Active Live"}
+                          <span className={orderStatusClass(order.status)}>
+                            {order.status}
                           </span>
                         </td>
                         <td className={styles.billingActionsCell}>
@@ -596,9 +601,7 @@ export default function OrdersTab() {
                 <span className={styles.billingModalDetailLabel}>Status</span>
                 <span className={styles.billingModalDetailValue}>
                   <span
-                    className={
-                      detailModal.order.status === "Pending Request" ? styles.badgeAmber : styles.badgeGreen
-                    }
+                    className={orderStatusClass(detailModal.order.status)}
                   >
                     {detailModal.order.status}
                   </span>

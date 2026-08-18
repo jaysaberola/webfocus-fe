@@ -1774,6 +1774,7 @@
 
 .serviceBadgeActive,
 .serviceBadgeProvisioning,
+.serviceBadgePending,
 .serviceBadgeExpired {
   display: inline-flex;
   flex-shrink: 0;
@@ -1792,6 +1793,11 @@
 .serviceBadgeProvisioning {
   background: #eff6ff;
   color: #2563eb;
+}
+
+.serviceBadgePending {
+  background: #fef3c7;
+  color: #b45309;
 }
 
 .serviceBadgeExpired {

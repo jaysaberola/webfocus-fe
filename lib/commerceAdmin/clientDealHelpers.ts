@@ -3,7 +3,7 @@ import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib
 import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
-import type { CustomerRow } from "@/services/customerService";
+import type { CustomerRow, CustomerServiceLine } from "@/services/customerService";
 import {
   getSalesTransactions,
   type SalesTransaction,
@@ -326,8 +326,8 @@ function matchingPlanName(
 ) {
   const line = matchingServiceLine(itemName, client, adminServices);
   if (!line) return "—";
-  if ("plan_name" in line) return dash(line.plan_name || line.plan);
-  return dash(line.planName || line.plan);
+  const named = line as CustomerServiceLine & CommerceServiceAdminRow;
+  return dash(named.planName || named.plan_name || named.plan);
 }
 
 export function dealSubjectFromName(name: string): string {
