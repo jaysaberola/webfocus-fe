@@ -81,6 +81,13 @@ function fileLabelFromPath(path?: string | null) {
   return parts[parts.length - 1] || path;
 }
 
+function firstValidationError(errors: unknown): string | undefined {
+  if (!errors || typeof errors !== "object") return undefined;
+  const first = Object.values(errors as Record<string, string | string[]>)[0];
+  if (Array.isArray(first)) return first.find((item) => typeof item === "string");
+  return typeof first === "string" ? first : undefined;
+}
+
 function FileField({
   label,
   value,
@@ -493,7 +500,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     } catch (err: any) {
       const message =
         err?.response?.data?.message ||
-        Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0] ||
+        firstValidationError(err?.response?.data?.errors) ||
         (mode === "edit" ? "Failed to update client." : "Failed to create client.");
       toast.error(String(message));
     } finally {
