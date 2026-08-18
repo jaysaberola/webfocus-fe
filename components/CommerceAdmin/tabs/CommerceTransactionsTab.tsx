@@ -6,6 +6,7 @@ import AssignTransactionModal from "@/components/CommerceAdmin/modals/AssignTran
 import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
+import UploadProposalModal from "@/components/CommerceAdmin/modals/UploadProposalModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
 import {
@@ -62,16 +63,20 @@ import {
   applyWebDesignPriceToItems,
   buildWebDesignPricedNotes,
   isPendingQuotationTransaction,
+  isProposalSignedTransaction,
+  isProposalSubmittedTransaction,
   isWebDesignTransaction,
   transactionAmountLabel,
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import { readStoredCurrentUser } from "@/lib/currentUser";
-import { canAssignSalesTransactions } from "@/lib/userRoles";
+import { canAssignSalesTransactions, isSalesRoleUser } from "@/lib/userRoles";
 import {
   deleteSalesTransaction,
   getSalesTransactions,
+  proceedWebDesignPayment,
   updateSalesTransaction,
+  uploadWebDesignProposal,
   type SalesTransaction,
 } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -139,13 +144,19 @@ export default function CommerceTransactionsTab() {
   const [rejectTarget, setRejectTarget] = useState<SalesTransaction | null>(null);
   const [hostingTarget, setHostingTarget] = useState<SalesTransaction | null>(null);
   const [webDesignPriceTarget, setWebDesignPriceTarget] = useState<SalesTransaction | null>(null);
+  const [proposalTarget, setProposalTarget] = useState<SalesTransaction | null>(null);
+  const [uploadingProposal, setUploadingProposal] = useState(false);
+  const [neededOpen, setNeededOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [exporting, setExporting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
-  const canAssign = canAssignSalesTransactions(readStoredCurrentUser());
+  const neededShownRef = useRef(false);
+  const currentUser = readStoredCurrentUser();
+  const canAssign = canAssignSalesTransactions(currentUser);
+  const salesRole = isSalesRoleUser(currentUser);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -285,6 +296,29 @@ export default function CommerceTransactionsTab() {
     return sortTransactions(filtered, sortBy);
   }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
+  const neededActions = useMemo(() => {
+    if (!salesRole) return [];
+    const myId = Number((currentUser as { id?: number } | null)?.id);
+    return rows
+      .filter((row) => {
+        if (!isWebDesignTransaction(row) || !isPendingQuotationTransaction(row)) return false;
+        const assignedToMe = myId > 0 && Number(row.user_id || row.user?.id) === myId;
+        if (!assignedToMe) return false;
+        if (!isProposalSubmittedTransaction(row)) return true;
+        return isProposalSignedTransaction(row);
+      })
+      .map((row) => ({
+        row,
+        action: isProposalSignedTransaction(row) ? ("proceed" as const) : ("upload" as const),
+      }));
+  }, [rows, salesRole, currentUser]);
+
+  useEffect(() => {
+    if (loading || !salesRole || neededShownRef.current || neededActions.length === 0) return;
+    neededShownRef.current = true;
+    setNeededOpen(true);
+  }, [loading, salesRole, neededActions.length]);
+
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
     const start = (page - 1) * PAGE_SIZE;
@@ -413,6 +447,16 @@ export default function CommerceTransactionsTab() {
     else if (action === "reject") setRejectTarget(row);
     else if (action === "assign") setAssignTarget(row);
     else if (action === "webdesign:set-price") setWebDesignPriceTarget(row);
+    else if (action === "webdesign:upload-proposal") setProposalTarget(row);
+    else if (action === "webdesign:proceed-payment") {
+      try {
+        await proceedWebDesignPayment(row.id);
+        toast.success(`Payment requested for ${row.transaction_no}. The client was notified to upload proof of payment.`);
+        loadRows();
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || "Failed to proceed to payment.");
+      }
+    }
     else if (action === "hosting:classify") setHostingTarget(row);
     else if (action.startsWith("hosting:")) {
       const subType = action.slice("hosting:".length);
@@ -510,7 +554,13 @@ export default function CommerceTransactionsTab() {
         ) : null}
         <option value="edit">Edit</option>
         {canAssign ? <option value="assign">Assign To...</option> : null}
-        {webDesign ? <option value="webdesign:set-price">Set Web Design Price...</option> : null}
+        {salesRole && webDesign && isPendingQuotationTransaction(row) && !isProposalSubmittedTransaction(row) ? (
+          <option value="webdesign:upload-proposal">Upload Proposal Quotation</option>
+        ) : null}
+        {salesRole && webDesign && isProposalSignedTransaction(row) && isPendingQuotationTransaction(row) ? (
+          <option value="webdesign:proceed-payment">Proceed Payment</option>
+        ) : null}
+        {salesRole && webDesign ? <option value="webdesign:set-price">Set Web Design Price...</option> : null}
         <option value="reject">Reject Purchase</option>
         {hosting ? (
           <optgroup label={`Hosting · ${hostingType}`}>
@@ -876,14 +926,24 @@ export default function CommerceTransactionsTab() {
                     </div>
                     <div className={styles.txGridFooter}>
                       <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
-                      {isPendingQuotationTransaction(row) ? (
+                      {salesRole && isPendingQuotationTransaction(row) && !isProposalSubmittedTransaction(row) ? (
                         <button
                           type="button"
                           className={styles.primaryBtnSm}
-                          onClick={() => setWebDesignPriceTarget(row)}
+                          onClick={() => setProposalTarget(row)}
                         >
-                          Set Price
+                          Upload Proposal
                         </button>
+                      ) : salesRole && isProposalSignedTransaction(row) && isPendingQuotationTransaction(row) ? (
+                        <button
+                          type="button"
+                          className={styles.primaryBtnSm}
+                          onClick={() => void handleAction(row, "webdesign:proceed-payment")}
+                        >
+                          Proceed Payment
+                        </button>
+                      ) : isPendingQuotationTransaction(row) ? (
+                        <span className={styles.badgePending}>Pending Quotation</span>
                       ) : !isPaidStatus(row.payment_status) ? (
                         <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
                           Mark Paid
@@ -981,6 +1041,81 @@ export default function CommerceTransactionsTab() {
           void applyWebDesignPrice(webDesignPriceTarget, amount);
         }}
       />
+
+      <UploadProposalModal
+        open={!!proposalTarget}
+        transaction={proposalTarget}
+        uploading={uploadingProposal}
+        onClose={() => setProposalTarget(null)}
+        onUpload={async (file) => {
+          if (!proposalTarget) return;
+          try {
+            setUploadingProposal(true);
+            await uploadWebDesignProposal(proposalTarget.id, file);
+            toast.success("Proposal quotation uploaded. The client can now download and sign it.");
+            setProposalTarget(null);
+            loadRows();
+          } catch (err: any) {
+            toast.error(err?.response?.data?.message || "Failed to upload proposal.");
+          } finally {
+            setUploadingProposal(false);
+          }
+        }}
+      />
+
+      {neededOpen && neededActions.length > 0 ? (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
+          <div className={styles.modalCardWide}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h3 className={styles.modalTitle}>Needed actions</h3>
+                <p className={styles.panelSubtitle}>Latest web design requests assigned to you.</p>
+              </div>
+              <button type="button" className={styles.modalCloseBtn} onClick={() => setNeededOpen(false)} aria-label="Close">
+                <i className="fa-solid fa-xmark" aria-hidden="true" />
+              </button>
+            </div>
+            <div className={styles.tableWrap}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>Invoice</th>
+                    <th>Client</th>
+                    <th>Needed Action</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {neededActions.map((item) => (
+                    <tr key={item.row.id}>
+                      <td>{item.row.transaction_no}</td>
+                      <td>{item.row.customer_name || "—"}</td>
+                      <td>
+                        {item.action === "upload"
+                          ? "Upload Proposal Quotation"
+                          : "Proceed Payment — signed proposal received"}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.primaryBtnSm}
+                          onClick={() => {
+                            setNeededOpen(false);
+                            if (item.action === "upload") setProposalTarget(item.row);
+                            else void handleAction(item.row, "webdesign:proceed-payment");
+                          }}
+                        >
+                          {item.action === "upload" ? "Upload" : "Proceed"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {modalMode ? (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true">
@@ -1147,6 +1282,11 @@ export default function CommerceTransactionsTab() {
       <AssignTransactionModal
         open={!!assignTarget}
         transaction={assignTarget}
+        restrictRoles={
+          assignTarget && isWebDesignTransaction(assignTarget)
+            ? ["sales_staff", "sales_admin"]
+            : undefined
+        }
         onClose={() => setAssignTarget(null)}
         onAssigned={(updated) => {
           setRows((current) =>

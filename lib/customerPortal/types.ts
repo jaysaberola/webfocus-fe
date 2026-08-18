@@ -11,15 +11,22 @@ export type PortalInvoice = {
   id: string;
   transactionNo?: string;
   date: string;
+  createdAt?: string | null;
   due: string;
   amount: number;
-  status: "Paid" | "Pending Payment" | "Awaiting Approval" | "Payment Due" | "Overdue";
+  status: "Paid" | "Pending Payment" | "Pending Quotation" | "Awaiting Approval" | "Payment Due" | "Overdue";
   canPay?: boolean;
   daysUntilDue?: number | null;
   serviceName?: string;
   plan?: string;
   subscription: string;
   items: string;
+  pendingQuotation?: boolean;
+  proposalSubmitted?: boolean;
+  proposalSigned?: boolean;
+  proposalFileName?: string | null;
+  proposalUrl?: string | null;
+  actionsDisabled?: boolean;
 };
 
 export type PortalOrder = {
@@ -28,6 +35,7 @@ export type PortalOrder = {
   serviceName?: string;
   plan?: string;
   date: string;
+  createdAt?: string | null;
   dueDate?: string;
   expiredDate: string;
   total: number;

@@ -155,6 +155,16 @@ export async function deletePortalPaymentProof(recordId: number) {
   return res.data;
 }
 
+export async function uploadPortalSignedProposal(payload: { invoiceId: string; file: File }) {
+  const formData = new FormData();
+  formData.append("invoice_id", payload.invoiceId);
+  formData.append("file", payload.file);
+  const res = await axiosInstance.post("/customer/portal/billing/proposals", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
 export async function fetchPendingProfileChangeRequest() {
   const res = await axiosInstance.get("/customer/portal/profile-change-requests/pending", {
     headers: silentHeaders,

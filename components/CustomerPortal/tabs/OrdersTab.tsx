@@ -125,9 +125,11 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
       return compareText(a.gateway, b.gateway, sortBy === "gateway-desc");
     }
     if (sortBy.startsWith("date")) {
-      const left = Date.parse(String(a.date ?? "")) || 0;
-      const right = Date.parse(String(b.date ?? "")) || 0;
-      return sortBy === "date-desc" ? right - left : left - right;
+      const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
+      const right = Date.parse(String(b.createdAt || b.date || "")) || 0;
+      const byDate = sortBy === "date-desc" ? right - left : left - right;
+      if (byDate !== 0) return byDate;
+      return sortBy === "date-desc" ? String(b.id).localeCompare(String(a.id)) : String(a.id).localeCompare(String(b.id));
     }
     if (sortBy.startsWith("due")) {
       const left = Date.parse(String(orderDueDate(a) ?? "")) || 0;

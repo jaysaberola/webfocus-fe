@@ -11,11 +11,18 @@ import styles from "@/styles/commerceAdmin.module.css";
 type Props = {
   open: boolean;
   transaction: SalesTransaction | null;
+  restrictRoles?: string[];
   onClose: () => void;
   onAssigned: (transaction: SalesTransaction) => void;
 };
 
-export default function AssignTransactionModal({ open, transaction, onClose, onAssigned }: Props) {
+export default function AssignTransactionModal({
+  open,
+  transaction,
+  restrictRoles,
+  onClose,
+  onAssigned,
+}: Props) {
   const [users, setUsers] = useState<CommerceAssignableUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,13 +46,21 @@ export default function AssignTransactionModal({ open, transaction, onClose, onA
   }, [open, transaction]);
 
   const filteredUsers = useMemo(() => {
+    const allowed = (restrictRoles ?? []).map((role) => role.toLowerCase().replace(/[_-]+/g, " "));
+    const scoped = allowed.length
+      ? users.filter((user) => {
+          const names = [user.role, ...(user.roles ?? [])]
+            .map((role) => String(role ?? "").toLowerCase().replace(/[_-]+/g, " "));
+          return names.some((role) => allowed.includes(role) || role === "admin" || role === "super admin");
+        })
+      : users;
     const needle = search.trim().toLowerCase();
-    if (!needle) return users;
-    return users.filter((user) => {
+    if (!needle) return scoped;
+    return scoped.filter((user) => {
       const haystack = `${user.name} ${user.email ?? ""} ${user.role ?? ""}`.toLowerCase();
       return haystack.includes(needle);
     });
-  }, [users, search]);
+  }, [users, search, restrictRoles]);
 
   if (!open || !transaction) return null;
 
@@ -78,7 +93,10 @@ export default function AssignTransactionModal({ open, transaction, onClose, onA
               Assign To
             </h3>
             <p className={styles.panelSubtitle}>
-              {transaction.transaction_no} · Choose an active staff user (customers excluded)
+              {transaction.transaction_no} ·{" "}
+              {restrictRoles?.length
+                ? "Choose an active Sales Staff user"
+                : "Choose an active staff user (customers excluded)"}
             </p>
           </div>
           <button type="button" className={styles.modalCloseBtn} onClick={onClose} aria-label="Close" disabled={saving}>

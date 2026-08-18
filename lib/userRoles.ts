@@ -60,6 +60,11 @@ export function isSalesStaffUser(user: unknown) {
   return getUserRoleNames(user).some((role) => role === "sales staff");
 }
 
+export function isSalesRoleUser(user: unknown) {
+  if (!user || typeof user !== "object") return false;
+  return getUserRoleNames(user).some((role) => role === "sales staff" || role === "sales admin");
+}
+
 export function resolveStaffLoginRedirect(user: unknown, requestedRedirect?: string) {
   const redirect = typeof requestedRedirect === "string" ? requestedRedirect.trim() : "";
   const safeRedirect = redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : "";

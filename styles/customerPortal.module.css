@@ -2280,6 +2280,12 @@
   cursor: pointer;
 }
 
+.billingActionsSelect:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: #f1f5f9;
+}
+
 .billingActionsCell {
   min-width: 0;
   white-space: nowrap;

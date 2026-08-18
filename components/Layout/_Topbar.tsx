@@ -9,6 +9,7 @@ import { usePublicCartDrawer } from "@/components/Cart/PublicCartDrawerContext";
 import styles from "@/styles/_topbar.module.css";
 import { cartCount, readPublicCart } from "@/lib/publicCart";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
+import { useStaffUnreadCount } from "@/lib/commerceAdmin/useStaffUnreadCount";
 import { useStoredPublicAuthState } from "@/lib/publicAuthState";
 import { CORE_PUBLIC_ROUTES, prefetchPublicRoutes } from "@/lib/prefetchPublicRoute";
 
@@ -22,7 +23,10 @@ export default function LandingTopbar() {
   const { customer, adminUser } = useStoredPublicAuthState();
   const isLoggedIn = Boolean(customer || adminUser);
   const isCustomerLoggedIn = Boolean(customer);
-  const unreadNotifications = usePortalUnreadCount(isCustomerLoggedIn);
+  const isStaffLoggedIn = Boolean(adminUser) && !isCustomerLoggedIn;
+  const customerUnread = usePortalUnreadCount(isCustomerLoggedIn);
+  const staffUnread = useStaffUnreadCount(isStaffLoggedIn);
+  const unreadNotifications = isCustomerLoggedIn ? customerUnread : staffUnread;
   const [logoFailed, setLogoFailed] = useState(false);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
 
@@ -166,7 +170,13 @@ export default function LandingTopbar() {
             </button>
 
             <Link
-              href={isLoggedIn ? "/public/dashboard?tab=notification" : "/public/login"}
+              href={
+                isStaffLoggedIn
+                  ? "/public/commerce-admin?tab=notifications"
+                  : isLoggedIn
+                    ? "/public/dashboard?tab=notification"
+                    : "/public/login"
+              }
               className={`${styles["notify-btn"]}${isLoggedIn ? "" : ` ${styles["notify-btnReserved"]}`}`}
               aria-label={
                 isLoggedIn

@@ -3,30 +3,70 @@ import type { SalesTransaction, SalesTransactionItem } from "@/services/salesTra
 
 export const WEB_DESIGN_PENDING_QUOTATION_MARKER = "Pricing: Pending Quotation";
 export const WEB_DESIGN_PRICE_SET_MARKER = "Pricing: Set by Sales";
+export const WEB_DESIGN_PROPOSAL_SUBMITTED_MARKER = "Proposal: Submitted";
+export const WEB_DESIGN_PROPOSAL_SIGNED_MARKER = "Proposal: Signed";
+export const WEB_DESIGN_PAYMENT_REQUESTED_MARKER = "Payment: Requested";
+
+function notesOf(transaction: Pick<SalesTransaction, "notes"> | string | null | undefined) {
+  if (typeof transaction === "string" || transaction == null) return String(transaction || "");
+  return String(transaction.notes || "");
+}
+
+function hasMarker(notes: string, marker: string) {
+  return notes.toLowerCase().includes(marker.toLowerCase());
+}
 
 export function isWebDesignTransaction(transaction: SalesTransaction) {
   const items = Array.isArray(transaction.items) ? transaction.items : [];
   if (items.some((item) => isWebDesignPlan(item.name, item.item_type))) return true;
   if (resolveServiceCategoryFromItems(items) === "Custom Web Design") return true;
-  const notes = String(transaction.notes || "");
+  const notes = notesOf(transaction);
   return /agency web design|pending quotation|custom web design|website template/i.test(notes);
+}
+
+export function isWebDesignPaymentRequested(transaction: SalesTransaction) {
+  return hasMarker(notesOf(transaction), WEB_DESIGN_PAYMENT_REQUESTED_MARKER);
 }
 
 export function isPendingQuotationTransaction(transaction: SalesTransaction) {
   if (!isWebDesignTransaction(transaction)) return false;
-  const notes = String(transaction.notes || "");
-  if (new RegExp(WEB_DESIGN_PRICE_SET_MARKER, "i").test(notes)) return false;
-  if (new RegExp(WEB_DESIGN_PENDING_QUOTATION_MARKER, "i").test(notes)) return true;
-  return Number(transaction.grand_total || 0) <= 0;
+  const paid = ["paid", "completed", "success"].includes(
+    String(transaction.payment_status || "").toLowerCase(),
+  );
+  if (paid) return false;
+  if (isWebDesignPaymentRequested(transaction)) return false;
+  return true;
+}
+
+export function isProposalSubmittedTransaction(transaction: SalesTransaction) {
+  return hasMarker(notesOf(transaction), WEB_DESIGN_PROPOSAL_SUBMITTED_MARKER);
+}
+
+export function isProposalSignedTransaction(transaction: SalesTransaction) {
+  return hasMarker(notesOf(transaction), WEB_DESIGN_PROPOSAL_SIGNED_MARKER);
+}
+
+export function formatZeroPeso() {
+  return "₱0.00";
+}
+
+export function transactionDisplayAmount(transaction: SalesTransaction) {
+  if (isPendingQuotationTransaction(transaction)) return 0;
+  return Number(transaction.grand_total || 0);
 }
 
 export function transactionAmountLabel(transaction: SalesTransaction) {
-  if (isPendingQuotationTransaction(transaction)) return "Pending Quotation";
-  const amount = Number(transaction.grand_total || 0);
+  const amount = transactionDisplayAmount(transaction);
   return `₱${amount.toLocaleString("en-PH", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+export function appendWebDesignMarker(notes: string | null | undefined, marker: string) {
+  const current = String(notes || "").trim();
+  if (hasMarker(current, marker)) return current;
+  return current ? `${marker}\n${current}` : marker;
 }
 
 export function buildWebDesignPricedNotes(notes: string | null | undefined, amount: number) {
@@ -40,7 +80,11 @@ export function buildWebDesignPricedNotes(notes: string | null | undefined, amou
     maximumFractionDigits: 2,
   })}`;
 
-  return cleaned ? `${pricedLine}\n${cleaned}` : pricedLine;
+  const withPending = cleaned.includes(WEB_DESIGN_PENDING_QUOTATION_MARKER)
+    ? cleaned
+    : `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${cleaned}`.trim();
+
+  return withPending ? `${pricedLine}\n${withPending}` : pricedLine;
 }
 
 export function applyWebDesignPriceToItems(

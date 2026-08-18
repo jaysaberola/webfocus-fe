@@ -249,7 +249,10 @@ export const PORTAL_OVERVIEW_ALERTS: PortalOverviewAlert[] = [
 ];
 
 export function formatPeso(amount: number) {
-  return `₱${amount.toLocaleString("en-PH")}`;
+  return `₱${Number(amount || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 export function customerDisplayName(fname?: string | null, lname?: string | null) {

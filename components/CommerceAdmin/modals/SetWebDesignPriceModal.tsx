@@ -53,8 +53,8 @@ export default function SetWebDesignPriceModal({ open, transaction, onClose, onS
 
         <form className={styles.modalForm} onSubmit={handleSubmit}>
           <p className={styles.panelSubtitle}>
-            Sales can set the final one-off package price for this web design order. The customer cart
-            showed Pending Quotation until this amount is saved.
+            Set the quoted package price. The client still sees ₱0.00 and Pending Quotation until you
+            upload the proposal, the client signs it, and you click Proceed Payment.
           </p>
 
           <label className={styles.modalLabel}>

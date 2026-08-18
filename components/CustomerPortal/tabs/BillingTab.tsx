@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
+import PortalModal from "@/components/CustomerPortal/PortalModal";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import {
@@ -20,6 +21,7 @@ import {
   notifyPortalNotificationsUpdated,
   payPortalInvoice,
   uploadPortalPaymentProof,
+  uploadPortalSignedProposal,
 } from "@/services/customerPortalService";
 import type { PortalInvoice, PortalPaymentProof } from "@/lib/customerPortal/types";
 import {
@@ -58,6 +60,14 @@ type ProofModalState =
     };
 
 type ProofListModalState =
+  | { open: false }
+  | {
+      open: true;
+      invoiceId: string;
+      invoiceLabel?: string;
+    };
+
+type SignedModalState =
   | { open: false }
   | {
       open: true;
@@ -134,9 +144,13 @@ function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
       return compareText(invoicePlanLabel(a), invoicePlanLabel(b), sortBy === "plan-desc");
     }
     if (sortBy.startsWith("issued")) {
-      const left = Date.parse(String(a.date ?? "")) || 0;
-      const right = Date.parse(String(b.date ?? "")) || 0;
-      return sortBy === "issued-desc" ? right - left : left - right;
+      const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
+      const right = Date.parse(String(b.createdAt || b.date || "")) || 0;
+      const byDate = sortBy === "issued-desc" ? right - left : left - right;
+      if (byDate !== 0) return byDate;
+      return sortBy === "issued-desc"
+        ? String(b.id).localeCompare(String(a.id))
+        : String(a.id).localeCompare(String(b.id));
     }
     if (sortBy.startsWith("due")) {
       const left = Date.parse(String(a.due ?? "")) || 0;
@@ -144,7 +158,12 @@ function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
       return sortBy === "due-desc" ? right - left : left - right;
     }
     if (sortBy.startsWith("amount")) {
-      return sortBy === "amount-desc" ? b.amount - a.amount : a.amount - b.amount;
+      const byAmount = sortBy === "amount-desc" ? b.amount - a.amount : a.amount - b.amount;
+      if (byAmount !== 0) return byAmount;
+      const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
+      const right = Date.parse(String(b.createdAt || b.date || "")) || 0;
+      if (left !== right) return sortBy === "amount-desc" ? right - left : left - right;
+      return String(b.id).localeCompare(String(a.id));
     }
     if (sortBy.startsWith("status")) return compareText(a.status, b.status, sortBy === "status-desc");
     return 0;
@@ -168,6 +187,7 @@ function invoiceStatusClass(status: PortalInvoice["status"]) {
   if (status === "Paid") return styles.badgeGreen;
   if (status === "Overdue") return styles.badgeAmber;
   if (status === "Payment Due") return styles.badgeBlue;
+  if (status === "Pending Quotation") return styles.badgeAmber;
   return styles.badgeAmber;
 }
 
@@ -194,6 +214,9 @@ export default function BillingTab() {
   const [paymentModal, setPaymentModal] = useState<PaymentModalState>({ open: false });
   const [proofModal, setProofModal] = useState<ProofModalState>({ open: false });
   const [proofListModal, setProofListModal] = useState<ProofListModalState>({ open: false });
+  const [signedModal, setSignedModal] = useState<SignedModalState>({ open: false });
+  const [signedFile, setSignedFile] = useState<File | null>(null);
+  const [uploadingSigned, setUploadingSigned] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<InvoiceSortKey>("issued-desc");
@@ -370,7 +393,27 @@ export default function BillingTab() {
     }
 
     if (action === "proof") {
+      if (inv.pendingQuotation) {
+        toast.info("Wait for Sales to request payment before uploading proof of payment.");
+        return;
+      }
       openProofModal(inv);
+      return;
+    }
+
+    if (action === "download-proposal") {
+      if (inv.proposalUrl) window.open(inv.proposalUrl, "_blank", "noopener,noreferrer");
+      else toast.error("Proposal file is not available yet.");
+      return;
+    }
+
+    if (action === "upload-signed") {
+      setSignedFile(null);
+      setSignedModal({
+        open: true,
+        invoiceId: inv.id,
+        invoiceLabel: `${inv.id} (${inv.plan ?? inv.subscription})`,
+      });
       return;
     }
 
@@ -386,6 +429,14 @@ export default function BillingTab() {
 
   const openInvoicePrimary = (inv: PortalInvoice) => {
     const invoiceProofs = proofsByInvoice.get(inv.id) ?? [];
+    if (inv.pendingQuotation || inv.status === "Pending Quotation") {
+      if (inv.proposalSubmitted) {
+        handleInvoiceAction(inv, "download-proposal");
+        return;
+      }
+      toast.info("Actions are disabled until Sales uploads the proposal quotation.");
+      return;
+    }
     if (inv.status !== "Paid") {
       handleInvoiceAction(inv, "pay");
       return;
@@ -468,6 +519,26 @@ export default function BillingTab() {
       toast.error(err?.response?.data?.message || "Could not upload payment proof.");
     } finally {
       setUploadingProof(false);
+    }
+  };
+
+  const handleUploadSigned = async () => {
+    if (!signedModal.open || !signedFile) return;
+    try {
+      setUploadingSigned(true);
+      const result = await uploadPortalSignedProposal({
+        invoiceId: signedModal.invoiceId,
+        file: signedFile,
+      });
+      toast.success(result?.message || "Signed proposal uploaded.");
+      setSignedModal({ open: false });
+      setSignedFile(null);
+      notifyPortalNotificationsUpdated();
+      await loadBilling({ dateFrom: dateRange.from || undefined, dateTo: dateRange.to || undefined });
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not upload signed proposal.");
+    } finally {
+      setUploadingSigned(false);
     }
   };
 
@@ -691,6 +762,12 @@ export default function BillingTab() {
                           <select
                             className={styles.billingActionsSelect}
                             defaultValue=""
+                            disabled={Boolean(inv.actionsDisabled)}
+                            title={
+                              inv.actionsDisabled
+                                ? "Actions are disabled until Sales uploads the proposal quotation."
+                                : undefined
+                            }
                             onChange={(e) => {
                               const value = e.target.value;
                               if (!value) return;
@@ -702,20 +779,38 @@ export default function BillingTab() {
                             <option value="" disabled hidden>
                               Actions...
                             </option>
-                            {invoiceProofs.length > 0 ? (
-                              <option value="view-proofs">
-                                View Uploaded Receipts ({invoiceProofs.length})
-                              </option>
-                            ) : null}
-                            {inv.status !== "Paid" ? (
+                            {inv.pendingQuotation ? (
                               <>
-                                <option value="pay" disabled={!inv.canPay}>
-                                  {inv.canPay ? "Pay Now" : "Pay Now (not due yet)"}
-                                </option>
-                                <option value="proof">Submit Payment Proof</option>
+                                {inv.proposalSubmitted ? (
+                                  <option value="download-proposal">Download Proposal Quotation</option>
+                                ) : null}
+                                {inv.proposalSubmitted && !inv.proposalSigned ? (
+                                  <option value="upload-signed">Upload Signed Proposal (v2)</option>
+                                ) : null}
+                                {inv.proposalSigned ? (
+                                  <option value="download-proposal" disabled>
+                                    Signed proposal submitted
+                                  </option>
+                                ) : null}
                               </>
                             ) : (
-                              <option value="proof">Submit Payment Proof</option>
+                              <>
+                                {invoiceProofs.length > 0 ? (
+                                  <option value="view-proofs">
+                                    View Uploaded Receipts ({invoiceProofs.length})
+                                  </option>
+                                ) : null}
+                                {inv.status !== "Paid" ? (
+                                  <>
+                                    <option value="pay" disabled={!inv.canPay}>
+                                      {inv.canPay ? "Pay Now" : "Pay Now (not due yet)"}
+                                    </option>
+                                    <option value="proof">Submit Payment Proof</option>
+                                  </>
+                                ) : (
+                                  <option value="proof">Submit Payment Proof</option>
+                                )}
+                              </>
                             )}
                             <option value="orders">View Orders</option>
                           </select>
@@ -789,6 +884,56 @@ export default function BillingTab() {
         onClose={() => setProofListModal({ open: false })}
         onDelete={handleDeleteProof}
       />
+
+      <PortalModal
+        open={signedModal.open}
+        onClose={() => {
+          if (uploadingSigned) return;
+          setSignedModal({ open: false });
+          setSignedFile(null);
+        }}
+        ariaLabelledBy="signed-proposal-title"
+      >
+        <div className={styles.billingModalHead}>
+          <div className={styles.billingModalHeadText}>
+            <h3 id="signed-proposal-title">Upload Signed Proposal</h3>
+            <p className={styles.panelSub}>
+              {signedModal.open ? signedModal.invoiceLabel : ""} — attach the signed quotation (version 2).
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.billingModalClose}
+            aria-label="Close"
+            onClick={() => {
+              if (uploadingSigned) return;
+              setSignedModal({ open: false });
+              setSignedFile(null);
+            }}
+          >
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
+        <div className={styles.billingModalBody}>
+          <label className={styles.proofField}>
+            <span>Signed file (PDF, JPG, PNG, DOC)</span>
+            <input
+              className={styles.cpControl}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+              onChange={(e) => setSignedFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            disabled={!signedFile || uploadingSigned}
+            onClick={() => void handleUploadSigned()}
+          >
+            {uploadingSigned ? "Uploading..." : "Upload Signed Proposal"}
+          </button>
+        </div>
+      </PortalModal>
     </div>
   );
 }

@@ -26,6 +26,16 @@ export interface SalesTransaction {
   issued_date?: string | null;
   due_date?: string | null;
   items?: SalesTransactionItem[];
+  proposals?: SalesTransactionProposal[];
+}
+
+export interface SalesTransactionProposal {
+  id: number;
+  version: number;
+  kind: string;
+  fileName: string;
+  fileUrl?: string | null;
+  uploadedAt?: string | null;
 }
 
 export interface SalesTransactionItem {
@@ -98,5 +108,17 @@ export const updateSalesTransaction = async (
 export const deleteSalesTransaction = async (id: number) => {
   const res = await axiosInstance.delete(`/sales-transactions/${id}`);
 
+  return res.data;
+};
+
+export const uploadWebDesignProposal = async (id: number, file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await axiosInstance.post(`/sales-transactions/${id}/proposals`, formData);
+  return res.data;
+};
+
+export const proceedWebDesignPayment = async (id: number) => {
+  const res = await axiosInstance.post(`/sales-transactions/${id}/proceed-payment`);
   return res.data;
 };
