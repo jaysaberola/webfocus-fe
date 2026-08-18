@@ -21,6 +21,7 @@ export type PublicCustomer = {
   address_city?: string | null;
   address_municipality?: string | null;
   address_province?: string | null;
+  address_region?: string | null;
   address_zip?: string | null;
   address_country?: string | null;
   avatar?: string | null;
@@ -180,6 +181,7 @@ export const updateCustomerProfile = async (payload: {
       previous?.address_municipality,
     address_province:
       user.address_province ?? payload.address_province ?? previous?.address_province,
+    address_region: user.address_region ?? previous?.address_region,
     address_zip: user.address_zip ?? payload.address_zip ?? previous?.address_zip,
   };
 

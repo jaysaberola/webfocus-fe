@@ -1475,6 +1475,10 @@
   gap: 0.85rem 1rem;
 }
 
+.accountAddressFieldFull {
+  grid-column: 1 / -1;
+}
+
 .accountAddressField {
   display: flex;
   flex-direction: column;

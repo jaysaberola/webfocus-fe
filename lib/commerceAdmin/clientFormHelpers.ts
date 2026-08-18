@@ -21,11 +21,13 @@ export type ClientCrmFormState = {
   address_street: string;
   address_city: string;
   address_province: string;
+  address_region: string;
   address_zip: string;
   address_country: string;
   shipping_street: string;
   shipping_city: string;
   shipping_province: string;
+  shipping_region: string;
   shipping_zip: string;
   shipping_country: string;
   bir_certificate: File | null;
@@ -58,11 +60,13 @@ export const emptyClientCrmForm: ClientCrmFormState = {
   address_street: "",
   address_city: "",
   address_province: "",
+  address_region: "",
   address_zip: "",
   address_country: "Philippines",
   shipping_street: "",
   shipping_city: "",
   shipping_province: "",
+  shipping_region: "",
   shipping_zip: "",
   shipping_country: "Philippines",
   bir_certificate: null,
@@ -134,6 +138,9 @@ export function validateClientCrmForm(form: ClientCrmFormState) {
   }
   if (!form.address_province.trim()) {
     return "Billing Province is required for the LBC copy of the Service Invoice.";
+  }
+  if (!form.address_region.trim()) {
+    return "Billing Region is required for the LBC copy of the Service Invoice.";
   }
   if (!form.address_zip.trim()) {
     return "Billing Code is required for the LBC copy of the Service Invoice.";

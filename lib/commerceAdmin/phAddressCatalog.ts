@@ -30,6 +30,65 @@ export const PH_CITIES = uniqueSorted(PH_ADDRESS_CITIES.map((place) => place.cit
 
 export const PH_ZIPS = uniqueSorted(PH_ADDRESS_CITIES.map((place) => place.zip));
 
+export const PH_REGIONS = [
+  "NCR — National Capital Region",
+  "CAR — Cordillera Administrative Region",
+  "Region I — Ilocos",
+  "Region II — Cagayan Valley",
+  "Region III — Central Luzon",
+  "Region IV-A — CALABARZON",
+  "Region IV-B — MIMAROPA",
+  "Region V — Bicol",
+  "Region VI — Western Visayas",
+  "Region VII — Central Visayas",
+  "Region VIII — Eastern Visayas",
+  "Region IX — Zamboanga Peninsula",
+  "Region X — Northern Mindanao",
+  "Region XI — Davao",
+  "Region XII — SOCCSKSARGEN",
+  "Region XIII — Caraga",
+  "BARMM — Bangsamoro",
+];
+
+const REGION_PROVINCES: Record<string, string[]> = {
+  "NCR — National Capital Region": ["Metro Manila", "Taguig - Pateros"],
+  "CAR — Cordillera Administrative Region": ["Abra", "Apayao", "Benguet", "Ifugao", "Kalinga", "Mountain Province"],
+  "Region I — Ilocos": ["Ilocos Norte", "Ilocos Sur", "La Union", "Pangasinan"],
+  "Region II — Cagayan Valley": ["Batanes", "Cagayan", "Isabela", "Nueva Vizcaya", "Quirino"],
+  "Region III — Central Luzon": ["Aurora", "Bataan", "Bulacan", "Nueva Ecija", "Pampanga", "Tarlac", "Zambales"],
+  "Region IV-A — CALABARZON": ["Batangas", "Cavite", "Laguna", "Quezon", "Rizal"],
+  "Region IV-B — MIMAROPA": ["Marinduque", "Occidental Mindoro", "Oriental Mindoro", "Palawan", "Romblon"],
+  "Region V — Bicol": ["Albay", "Camarines Norte", "Camarines Sur", "Catanduanes", "Masbate", "Sorsogon"],
+  "Region VI — Western Visayas": ["Aklan", "Antique", "Capiz", "Guimaras", "Iloilo", "Negros Occidental"],
+  "Region VII — Central Visayas": ["Bohol", "Cebu", "Negros Oriental", "Siquijor"],
+  "Region VIII — Eastern Visayas": [
+    "Biliran",
+    "Eastern Samar",
+    "Leyte",
+    "Northern Samar",
+    "Samar (Western Samar)",
+    "Southern Leyte",
+  ],
+  "Region IX — Zamboanga Peninsula": ["Zamboanga Del Norte", "Zamboanga Del Sur", "Zamboanga Sibugay"],
+  "Region X — Northern Mindanao": ["Bukidnon", "Camiguin", "Lanao Del Norte", "Misamis Occidental", "Misamis Oriental"],
+  "Region XI — Davao": [
+    "Compostela Valley",
+    "Davao (Davao Del Norte)",
+    "Davao Del Sur",
+    "Davao Occidental",
+    "Davao Oriental",
+  ],
+  "Region XII — SOCCSKSARGEN": ["Cotabato (North Cot.)", "Sarangani", "South Cotabato", "Sultan Kudarat"],
+  "Region XIII — Caraga": [
+    "Agusan Del Norte",
+    "Agusan Del Sur",
+    "Dinagat Islands",
+    "Surigao Del Norte",
+    "Surigao Del Sur",
+  ],
+  "BARMM — Bangsamoro": ["Basilan", "Lanao Del Sur", "Maguindanao", "Sulu", "Tawi-Tawi"],
+};
+
 function normalize(value: string) {
   return String(value || "")
     .trim()
@@ -128,6 +187,23 @@ export function citiesForProvince(province: string) {
   const needle = normalize(province);
   if (!needle) return PH_ADDRESS_CITIES;
   return PH_ADDRESS_CITIES.filter((place) => normalize(place.province) === needle);
+}
+
+export function regionForProvince(province: string) {
+  const needle = normalize(province);
+  if (!needle) return "";
+  for (const [region, provinces] of Object.entries(REGION_PROVINCES)) {
+    if (provinces.some((item) => normalize(item) === needle)) return region;
+  }
+  return "";
+}
+
+export function provincesForRegion(region: string) {
+  const needle = String(region || "").trim();
+  if (!needle) return PH_PROVINCES;
+  const listed = REGION_PROVINCES[needle] || [];
+  const allowed = new Set(listed.map(normalize));
+  return PH_PROVINCES.filter((province) => allowed.has(normalize(province)));
 }
 
 export function isKnownProvince(province: string) {

@@ -31,7 +31,9 @@ import {
   findPlaceByZip,
   PH_ADDRESS_PLACES,
   PH_COUNTRIES,
-  PH_PROVINCES,
+  PH_REGIONS,
+  provincesForRegion,
+  regionForProvince,
   streetsForPlace,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
@@ -232,11 +234,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           address_street: detail?.address_street ?? "",
           address_city: detail?.address_city ?? "",
           address_province: detail?.address_province ?? "",
+          address_region: detail?.address_region || regionForProvince(detail?.address_province ?? ""),
           address_zip: detail?.address_zip ?? "",
           address_country: detail?.address_country || "Philippines",
           shipping_street: detail?.shipping_street ?? "",
           shipping_city: detail?.shipping_city ?? "",
           shipping_province: detail?.shipping_province ?? "",
+          shipping_region: detail?.shipping_region || regionForProvince(detail?.shipping_province ?? ""),
           shipping_zip: detail?.shipping_zip ?? "",
           shipping_country: detail?.shipping_country || "Philippines",
         });
@@ -280,6 +284,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       shipping_street: current.address_street,
       shipping_city: current.address_city,
       shipping_province: current.address_province,
+      shipping_region: current.address_region,
       shipping_zip: current.address_zip,
       shipping_country: current.address_country,
     }));
@@ -292,12 +297,14 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   ) => {
     if (!place) return;
     const country = place.country || "Philippines";
+    const region = regionForProvince(place.province);
     if (prefix === "billing") {
       setForm((current) => ({
         ...current,
         ...(includeStreet && place.street ? { address_street: place.street } : {}),
         address_city: place.city,
         address_province: place.province,
+        address_region: region || current.address_region,
         address_zip: place.zip,
         address_country: country,
       }));
@@ -308,6 +315,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       ...(includeStreet && place.street ? { shipping_street: place.street } : {}),
       shipping_city: place.city,
       shipping_province: place.province,
+      shipping_region: region || current.shipping_region,
       shipping_zip: place.zip,
       shipping_country: country,
     }));
@@ -383,9 +391,19 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       }));
   }, [form.shipping_province]);
 
-  const provinceOptions = useMemo(
-    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
+  const regionOptions = useMemo(
+    () => PH_REGIONS.map((region) => ({ value: region, label: region })),
     []
+  );
+
+  const billingProvinceOptions = useMemo(
+    () => provincesForRegion(form.address_region).map((province) => ({ value: province, label: province })),
+    [form.address_region]
+  );
+
+  const shippingProvinceOptions = useMemo(
+    () => provincesForRegion(form.shipping_region).map((province) => ({ value: province, label: province })),
+    [form.shipping_region]
   );
 
   const zipOptions = useMemo(() => {
@@ -428,11 +446,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     address_street: form.address_street.trim(),
     address_city: form.address_city.trim(),
     address_province: form.address_province.trim(),
+    address_region: form.address_region.trim(),
     address_zip: form.address_zip.trim(),
     address_country: form.address_country.trim(),
     shipping_street: form.shipping_street.trim(),
     shipping_city: form.shipping_city.trim(),
     shipping_province: form.shipping_province.trim(),
+    shipping_region: form.shipping_region.trim(),
     shipping_zip: form.shipping_zip.trim(),
     shipping_country: form.shipping_country.trim(),
     bir_certificate: form.bir_certificate,
@@ -785,28 +805,51 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </button>
         </div>
         <p className={styles.panelSubtitle}>
-          Use Philippine street/barangay, city, province, and ZIP suggestions. Billing address is required
-          for the LBC copy of the Service Invoice.
+          Use Philippine region, province, city, street/barangay, and ZIP suggestions. Billing address is
+          required for the LBC copy of the Service Invoice.
         </p>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
+            <h5 className={styles.clientCrmCategoryTitle}>Billing Address</h5>
             <AddressSuggestField
-              label="Billing Country"
+              label="Country"
               value={form.address_country}
               options={countryOptions}
               autoComplete="country-name"
               onChange={(value) => setField("address_country", value)}
             />
             <AddressSuggestField
-              label="Billing Province"
-              value={form.address_province}
-              options={provinceOptions}
-              autoComplete="address-level1"
-              placeholder="Start typing a province"
-              onChange={(value) => setField("address_province", value)}
+              label="Region"
+              value={form.address_region}
+              options={regionOptions}
+              placeholder="Start typing a region"
+              onChange={(value) => {
+                setForm((current) => {
+                  const keep = Boolean(current.address_province) && regionForProvince(current.address_province) === value;
+                  return {
+                    ...current,
+                    address_region: value,
+                    ...(keep ? {} : { address_province: "", address_city: "", address_street: "" }),
+                  };
+                });
+              }}
             />
             <AddressSuggestField
-              label="Billing City"
+              label="Province"
+              value={form.address_province}
+              options={billingProvinceOptions}
+              autoComplete="address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  address_province: value,
+                  address_region: regionForProvince(value) || current.address_region,
+                }))
+              }
+            />
+            <AddressSuggestField
+              label="City"
               value={form.address_city}
               options={billingCityOptions}
               autoComplete="address-level2"
@@ -816,7 +859,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               onSelect={(value) => applyPlace("billing", findPlaceByCity(value, form.address_province))}
             />
             <AddressSuggestField
-              label="Billing Street"
+              label="Street"
               value={form.address_street}
               options={billingStreetOptions}
               autoComplete="street-address"
@@ -840,7 +883,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               }
             />
             <AddressSuggestField
-              label="Billing Code"
+              label="Code"
               value={form.address_zip}
               options={zipOptions}
               autoComplete="postal-code"
@@ -850,23 +893,46 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             />
           </div>
           <div className={styles.clientCrmCol}>
+            <h5 className={styles.clientCrmCategoryTitle}>Shipping Address</h5>
             <AddressSuggestField
-              label="Shipping Country"
+              label="Country"
               value={form.shipping_country}
               options={countryOptions}
               autoComplete="shipping country-name"
               onChange={(value) => setField("shipping_country", value)}
             />
             <AddressSuggestField
-              label="Shipping Province"
-              value={form.shipping_province}
-              options={provinceOptions}
-              autoComplete="shipping address-level1"
-              placeholder="Start typing a province"
-              onChange={(value) => setField("shipping_province", value)}
+              label="Region"
+              value={form.shipping_region}
+              options={regionOptions}
+              placeholder="Start typing a region"
+              onChange={(value) => {
+                setForm((current) => {
+                  const keep = Boolean(current.shipping_province) && regionForProvince(current.shipping_province) === value;
+                  return {
+                    ...current,
+                    shipping_region: value,
+                    ...(keep ? {} : { shipping_province: "", shipping_city: "", shipping_street: "" }),
+                  };
+                });
+              }}
             />
             <AddressSuggestField
-              label="Shipping City"
+              label="Province"
+              value={form.shipping_province}
+              options={shippingProvinceOptions}
+              autoComplete="shipping address-level1"
+              placeholder="Start typing a province"
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  shipping_province: value,
+                  shipping_region: regionForProvince(value) || current.shipping_region,
+                }))
+              }
+            />
+            <AddressSuggestField
+              label="City"
               value={form.shipping_city}
               options={shippingCityOptions}
               autoComplete="shipping address-level2"
@@ -876,7 +942,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               onSelect={(value) => applyPlace("shipping", findPlaceByCity(value, form.shipping_province))}
             />
             <AddressSuggestField
-              label="Shipping Street"
+              label="Street"
               value={form.shipping_street}
               options={shippingStreetOptions}
               autoComplete="shipping street-address"
@@ -900,7 +966,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               }
             />
             <AddressSuggestField
-              label="Shipping Code"
+              label="Code"
               value={form.shipping_zip}
               options={zipOptions}
               autoComplete="shipping postal-code"

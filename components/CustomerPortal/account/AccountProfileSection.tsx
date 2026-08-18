@@ -18,11 +18,13 @@ import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField"
 import {
   PH_ADDRESS_PLACES,
   PH_COUNTRIES,
-  PH_PROVINCES,
+  PH_REGIONS,
   citiesForProvince,
   findPlaceByCity,
   findPlaceByStreet,
   findPlaceByZip,
+  provincesForRegion,
+  regionForProvince,
   streetsForPlace,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import styles from "@/styles/customerPortal.module.css";
@@ -33,6 +35,7 @@ type ProfileForm = {
   phone: string;
   company: string;
   address_country: string;
+  address_region: string;
   address_province: string;
   address_city: string;
   address_street: string;
@@ -69,6 +72,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     phone: defaults.phone,
     company: defaults.company,
     address_country: "Philippines",
+    address_region: "",
     address_province: "",
     address_city: "",
     address_street: "",
@@ -90,6 +94,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       phone: customer.mobile || defaults.phone,
       company: customer.mname || defaults.company,
       address_country: customer.address_country || "Philippines",
+      address_region: customer.address_region || regionForProvince(customer.address_province || ""),
       address_province: customer.address_province || "",
       address_city: customer.address_city || "",
       address_street: customer.address_street || "",
@@ -151,6 +156,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       ...(includeStreet && place.street ? { address_street: place.street } : {}),
       address_city: place.city,
       address_province: place.province,
+      address_region: regionForProvince(place.province) || current.address_region,
       address_zip: place.zip,
       address_country: place.country || "Philippines",
     }));
@@ -191,9 +197,14 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       }));
   }, [form.address_province]);
 
-  const provinceOptions = useMemo(
-    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
+  const regionOptions = useMemo(
+    () => PH_REGIONS.map((region) => ({ value: region, label: region })),
     [],
+  );
+
+  const provinceOptions = useMemo(
+    () => provincesForRegion(form.address_region).map((province) => ({ value: province, label: province })),
+    [form.address_region],
   );
 
   const zipOptions = useMemo(() => {
@@ -222,6 +233,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       form.phone !== baseline.phone ||
       form.company !== baseline.company ||
       form.address_country !== baseline.address_country ||
+      form.address_region !== baseline.address_region ||
       form.address_province !== baseline.address_province ||
       form.address_city !== baseline.address_city ||
       form.address_street !== baseline.address_street ||
@@ -251,6 +263,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
         mobile: form.phone,
         mname: form.company,
         address_country: form.address_country,
+        address_region: form.address_region,
         address_province: form.address_province,
         address_city: form.address_city,
         address_street: form.address_street,
@@ -411,9 +424,27 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
               value={form.address_country}
               options={countryOptions}
               autoComplete="country-name"
-              className={styles.accountAddressField}
+              className={`${styles.accountAddressField} ${styles.accountAddressFieldFull}`}
               inputClassName={styles.cpControl}
               onChange={(value) => setForm((current) => ({ ...current, address_country: value }))}
+            />
+            <AddressSuggestField
+              label="Region"
+              value={form.address_region}
+              options={regionOptions}
+              placeholder="Start typing a region"
+              className={styles.accountAddressField}
+              inputClassName={styles.cpControl}
+              onChange={(value) =>
+                setForm((current) => {
+                  const keep = Boolean(current.address_province) && regionForProvince(current.address_province) === value;
+                  return {
+                    ...current,
+                    address_region: value,
+                    ...(keep ? {} : { address_province: "", address_city: "", address_street: "" }),
+                  };
+                })
+              }
             />
             <AddressSuggestField
               label="Province"
@@ -423,7 +454,13 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
               placeholder="Start typing a province"
               className={styles.accountAddressField}
               inputClassName={styles.cpControl}
-              onChange={(value) => setForm((current) => ({ ...current, address_province: value }))}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  address_province: value,
+                  address_region: regionForProvince(value) || current.address_region,
+                }))
+              }
             />
             <AddressSuggestField
               label="City"
@@ -444,7 +481,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
               autoComplete="street-address"
               placeholder="Start typing a street or barangay"
               maxVisible={400}
-              className={styles.accountAddressField}
+              className={`${styles.accountAddressField} ${styles.accountAddressFieldFull}`}
               inputClassName={styles.cpControl}
               onChange={(value) => setForm((current) => ({ ...current, address_street: value }))}
               onSelect={(_value, option) =>

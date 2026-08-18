@@ -178,6 +178,7 @@ export async function submitPortalProfileChange(payload: {
   mobile?: string;
   mname?: string;
   address_country?: string;
+  address_region?: string;
   address_province?: string;
   address_city?: string;
   address_street?: string;
@@ -191,6 +192,7 @@ export async function submitPortalProfileChange(payload: {
   if (payload.mobile != null) formData.append("mobile", payload.mobile);
   if (payload.mname != null) formData.append("mname", payload.mname);
   if (payload.address_country != null) formData.append("address_country", payload.address_country);
+  if (payload.address_region != null) formData.append("address_region", payload.address_region);
   if (payload.address_province != null) formData.append("address_province", payload.address_province);
   if (payload.address_city != null) formData.append("address_city", payload.address_city);
   if (payload.address_street != null) formData.append("address_street", payload.address_street);

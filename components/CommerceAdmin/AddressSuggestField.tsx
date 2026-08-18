@@ -119,6 +119,16 @@ export default function AddressSuggestField({
             }
           }}
         />
+        <button
+          type="button"
+          className={styles.addressSuggestToggle}
+          tabIndex={-1}
+          aria-label={open ? "Hide address suggestions" : "Show address suggestions"}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <i className={open ? "fa-solid fa-chevron-up" : "fa-solid fa-chevron-down"} aria-hidden="true" />
+        </button>
         {open ? (
           <ul className={styles.addressSuggestList} role="listbox">
             {filtered.length === 0 ? (

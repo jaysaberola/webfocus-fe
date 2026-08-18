@@ -34,8 +34,8 @@ const FILE_FIELDS: Record<string, string> = {
 const FIELD_GROUPS: Array<{ label: string; keys: string[] }> = [
   { label: "Client name", keys: ["fname", "lname", "mname", "company"] },
   { label: "Contact information", keys: ["email", "mobile", "phone", "contact_person"] },
-  { label: "Billing address", keys: ["address_street", "address_city", "address_province", "address_zip", "address_country"] },
-  { label: "Shipping address", keys: ["shipping_street", "shipping_city", "shipping_province", "shipping_zip", "shipping_country"] },
+  { label: "Billing address", keys: ["address_street", "address_city", "address_province", "address_region", "address_zip", "address_country"] },
+  { label: "Shipping address", keys: ["shipping_street", "shipping_city", "shipping_province", "shipping_region", "shipping_zip", "shipping_country"] },
   { label: "Business details", keys: ["industry", "tax_classification", "tin_number", "other_numbers", "client_classification", "client_type", "ownership"] },
   { label: "Billing settings", keys: ["currency", "exchange_rate", "billing_in_charge", "workdrive_folder_url", "workdrive_folder_id"] },
 ];

@@ -45,11 +45,13 @@ export type ClientCrmAccountPayload = {
   address_street?: string;
   address_city?: string;
   address_province?: string;
+  address_region?: string;
   address_zip?: string;
   address_country?: string;
   shipping_street?: string;
   shipping_city?: string;
   shipping_province?: string;
+  shipping_region?: string;
   shipping_zip?: string;
   shipping_country?: string;
   bir_certificate?: File | null;
@@ -167,11 +169,13 @@ function buildClientCrmFormData(payload: ClientCrmAccountPayload, method?: "PUT"
   appendIfValue(formData, "address_street", payload.address_street);
   appendIfValue(formData, "address_city", payload.address_city);
   appendIfValue(formData, "address_province", payload.address_province);
+  appendIfValue(formData, "address_region", payload.address_region);
   appendIfValue(formData, "address_zip", payload.address_zip);
   appendIfValue(formData, "address_country", payload.address_country);
   appendIfValue(formData, "shipping_street", payload.shipping_street);
   appendIfValue(formData, "shipping_city", payload.shipping_city);
   appendIfValue(formData, "shipping_province", payload.shipping_province);
+  appendIfValue(formData, "shipping_region", payload.shipping_region);
   appendIfValue(formData, "shipping_zip", payload.shipping_zip);
   appendIfValue(formData, "shipping_country", payload.shipping_country);
 
