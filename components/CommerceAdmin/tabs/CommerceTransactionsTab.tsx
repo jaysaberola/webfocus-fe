@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import AssignTransactionModal from "@/components/CommerceAdmin/modals/AssignTransactionModal";
-import CreateClientOrderModal from "@/components/CommerceAdmin/modals/CreateClientOrderModal";
+import ClientOrderForm from "@/components/CommerceAdmin/ClientOrderForm";
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
 import UploadProposalModal from "@/components/CommerceAdmin/modals/UploadProposalModal";
@@ -15,8 +15,10 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
+import { orderAdminColumnValue } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
+  TX_COLUMN_KEYS,
   TX_COLUMN_LABELS,
   formatTxDate,
   isPaidStatus,
@@ -47,7 +49,6 @@ import {
 } from "@/lib/tableFilterHelpers";
 import {
   HOSTING_SERVICE_NAME,
-  hostingSubTypesForTransaction,
   inferHostingTypeName,
   isHostingTransaction,
   parseHostingClassification,
@@ -133,7 +134,7 @@ export default function CommerceTransactionsTab() {
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [view, setView] = useState<"list" | "create">("list");
   const [createCustomerId, setCreateCustomerId] = useState<number | null>(null);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
@@ -171,7 +172,7 @@ export default function CommerceTransactionsTab() {
     if (shouldOpenCreate) {
       const parsedId = Number(router.query.customerId);
       setCreateCustomerId(Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null);
-      setCreateOpen(true);
+      setView("create");
     }
 
     void router.replace(
@@ -293,7 +294,9 @@ export default function CommerceTransactionsTab() {
           dateRange,
         ),
       );
-    return sortTransactions(filtered, sortBy);
+    return sortTransactions(filtered, sortBy, (row, column) =>
+      orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) }),
+    );
   }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
   const neededActions = useMemo(() => {
@@ -516,10 +519,70 @@ export default function CommerceTransactionsTab() {
     return <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>;
   };
 
-  const renderOrderTypeBadge = (row: SalesTransaction) => {
-    const type = transactionOrderType(row);
-    const clientOrder = type === "Client Order";
-    return <span className={clientOrder ? styles.badgePurple : styles.badgeBlue}>{type}</span>;
+  const renderAssignedBadge = (row: SalesTransaction) => {
+    const label = assignedUserLabel(row);
+    if (canAssign) {
+      return (
+        <button
+          type="button"
+          className={label ? styles.txAssignedBadge : styles.txAssignedEmpty}
+          onClick={() => setAssignTarget(row)}
+          title="Assign staff"
+        >
+          {label ?? "Unassigned"}
+        </button>
+      );
+    }
+    if (label) return <span className={styles.txAssignedBadge}>{label}</span>;
+    return <span className={styles.txAssignedEmpty}>Unassigned</span>;
+  };
+
+  const renderOrderColumnCell = (row: SalesTransaction, column: TxColumnKey) => {
+    if (column === "clientOwner") {
+      return <td key={column} className={styles.txAssignedCell}>{renderAssignedBadge(row)}</td>;
+    }
+    if (column === "paymentStatus") {
+      const label = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
+      const paid = label.toLowerCase() === "paid" || isPaidStatus(row.payment_status);
+      return (
+        <td key={column} className={styles.statusCell}>
+          <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>
+        </td>
+      );
+    }
+    if (column === "expectedRevenue") {
+      return (
+        <td key={column} className={styles.amountCell}>
+          {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
+        </td>
+      );
+    }
+    if (column === "clientName") {
+      const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
+      return (
+        <td key={column} className={styles.dealsNowrap}>
+          <button type="button" className={styles.tableCellLink} onClick={() => openView(row)}>
+            {name}
+          </button>
+        </td>
+      );
+    }
+    if (column === "subject") {
+      return (
+        <td key={column} className={styles.txServiceCell}>
+          {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
+          {renderHostingMeta(row)}
+        </td>
+      );
+    }
+    return (
+      <td
+        key={column}
+        className={column === "collectionNote" ? undefined : styles.dealsNowrap}
+      >
+        {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
+      </td>
+    );
   };
 
   const renderHostingMeta = (row: SalesTransaction) => {
@@ -529,88 +592,25 @@ export default function CommerceTransactionsTab() {
     return <div className={styles.txHostingMeta}>{hostingClassificationLabel(row)}</div>;
   };
 
-  const renderActionSelect = (row: SalesTransaction) => {
-    const hosting = isHostingTransaction(row);
-    const hostingType = hosting ? inferHostingTypeName(row) : null;
-    const hostingSubTypes = hosting ? hostingSubTypesForTransaction(row) : [];
-    const webDesign = isWebDesignTransaction(row);
+  const visibleOrderColumns = useMemo(
+    () => TX_COLUMN_KEYS.filter((key) => columnsVisible[key]),
+    [columnsVisible],
+  );
 
-    return (
-      <select
-        className={styles.actionSelect}
-        defaultValue=""
-        onChange={(e) => {
-          const value = e.target.value;
-          e.target.value = "";
-          if (value) void handleAction(row, value);
-        }}
-      >
-        <option value="" disabled>
-          Actions...
-        </option>
-        <option value="view">View Purchase details</option>
-        {!isPaidStatus(row.payment_status) && !isPendingQuotationTransaction(row) ? (
-          <option value="pay">Mark Invoice as Paid</option>
-        ) : null}
-        <option value="edit">Edit</option>
-        {canAssign ? <option value="assign">Assign To...</option> : null}
-        {salesRole && webDesign && isPendingQuotationTransaction(row) && !isProposalSubmittedTransaction(row) ? (
-          <option value="webdesign:upload-proposal">Upload Proposal Quotation</option>
-        ) : null}
-        {salesRole && webDesign && isProposalSignedTransaction(row) && isPendingQuotationTransaction(row) ? (
-          <option value="webdesign:proceed-payment">Proceed Payment</option>
-        ) : null}
-        {salesRole && webDesign ? <option value="webdesign:set-price">Set Web Design Price...</option> : null}
-        <option value="reject">Reject Purchase</option>
-        {hosting ? (
-          <optgroup label={`Hosting · ${hostingType}`}>
-            {hostingSubTypes.map((subType) => (
-              <option key={subType} value={`hosting:${subType}`}>
-                {subType}
-              </option>
-            ))}
-            <option value="hosting:classify">Set Type / Sub-Type...</option>
-          </optgroup>
-        ) : null}
-      </select>
-    );
-  };
-
-  const visibleColumnCount =
-    Object.values(columnsVisible).filter(Boolean).length + 2;
+  const visibleColumnCount = visibleOrderColumns.length + 1;
 
   const handleExportSelected = () => {
     if (selectedRows.length === 0 || exporting) return;
     setExporting(true);
     try {
       exportRowsToExcel(
-        [
-          "Invoice ID",
-          "Service Name",
-          "Plan",
-          "Order Type",
-          "Issued Date",
-          "Due Date",
-          "Amount",
-          "Assigned",
-          "Payment Status",
-          "Order Status",
-          "Customer Name",
-          "Customer Email",
-        ],
+        ["Invoice ID", ...TX_COLUMN_KEYS.map((key) => TX_COLUMN_LABELS[key]), "Order Type"],
         selectedRows.map((row) => [
           row.transaction_no,
-          transactionItemSummary(row),
-          transactionPlanLabel(row),
+          ...TX_COLUMN_KEYS.map((key) =>
+            orderAdminColumnValue(row, key, { assigned: assignedUserLabel(row) }),
+          ),
           transactionOrderType(row),
-          transactionIssuedDate(row),
-          transactionDueDate(row),
-          transactionAmountLabel(row),
-          assignedUserLabel(row) ?? "Unassigned",
-          paymentStatusLabel(row.payment_status),
-          row.order_status ?? "",
-          row.customer_name ?? "",
-          row.customer_email ?? "",
         ]),
         "orders",
       );
@@ -636,6 +636,27 @@ export default function CommerceTransactionsTab() {
       setBulkDeleting(false);
     }
   };
+
+  if (view === "create") {
+    return (
+      <section className={styles.panel}>
+        <ClientOrderForm
+          defaultCustomerId={createCustomerId}
+          onBack={() => {
+            setView("list");
+            setCreateCustomerId(null);
+          }}
+          onSaved={() => {
+            setView("list");
+            setCreateCustomerId(null);
+            setSortBy("date-desc");
+            setPage(1);
+            loadRows();
+          }}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className={styles.panel}>
@@ -713,7 +734,7 @@ export default function CommerceTransactionsTab() {
                 <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
               </button>
               {colVisOpen ? (
-                <div className={styles.colVisPanel}>
+                <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
                   <div className={styles.colVisTitle}>Toggle Columns</div>
                   {(Object.keys(TX_COLUMN_LABELS) as TxColumnKey[]).map((key) => (
                     <label key={key} className={styles.colVisItem}>
@@ -734,7 +755,7 @@ export default function CommerceTransactionsTab() {
             className={styles.primaryBtnSm}
             onClick={() => {
               setCreateCustomerId(null);
-              setCreateOpen(true);
+              setView("create");
             }}
           >
             <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client Order
@@ -787,7 +808,6 @@ export default function CommerceTransactionsTab() {
                   <option value="date-asc">Oldest First</option>
                   <option value="amount-desc">Amount (High to Low)</option>
                   <option value="amount-asc">Amount (Low to High)</option>
-                  <option value="id-asc">Invoice ID (A-Z)</option>
                 </select>
               }
             />
@@ -804,16 +824,7 @@ export default function CommerceTransactionsTab() {
                       onToggleAll={selection.toggleAll}
                       disabled={displayRows.length === 0}
                     />
-                    {columnsVisible.id ? renderSortableHead("id") : null}
-                    {columnsVisible.items ? renderSortableHead("items") : null}
-                    {columnsVisible.subscription ? renderSortableHead("subscription") : null}
-                    {columnsVisible.orderType ? renderSortableHead("orderType") : null}
-                    {columnsVisible.date ? renderSortableHead("date") : null}
-                    {columnsVisible.expiredDate ? renderSortableHead("expiredDate") : null}
-                    {columnsVisible.amount ? renderSortableHead("amount") : null}
-                    {columnsVisible.assigned ? <th>Assigned</th> : null}
-                    {columnsVisible.status ? renderSortableHead("status") : null}
-                    <th className={styles.tableActionHead}>Action</th>
+                    {visibleOrderColumns.map((column) => renderSortableHead(column))}
                   </tr>
                 </thead>
                 <tbody>
@@ -832,58 +843,7 @@ export default function CommerceTransactionsTab() {
                           onChange={() => selection.toggleRow(row)}
                           label={`Select order ${row.transaction_no}`}
                         />
-                        {columnsVisible.id ? (
-                          <td className={styles.monoCell}>
-                            <button
-                              type="button"
-                              className={styles.tableCellLink}
-                              onClick={() => openView(row)}
-                            >
-                              {row.transaction_no}
-                            </button>
-                          </td>
-                        ) : null}
-                        {columnsVisible.items ? (
-                          <td className={styles.txServiceCell}>
-                            {transactionItemSummary(row)}
-                            {renderHostingMeta(row)}
-                          </td>
-                        ) : null}
-                        {columnsVisible.subscription ? (
-                          <td className={styles.txPlanCell}>
-                            <strong>{transactionPlanLabel(row)}</strong>
-                          </td>
-                        ) : null}
-                        {columnsVisible.orderType ? <td>{renderOrderTypeBadge(row)}</td> : null}
-                        {columnsVisible.date ? <td>{transactionIssuedDate(row)}</td> : null}
-                        {columnsVisible.expiredDate ? <td>{transactionDueDate(row)}</td> : null}
-                        {columnsVisible.amount ? (
-                          <td className={styles.amountCell}>{transactionAmountLabel(row)}</td>
-                        ) : null}
-                        {columnsVisible.assigned ? (
-                          <td className={styles.txAssignedCell}>
-                            {canAssign ? (
-                              <button
-                                type="button"
-                                className={
-                                  assignedUserLabel(row) ? styles.txAssignedBadge : styles.txAssignedEmpty
-                                }
-                                onClick={() => setAssignTarget(row)}
-                                title="Assign staff"
-                              >
-                                {assignedUserLabel(row) ?? "Unassigned"}
-                              </button>
-                            ) : assignedUserLabel(row) ? (
-                              <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
-                            ) : (
-                              <span className={styles.txAssignedEmpty}>Unassigned</span>
-                            )}
-                          </td>
-                        ) : null}
-                        {columnsVisible.status ? (
-                          <td className={styles.statusCell}>{renderStatusBadge(row)}</td>
-                        ) : null}
-                        <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
+                        {visibleOrderColumns.map((column) => renderOrderColumnCell(row, column))}
                       </tr>
                     ))
                   )}
@@ -898,31 +858,44 @@ export default function CommerceTransactionsTab() {
                 displayRows.map((row) => (
                   <article key={row.id} className={styles.txGridCard}>
                     <div className={styles.txGridCardTop}>
-                      <span className={styles.monoCell}>{row.transaction_no}</span>
+                      <span className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
+                      </span>
                       {renderStatusBadge(row)}
                     </div>
                     <div>
-                      <div className={styles.txGridLabel}>Service Name</div>
-                      <div className={styles.txGridValue}>{transactionItemSummary(row)}</div>
+                      <div className={styles.txGridLabel}>Client Owner</div>
+                      <div className={styles.txGridValue}>{renderAssignedBadge(row)}</div>
                     </div>
                     <div>
-                      <div className={styles.txGridLabel}>Plan</div>
-                      <div className={styles.txGridValue}>{transactionPlanLabel(row)}</div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Assigned</div>
+                      <div className={styles.txGridLabel}>Client Name</div>
                       <div className={styles.txGridValue}>
-                        {assignedUserLabel(row) ? (
-                          <span className={styles.txAssignedBadge}>{assignedUserLabel(row)}</span>
-                        ) : (
-                          <span className={styles.txAssignedEmpty}>Unassigned</span>
-                        )}
+                        {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
                       </div>
                     </div>
-                    <div>{renderOrderTypeBadge(row)}</div>
-                    <div className={styles.txGridMeta}>
-                      <span>Issued: {transactionIssuedDate(row)}</span>
-                      <span>Due: {transactionDueDate(row)}</span>
+                    <div>
+                      <div className={styles.txGridLabel}>Stage</div>
+                      <div className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "stage", { assigned: assignedUserLabel(row) })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Client Status</div>
+                      <div className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "clientStatus", { assigned: assignedUserLabel(row) })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Subject</div>
+                      <div className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "subject", { assigned: assignedUserLabel(row) })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className={styles.txGridLabel}>Product Category</div>
+                      <div className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "productCategory", { assigned: assignedUserLabel(row) })}
+                      </div>
                     </div>
                     <div className={styles.txGridFooter}>
                       <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
@@ -952,7 +925,6 @@ export default function CommerceTransactionsTab() {
                         <span className={styles.statusActive}>Verified</span>
                       )}
                     </div>
-                    <div>{renderActionSelect(row)}</div>
                   </article>
                 ))
               )}
@@ -1005,22 +977,6 @@ export default function CommerceTransactionsTab() {
           </div>
         </TableFilterShell>
       )}
-
-      <CreateClientOrderModal
-        open={createOpen}
-        defaultCustomerId={createCustomerId}
-        onClose={() => {
-          setCreateOpen(false);
-          setCreateCustomerId(null);
-        }}
-        onCreated={() => {
-          setCreateOpen(false);
-          setCreateCustomerId(null);
-          setSortBy("date-desc");
-          setPage(1);
-          loadRows();
-        }}
-      />
 
       <HostingTransactionModal
         open={!!hostingTarget}

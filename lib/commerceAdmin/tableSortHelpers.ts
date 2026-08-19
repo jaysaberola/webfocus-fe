@@ -1,28 +1,15 @@
-import type { TxColumnKey, TxSortKey } from "@/lib/commerceAdmin/transactionHelpers";
+import { TX_COLUMN_KEYS, type TxColumnKey, type TxSortKey } from "@/lib/commerceAdmin/transactionHelpers";
 import type { ApprovalSortKey } from "@/lib/commerceAdmin/approvalHelpers";
 import type { ClientColumnKey, ClientSortKey } from "@/lib/commerceAdmin/clientHelpers";
 
-const TX_ASC: Partial<Record<TxColumnKey, TxSortKey>> = {
-  id: "id-asc",
-  items: "service-asc",
-  subscription: "plan-asc",
-  orderType: "order-type-asc",
-  date: "date-asc",
-  expiredDate: "due-asc",
-  amount: "amount-asc",
-  status: "status-asc",
-};
-
-const TX_DESC: Partial<Record<TxColumnKey, TxSortKey>> = {
-  id: "id-desc",
-  items: "service-desc",
-  subscription: "plan-desc",
-  orderType: "order-type-desc",
-  date: "date-desc",
-  expiredDate: "due-desc",
-  amount: "amount-desc",
-  status: "status-desc",
-};
+const TX_ASC = Object.fromEntries(TX_COLUMN_KEYS.map((key) => [key, `${key}-asc`])) as Record<
+  TxColumnKey,
+  TxSortKey
+>;
+const TX_DESC = Object.fromEntries(TX_COLUMN_KEYS.map((key) => [key, `${key}-desc`])) as Record<
+  TxColumnKey,
+  TxSortKey
+>;
 
 export function toggleTxSort(current: TxSortKey, column: TxColumnKey): TxSortKey {
   const asc = TX_ASC[column];

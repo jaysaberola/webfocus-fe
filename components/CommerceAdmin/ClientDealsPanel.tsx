@@ -5,7 +5,7 @@ import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDet
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import {
   buildClientDealRows,
-  DEAL_COLUMN_KEYS,
+  DEAL_COLUMN_VISIBILITY_KEYS,
   DEAL_COLUMN_LABELS,
   DEFAULT_DEAL_COLUMNS,
   fetchCustomerDealTransactions,
@@ -150,7 +150,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   }, []);
 
   const visibleColumns = useMemo(
-    () => DEAL_COLUMN_KEYS.filter((key) => columnsVisible[key]),
+    () => DEAL_COLUMN_VISIBILITY_KEYS.filter((key) => columnsVisible[key]),
     [columnsVisible],
   );
 
@@ -195,7 +195,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
             {colVisOpen ? (
               <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
                 <div className={styles.colVisTitle}>Toggle Columns</div>
-                {DEAL_COLUMN_KEYS.map((key) => (
+                {DEAL_COLUMN_VISIBILITY_KEYS.map((key) => (
                   <label key={key} className={styles.colVisItem}>
                     <input
                       type="checkbox"

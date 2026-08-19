@@ -6,6 +6,32 @@ import {
   resolveServiceCategoryFromItems,
 } from "@/lib/serviceCategory";
 
+export type TxColumnKey =
+  | "clientOwner"
+  | "probability"
+  | "expectedRevenue"
+  | "stage"
+  | "closingDate"
+  | "clientName"
+  | "contactName"
+  | "clientStatus"
+  | "productStatus"
+  | "subject"
+  | "productCategory"
+  | "salesStatus"
+  | "statusTriggerDate"
+  | "joNumber"
+  | "billingInCharge"
+  | "dealStatus"
+  | "paymentTerms"
+  | "paymentMethod"
+  | "paymentStatus"
+  | "invoiceStatus"
+  | "invoiceSentDate"
+  | "invoiceReceivedDate"
+  | "paymentCommitmentDate"
+  | "collectionNote";
+
 export type TxSortKey =
   | "date-desc"
   | "date-asc"
@@ -15,50 +41,65 @@ export type TxSortKey =
   | "amount-asc"
   | "id-asc"
   | "id-desc"
-  | "service-asc"
-  | "service-desc"
-  | "plan-asc"
-  | "plan-desc"
-  | "order-type-asc"
-  | "order-type-desc"
-  | "status-asc"
-  | "status-desc";
+  | `${TxColumnKey}-asc`
+  | `${TxColumnKey}-desc`;
 export type TxFilterKey = "all" | "paid" | "pending";
 
-export type TxColumnKey =
-  | "id"
-  | "items"
-  | "subscription"
-  | "orderType"
-  | "date"
-  | "expiredDate"
-  | "amount"
-  | "assigned"
-  | "status";
-
 export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
-  id: "Invoice ID",
-  items: "Service Name",
-  subscription: "Plan",
-  orderType: "Order Type",
-  date: "Issued Date",
-  expiredDate: "Due Date",
-  amount: "Amount",
-  assigned: "Assigned",
-  status: "Status",
+  clientOwner: "Client Owner",
+  probability: "Probability (%)",
+  expectedRevenue: "Expected Revenue ₱",
+  stage: "Stage",
+  closingDate: "Closing Date",
+  clientName: "Client Name",
+  contactName: "Contact Name",
+  clientStatus: "Client Status",
+  productStatus: "Product Status",
+  subject: "Subject",
+  productCategory: "Product Category",
+  salesStatus: "Sales Status",
+  statusTriggerDate: "Status Trigger Date",
+  joNumber: "JO Number",
+  billingInCharge: "Billing-in-Charge",
+  dealStatus: "Deal Status",
+  paymentTerms: "Payment Terms",
+  paymentMethod: "Payment Method",
+  paymentStatus: "Payment Status",
+  invoiceStatus: "Invoice Status",
+  invoiceSentDate: "Invoice Sent Date",
+  invoiceReceivedDate: "Invoice Received Date",
+  paymentCommitmentDate: "Payment Commitment Date",
+  collectionNote: "Collection Note",
 };
 
 export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
-  id: true,
-  items: true,
-  subscription: true,
-  orderType: true,
-  date: true,
-  expiredDate: true,
-  amount: true,
-  assigned: true,
-  status: true,
+  clientOwner: true,
+  probability: false,
+  expectedRevenue: false,
+  stage: true,
+  closingDate: false,
+  clientName: true,
+  contactName: false,
+  clientStatus: true,
+  productStatus: false,
+  subject: true,
+  productCategory: true,
+  salesStatus: false,
+  statusTriggerDate: false,
+  joNumber: false,
+  billingInCharge: false,
+  dealStatus: false,
+  paymentTerms: false,
+  paymentMethod: false,
+  paymentStatus: false,
+  invoiceStatus: false,
+  invoiceSentDate: false,
+  invoiceReceivedDate: false,
+  paymentCommitmentDate: false,
+  collectionNote: false,
 };
+
+export const TX_COLUMN_KEYS = Object.keys(TX_COLUMN_LABELS) as TxColumnKey[];
 
 const normalizeItems = (items: SalesTransaction["items"]) =>
   (items ?? []).map((item) => ({
@@ -136,7 +177,11 @@ export function filterTransactions(rows: SalesTransaction[], filter: TxFilterKey
   return rows.filter((row) => !isPaidStatus(row.payment_status));
 }
 
-export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
+export function sortTransactions(
+  rows: SalesTransaction[],
+  sortBy: TxSortKey,
+  columnValue?: (row: SalesTransaction, column: TxColumnKey) => string,
+) {
   const copy = [...rows];
   const dateValue = (row: SalesTransaction) =>
     Date.parse(String(row.created_at || row.transacted_at || row.issued_date || "")) || 0;
@@ -145,7 +190,7 @@ export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
   const rowId = (row: SalesTransaction) => Number(row.id) || 0;
   copy.sort((a, b) => {
     const compareText = (left: string, right: string, desc: boolean) => {
-      const result = left.localeCompare(right);
+      const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
       return desc ? -result : result;
     };
 
@@ -175,29 +220,11 @@ export function sortTransactions(rows: SalesTransaction[], sortBy: TxSortKey) {
     if (sortBy === "id-desc") {
       return String(b.transaction_no ?? "").localeCompare(String(a.transaction_no ?? ""));
     }
-    if (sortBy === "service-asc") {
-      return compareText(transactionItemSummary(a), transactionItemSummary(b), false);
-    }
-    if (sortBy === "service-desc") {
-      return compareText(transactionItemSummary(a), transactionItemSummary(b), true);
-    }
-    if (sortBy === "plan-asc") {
-      return compareText(transactionPlanLabel(a), transactionPlanLabel(b), false);
-    }
-    if (sortBy === "plan-desc") {
-      return compareText(transactionPlanLabel(a), transactionPlanLabel(b), true);
-    }
-    if (sortBy === "order-type-asc") {
-      return compareText(transactionOrderType(a), transactionOrderType(b), false);
-    }
-    if (sortBy === "order-type-desc") {
-      return compareText(transactionOrderType(a), transactionOrderType(b), true);
-    }
-    if (sortBy === "status-asc") {
-      return compareText(paymentStatusLabel(a.payment_status), paymentStatusLabel(b.payment_status), false);
-    }
-    if (sortBy === "status-desc") {
-      return compareText(paymentStatusLabel(a.payment_status), paymentStatusLabel(b.payment_status), true);
+
+    const columnMatch = sortBy.match(/^(.*)-(asc|desc)$/) as [string, TxColumnKey, "asc" | "desc"] | null;
+    if (columnMatch && columnValue) {
+      const [, column, direction] = columnMatch;
+      return compareText(columnValue(a, column), columnValue(b, column), direction === "desc");
     }
     return 0;
   });

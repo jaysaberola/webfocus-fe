@@ -3862,6 +3862,186 @@ select.clientCrmInput {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
+.clientCrmInputRequired {
+  border-left: 3px solid #dc2626 !important;
+}
+
+.clientCrmHint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin: 0;
+  border: 1px solid #94a3b8;
+  border-radius: 50%;
+  background: #fff;
+  color: #64748b;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.55rem;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: lowercase;
+  letter-spacing: 0;
+  transform: translateY(1px);
+}
+
+.clientCrmPesoPrefix {
+  position: absolute;
+  left: 0.7rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  color: var(--ca-slate-500);
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.clientCrmPesoInput {
+  padding-left: 1.55rem !important;
+}
+
+.clientOrderGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: 2rem;
+  row-gap: 0.55rem;
+  align-items: center;
+}
+
+@media (min-width: 960px) {
+  .clientOrderGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.clientOrderGridSpacer {
+  display: none;
+}
+
+@media (min-width: 960px) {
+  .clientOrderGridSpacer {
+    display: block;
+    min-height: var(--ca-control-height);
+  }
+}
+
+.clientOrderField {
+  display: grid;
+  grid-template-columns: 11.25rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: center;
+  min-height: var(--ca-control-height);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  color: var(--ca-slate-600);
+}
+
+@media (max-width: 640px) {
+  .clientOrderField {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+}
+
+.clientOrderLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  height: var(--ca-control-height);
+  line-height: 1;
+}
+
+.clientOrderLabelText {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.clientOrderControl {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--ca-control-height);
+}
+
+.clientOrderControl .clientCrmInput,
+.clientOrderControl select.clientCrmInput,
+.clientOrderControl input[type="date"].clientCrmInput,
+.clientOrderControl input[type="number"].clientCrmInput {
+  width: 100%;
+  height: var(--ca-control-height);
+  min-height: var(--ca-control-height);
+  max-height: var(--ca-control-height);
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-right: 2rem;
+  line-height: calc(var(--ca-control-height) - 2px);
+}
+
+.clientOrderControlSelect select.clientCrmInput {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+}
+
+.clientOrderControlSelect select.clientCrmInput::-ms-expand {
+  display: none;
+}
+
+.clientOrderControlHasIcon .clientCrmInput,
+.clientOrderControlSelect .clientCrmInput {
+  padding-right: 2rem;
+}
+
+.clientOrderControlHasIcon.clientOrderControlSelect .clientCrmInput {
+  padding-right: 2.85rem;
+}
+
+.clientOrderControlLookup.clientOrderControlSelect .clientCrmInput {
+  padding-right: 3.35rem;
+}
+
+.clientOrderControl input[type="date"].clientCrmInput {
+  padding-right: 0.7rem;
+}
+
+.clientOrderAdornment {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.28rem;
+  height: 0.9rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.clientOrderAdornment i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.85rem;
+  height: 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.clientOrderAdornment i.fa-chevron-down {
+  width: 0.7rem;
+  font-size: 0.58rem;
+}
+
 .addressSuggestWrap {
   position: relative;
   min-width: 0;

@@ -209,7 +209,12 @@ export function hostingActionSummary(notes?: string | null) {
 
 export function userFacingNotes(notes?: string | null) {
   const stripped = stripHostingMeta(notes);
-  return stripped.replace(/\[HOSTING_ACTION \d{4}-\d{2}-\d{2}\][^\n]*/g, "").trim();
+  return stripped
+    .split("\n")
+    .filter((line) => !line.startsWith("[DEAL_META]"))
+    .join("\n")
+    .replace(/\[HOSTING_ACTION \d{4}-\d{2}-\d{2}\][^\n]*/g, "")
+    .trim();
 }
 
 export function mergeEditedTransactionNotes(

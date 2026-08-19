@@ -1,6 +1,7 @@
 import { parseHostingClassification } from "@/lib/commerceAdmin/hostingTransactionTypes";
+import { parseDealMeta } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
-import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
+import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import type { CustomerRow, CustomerServiceLine } from "@/services/customerService";
@@ -92,63 +93,68 @@ export type DealColumnKey =
 
 export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   clientOwner: "Client Owner",
-  clientName: "Client Name",
-  planName: "Plan Name",
+  probability: "Probability (%)",
+  expectedRevenue: "Expected Revenue ₱",
   stage: "Stage",
+  closingDate: "Closing Date",
+  clientName: "Client Name",
+  contactName: "Contact Name",
   clientStatus: "Client Status",
   productStatus: "Product Status",
   subject: "Subject",
   productCategory: "Product Category",
-  domain: "Domain",
-  contactName: "Contact Name",
-  closingDate: "Closing Date",
   salesStatus: "Sales Status",
-  paymentTerms: "Payment Terms",
-  paymentMethod: "Payment Method",
-  paymentStatus: "Payment Status",
-  expectedRevenue: "Expected Revenue ₱",
-  probability: "Probability (%)",
   statusTriggerDate: "Status Trigger Date",
   joNumber: "JO Number",
   billingInCharge: "Billing-in-Charge",
   dealStatus: "Deal Status",
+  paymentTerms: "Payment Terms",
+  paymentMethod: "Payment Method",
+  paymentStatus: "Payment Status",
   invoiceStatus: "Invoice Status",
   invoiceSentDate: "Invoice Sent Date",
   invoiceReceivedDate: "Invoice Received Date",
   paymentCommitmentDate: "Payment Commitment Date",
   collectionNote: "Collection Note",
+  planName: "Plan Name",
+  domain: "Domain",
 };
 
 export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   clientOwner: true,
-  clientName: true,
-  planName: false,
+  probability: false,
+  expectedRevenue: false,
   stage: true,
+  closingDate: false,
+  clientName: true,
+  contactName: false,
   clientStatus: true,
   productStatus: false,
   subject: true,
   productCategory: true,
-  domain: false,
-  contactName: false,
-  closingDate: false,
   salesStatus: false,
-  paymentTerms: false,
-  paymentMethod: false,
-  paymentStatus: false,
-  expectedRevenue: false,
-  probability: false,
   statusTriggerDate: false,
   joNumber: false,
   billingInCharge: false,
   dealStatus: false,
+  paymentTerms: false,
+  paymentMethod: false,
+  paymentStatus: false,
   invoiceStatus: false,
   invoiceSentDate: false,
   invoiceReceivedDate: false,
   paymentCommitmentDate: false,
   collectionNote: false,
+  planName: false,
+  domain: false,
 };
 
 export const DEAL_COLUMN_KEYS = Object.keys(DEAL_COLUMN_LABELS) as DealColumnKey[];
+
+/** Fields with Column Visibility = YES. Plan Name and Domain stay reserved/off. */
+export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter(
+  (key) => key !== "planName" && key !== "domain",
+);
 
 export function formatDealAmount(amount: number | null) {
   if (amount == null || !Number.isFinite(amount)) return "—";
@@ -156,6 +162,76 @@ export function formatDealAmount(amount: number | null) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+export function orderAdminColumnValue(
+  transaction: SalesTransaction,
+  column: TxColumnKey,
+  extras?: { assigned?: string | null },
+) {
+  const meta = parseDealMeta(transaction.notes);
+  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  const stage = dealStage(transaction);
+  const assigned = String(extras?.assigned ?? "").trim();
+
+  switch (column) {
+    case "clientOwner":
+      return assigned || "Unassigned";
+    case "probability":
+      return dealProbability(stage, meta?.probability);
+    case "expectedRevenue": {
+      const fromMeta = Number(meta?.expectedRevenue);
+      const amount =
+        Number.isFinite(fromMeta) && String(meta?.expectedRevenue ?? "").trim() !== ""
+          ? fromMeta
+          : Number(transaction.grand_total ?? 0);
+      return formatDealAmount(Number.isFinite(amount) ? amount : null);
+    }
+    case "stage":
+      return stage;
+    case "closingDate":
+      return formatDealDate(meta?.closingDate || transaction.issued_date || transaction.transacted_at);
+    case "clientName":
+      return dash(transaction.customer_name);
+    case "contactName":
+      return metaText(meta?.contactName);
+    case "clientStatus":
+      return metaText(meta?.dealType);
+    case "productStatus":
+      return metaText(meta?.dealSubType);
+    case "subject":
+      return metaText(meta?.productCategory, dealSubjectFromName(itemName));
+    case "productCategory":
+      return metaText(meta?.productName, itemName || "—");
+    case "salesStatus":
+      return metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status));
+    case "statusTriggerDate":
+      return formatDealDate(meta?.statusTriggerDate || transaction.created_at || transaction.transacted_at);
+    case "joNumber":
+      return metaText(meta?.joNumber, extractJoNumber(transaction.notes, transaction.transaction_no));
+    case "billingInCharge":
+      return metaText(meta?.billingInCharge);
+    case "dealStatus":
+      return metaText(meta?.dealStatus, resolveDealStatus(transaction));
+    case "paymentTerms":
+      return metaText(meta?.paymentTerms, paymentTermsFrom(transaction));
+    case "paymentMethod":
+      return metaText(meta?.paymentMethod, extractPaymentMethod(transaction.notes));
+    case "paymentStatus":
+      return metaText(meta?.paymentStatus, paymentStatusLabel(transaction.payment_status));
+    case "invoiceStatus":
+      return metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction));
+    case "invoiceSentDate":
+      return formatDealDate(meta?.invoiceSentDate || transaction.issued_date || transaction.transacted_at);
+    case "invoiceReceivedDate":
+      return meta?.invoiceReceivedDate ? formatDealDate(meta.invoiceReceivedDate) : "—";
+    case "paymentCommitmentDate":
+      return formatDealDate(meta?.paymentCommitmentDate || transaction.due_date);
+    case "collectionNote":
+      return metaText(meta?.collectionNote, collectionNoteFrom(transaction.notes));
+    default:
+      return "—";
+  }
 }
 
 function dash(value?: string | null) {
@@ -181,22 +257,28 @@ function titleCaseStatus(value?: string | null) {
 }
 
 export function dealStage(transaction?: SalesTransaction | null) {
-  if (!transaction) return "Open";
+  const metaStage = String(parseDealMeta(transaction?.notes)?.stage ?? "").trim();
+  if (metaStage) return metaStage;
+  if (!transaction) return "Qualification";
   const order = String(transaction.order_status ?? "").toLowerCase();
   const payment = String(transaction.payment_status ?? "").toLowerCase();
   if (["paid", "completed", "success"].includes(payment) || ["completed", "delivered", "closed won"].includes(order)) {
     return "Closed Won";
   }
   if (["cancelled", "canceled", "failed"].includes(order)) return "Closed Lost";
-  if (["pending", "processing"].includes(order) || payment === "pending") return "Pending";
-  return titleCaseStatus(transaction.order_status) === "—" ? "Open" : titleCaseStatus(transaction.order_status);
+  if (["pending", "processing"].includes(order) || payment === "pending") return "Qualification";
+  return titleCaseStatus(transaction.order_status) === "—" ? "Qualification" : titleCaseStatus(transaction.order_status);
 }
 
-function dealProbability(stage: string) {
+function dealProbability(stage: string, metaProbability?: string) {
+  const fromMeta = String(metaProbability ?? "").trim();
+  if (fromMeta) return fromMeta.endsWith("%") ? fromMeta : `${fromMeta}%`;
   if (stage === "Closed Won") return "100%";
   if (stage === "Closed Lost") return "0%";
-  if (stage === "Pending") return "50%";
-  return "20%";
+  if (stage === "Negotiation/Review") return "70%";
+  if (stage === "Proposal Submitted") return "60%";
+  if (stage === "Sales Manager's Approval") return "50%";
+  return "10%";
 }
 
 function extractPaymentMethod(notes?: string | null) {
@@ -335,49 +417,41 @@ export function dealSubjectFromName(name: string): string {
   if (!raw) return "—";
   const hay = raw.toLowerCase();
 
-  if (
-    hay.includes("add on") ||
-    hay.includes("addon") ||
-    hay.includes("whois") ||
-    hay.includes("static ip") ||
-    hay.includes("dedicated ip") ||
-    hay.includes("sitelock") ||
-    hay.includes("codeguard") ||
-    hay.includes("magic spam") ||
-    hay.includes("imunify") ||
-    hay.includes("immunify") ||
-    hay.includes("ssl") ||
-    hay.includes("secure socket") ||
-    hay.includes("back-up") ||
-    hay.includes("backup") ||
-    hay.includes("storage") ||
-    hay.includes("eset") ||
-    hay.includes("ms sql") ||
-    hay.includes("cpanel") ||
-    hay.includes("plesk")
-  ) {
-    return "Add ons";
+  if (hay.startsWith("add on") || hay.includes("addon")) return "Add On";
+  if (hay.includes("bare metal")) return "Dedicated Bare Metal Server";
+  if (hay.includes("dedicated cloud")) return "Dedicated Cloud Server";
+  if (hay.includes("docukit") || hay.includes("filehold") || hay.includes("filecare")) {
+    return "Document Management System";
   }
-
   if (
-    hay.includes("web dev") ||
-    hay.includes("webdesign") ||
-    hay.includes("web design") ||
-    hay.includes("piecemeal") ||
-    hay.includes("figma") ||
-    hay.includes("starter launch") ||
-    hay.includes("professional corporate") ||
-    hay.includes("e-commerce") ||
-    hay.includes("ecommerce")
+    hay.includes("domain") ||
+    hay.includes("tld") ||
+    looksLikeDomain(raw)
   ) {
-    return "Web Development Piecemeal";
-  }
-
-  if (looksLikeDomain(raw) || hay.includes("domain") || hay.includes("tld") || hay.includes(".ph") || hay.includes(".com")) {
     return "Domain Registration";
   }
-
-  return "Dedicated Server";
+  if (
+    hay.includes("managed i.t") ||
+    hay.includes("managed it") ||
+    hay.includes("doc pedro") ||
+    hay.includes("eset")
+  ) {
+    return "Managed I.T. Services";
+  }
+  if (hay.includes("resell")) return "Resellership";
+  if (hay.includes("web development") || hay.includes("web dev") || hay.includes("web design")) {
+    return "Web Development";
+  }
+  if (
+    hay.includes("linux cloud") ||
+    hay.includes("windows cloud") ||
+    hay.includes("web hosting") ||
+    hay.includes("shared")
+  ) {
+    return "Web Hosting - Shared";
+  }
+  if (hay.includes("other") || hay.includes("consultanc")) return "Others";
+  return "—";
 }
 
 function resolveProductStatus(
@@ -391,6 +465,11 @@ function resolveProductStatus(
   return "New";
 }
 
+function metaText(value?: string | null, fallback = "—") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
 function crmFields(params: {
   client: CustomerRow;
   transaction?: SalesTransaction | null;
@@ -402,38 +481,50 @@ function crmFields(params: {
   adminServices?: CommerceServiceAdminRow[];
 }) {
   const { client, transaction, itemName, dealType, domain, amount, dealStatus, adminServices = [] } = params;
+  const meta = parseDealMeta(transaction?.notes);
   const stage = dealStage(transaction);
   const clientOwner = clientOwnerName(client);
   const ownerFallback = clientOwner !== "Unassigned" ? clientOwner : clientBillingInCharge(client);
+  const metaRevenue = Number(meta?.expectedRevenue);
+  const expectedRevenue =
+    Number.isFinite(metaRevenue) && String(meta?.expectedRevenue ?? "").trim() !== ""
+      ? metaRevenue
+      : amount;
 
   return {
     clientOwner: ownerFallback || "—",
     clientName: clientDisplayName(client),
     planName: matchingPlanName(itemName, client, adminServices),
     stage,
-    clientStatus: dealType,
-    productStatus: resolveProductStatus(transaction ?? null, dealType),
-    productCategory: dash(itemName),
+    clientStatus: metaText(meta?.dealType, dealType),
+    productStatus: metaText(meta?.dealSubType, resolveProductStatus(transaction ?? null, dealType)),
+    productCategory: metaText(meta?.productName, dash(itemName)),
     domainName: domain,
-    contactName: dash(client.contact_person),
-    closingDate: formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
-    salesStatus: titleCaseStatus(transaction?.order_status),
-    paymentTerms: paymentTermsFrom(transaction),
-    paymentMethod: extractPaymentMethod(transaction?.notes),
-    paymentStatus: transaction ? paymentStatusLabel(transaction.payment_status) : "—",
-    expectedRevenue: amount,
-    probability: dealProbability(stage),
-    statusTriggerDate: formatDealDate(transaction?.created_at ?? transaction?.transacted_at),
-    joNumber: extractJoNumber(transaction?.notes, transaction?.transaction_no),
-    billingInCharge: clientBillingInCharge(client),
-    dealStatus,
-    invoiceStatus: invoiceStatusFrom(transaction),
-    invoiceSentDate: formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
-    invoiceReceivedDate: "—",
-    paymentCommitmentDate: formatDealDate(transaction?.due_date),
-    collectionNote: collectionNoteFrom(transaction?.notes),
+    contactName: metaText(meta?.contactName, dash(client.contact_person)),
+    closingDate: meta?.closingDate ? formatDealDate(meta.closingDate) : formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
+    salesStatus: metaText(meta?.salesStatus, titleCaseStatus(transaction?.order_status)),
+    paymentTerms: metaText(meta?.paymentTerms, paymentTermsFrom(transaction)),
+    paymentMethod: metaText(meta?.paymentMethod, extractPaymentMethod(transaction?.notes)),
+    paymentStatus: metaText(meta?.paymentStatus, transaction ? paymentStatusLabel(transaction.payment_status) : "—"),
+    expectedRevenue,
+    probability: dealProbability(stage, meta?.probability),
+    statusTriggerDate: meta?.statusTriggerDate
+      ? formatDealDate(meta.statusTriggerDate)
+      : formatDealDate(transaction?.created_at ?? transaction?.transacted_at),
+    joNumber: metaText(meta?.joNumber, extractJoNumber(transaction?.notes, transaction?.transaction_no)),
+    billingInCharge: metaText(meta?.billingInCharge, clientBillingInCharge(client)),
+    dealStatus: metaText(meta?.dealStatus, dealStatus),
+    invoiceStatus: metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction)),
+    invoiceSentDate: meta?.invoiceSentDate
+      ? formatDealDate(meta.invoiceSentDate)
+      : formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
+    invoiceReceivedDate: meta?.invoiceReceivedDate ? formatDealDate(meta.invoiceReceivedDate) : "—",
+    paymentCommitmentDate: meta?.paymentCommitmentDate
+      ? formatDealDate(meta.paymentCommitmentDate)
+      : formatDealDate(transaction?.due_date),
+    collectionNote: metaText(meta?.collectionNote, collectionNoteFrom(transaction?.notes)),
     dealOwner: ownerFallback || "—",
-    status: dealType,
+    status: metaText(meta?.dealType, dealType),
     amount,
   };
 }
@@ -626,12 +717,13 @@ export function buildClientDealRows(
         "—";
       const dealType = resolveDealType(itemName, transaction, seenItemNames);
       const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : null;
+      const meta = parseDealMeta(transaction.notes);
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
         transactionId: transaction.id,
         transactionNo: transaction.transaction_no,
-        subject: dealSubjectFromName(itemName),
+        subject: metaText(meta?.productCategory, dealSubjectFromName(itemName)),
         ...crmFields({
           client,
           transaction,
