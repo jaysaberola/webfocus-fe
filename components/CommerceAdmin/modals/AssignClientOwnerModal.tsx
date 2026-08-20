@@ -34,7 +34,7 @@ export default function AssignClientOwnerModal({ open, client, onClose, onAssign
     setSelectedUserId(client?.owner_id ?? client?.owner?.id ?? null);
     setLoading(true);
 
-    fetchCommerceAssignableUsers()
+    fetchCommerceAssignableUsers({ for: "client_owner" })
       .then((rows) => setUsers(rows))
       .catch(() => {
         setUsers([]);

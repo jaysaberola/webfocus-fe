@@ -202,7 +202,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   useImperativeHandle(ref, () => ({ goToSection }), [goToSection]);
 
   useEffect(() => {
-    fetchCommerceAssignableUsers()
+    fetchCommerceAssignableUsers({ for: "client_owner" })
       .then((rows) => setOwners(rows))
       .catch(() => setOwners([]));
   }, []);
@@ -632,6 +632,9 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                     {owner.name}
                   </option>
                 ))}
+                {form.owner_id && !owners.some((owner) => owner.id === form.owner_id) ? (
+                  <option value={form.owner_id}>Current owner</option>
+                ) : null}
               </select>
             </Field>
             <Field label="Client Name">

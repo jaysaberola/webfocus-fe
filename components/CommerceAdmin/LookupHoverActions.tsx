@@ -4,6 +4,7 @@ type Props = {
   label: string;
   assigned: boolean;
   onEdit: () => void;
+  onLabelClick?: () => void;
   onUnassign?: () => void;
   unassigning?: boolean;
 };
@@ -12,6 +13,7 @@ export default function LookupHoverActions({
   label,
   assigned,
   onEdit,
+  onLabelClick,
   onUnassign,
   unassigning = false,
 }: Props) {
@@ -51,7 +53,7 @@ export default function LookupHoverActions({
         className={styles.lookupHoverLabel}
         onClick={(event) => {
           event.stopPropagation();
-          onEdit();
+          (onLabelClick ?? onEdit)();
         }}
       >
         {label}

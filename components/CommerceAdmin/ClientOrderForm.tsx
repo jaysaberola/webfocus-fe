@@ -189,6 +189,7 @@ export default function ClientOrderForm({
   const isEditing = Boolean(transaction);
   const [form, setForm] = useState<ClientOrderFormState>(emptyClientOrderForm());
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
+  const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [clients, setClients] = useState<CustomerRow[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,16 +203,19 @@ export default function ClientOrderForm({
     let cancelled = false;
     setLoading(true);
     Promise.all([
+      fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
       fetchCommerceAssignableUsers().catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
       getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
     ])
-      .then(([assignable, clientRes, serviceRes]) => {
+      .then(([clientOwners, assignable, clientRes, serviceRes]) => {
         if (cancelled) return;
-        const nextOwners = Array.isArray(assignable) ? assignable : [];
+        const nextOwners = Array.isArray(clientOwners) ? clientOwners : [];
+        const nextStaff = Array.isArray(assignable) ? assignable : [];
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
         const nextServices = Array.isArray(serviceRes?.data) ? serviceRes.data : [];
         setOwners(nextOwners);
+        setStaffUsers(nextStaff);
         setClients(nextClients);
         setServices(nextServices);
 
@@ -469,6 +473,10 @@ export default function ClientOrderForm({
                     {owner.name || owner.email}
                   </option>
                 ))}
+                {form.dealOwnerId &&
+                !owners.some((owner) => String(owner.id) === String(form.dealOwnerId)) ? (
+                  <option value={form.dealOwnerId}>Current owner</option>
+                ) : null}
               </select>
             </Field>
             <Field label="Billing-in-Charge" hint="Person responsible for billing">
@@ -478,13 +486,13 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("billingInCharge", e.target.value)}
               >
                 <option value="">-None-</option>
-                {owners.map((owner) => (
+                {staffUsers.map((owner) => (
                   <option key={`bill-${owner.id}`} value={owner.name || owner.email || ""}>
                     {owner.name || owner.email}
                   </option>
                 ))}
                 {form.billingInCharge &&
-                !owners.some((owner) => (owner.name || owner.email) === form.billingInCharge) ? (
+                !staffUsers.some((owner) => (owner.name || owner.email) === form.billingInCharge) ? (
                   <option value={form.billingInCharge}>{form.billingInCharge}</option>
                 ) : null}
               </select>

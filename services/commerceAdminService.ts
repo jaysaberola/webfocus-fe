@@ -231,8 +231,9 @@ export type CommerceAssignableUser = {
   roles?: string[];
 };
 
-export async function fetchCommerceAssignableUsers() {
+export async function fetchCommerceAssignableUsers(params?: { for?: "client_owner" }) {
   const res = await axiosInstance.get("/commerce-admin/assignable-users", {
+    params,
     headers: { "X-No-Loading": true },
   });
   return extractList<CommerceAssignableUser>(res.data?.data ?? res.data);

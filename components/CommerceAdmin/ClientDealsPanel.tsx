@@ -19,6 +19,7 @@ import { clientIsAssigned, clientOwnerName } from "@/lib/commerceAdmin/clientHel
 import { toast } from "@/lib/toast";
 import { assignCommerceCustomerOwner, fetchCommerceServices } from "@/services/commerceAdminService";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
+import { type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const DEAL_PAGE_SIZE = 10;
@@ -32,6 +33,7 @@ type Props = {
     owner_name: string | null;
   }) => void;
   onEditClient?: () => void;
+  onEditDeal?: (transaction: SalesTransaction) => void;
 };
 
 function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
@@ -95,9 +97,10 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
   }
 }
 
-export default function ClientDealsPanel({ client, onClientUpdated, onEditClient }: Props) {
+export default function ClientDealsPanel({ client, onClientUpdated, onEditClient, onEditDeal }: Props) {
   const router = useRouter();
   const [dealRows, setDealRows] = useState<ClientDealRow[]>([]);
+  const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
@@ -135,10 +138,14 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           owner_name: detail?.owner_name ?? client.owner_name,
           owner_id: detail?.owner_id ?? client.owner_id,
         };
+        setTransactions(transactions);
         setDealRows(buildClientDealRows(enriched, transactions, services));
       })
       .catch(() => {
-        if (!cancelled) setDealRows(buildClientDealRows(client, []));
+        if (!cancelled) {
+          setTransactions([]);
+          setDealRows(buildClientDealRows(client, []));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -189,6 +196,16 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     } finally {
       setUnassigning(false);
     }
+  };
+
+  const openEditDeal = (deal?: ClientDealRow | null) => {
+    const target = deal ?? selectedOrder ?? dealRows.find((row) => row.transactionId);
+    const transaction = transactions.find((row) => row.id === target?.transactionId);
+    if (!transaction) {
+      toast.info("Select a deal to edit.");
+      return;
+    }
+    onEditDeal?.(transaction);
   };
 
   useEffect(() => {
@@ -258,7 +275,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           >
             New Order
           </button>
-          <button type="button" className={styles.dealsActionBtn} onClick={() => onEditClient?.()}>
+          <button type="button" className={styles.dealsActionBtn} onClick={() => openEditDeal()}>
             Edit
           </button>
         </div>

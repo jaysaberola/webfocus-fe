@@ -6,6 +6,7 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import ClientCrmForm, { type ClientCrmFormHandle } from "@/components/CommerceAdmin/ClientCrmForm";
+import ClientOrderForm from "@/components/CommerceAdmin/ClientOrderForm";
 import ClientDealsPanel from "@/components/CommerceAdmin/ClientDealsPanel";
 import ClientSearchResults from "@/components/CommerceAdmin/ClientSearchResults";
 import ClientRelatedList, { type ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
@@ -56,6 +57,7 @@ import {
 } from "@/lib/tableFilterHelpers";
 import { getCustomers } from "@/services/commerceAdminService";
 import { bulkDeleteCustomers, type CustomerRow } from "@/services/customerService";
+import { type SalesTransaction } from "@/services/salesTransactionService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { useRouter } from "next/router";
@@ -99,6 +101,7 @@ export default function CommerceClientsTab(_props: Props) {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<ClientView>("list");
   const [editClient, setEditClient] = useState<CustomerRow | null>(null);
+  const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
   const [detailClient, setDetailClient] = useState<CustomerRow | null>(null);
   const [detailMode, setDetailMode] = useState<"info" | "audit">("info");
   const [assignOwnerClient, setAssignOwnerClient] = useState<CustomerRow | null>(null);
@@ -280,6 +283,7 @@ export default function CommerceClientsTab(_props: Props) {
   const backToList = () => {
     setView("list");
     setEditClient(null);
+    setDealInfo(null);
   };
 
   const handleExportExcel = async () => {
@@ -308,6 +312,40 @@ export default function CommerceClientsTab(_props: Props) {
   };
 
   const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 1;
+
+  if (dealInfo) {
+    return (
+      <section className={styles.panel}>
+        <ClientOrderForm
+          transaction={dealInfo}
+          pageTitle="Deal Info"
+          pageSubtitle="Deals"
+          onBack={() => setDealInfo(null)}
+          onSaved={(opts) => {
+            loadRows();
+            if (opts?.andNew) {
+              const customerId = dealInfo.customer_id ?? editClient?.id;
+              setDealInfo(null);
+              void router.replace(
+                {
+                  pathname: COMMERCE_ADMIN_PATH,
+                  query: {
+                    tab: "orders",
+                    createOrder: "1",
+                    ...(customerId ? { customerId: String(customerId) } : {}),
+                  },
+                },
+                undefined,
+                { shallow: true },
+              );
+              return;
+            }
+            setDealInfo(null);
+          }}
+        />
+      </section>
+    );
+  }
 
   if (view === "create" || view === "edit") {
     return (
@@ -361,6 +399,7 @@ export default function CommerceClientsTab(_props: Props) {
               <ClientDealsPanel
                 client={editClient}
                 onEditClient={() => navigateToSection("info")}
+                onEditDeal={(transaction) => setDealInfo(transaction)}
               onClientUpdated={(payload) => {
                 setEditClient((current) =>
                   current && current.id === payload.id
