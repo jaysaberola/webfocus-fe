@@ -19,7 +19,6 @@ export type TxColumnKey =
   | "contactName"
   | "clientStatus"
   | "productStatus"
-  | "subject"
   | "salesStatus"
   | "statusTriggerDate"
   | "joNumber"
@@ -60,7 +59,6 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   contactName: "Contact Name",
   clientStatus: "Client Status",
   productStatus: "Product Status",
-  subject: "Subject",
   salesStatus: "Sales Status",
   statusTriggerDate: "Status Trigger Date",
   joNumber: "JO Number",
@@ -89,7 +87,6 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   contactName: false,
   clientStatus: false,
   productStatus: false,
-  subject: false,
   salesStatus: false,
   statusTriggerDate: false,
   joNumber: false,

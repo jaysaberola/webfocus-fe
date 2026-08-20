@@ -187,17 +187,20 @@ function extractDomainLike(text: string): string | null {
   const input = String(text ?? "").trim();
   if (!input) return null;
 
-  // Extract the first domain-like token from a mixed string, e.g.:
-  // "Dedicated Server www.acestar.com.ph" => "www.acestar.com.ph"
-  const match = input.match(/([a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\.[a-z]{2,})?)/gi);
-  if (!match || !match[0]) return null;
-  return String(match[0]).trim();
+  const matches = input.match(/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/gi);
+  if (!matches?.length) return null;
+  const domain = matches.find((value) => {
+    const token = String(value ?? "").trim();
+    if (!token || /^(?:₱\s*)?\d+(?:[.,]\d+)?$/.test(token) || /^[\d.]+$/.test(token)) return false;
+    return /\.[a-z]{2,}$/i.test(token);
+  });
+  return domain ? String(domain).trim() : null;
 }
 
 export function clientDomain(client: CustomerRow) {
   if (clientHasMultipleServices(client)) return "—";
   const line = primaryClientServiceLine(client);
-  const explicit = String(line?.domain ?? client.domain ?? "").trim();
+  const explicit = extractDomainLike(line?.domain ?? client.domain ?? "");
   if (explicit) return explicit;
   return extractDomainLike(client.subject_domain ?? client.website ?? "") || "—";
 }

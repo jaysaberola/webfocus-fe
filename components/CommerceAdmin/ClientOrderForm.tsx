@@ -1,4 +1,4 @@
-import { Children, isValidElement, useEffect, useMemo, useState } from "react";
+import { Children, isValidElement, useEffect, useState } from "react";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -14,7 +14,7 @@ import {
   PAYMENT_TERMS_OPTIONS,
   PRODUCT_STATUS_OPTIONS,
   probabilityForStage,
-  productNamesForSubject,
+  subjectForProductName,
   SALES_STATUS_OPTIONS,
   SUBJECT_OPTIONS,
   toApiOrderStatus,
@@ -169,21 +169,17 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
     };
   }, [defaultCustomerId]);
 
-  const productNameOptions = useMemo(
-    () => productNamesForSubject(form.productCategory),
-    [form.productCategory],
-  );
-
   const selectedClient = clients.find((client) => String(client.id) === form.clientId);
 
   useEffect(() => {
-    if (!form.productName) return;
-    const price = catalogPriceForProduct(services, form.productName);
+    const catalogName = form.dealName || form.productName;
+    if (!catalogName) return;
+    const price = catalogPriceForProduct(services, catalogName);
     setForm((current) => ({
       ...current,
       expectedRevenue: price != null ? String(price) : current.expectedRevenue || "0",
     }));
-  }, [form.productName, services]);
+  }, [form.dealName, form.productName, services]);
 
   const handleClientChange = (clientId: string) => {
     const client = clients.find((row) => String(row.id) === clientId);
@@ -195,12 +191,19 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
     }));
   };
 
+  const handleDealNameChange = (dealName: string) => {
+    setForm((current) => ({
+      ...current,
+      dealName,
+      productName: dealName,
+      productCategory: current.productCategory || subjectForProductName(dealName),
+    }));
+  };
+
   const handleCategoryChange = (category: string) => {
     setForm((current) => ({
       ...current,
       productCategory: category,
-      productName: "",
-      expectedRevenue: "",
     }));
   };
 
@@ -221,8 +224,8 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
     }
 
     const client = selectedClient;
-    if (!client || !form.productName) {
-      toast.error("Please select a client and product.");
+    if (!client || !form.dealName) {
+      toast.error("Please select a client and deal name.");
       return;
     }
 
@@ -245,7 +248,7 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
         transacted_at: form.closingDate || undefined,
         items: [
           {
-            name: form.productName,
+            name: form.dealName || form.productName,
             item_type: form.dealSubType || form.dealType || "service",
             price,
             quantity: 1,
@@ -468,7 +471,7 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
               <select
                 className={inputClass(true)}
                 value={form.dealName}
-                onChange={(e) => setField("dealName", e.target.value)}
+                onChange={(e) => handleDealNameChange(e.target.value)}
                 required
               >
                 <option value="">-None-</option>
@@ -576,7 +579,7 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
               </select>
             </Field>
             <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Subject" required hint="Product category. Domain ordering is reserved.">
+            <Field label="Product Category" required hint="Subject / product category for this deal">
               <select
                 className={inputClass(true)}
                 value={form.productCategory}
@@ -585,23 +588,6 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
               >
                 <option value="">-None-</option>
                 {SUBJECT_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Product Category" required hint="Product name to order">
-              <select
-                className={inputClass(true)}
-                value={form.productName}
-                onChange={(e) => setField("productName", e.target.value)}
-                required
-                disabled={!form.productCategory}
-              >
-                <option value="">-None-</option>
-                {productNameOptions.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>

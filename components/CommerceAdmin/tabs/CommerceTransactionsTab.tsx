@@ -603,14 +603,6 @@ export default function CommerceTransactionsTab() {
         </td>
       );
     }
-    if (column === "subject") {
-      return (
-        <td key={column} className={styles.txServiceCell}>
-          {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
-          {renderHostingMeta(row)}
-        </td>
-      );
-    }
     return (
       <td
         key={column}

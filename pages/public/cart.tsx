@@ -29,7 +29,7 @@ import {
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
-  stashPublicCartForCheckout,
+  beginPublicCartCheckout,
   updatePublicCartItemNotes,
   writePublicCart,
 } from "@/lib/publicCart";
@@ -450,10 +450,15 @@ export default function PublicCartCheckoutPage() {
         throw new Error("Paynamics did not return a payment portal URL.");
       }
 
-      // Keep the FULL cart (priced services + Pending Quotation) until payment succeeds.
-      // Snapshot survives browser Back from Paynamics.
-      const cartToKeep = heldQuotationItems.length > 0 ? quotedCart : items;
-      stashPublicCartForCheckout(cartToKeep);
+      // Drop priced items from the live cart now; restore them only if payment is cancelled.
+      const cartToKeep = heldQuotationItems.length > 0 ? quotedCart : cartWithNotes;
+      beginPublicCartCheckout({
+        items: cartToKeep,
+        payableKeys: checkoutItems.map((item) => item.key),
+        transactionId: result?.data?.id ?? null,
+        transactionNo: result?.data?.transaction_no ?? null,
+        requestId: result?.paynamics?.request_id ?? null,
+      });
       toast.success(
         mixedCheckout
           ? quotationOrderNos.length

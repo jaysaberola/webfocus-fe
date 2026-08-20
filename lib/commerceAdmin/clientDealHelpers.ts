@@ -74,7 +74,6 @@ export type DealColumnKey =
   | "stage"
   | "clientStatus"
   | "productStatus"
-  | "subject"
   | "contactName"
   | "closingDate"
   | "salesStatus"
@@ -106,7 +105,6 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   contactName: "Contact Name",
   clientStatus: "Client Status",
   productStatus: "Product Status",
-  subject: "Subject",
   salesStatus: "Sales Status",
   statusTriggerDate: "Status Trigger Date",
   joNumber: "JO Number",
@@ -136,7 +134,6 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   contactName: false,
   clientStatus: false,
   productStatus: false,
-  subject: false,
   salesStatus: false,
   statusTriggerDate: false,
   joNumber: false,
@@ -205,10 +202,8 @@ export function orderAdminColumnValue(
       return metaText(meta?.dealType);
     case "productStatus":
       return metaText(meta?.dealSubType);
-    case "subject":
-      return metaText(meta?.productCategory, dealSubjectFromName(itemName));
     case "productCategory":
-      return metaText(meta?.productName, itemName || "—");
+      return metaText(meta?.productCategory, dealSubjectFromName(itemName));
     case "salesStatus":
       return metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status));
     case "statusTriggerDate":
@@ -371,25 +366,39 @@ function collectionNoteFrom(notes?: string | null) {
   return dash(cleaned);
 }
 
+function isNumericOrPrice(value: string) {
+  return /^(?:₱\s*)?\d+(?:[.,]\d+)?$/.test(String(value ?? "").trim());
+}
+
 function looksLikeDomain(value: string) {
-  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
-    value.trim(),
-  );
+  const input = String(value ?? "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .split("/")[0]
+    ?.trim()
+    .replace(/\.$/, "");
+  if (!input || isNumericOrPrice(input) || /^[\d.]+$/.test(input)) return false;
+  if (!/\.[a-z]{2,}$/i.test(input)) return false;
+  return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(input);
 }
 
 function formatDomain(value?: string | null): string | null {
   let input = String(value ?? "").trim();
-  if (!input || input === "—") return null;
+  if (!input || input === "—" || isNumericOrPrice(input)) return null;
   input = input.replace(/^https?:\/\//i, "");
   input = input.split("/")[0]?.trim() ?? "";
   if (!input || input === "—") return null;
-  const extracted = extractDomain(input);
-  return extracted || (looksLikeDomain(input) ? input : input);
+  if (looksLikeDomain(input)) return input.toLowerCase();
+  return extractDomain(input);
 }
 
 function extractDomain(text: string): string | null {
-  const match = String(text ?? "").match(/([a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\.[a-z]{2,})?)/i);
-  return match?.[1] ?? null;
+  const source = String(text ?? "").replace(/\[DEAL_META\]\{[\s\S]*?\}(?:\n|$)/g, " ");
+  const matches = source.match(/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/gi) ?? [];
+  for (const match of matches) {
+    if (looksLikeDomain(match)) return match.toLowerCase();
+  }
+  return null;
 }
 
 function resolveClientDomain(
@@ -551,7 +560,7 @@ function crmFields(params: {
     stage,
     clientStatus: metaText(meta?.dealType, dealType),
     productStatus: metaText(meta?.dealSubType, resolveProductStatus(transaction ?? null, dealType)),
-    productCategory: metaText(meta?.productName, dash(itemName)),
+    productCategory: metaText(meta?.productCategory, dealSubjectFromName(itemName)),
     domainName: domain,
     contactName: metaText(meta?.contactName, dash(client.contact_person)),
     closingDate: meta?.closingDate ? formatDealDate(meta.closingDate) : formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),

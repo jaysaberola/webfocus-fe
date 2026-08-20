@@ -1,6 +1,8 @@
 export function looksLikeDomain(name?: string | null) {
-  if (!name) return false;
-  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(name.trim());
+  const input = String(name ?? "").trim();
+  if (!input || /^(?:₱\s*)?\d+(?:[.,]\d+)?$/.test(input) || /^[\d.]+$/.test(input)) return false;
+  if (!/\.[a-z]{2,}$/i.test(input)) return false;
+  return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(input);
 }
 
 const WEB_DESIGN_PLANS = [

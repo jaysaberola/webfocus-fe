@@ -284,7 +284,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         </td>
                       );
                     }
-                    if (column === "dealName" || column === "subject") {
+                    if (column === "dealName") {
                       return (
                         <td key={column}>
                           <button
@@ -294,7 +294,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                               setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
                             }
                           >
-                            {column === "dealName" ? deal.dealName : deal.subject}
+                            {deal.dealName}
                           </button>
                         </td>
                       );

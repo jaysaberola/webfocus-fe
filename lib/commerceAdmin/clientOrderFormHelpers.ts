@@ -139,6 +139,28 @@ export function productNamesForSubject(subject: string) {
   return PRODUCT_NAMES_BY_SUBJECT[subject] ?? [];
 }
 
+export function allProductCategoryOptions() {
+  const seen = new Set<string>();
+  const options: string[] = [];
+  for (const names of Object.values(PRODUCT_NAMES_BY_SUBJECT)) {
+    for (const name of names) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      options.push(name);
+    }
+  }
+  return options;
+}
+
+export function subjectForProductName(productName: string) {
+  const needle = String(productName ?? "").trim();
+  if (!needle) return "";
+  for (const [subject, names] of Object.entries(PRODUCT_NAMES_BY_SUBJECT)) {
+    if (names.includes(needle)) return subject;
+  }
+  return "";
+}
+
 export const DEAL_NAME_OPTIONS = [
   "Linux Cloud Business",
   "Linux Cloud Corporate",
@@ -369,8 +391,7 @@ export function validateClientOrderForm(form: ClientOrderFormState) {
   if (!form.clientId) return "Client Name is required.";
   if (!form.dealType) return "Client Status is required.";
   if (!form.dealSubType) return "Product Status is required.";
-  if (!form.productCategory) return "Subject is required.";
-  if (!form.productName) return "Product Category is required.";
+  if (!form.productCategory) return "Product Category is required.";
   if (!form.salesStatus) return "Sales Status is required.";
   return null;
 }
@@ -443,7 +464,7 @@ export function buildDealNotes(form: ClientOrderFormState) {
     dealType: form.dealType,
     dealSubType: form.dealSubType,
     productCategory: form.productCategory,
-    productName: form.productName,
+    productName: form.productName.trim() || form.dealName.trim(),
     salesStatus: form.salesStatus,
     probability: form.probability,
     expectedRevenue: form.expectedRevenue,

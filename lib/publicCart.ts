@@ -28,6 +28,16 @@ export type PublicCartItem = {
 const CART_KEY = "cms4.publicCart.v1";
 /** Full cart snapshot while Paynamics checkout is in progress (survives browser Back). */
 const CHECKOUT_BACKUP_KEY = "cms4.publicCart.checkoutBackup.v1";
+const CHECKOUT_SESSION_KEY = "cms4.publicCart.checkoutSession.v1";
+
+export type PublicCartCheckoutSession = {
+  transactionId?: number | null;
+  transactionNo?: string | null;
+  requestId?: string | null;
+  payableKeys: string[];
+  createdAt: number;
+  settled?: "paid" | "abandoned";
+};
 
 export const PENDING_QUOTATION_LABEL = "Pending Quotation";
 
@@ -202,11 +212,16 @@ function syncCheckoutBackupWithCart(items: PublicCartItem[]) {
   persistCheckoutBackup(items);
 }
 
-export const writePublicCart = (items: PublicCartItem[]) => {
+export const writePublicCart = (
+  items: PublicCartItem[],
+  options?: { syncCheckoutBackup?: boolean },
+) => {
   if (typeof window === "undefined") return;
   const normalized = items.map(normalizeCartItem);
   localStorage.setItem(CART_KEY, JSON.stringify(normalized));
-  syncCheckoutBackupWithCart(normalized);
+  if (options?.syncCheckoutBackup !== false) {
+    syncCheckoutBackupWithCart(normalized);
+  }
   window.dispatchEvent(new Event("public-cart-updated"));
   try {
     sessionStorage.removeItem("cms4.checkoutAgreementAccepted.v1");
@@ -308,17 +323,97 @@ function readCheckoutBackup(): PublicCartItem[] | null {
   }
 }
 
-/** Snapshot the full cart before leaving for Paynamics so Back retains priced items. */
+function readCheckoutSession(): PublicCartCheckoutSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw =
+      sessionStorage.getItem(CHECKOUT_SESSION_KEY) ||
+      localStorage.getItem(CHECKOUT_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PublicCartCheckoutSession;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function persistCheckoutSession(session: PublicCartCheckoutSession) {
+  if (typeof window === "undefined") return;
+  const payload = JSON.stringify(session);
+  try {
+    sessionStorage.setItem(CHECKOUT_SESSION_KEY, payload);
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.setItem(CHECKOUT_SESSION_KEY, payload);
+  } catch {
+    // ignore
+  }
+}
+
+export function readPublicCartCheckoutSession() {
+  return readCheckoutSession();
+}
+
+export function clearPublicCartCheckoutSession() {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(CHECKOUT_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.removeItem(CHECKOUT_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function isPaidCheckoutStatus(status?: string | null) {
+  const value = String(status ?? "").trim().toLowerCase();
+  return ["paid", "success", "completed"].includes(value);
+}
+
+export function isAbandonedCheckoutStatus(status?: string | null) {
+  const value = String(status ?? "").trim().toLowerCase();
+  return ["cancelled", "canceled", "failed", "verification_failed"].includes(value);
+}
+
+/** Snapshot the full cart, then drop priced items from the live cart while Paynamics is open. */
 export function stashPublicCartForCheckout(items: PublicCartItem[]) {
   if (typeof window === "undefined") return;
   const snapshot = items.map(normalizeCartItem);
   persistCheckoutBackup(snapshot);
-  // Always persist the full cart (payable + Pending Quotation) until payment succeeds.
-  writePublicCart(snapshot);
+  writePublicCart(cartHeldQuotationItems(snapshot), { syncCheckoutBackup: false });
+  persistCheckoutBackup(snapshot);
+}
+
+export function beginPublicCartCheckout(params: {
+  items: PublicCartItem[];
+  payableKeys?: string[];
+  transactionId?: number | null;
+  transactionNo?: string | null;
+  requestId?: string | null;
+}) {
+  const snapshot = params.items.map(normalizeCartItem);
+  const payableKeys =
+    params.payableKeys?.filter(Boolean) ?? cartPayableItems(snapshot).map((item) => item.key);
+  persistCheckoutSession({
+    transactionId: params.transactionId ?? null,
+    transactionNo: params.transactionNo ?? null,
+    requestId: params.requestId ?? null,
+    payableKeys,
+    createdAt: Date.now(),
+  });
+  stashPublicCartForCheckout(snapshot);
 }
 
 /** If checkout was abandoned (Back / Cancel), restore any missing priced items. */
 export function restorePublicCartFromCheckoutBackup(): PublicCartItem[] | null {
+  if (readCheckoutSession()?.settled === "paid") return null;
+
   const backup = readCheckoutBackup();
   if (!backup?.length) return null;
 
@@ -333,7 +428,7 @@ export function restorePublicCartFromCheckoutBackup(): PublicCartItem[] | null {
 
   if (!needsRestore) return null;
 
-  writePublicCart(backup);
+  writePublicCart(backup, { syncCheckoutBackup: false });
   return backup;
 }
 
@@ -354,9 +449,52 @@ export function clearPublicCartCheckoutBackup() {
 /** Remove payable items after successful payment; keep Pending Quotation rows. */
 export function clearPayablePublicCartItems() {
   const remaining = cartHeldQuotationItems(readPublicCart());
-  writePublicCart(remaining);
+  writePublicCart(remaining, { syncCheckoutBackup: false });
   clearPublicCartCheckoutBackup();
   return remaining;
+}
+
+/** Confirm payment: drop priced items and prevent Back from restoring them. */
+export function finalizePaidPublicCartCheckout() {
+  const before = readPublicCart();
+  const remaining = clearPayablePublicCartItems();
+  const session = readCheckoutSession();
+  if (session) {
+    persistCheckoutSession({ ...session, settled: "paid" });
+  }
+  clearPublicCartCheckoutSession();
+  return {
+    items: remaining,
+    removed: cartPayableItems(before).length > 0 || before.length !== remaining.length,
+  };
+}
+
+export function abandonPublicCartCheckout() {
+  const restored = restorePublicCartFromCheckoutBackup();
+  const session = readCheckoutSession();
+  if (session) {
+    persistCheckoutSession({ ...session, settled: "abandoned" });
+  }
+  clearPublicCartCheckoutBackup();
+  clearPublicCartCheckoutSession();
+  return restored;
+}
+
+export function checkoutSessionMatchesPaidInvoice(params: {
+  transactionNo?: string | null;
+  invoiceId?: string | null;
+  status?: string | null;
+}) {
+  const session = readCheckoutSession();
+  if (!session || session.settled === "abandoned") return false;
+  if (!isPaidCheckoutStatus(params.status)) return false;
+  const transactionNo = String(session.transactionNo ?? "").trim();
+  if (!transactionNo) return session.settled === "paid";
+  const invoiceNo = String(params.transactionNo ?? "").trim();
+  const invoiceId = String(params.invoiceId ?? "").trim();
+  if (invoiceNo && invoiceNo === transactionNo) return true;
+  if (invoiceId && invoiceId.replace(/^inv-/i, "") === transactionNo) return true;
+  return false;
 }
 
 export function cartHasMixedCheckout(items: PublicCartItem[]) {
