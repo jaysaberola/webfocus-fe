@@ -141,9 +141,10 @@ export default function CommerceTransactionsTab() {
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
-  const [view, setView] = useState<"list" | "create" | "client">("list");
+  const [view, setView] = useState<"list" | "create" | "client" | "deal">("list");
   const [createCustomerId, setCreateCustomerId] = useState<number | null>(null);
   const [clientInfo, setClientInfo] = useState<CustomerRow | null>(null);
+  const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
   );
@@ -368,9 +369,13 @@ export default function CommerceTransactionsTab() {
     />
   );
 
+  const openDealInfo = (row: SalesTransaction) => {
+    setDealInfo(row);
+    setView("deal");
+  };
+
   const openView = (row: SalesTransaction) => {
-    setSelected(row);
-    setModalMode("view");
+    openDealInfo(row);
   };
 
   const openClientInfo = async (row: SalesTransaction) => {
@@ -471,7 +476,7 @@ export default function CommerceTransactionsTab() {
   };
 
   const handleAction = async (row: SalesTransaction, action: string) => {
-    if (action === "view") openView(row);
+    if (action === "view") openDealInfo(row);
     else if (action === "pay") await markPaid(row);
     else if (action === "edit") openEdit(row);
     else if (action === "reject") setRejectTarget(row);
@@ -597,7 +602,7 @@ export default function CommerceTransactionsTab() {
       const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       return (
         <td key={column} className={styles.dealsNowrap}>
-          <button type="button" className={styles.tableCellLink} onClick={() => openView(row)}>
+          <button type="button" className={styles.tableCellLink} onClick={() => openDealInfo(row)}>
             {name}
           </button>
         </td>
@@ -664,6 +669,27 @@ export default function CommerceTransactionsTab() {
       setBulkDeleting(false);
     }
   };
+
+  if (view === "deal" && dealInfo) {
+    return (
+      <section className={styles.panel}>
+        <ClientOrderForm
+          transaction={dealInfo}
+          pageTitle="Deal Info"
+          pageSubtitle="Deals"
+          onBack={() => {
+            setView("list");
+            setDealInfo(null);
+          }}
+          onSaved={() => {
+            setView("list");
+            setDealInfo(null);
+            loadRows();
+          }}
+        />
+      </section>
+    );
+  }
 
   if (view === "client" && clientInfo) {
     return (

@@ -83,6 +83,10 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return deal.paymentCommitmentDate;
     case "collectionNote":
       return deal.collectionNote;
+    case "dealStatus":
+      return deal.dealStatus;
+    case "contractStatus":
+      return deal.contractStatus;
     default:
       return "—";
   }

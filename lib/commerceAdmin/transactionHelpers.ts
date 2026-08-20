@@ -31,7 +31,8 @@ export type TxColumnKey =
   | "invoiceSentDate"
   | "invoiceReceivedDate"
   | "paymentCommitmentDate"
-  | "collectionNote";
+  | "collectionNote"
+  | "contractStatus";
 
 export type TxSortKey =
   | "date-desc"
@@ -72,6 +73,7 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   invoiceReceivedDate: "Invoice Received Date",
   paymentCommitmentDate: "Payment Commitment Date",
   collectionNote: "Collection Note",
+  contractStatus: "Contract Status",
 };
 
 export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
@@ -100,6 +102,7 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   invoiceReceivedDate: false,
   paymentCommitmentDate: false,
   collectionNote: false,
+  contractStatus: false,
 };
 
 export const TX_COLUMN_KEYS = Object.keys(TX_COLUMN_LABELS) as TxColumnKey[];

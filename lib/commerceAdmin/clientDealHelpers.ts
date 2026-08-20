@@ -53,6 +53,7 @@ export type ClientDealRow = {
   invoiceReceivedDate: string;
   paymentCommitmentDate: string;
   collectionNote: string;
+  contractStatus: string;
   dealOwner: string;
   status: string;
   amount: number | null;
@@ -90,7 +91,8 @@ export type DealColumnKey =
   | "invoiceSentDate"
   | "invoiceReceivedDate"
   | "paymentCommitmentDate"
-  | "collectionNote";
+  | "collectionNote"
+  | "contractStatus";
 
 export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   clientOwner: "Client Owner",
@@ -118,6 +120,7 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   invoiceReceivedDate: "Invoice Received Date",
   paymentCommitmentDate: "Payment Commitment Date",
   collectionNote: "Collection Note",
+  contractStatus: "Contract Status",
   planName: "Plan Name",
 };
 
@@ -147,6 +150,7 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   invoiceReceivedDate: false,
   paymentCommitmentDate: false,
   collectionNote: false,
+  contractStatus: false,
   planName: false,
 };
 
@@ -230,6 +234,8 @@ export function orderAdminColumnValue(
       return formatDealDate(meta?.paymentCommitmentDate || transaction.due_date);
     case "collectionNote":
       return metaText(meta?.collectionNote, collectionNoteFrom(transaction.notes));
+    case "contractStatus":
+      return metaText(meta?.contractStatus);
     default:
       return "—";
   }
@@ -585,6 +591,7 @@ function crmFields(params: {
       ? formatDealDate(meta.paymentCommitmentDate)
       : formatDealDate(transaction?.due_date),
     collectionNote: metaText(meta?.collectionNote, collectionNoteFrom(transaction?.notes)),
+    contractStatus: metaText(meta?.contractStatus),
     dealOwner: ownerFallback || "—",
     status: metaText(meta?.dealType, dealType),
     amount,

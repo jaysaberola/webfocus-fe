@@ -4134,6 +4134,57 @@ select.clientCrmInput {
   font-weight: 500;
 }
 
+.clientOrderControlFile {
+  overflow: hidden;
+}
+
+.clientOrderFilePick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--ca-control-height);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ca-border, #cbd5e1);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.clientOrderFilePick input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.clientOrderFilePickLabel,
+.clientOrderUploadBtn {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 0.7rem;
+  overflow: hidden;
+  color: var(--ca-slate-600);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  line-height: var(--ca-control-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clientOrderUploadBtn {
+  height: calc(var(--ca-control-height) - 8px);
+  margin-left: 4px;
+  padding: 0 0.85rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  background: #f8fafc;
+  line-height: calc(var(--ca-control-height) - 10px);
+}
+
 .clientCrmFileHint {
   display: block;
   margin-top: 0.25rem;

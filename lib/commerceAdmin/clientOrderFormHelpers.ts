@@ -314,6 +314,16 @@ export const COLLECTION_NOTE_OPTIONS = [
   "Not Applicable",
 ] as const;
 
+export const CONTRACT_STATUS_OPTIONS = [
+  "Completed",
+  "Contract Not Updated",
+  "Draft",
+  "No Contract",
+  "No Longer Required",
+  "Sent to client",
+  "Uploaded",
+] as const;
+
 export type ClientOrderFormState = {
   dealOwnerId: string;
   campaignSource: string;
@@ -341,6 +351,18 @@ export type ClientOrderFormState = {
   invoiceReceivedDate: string;
   paymentCommitmentDate: string;
   collectionNote: string;
+  contractStatus: string;
+  contractSentDate: string;
+  contractServiceStartDate: string;
+  contractServiceEndDate: string;
+  requirementStatus: string;
+  totalContractValue: string;
+  proposalConformeName: string;
+  proofToProceedJoName: string;
+  contractFileName: string;
+  cancellationDocumentName: string;
+  totalEstimatedCost: string;
+  expectedDiscount: string;
 };
 
 export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): ClientOrderFormState => ({
@@ -370,6 +392,18 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   invoiceReceivedDate: "",
   paymentCommitmentDate: "",
   collectionNote: "",
+  contractStatus: "",
+  contractSentDate: "",
+  contractServiceStartDate: "",
+  contractServiceEndDate: "",
+  requirementStatus: "",
+  totalContractValue: "",
+  proposalConformeName: "",
+  proofToProceedJoName: "",
+  contractFileName: "",
+  cancellationDocumentName: "",
+  totalEstimatedCost: "",
+  expectedDiscount: "",
   ...defaults,
 });
 
@@ -385,10 +419,14 @@ export function probabilityForStage(stage: string) {
   return "10";
 }
 
-export function validateClientOrderForm(form: ClientOrderFormState) {
+export function validateClientOrderForm(
+  form: ClientOrderFormState,
+  options?: { requireCrmFields?: boolean },
+) {
   if (!form.stage) return "Stage is required.";
   if (!form.dealName.trim()) return "Deal Name is required.";
   if (!form.clientId) return "Client Name is required.";
+  if (options?.requireCrmFields === false) return null;
   if (!form.dealType) return "Client Status is required.";
   if (!form.dealSubType) return "Product Status is required.";
   if (!form.productCategory) return "Product Category is required.";
@@ -435,6 +473,18 @@ export type DealMeta = {
   paymentCommitmentDate?: string;
   collectionNote?: string;
   statusTriggerDate?: string;
+  contractStatus?: string;
+  contractSentDate?: string;
+  contractServiceStartDate?: string;
+  contractServiceEndDate?: string;
+  requirementStatus?: string;
+  totalContractValue?: string;
+  proposalConformeName?: string;
+  proofToProceedJoName?: string;
+  contractFileName?: string;
+  cancellationDocumentName?: string;
+  totalEstimatedCost?: string;
+  expectedDiscount?: string;
 };
 
 const DEAL_META_PREFIX = "[DEAL_META]";
@@ -456,8 +506,85 @@ export function parseDealMeta(notes?: string | null): DealMeta | null {
   }
 }
 
-export function buildDealNotes(form: ClientOrderFormState) {
-  const meta: DealMeta = {
+function toDateInput(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function matchOption(options: readonly string[], value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return options.find((option) => option.toLowerCase() === text.toLowerCase()) ?? text;
+}
+
+export function clientOrderFormFromTransaction(transaction: {
+  customer_id?: number | null;
+  user_id?: number | null;
+  notes?: string | null;
+  payment_status?: string | null;
+  order_status?: string | null;
+  grand_total?: string | number | null;
+  issued_date?: string | null;
+  transacted_at?: string | null;
+  items?: Array<{ name?: string | null }>;
+}): ClientOrderFormState {
+  const meta = parseDealMeta(transaction.notes);
+  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  const dealName = String(meta?.dealName ?? "").trim() || itemName;
+  const revenue = String(meta?.expectedRevenue ?? transaction.grand_total ?? "").trim();
+
+  return emptyClientOrderForm({
+    dealOwnerId: transaction.user_id ? String(transaction.user_id) : "",
+    campaignSource: String(meta?.campaignSource ?? "").trim(),
+    probability: String(meta?.probability ?? "").replace(/%/g, "").trim() || "10",
+    expectedRevenue: revenue,
+    stage: String(meta?.stage ?? "").trim() || "Qualification",
+    closingDate: toDateInput(meta?.closingDate || transaction.issued_date || transaction.transacted_at),
+    dealName,
+    clientId: transaction.customer_id ? String(transaction.customer_id) : "",
+    contactName: String(meta?.contactName ?? "").trim(),
+    dealType: matchOption(CLIENT_STATUS_OPTIONS, meta?.dealType),
+    dealSubType: matchOption(PRODUCT_STATUS_OPTIONS, meta?.dealSubType),
+    productCategory:
+      matchOption(SUBJECT_OPTIONS, meta?.productCategory) || subjectForProductName(dealName),
+    productName: String(meta?.productName ?? "").trim() || dealName,
+    salesStatus: matchOption(SALES_STATUS_OPTIONS, meta?.salesStatus),
+    statusTriggerDate: toDateInput(meta?.statusTriggerDate),
+    joNumber: String(meta?.joNumber ?? "").trim(),
+    billingInCharge: String(meta?.billingInCharge ?? "").trim(),
+    dealStatus: matchOption(DEAL_STATUS_OPTIONS, meta?.dealStatus),
+    paymentTerms: matchOption(PAYMENT_TERMS_OPTIONS, meta?.paymentTerms),
+    paymentMethod: matchOption(PAYMENT_METHOD_OPTIONS, meta?.paymentMethod),
+    paymentStatus: matchOption(PAYMENT_STATUS_OPTIONS, meta?.paymentStatus || transaction.payment_status),
+    invoiceStatus: matchOption(INVOICE_STATUS_OPTIONS, meta?.invoiceStatus),
+    invoiceSentDate: toDateInput(meta?.invoiceSentDate),
+    invoiceReceivedDate: toDateInput(meta?.invoiceReceivedDate),
+    paymentCommitmentDate: toDateInput(meta?.paymentCommitmentDate),
+    collectionNote: matchOption(COLLECTION_NOTE_OPTIONS, meta?.collectionNote),
+    contractStatus: matchOption(CONTRACT_STATUS_OPTIONS, meta?.contractStatus),
+    contractSentDate: toDateInput(meta?.contractSentDate),
+    contractServiceStartDate: toDateInput(meta?.contractServiceStartDate),
+    contractServiceEndDate: toDateInput(meta?.contractServiceEndDate),
+    requirementStatus: String(meta?.requirementStatus ?? "").trim(),
+    totalContractValue: String(meta?.totalContractValue ?? "").trim(),
+    proposalConformeName: String(meta?.proposalConformeName ?? "").trim(),
+    proofToProceedJoName: String(meta?.proofToProceedJoName ?? "").trim(),
+    contractFileName: String(meta?.contractFileName ?? "").trim(),
+    cancellationDocumentName: String(meta?.cancellationDocumentName ?? "").trim(),
+    totalEstimatedCost: String(meta?.totalEstimatedCost ?? "").trim(),
+    expectedDiscount: String(meta?.expectedDiscount ?? "").trim(),
+  });
+}
+
+function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
+  return {
     dealName: form.dealName.trim(),
     campaignSource: form.campaignSource.trim(),
     stage: form.stage,
@@ -482,10 +609,33 @@ export function buildDealNotes(form: ClientOrderFormState) {
     paymentCommitmentDate: form.paymentCommitmentDate,
     collectionNote: form.collectionNote,
     statusTriggerDate: form.statusTriggerDate,
+    contractStatus: form.contractStatus,
+    contractSentDate: form.contractSentDate,
+    contractServiceStartDate: form.contractServiceStartDate,
+    contractServiceEndDate: form.contractServiceEndDate,
+    requirementStatus: form.requirementStatus,
+    totalContractValue: form.totalContractValue,
+    proposalConformeName: form.proposalConformeName,
+    proofToProceedJoName: form.proofToProceedJoName,
+    contractFileName: form.contractFileName,
+    cancellationDocumentName: form.cancellationDocumentName,
+    totalEstimatedCost: form.totalEstimatedCost,
+    expectedDiscount: form.expectedDiscount,
   };
+}
 
+export function mergeDealMetaIntoNotes(existingNotes: string | null | undefined, form: ClientOrderFormState) {
+  const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(dealMetaFromForm(form))}`;
+  const text = String(existingNotes ?? "");
+  if (text.includes(DEAL_META_PREFIX)) {
+    return text.replace(/\[DEAL_META\]\{[\s\S]*?\}(?:\n|$)/, `${metaLine}\n`).trim();
+  }
+  return [metaLine, text].filter(Boolean).join("\n");
+}
+
+export function buildDealNotes(form: ClientOrderFormState) {
   const lines = [
-    `${DEAL_META_PREFIX}${JSON.stringify(meta)}`,
+    `${DEAL_META_PREFIX}${JSON.stringify(dealMetaFromForm(form))}`,
     `Client Order · Payment: ${form.paymentMethod || "Unspecified"}`,
   ];
   if (form.joNumber.trim()) lines.push(`JO ${form.joNumber.trim()}`);
