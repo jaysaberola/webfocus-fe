@@ -123,6 +123,26 @@
   line-height: 1.45;
 }
 
+.templateName {
+  display: block;
+  color: #2563eb;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.packageName {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.addonLine {
+  margin: 0 0 0.35rem;
+  color: #2563eb;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .termRow select {
   min-width: 9rem;
   min-height: 2.35rem;
@@ -140,6 +160,46 @@
   color: #64748b;
   font-size: 0.75rem;
   line-height: 1.45;
+}
+
+.quoteNotes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.quoteNotes span {
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.quoteNotes textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  background: #ffffff;
+  padding: 0.55rem 0.7rem;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.quoteNotes textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.quoteNotes textarea:disabled {
+  background: #f8fafc;
+  color: #475569;
+  cursor: not-allowed;
 }
 
 .itemAside {

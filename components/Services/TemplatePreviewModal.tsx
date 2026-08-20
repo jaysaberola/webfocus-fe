@@ -55,6 +55,8 @@ export default function TemplatePreviewModal({
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") onNavigate?.("prev");
+      if (event.key === "ArrowRight") onNavigate?.("next");
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -62,7 +64,7 @@ export default function TemplatePreviewModal({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, onNavigate]);
 
   useEffect(() => {
     if (open) setViewport("desktop");
@@ -104,7 +106,6 @@ export default function TemplatePreviewModal({
 
   const templateIndex = group.templates.findIndex((item) => item.id === template.id);
   const showNavigation = Boolean(onNavigate && group.templates.length > 1);
-
   const designWidth = viewport === "desktop" ? 1440 : viewport === "tablet" ? 834 : 390;
 
   const handleOpenNewTab = () => {
@@ -120,46 +121,12 @@ export default function TemplatePreviewModal({
         aria-modal="true"
         aria-labelledby="template-preview-title"
       >
-        <div
-          key={template.id}
-          className={`${styles.templatePreviewHeader} ${templateSlideClass(styles, slideDirection)}`}
-        >
-          <div>
+        <header className={styles.templatePreviewHeader}>
+          <div className={styles.templatePreviewTitleBlock}>
             <p className={styles.templatePreviewKicker}>Canvas 7 · {group.title}</p>
             <h2 id="template-preview-title">{template.label}</h2>
-            <p className={styles.templatePreviewSummary}>{template.summary}</p>
           </div>
-          <button type="button" className={styles.templatePreviewClose} aria-label="Close preview" onClick={onClose}>
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
-        </div>
 
-        <div className={styles.templatePreviewToolbar}>
-          {showNavigation ? (
-            <div className={styles.templatePreviewNav}>
-              <button
-                type="button"
-                className={styles.templatePreviewNavBtn}
-                onClick={() => onNavigate?.("prev")}
-                aria-label="Previous template"
-              >
-                <i className={TEMPLATE_NAV_PREV_ICON} aria-hidden="true" />
-                Previous
-              </button>
-              <span className={styles.templatePreviewNavCounter}>
-                {templateIndex + 1} / {group.templates.length}
-              </span>
-              <button
-                type="button"
-                className={styles.templatePreviewNavBtn}
-                onClick={() => onNavigate?.("next")}
-                aria-label="Next template"
-              >
-                Next
-                <i className={TEMPLATE_NAV_NEXT_ICON} aria-hidden="true" />
-              </button>
-            </div>
-          ) : null}
           <div className={styles.templatePreviewDevices} role="tablist" aria-label="Preview device size">
             {DEVICE_OPTIONS.map(({ key, label, icon }) => (
               <button
@@ -167,6 +134,7 @@ export default function TemplatePreviewModal({
                 type="button"
                 role="tab"
                 aria-selected={viewport === key}
+                title={label}
                 className={
                   viewport === key
                     ? `${styles.templatePreviewDeviceBtn} ${styles.templatePreviewDeviceBtnActive}`
@@ -175,93 +143,137 @@ export default function TemplatePreviewModal({
                 onClick={() => setViewport(key)}
               >
                 <i className={`fa-solid ${icon}`} aria-hidden="true" />
-                {label}
+                <span>{label}</span>
               </button>
             ))}
           </div>
-          <button type="button" className={styles.templatePreviewExternalBtn} onClick={handleOpenNewTab}>
-            Open in New Tab
-          </button>
-        </div>
 
-        <div className={styles.templatePreviewFrameWrap}>
-          <div
-            key={`${template.id}-${viewport}`}
-            ref={stageRef}
-            className={`${styles.templatePreviewFrameShell} ${
-              viewport === "tablet"
-                ? styles.templatePreviewFrameShellTablet
-                : viewport === "mobile"
-                  ? styles.templatePreviewFrameShellMobile
-                  : styles.templatePreviewFrameShellDesktop
-            } ${templateSlideClass(styles, slideDirection)}`}
-          >
-            <div className={styles.templatePreviewChrome} aria-hidden="true">
-              <span className={styles.templatePreviewChromeDots}>
-                <i />
-                <i />
-                <i />
-              </span>
-              <span className={styles.templatePreviewChromeUrl}>{template.label}</span>
-            </div>
-            <div className={styles.templatePreviewStage}>
-              {frameLoading ? (
-                <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
-                  {template.image ? (
-                    <img
-                      src={template.image}
-                      alt=""
-                      className={styles.templatePreviewPoster}
-                      width={1200}
-                      height={780}
-                      decoding="async"
-                    />
-                  ) : null}
-                  <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
-                  <span>Loading live preview…</span>
-                </div>
-              ) : null}
-              <iframe
-                key={template.previewUrl}
-                title={`${template.label} Canvas 7 preview`}
-                className={`${styles.templatePreviewFrame} ${
-                  frameLoading ? styles.templatePreviewFrameHidden : ""
-                }`}
-                src={template.previewUrl}
-                loading="eager"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
-                style={{
-                  width: designWidth,
-                  height: frameScale > 0 ? `calc(100% / ${frameScale})` : "100%",
-                  transform: `scale(${frameScale})`,
-                }}
-                onLoad={() => setFrameLoading(false)}
-              />
+          <div className={styles.templatePreviewHeaderActions}>
+            <button type="button" className={styles.templatePreviewExternalBtn} onClick={handleOpenNewTab}>
+              <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden="true" />
+              Open live site
+            </button>
+            <button type="button" className={styles.templatePreviewClose} aria-label="Close preview" onClick={onClose}>
+              <i className="fa-solid fa-xmark" aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+        <div className={styles.templatePreviewStudio}>
+          {showNavigation ? (
+            <button
+              type="button"
+              className={`${styles.templatePreviewSideBtn} ${styles.templatePreviewSideBtnPrev}`}
+              onClick={() => onNavigate?.("prev")}
+              aria-label="Previous template"
+            >
+              <i className={TEMPLATE_NAV_PREV_ICON} aria-hidden="true" />
+            </button>
+          ) : null}
+
+          <div className={styles.templatePreviewFrameWrap}>
+            <div
+              key={`${template.id}-${viewport}`}
+              ref={stageRef}
+              className={`${styles.templatePreviewFrameShell} ${
+                viewport === "tablet"
+                  ? styles.templatePreviewFrameShellTablet
+                  : viewport === "mobile"
+                    ? styles.templatePreviewFrameShellMobile
+                    : styles.templatePreviewFrameShellDesktop
+              } ${templateSlideClass(styles, slideDirection)}`}
+            >
+              <div className={styles.templatePreviewChrome} aria-hidden="true">
+                <span className={styles.templatePreviewChromeDots}>
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                <span className={styles.templatePreviewChromeUrl}>
+                  preview.webfocus / {template.label.toLowerCase().replace(/\s+/g, "-")}
+                </span>
+              </div>
+              <div className={styles.templatePreviewStage}>
+                {frameLoading ? (
+                  <div className={styles.templatePreviewFrameLoading} role="status" aria-live="polite">
+                    {template.image ? (
+                      <img
+                        src={template.image}
+                        alt=""
+                        className={styles.templatePreviewPoster}
+                        width={1200}
+                        height={780}
+                        decoding="async"
+                      />
+                    ) : null}
+                    <span className={styles.templatePreviewFrameSpinner} aria-hidden="true" />
+                    <span>Loading live preview…</span>
+                  </div>
+                ) : null}
+                <iframe
+                  key={template.previewUrl}
+                  title={`${template.label} Canvas 7 preview`}
+                  className={`${styles.templatePreviewFrame} ${
+                    frameLoading ? styles.templatePreviewFrameHidden : ""
+                  }`}
+                  src={template.previewUrl}
+                  loading="eager"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                  style={{
+                    width: designWidth,
+                    height: frameScale > 0 ? `calc(100% / ${frameScale})` : "100%",
+                    transform: `scale(${frameScale})`,
+                  }}
+                  onLoad={() => setFrameLoading(false)}
+                />
+              </div>
             </div>
           </div>
+
+          {showNavigation ? (
+            <button
+              type="button"
+              className={`${styles.templatePreviewSideBtn} ${styles.templatePreviewSideBtnNext}`}
+              onClick={() => onNavigate?.("next")}
+              aria-label="Next template"
+            >
+              <i className={TEMPLATE_NAV_NEXT_ICON} aria-hidden="true" />
+            </button>
+          ) : null}
+
+          {showNavigation ? (
+            <p className={styles.templatePreviewCounter}>
+              {templateIndex + 1} <span>/</span> {group.templates.length}
+            </p>
+          ) : null}
         </div>
 
-        <div className={styles.templatePreviewFooter}>
-          <div>
+        <footer className={styles.templatePreviewFooter}>
+          <div className={styles.templatePreviewPackage}>
             <p className={styles.templatePreviewPackageLabel}>Recommended package</p>
-            <strong>{packageInfo?.name || group.title}</strong>
-            <span>Pending Quotation</span>
+            <div className={styles.templatePreviewPackageRow}>
+              <strong>{packageInfo?.name || group.title}</strong>
+              <span className={styles.templatePreviewQuoteBadge}>Pending Quotation</span>
+            </div>
+            {template.summary ? (
+              <p className={styles.templatePreviewSummary}>{template.summary}</p>
+            ) : null}
           </div>
           <div className={styles.templatePreviewFooterActions}>
-            <button type="button" className={styles.secondaryBtn} onClick={onClose}>
+            <button type="button" className={styles.templatePreviewGhostBtn} onClick={onClose}>
               Close
             </button>
             {packageInfo && onContinueSetup ? (
               <button
                 type="button"
-                className={styles.primaryBtnInline}
+                className={styles.templatePreviewContinueBtn}
                 onClick={() => onContinueSetup(packageInfo.name, packageInfo.price)}
               >
-                Continue
+                Continue with this template
               </button>
             ) : null}
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   );

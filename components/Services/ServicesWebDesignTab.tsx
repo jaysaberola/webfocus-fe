@@ -14,6 +14,7 @@ import {
   type TemplateGroup,
   type WebsiteTemplate,
 } from "@/lib/servicesCatalog";
+import { canUsePublicCart } from "@/lib/publicCartAccess";
 import { useServiceCart } from "./useServiceCart";
 import DeferredMount from "./DeferredMount";
 import TemplateCategoryGallery from "./TemplateCategoryGallery";
@@ -33,6 +34,7 @@ type SetupContext = {
   packagePrice: number;
   templateLabel?: string;
   templateId?: string;
+  clientNotes?: string;
 };
 
 const DEFAULT_SETUP: SetupContext = {
@@ -47,6 +49,7 @@ export default function ServicesWebDesignTab() {
   const [previewGroup, setPreviewGroup] = useState<TemplateGroup | null>(null);
   const [previewSlideDirection, setPreviewSlideDirection] = useState<TemplateSlideDirection>("next");
   const [setupContext, setSetupContext] = useState<SetupContext>(DEFAULT_SETUP);
+  const [addServicesOpen, setAddServicesOpen] = useState(false);
   const setupRef = useRef<HTMLDivElement>(null);
 
   const firstPageImages = ALL_WEBSITE_TEMPLATES_GROUP.templates.slice(0, 5).map((t) => t.image);
@@ -103,7 +106,7 @@ export default function ServicesWebDesignTab() {
   };
 
   const handlePreviewContinue = (packageName: string, packagePrice: number) => {
-    openSetupWizard({
+    setSetupContext({
       packageId: previewTemplate?.packageId,
       packageName,
       packagePrice,
@@ -111,6 +114,7 @@ export default function ServicesWebDesignTab() {
       templateId: previewTemplate?.id,
     });
     closePreview();
+    setAddServicesOpen(true);
   };
 
   return (
@@ -149,6 +153,7 @@ export default function ServicesWebDesignTab() {
             packagePrice={setupContext.packagePrice}
             templateLabel={setupContext.templateLabel}
             templateId={setupContext.templateId}
+            clientNotes={setupContext.clientNotes}
             onClose={closeSetupWizard}
             onComplete={(selection) => {
               addWebDesignSetupToCart(selection);
@@ -224,6 +229,27 @@ export default function ServicesWebDesignTab() {
           onContinueSetup={handlePreviewContinue}
           onNavigate={previewGroup.templates.length > 1 ? navigatePreview : undefined}
           slideDirection={previewSlideDirection}
+        />
+      ) : null}
+
+      {addServicesOpen ? (
+        <WebDesignSetupWizard
+          open
+          variant="modal"
+          packageId={setupContext.packageId}
+          packageName={setupContext.packageName}
+          packagePrice={setupContext.packagePrice}
+          templateLabel={setupContext.templateLabel}
+          templateId={setupContext.templateId}
+          clientNotes={setupContext.clientNotes}
+          onClose={() => setAddServicesOpen(false)}
+          onComplete={(selection) => {
+            addWebDesignSetupToCart(selection);
+            setAddServicesOpen(false);
+            if (canUsePublicCart() && typeof window !== "undefined") {
+              window.location.assign("/public/cart");
+            }
+          }}
         />
       ) : null}
     </div>

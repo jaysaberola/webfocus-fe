@@ -5,6 +5,10 @@ import {
   CHECKOUT_AGREEMENT_TERMS_LABEL,
 } from "@/lib/checkoutAgreementContent";
 import { formatCartItemPrice, formatCartMoney, PublicCartItem, isPendingQuotationCartItem } from "@/lib/publicCart";
+import {
+  resolveWebDesignCartMeta,
+  webDesignAdditionalServicesLabel,
+} from "@/lib/webDesignSetup";
 import styles from "@/styles/checkoutAgreementModal.module.css";
 
 type CheckoutAgreementModalProps = {
@@ -147,7 +151,11 @@ export default function CheckoutAgreementModal({
             </div>
 
             <div className={styles.summaryCard}>
-              {summaryLead ? <p className={styles.summaryLead}>{summaryLead}</p> : null}
+              {summaryLead ? (
+                <p className={styles.summaryLead}>
+                  {(leadItem && resolveWebDesignCartMeta(leadItem)?.packageName) || summaryLead}
+                </p>
+              ) : null}
 
               {grouped.domains.length > 0 && (
                 <div className={styles.summaryBlock}>
@@ -183,15 +191,28 @@ export default function CheckoutAgreementModal({
                     </strong>
                   </div>
                   {grouped.services
-                    .filter((item) => grouped.services.length > 1 || item.name !== summaryLead)
-                    .map((item) => (
-                    <div key={item.key} className={styles.serviceLine}>
-                      <span>
-                        {item.qty} x {item.name}
-                      </span>
-                      <strong>{formatCartItemPrice(item)}</strong>
+                    .map((item) => {
+                      const meta = resolveWebDesignCartMeta(item);
+                      const extras = webDesignAdditionalServicesLabel(meta);
+                      return (
+                    <div key={item.key} className={styles.serviceLineWrap}>
+                      <div className={styles.serviceLine}>
+                        <span>
+                          {item.qty} x {item.name}
+                        </span>
+                        <strong>{formatCartItemPrice(item)}</strong>
+                      </div>
+                      {meta?.templateLabel ? (
+                        <p className={styles.summaryMeta}>
+                          Service: Web Design · Template: {meta.templateLabel}
+                        </p>
+                      ) : null}
+                      {extras ? (
+                        <p className={styles.summaryMeta}>Additional Services: {extras}</p>
+                      ) : null}
                     </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
 

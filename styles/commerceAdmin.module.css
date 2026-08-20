@@ -3223,6 +3223,11 @@
   grid-column: 1 / -1;
 }
 
+.detailValueMultiline {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .detailLabel {
   font-size: var(--ca-text-label);
   font-weight: 700;

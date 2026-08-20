@@ -61,6 +61,10 @@ import {
   userFacingNotes,
 } from "@/lib/commerceAdmin/hostingTransactionActions";
 import {
+  parseWebDesignMeta,
+  webDesignAdditionalServicesLabel,
+} from "@/lib/webDesignSetup";
+import {
   applyWebDesignPriceToItems,
   buildWebDesignPricedNotes,
   isPendingQuotationTransaction,
@@ -1091,6 +1095,36 @@ export default function CommerceTransactionsTab() {
                 <DetailField label="Assigned To" value={assignedUserLabel(selected)} />
                 <DetailField label="Email" value={selected.customer_email} />
                 <DetailField label="Service" value={transactionItemSummary(selected)} />
+                {isWebDesignTransaction(selected) ? (
+                  <>
+                    <DetailField label="Selected Service" value="Web Design" />
+                    <DetailField
+                      label="Template Name"
+                      value={parseWebDesignMeta(selected.notes)?.templateLabel || "—"}
+                    />
+                    <DetailField
+                      label="Additional Services"
+                      value={
+                        webDesignAdditionalServicesLabel(parseWebDesignMeta(selected.notes)) || "—"
+                      }
+                    />
+                    {(selected.items ?? []).map((item, index) => (
+                      <DetailField
+                        key={`${item.name}-${index}`}
+                        label={`Service item: ${item.name}`}
+                        value={
+                          isPendingQuotationTransaction(selected)
+                            ? "Pending Quotation"
+                            : `₱${Number(item.total_price ?? item.price ?? 0).toLocaleString("en-PH", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })}`
+                        }
+                      />
+                    ))}
+                    <DetailField label="Total Order Amount" value={transactionAmountLabel(selected)} />
+                  </>
+                ) : null}
                 {isHostingTransaction(selected) ? (
                   <>
                     <DetailField label="Service Name" value={HOSTING_SERVICE_NAME} />
@@ -1259,7 +1293,7 @@ function DetailField({ label, value, wide }: { label: string; value?: string | n
   return (
     <div className={wide ? styles.detailFieldWide : styles.detailField}>
       <span className={styles.detailLabel}>{label}</span>
-      <strong>{value || "—"}</strong>
+      <strong className={wide ? styles.detailValueMultiline : undefined}>{value || "—"}</strong>
     </div>
   );
 }

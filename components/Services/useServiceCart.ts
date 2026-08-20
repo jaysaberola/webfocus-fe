@@ -2,6 +2,7 @@ import { addPublicCartItem } from "@/lib/publicCart";
 import { canUsePublicCart, getAddToCartBlockReason } from "@/lib/publicCartAccess";
 import { toast } from "@/lib/toast";
 import {
+  buildWebDesignMeta,
   formatWebDesignSetupDetail,
   type WebDesignSetupSelection,
 } from "@/lib/webDesignSetup";
@@ -41,13 +42,15 @@ export function useServiceCart() {
     if (!guardCartAccess()) return;
 
     addPublicCartItem({
-      key: `service:Agency Web Design:${selection.packageName}`,
+      key: `service:Agency Web Design:${selection.packageName}:${selection.templateId || selection.templateLabel || "package"}`,
       name: selection.packageName,
       price: 0,
       qty: 1,
       category: "Agency Web Design",
       detail: formatWebDesignSetupDetail(selection),
+      webDesign: buildWebDesignMeta(selection),
       pricingStatus: "pending_quotation",
+      clientNotes: String(selection.clientNotes || "").trim() || undefined,
     });
     toast.cartAdded(selection.packageName);
 

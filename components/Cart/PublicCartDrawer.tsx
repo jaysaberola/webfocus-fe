@@ -10,6 +10,10 @@ import {
   readPublicCart,
   removePublicCartItem,
 } from "@/lib/publicCart";
+import {
+  resolveWebDesignCartMeta,
+  webDesignAdditionalServicesLabel,
+} from "@/lib/webDesignSetup";
 import { canUsePublicCart, getStaffCartBlockReason } from "@/lib/publicCartAccess";
 import { usePublicCartDrawer } from "./PublicCartDrawerContext";
 import styles from "@/styles/publicCartDrawer.module.css";
@@ -91,15 +95,24 @@ export default function PublicCartDrawer() {
             <p className={styles.emptyState}>Your shopping cart is currently empty.</p>
           ) : (
             <div className={styles.itemList}>
-              {items.map((item) => (
+              {items.map((item) => {
+                const meta = resolveWebDesignCartMeta(item);
+                const extras = webDesignAdditionalServicesLabel(meta);
+                return (
                 <article key={item.key} className={styles.itemCard}>
                   <div className={styles.itemMain}>
                     <span className={styles.itemBadge}>{cartCategoryLabel(item.category)}</span>
                     <div className={styles.itemTopRow}>
-                      <h3 className={styles.itemName}>{item.name}</h3>
+                      <h3 className={styles.itemName}>
+                        {meta?.templateLabel ? `${meta.templateLabel} · ${item.name}` : item.name}
+                      </h3>
                       <span className={styles.itemPrice}>{formatCartItemPrice(item)}</span>
                     </div>
-                    {item.detail && <p className={styles.itemDetail}>{item.detail}</p>}
+                    {extras ? (
+                      <p className={styles.itemDetail}>Add-ons: {extras}</p>
+                    ) : item.detail ? (
+                      <p className={styles.itemDetail}>{item.detail}</p>
+                    ) : null}
                   </div>
                   <button
                     type="button"
@@ -110,7 +123,8 @@ export default function PublicCartDrawer() {
                     <i className="fa-regular fa-trash-can" aria-hidden="true" />
                   </button>
                 </article>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

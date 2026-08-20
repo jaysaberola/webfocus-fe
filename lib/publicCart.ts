@@ -1,5 +1,9 @@
 import type { Product } from "@/services/publicProductService";
 import { resolveProductImageUrl } from "@/services/publicProductService";
+import {
+  parseWebDesignMeta,
+  type WebDesignCartMeta,
+} from "@/lib/webDesignSetup";
 
 export type PublicCartItem = {
   key: string;
@@ -11,10 +15,14 @@ export type PublicCartItem = {
   image?: string;
   category?: string;
   detail?: string;
+  /** Structured web design selection (template + additional services). */
+  webDesign?: WebDesignCartMeta;
   /** Web design packages are quote-based until Sales sets a price. */
   pricingStatus?: "pending_quotation" | "priced";
   /** Set after the Pending Quotation request was filed with Sales (item stays in cart). */
   quotationTransactionNo?: string | null;
+  /** Client-entered notes for Sales on pending quotation items. */
+  clientNotes?: string;
 };
 
 const CART_KEY = "cms4.publicCart.v1";
@@ -66,6 +74,34 @@ export function markQuotationSubmittedCartItems(
   });
 }
 
+/** Attach a unique invoice/transaction number to one pending quotation cart row. */
+export function markQuotationSubmittedCartItem(
+  items: PublicCartItem[],
+  itemKey: string,
+  transactionNo: string | null | undefined
+): PublicCartItem[] {
+  const orderNo = String(transactionNo || "").trim();
+  return items.map((item) => {
+    if (item.key !== itemKey || !isPendingQuotationCartItem(item)) return item;
+    return {
+      ...item,
+      pricingStatus: "pending_quotation" as const,
+      quotationTransactionNo: orderNo || item.quotationTransactionNo || "submitted",
+    };
+  });
+}
+
+export function applyQuotationTransactionNumbers(
+  items: PublicCartItem[],
+  orderNosByKey: Record<string, string>
+): PublicCartItem[] {
+  let next = items;
+  for (const [key, orderNo] of Object.entries(orderNosByKey)) {
+    next = markQuotationSubmittedCartItem(next, key, orderNo);
+  }
+  return next;
+}
+
 export function cartUnsubmittedQuotationItems(items: PublicCartItem[]) {
   return cartHeldQuotationItems(items).filter((item) => !isQuotationSubmittedCartItem(item));
 }
@@ -101,15 +137,25 @@ export function formatCartSubtotalLabel(items: PublicCartItem[]) {
 
 function normalizeCartItem(item: PublicCartItem): PublicCartItem {
   if (!item || typeof item !== "object") return item;
-  if (item.pricingStatus === "priced") return item;
-  if (looksLikeWebDesignCartItem(item) && Number(item.price || 0) <= 0) {
+  const parsedWebDesign = item.webDesign ?? parseWebDesignMeta(item.detail);
+  const withMeta = parsedWebDesign
+    ? {
+        ...item,
+        webDesign: {
+          ...parsedWebDesign,
+          packageName: parsedWebDesign.packageName || item.name,
+        },
+      }
+    : item;
+  if (withMeta.pricingStatus === "priced") return withMeta;
+  if (looksLikeWebDesignCartItem(withMeta) && Number(withMeta.price || 0) <= 0) {
     return {
-      ...item,
+      ...withMeta,
       price: 0,
       pricingStatus: "pending_quotation",
     };
   }
-  return item;
+  return withMeta;
 }
 
 export const readPublicCart = (): PublicCartItem[] => {
@@ -193,6 +239,7 @@ export const addPublicCartItem = (item: PublicCartItem) => {
       ...current[index],
       ...normalized,
       qty: current[index].qty + normalized.qty,
+      clientNotes: normalized.clientNotes || current[index].clientNotes,
     };
   } else {
     current.push(normalized);
@@ -205,6 +252,14 @@ export const updatePublicCartQty = (key: string, qty: number) => {
   const next = readPublicCart()
     .map((item) => (item.key === key ? { ...item, qty: Math.max(1, Math.floor(qty || 1)) } : item))
     .filter((item) => item.qty > 0);
+  writePublicCart(next);
+  return next;
+};
+
+export const updatePublicCartItemNotes = (key: string, clientNotes: string) => {
+  const next = readPublicCart().map((item) =>
+    item.key === key ? { ...item, clientNotes: clientNotes.trim() ? clientNotes : "" } : item,
+  );
   writePublicCart(next);
   return next;
 };
@@ -225,12 +280,17 @@ export const removePublicCartItem = (key: string) => {
   return next;
 };
 
+export function cartItemHasAvailableAmount(item: PublicCartItem) {
+  if (isPendingQuotationCartItem(item)) return false;
+  return Number(item.price || 0) * Number(item.qty || 0) > 0;
+}
+
 export function cartPayableItems(items: PublicCartItem[]) {
-  return items.filter((item) => !isPendingQuotationCartItem(item));
+  return items.filter(cartItemHasAvailableAmount);
 }
 
 export function cartHeldQuotationItems(items: PublicCartItem[]) {
-  return items.filter(isPendingQuotationCartItem);
+  return items.filter((item) => !cartItemHasAvailableAmount(item));
 }
 
 function readCheckoutBackup(): PublicCartItem[] | null {
@@ -304,7 +364,7 @@ export function cartHasMixedCheckout(items: PublicCartItem[]) {
 }
 
 export const MIXED_CART_WEB_DESIGN_NOTICE =
-  "Web design packages are Pending Quotation. They will be submitted to Sales for pricing and stay in your cart, while your other services proceed to Paynamics payment.";
+  "Priced services will share one invoice and one payment. Pending quotation items are billed on a separate invoice and stay in your cart until Sales sets the price.";
 
 export const cartCategoryLabel = (category?: string) => {
   const value = String(category || "Service").trim();

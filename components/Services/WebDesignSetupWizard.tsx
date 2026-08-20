@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   SERVICE_CHECKLIST_ITEMS,
   WEBDESIGN_PAYMENT_METHODS,
@@ -15,6 +16,7 @@ type WebDesignSetupWizardProps = {
   packagePrice: number;
   templateLabel?: string;
   templateId?: string;
+  clientNotes?: string;
   onClose: () => void;
   onComplete: (selection: WebDesignSetupSelection) => void;
 };
@@ -26,6 +28,7 @@ export default function WebDesignSetupWizard({
   packagePrice,
   templateLabel,
   templateId,
+  clientNotes = "",
   onClose,
   onComplete,
 }: WebDesignSetupWizardProps) {
@@ -66,10 +69,9 @@ export default function WebDesignSetupWizard({
   const showPaymentMethods = serviceFeatures.includes("Payment Method");
 
   const canContinue = useMemo(() => {
-    const hasFeatures = serviceFeatures.length > 0;
     const hasPayments = !showPaymentMethods || paymentMethods.length > 0;
-    return hasFeatures && hasPayments;
-  }, [serviceFeatures, paymentMethods, showPaymentMethods]);
+    return hasPayments;
+  }, [paymentMethods, showPaymentMethods]);
 
   if (!open) return null;
 
@@ -87,6 +89,7 @@ export default function WebDesignSetupWizard({
       packagePrice,
       serviceFeatures,
       paymentMethods,
+      clientNotes: String(clientNotes || "").trim() || undefined,
     });
   };
 
@@ -108,11 +111,18 @@ export default function WebDesignSetupWizard({
       >
         <div className={styles.setupWizardHeader}>
           <div>
-            <p className={styles.setupWizardKicker}>Package setup</p>
-            <h2 id="webdesign-setup-title">Everything starts with a website</h2>
+            <p className={styles.setupWizardKicker}>
+              {resolvedTemplateLabel ? "Add other services" : "Package setup"}
+            </p>
+            <h2 id="webdesign-setup-title">
+              {resolvedTemplateLabel
+                ? "Would you like to add another service?"
+                : "Everything starts with a website"}
+            </h2>
             <p className={styles.setupWizardHint}>
-              These are just some of the website features we can help you create, launch, and grow.
-              Choose all that apply.
+              {resolvedTemplateLabel
+                ? `Select additional website features for the ${resolvedTemplateLabel} template, then add this Web Design package to your cart.`
+                : "These are just some of the website features we can help you create, launch, and grow. Choose all that apply."}
             </p>
             <p className={styles.setupWizardPackageMeta}>
               {resolvedTemplateLabel ? `${resolvedTemplateLabel} · ` : ""}
@@ -186,6 +196,12 @@ export default function WebDesignSetupWizard({
         </div>
 
         <div className={styles.setupWizardFooter}>
+          <div className={styles.setupWizardMoreServices}>
+            <span>Or add another product:</span>
+            <Link href="/public/services?tab=hosting">Hosting</Link>
+            <Link href="/public/services?tab=domain">Domain</Link>
+            <Link href="/public/services?tab=dms">DMS</Link>
+          </div>
           <button type="button" className={styles.secondaryBtn} onClick={onClose}>
             Cancel
           </button>

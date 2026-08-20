@@ -23,19 +23,25 @@ import {
   formatCartSubtotalLabel,
   isPendingQuotationCartItem,
   isQuotationSubmittedCartItem,
-  markQuotationSubmittedCartItems,
+  applyQuotationTransactionNumbers,
   MIXED_CART_WEB_DESIGN_NOTICE,
   PENDING_QUOTATION_LABEL,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
   stashPublicCartForCheckout,
+  updatePublicCartItemNotes,
   writePublicCart,
 } from "@/lib/publicCart";
 import {
   hasCheckoutAgreementAccepted,
   markCheckoutAgreementAccepted,
 } from "@/lib/checkoutAgreement";
+import {
+  buildWebDesignMetaLine,
+  resolveWebDesignCartMeta,
+  webDesignAdditionalServicesLabel,
+} from "@/lib/webDesignSetup";
 import { readStoredAuthToken } from "@/lib/authToken";
 import {
   fetchCurrentCustomer,
@@ -63,6 +69,17 @@ function getCartItemTitle(item: PublicCartItem) {
   return item.name;
 }
 
+function applyClientNotesToCart(
+  cartItems: PublicCartItem[],
+  notesByKey: Record<string, string>,
+) {
+  return cartItems.map((item) => {
+    if (!isPendingQuotationCartItem(item)) return item;
+    const notes = String(notesByKey[item.key] ?? item.clientNotes ?? "").trim();
+    return { ...item, clientNotes: notes };
+  });
+}
+
 function getCartItemIcon(category?: string) {
   if (/domain/i.test(category || "")) return "fa-solid fa-globe";
   if (/hosting/i.test(category || "")) return "fa-solid fa-server";
@@ -71,6 +88,89 @@ function getCartItemIcon(category?: string) {
   }
   if (/design|web/i.test(category || "")) return "fa-solid fa-palette";
   return "fa-solid fa-box";
+}
+
+function quotationCartItemSummary(item: PublicCartItem) {
+  const meta = resolveWebDesignCartMeta(item);
+  const extras = webDesignAdditionalServicesLabel(meta);
+  const parts = [
+    `${item.qty} x ${item.name} @ ${PENDING_QUOTATION_LABEL}`,
+    meta?.templateLabel ? `Template: ${meta.templateLabel}` : null,
+    extras ? `Additional Services: ${extras}` : item.detail ? `(${item.detail})` : null,
+  ].filter(Boolean);
+  return parts.join(" · ");
+}
+
+async function submitPendingQuotationItem(
+  item: PublicCartItem,
+  customer: PublicCustomer,
+  extraNotes: string[] = [],
+) {
+  const result = await createSalesTransaction({
+    customer_id: customer.id,
+    customer_name: `${customer.fname ?? ""} ${customer.lname ?? ""}`.trim(),
+    customer_email: customer.email,
+    subtotal: 0,
+    discount_total: 0,
+    tax_total: 0,
+    shipping_total: 0,
+    payment_status: "pending",
+    order_status: "pending",
+    items: [
+      {
+        product_id: item.id ?? null,
+        name: item.name,
+        item_type: "web_design",
+        price: 0,
+        quantity: item.qty,
+        total_price: 0,
+      },
+    ],
+    notes: [
+      "Web design quotation request",
+      String(item.clientNotes || "").trim()
+        ? `Notes:\n${String(item.clientNotes).trim()}`
+        : null,
+      WEB_DESIGN_PENDING_QUOTATION_MARKER,
+      ...extraNotes,
+      "Notify: Customer Care",
+      item.webDesign
+        ? buildWebDesignMetaLine({
+            path: "online-services",
+            templateLabel: item.webDesign.templateLabel,
+            templateId: item.webDesign.templateId,
+            packageName: item.webDesign.packageName || item.name,
+            packagePrice: item.webDesign.packagePrice || 0,
+            serviceFeatures: item.webDesign.serviceFeatures || [],
+            paymentMethods: item.webDesign.paymentMethods || [],
+          })
+        : null,
+      "",
+      "Service: Web Design",
+      item.webDesign?.templateLabel ? `Template: ${item.webDesign.templateLabel}` : null,
+      webDesignAdditionalServicesLabel(item.webDesign)
+        ? `Additional Services: ${webDesignAdditionalServicesLabel(item.webDesign)}`
+        : null,
+      "",
+      "Items:",
+      quotationCartItemSummary(item),
+    ].filter(Boolean).join("\n"),
+  });
+
+  return String(result?.data?.transaction_no ?? "").trim() || null;
+}
+
+async function submitPendingQuotationItems(
+  items: PublicCartItem[],
+  customer: PublicCustomer,
+  extraNotes: string[] = [],
+) {
+  const orderNosByKey: Record<string, string> = {};
+  for (const item of items) {
+    const orderNo = await submitPendingQuotationItem(item, customer, extraNotes);
+    if (orderNo) orderNosByKey[item.key] = orderNo;
+  }
+  return orderNosByKey;
 }
 
 export default function PublicCartCheckoutPage() {
@@ -87,6 +187,7 @@ export default function PublicCartCheckoutPage() {
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [quoteNotes, setQuoteNotes] = useState<Record<string, string>>({});
 
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
@@ -97,6 +198,17 @@ export default function PublicCartCheckoutPage() {
   const refreshCart = () => {
     const nextItems = readPublicCart();
     setItems(nextItems);
+    setQuoteNotes((current) => {
+      const next: Record<string, string> = {};
+      nextItems.forEach((item) => {
+        if (!isPendingQuotationCartItem(item)) return;
+        next[item.key] =
+          current[item.key] !== undefined
+            ? current[item.key]
+            : String(item.clientNotes || "");
+      });
+      return next;
+    });
     setAgreementAccepted(hasCheckoutAgreementAccepted(nextItems));
     setTerms((current) => {
       const next = { ...current };
@@ -249,9 +361,12 @@ export default function PublicCartCheckoutPage() {
 
     try {
       setPlacingOrder(true);
+      const cartWithNotes = applyClientNotesToCart(items, quoteNotes);
+      writePublicCart(cartWithNotes);
+      setItems(cartWithNotes);
 
       if (quotationOnly) {
-        const unsubmitted = cartUnsubmittedQuotationItems(checkoutItems);
+        const unsubmitted = cartUnsubmittedQuotationItems(cartWithNotes);
         if (!unsubmitted.length) {
           toast.info(
             "This web design quotation was already sent to Sales. It stays in your cart until the package price is set."
@@ -259,96 +374,38 @@ export default function PublicCartCheckoutPage() {
           return;
         }
 
-        const result = await createSalesTransaction({
-          customer_id: activeCustomer.id,
-          customer_name:
-            `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
-          customer_email: activeCustomer.email,
-          subtotal: 0,
-          discount_total: 0,
-          tax_total: 0,
-          shipping_total: 0,
-          payment_status: "pending",
-          order_status: "pending",
-          items: unsubmitted.map((item) => ({
-            product_id: item.id ?? null,
-            name: item.name,
-            item_type: "web_design",
-            price: 0,
-            quantity: item.qty,
-            total_price: 0,
-          })),
-          notes: [
-            "Web design quotation request",
-            WEB_DESIGN_PENDING_QUOTATION_MARKER,
-            "Notify: Customer Care",
-            "",
-            "Items:",
-            itemSummary,
-          ].join("\n"),
-        });
-
-        const orderNo = result?.data?.transaction_no;
-        // Keep Pending Quotation items in the cart so the customer can still see them.
-        writePublicCart(
-          markQuotationSubmittedCartItems(checkoutItems, orderNo)
-        );
+        const orderNosByKey = await submitPendingQuotationItems(unsubmitted, activeCustomer);
+        const orderNos = Object.values(orderNosByKey);
+        writePublicCart(applyQuotationTransactionNumbers(cartWithNotes, orderNosByKey));
         toast.success(
-          orderNo
-            ? `Quotation request ${orderNo} submitted to Sales. It remains in your cart until priced.`
+          orderNos.length
+            ? `Quotation request${orderNos.length > 1 ? "s" : ""} ${orderNos.join(", ")} submitted to Sales. ${
+                orderNos.length > 1 ? "Each pending quotation has its own invoice." : "It remains in your cart until priced."
+              }`
             : "Quotation request submitted to Sales. It remains in your cart until priced."
         );
         window.location.assign("/public/cart");
         return;
       }
 
-      // Mixed cart: submit web design as Pending Quotation for Sales, then pay other items.
-      let quotationOrderNo: string | null = null;
-      const unsubmittedQuotes = cartUnsubmittedQuotationItems(heldQuotationItems);
+      // Mixed cart: each pending quotation gets its own invoice, then priced items share one Paynamics invoice.
+      let quotationOrderNos: string[] = [];
+      const quotedItems = cartHeldQuotationItems(cartWithNotes);
+      const unsubmittedQuotes = cartUnsubmittedQuotationItems(quotedItems);
+      let quotedCart = cartWithNotes;
       if (mixedCheckout && unsubmittedQuotes.length > 0) {
-        const quotationSummary = unsubmittedQuotes
-          .map((item) => {
-            return `${item.qty} x ${item.name} @ ${PENDING_QUOTATION_LABEL}${
-              item.detail ? ` (${item.detail})` : ""
-            }`;
-          })
-          .join("\n");
-
-        const quotationResult = await createSalesTransaction({
-          customer_id: activeCustomer.id,
-          customer_name:
-            `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
-          customer_email: activeCustomer.email,
-          subtotal: 0,
-          discount_total: 0,
-          tax_total: 0,
-          shipping_total: 0,
-          payment_status: "pending",
-          order_status: "pending",
-          items: unsubmittedQuotes.map((item) => ({
-            product_id: item.id ?? null,
-            name: item.name,
-            item_type: "web_design",
-            price: 0,
-            quantity: item.qty,
-            total_price: 0,
-          })),
-          notes: [
-            "Web design quotation request",
-            WEB_DESIGN_PENDING_QUOTATION_MARKER,
-            "Submitted with mixed cart checkout (other services paid via Paynamics)",
-            "Notify: Customer Care / Sales",
-            "",
-            "Items:",
-            quotationSummary,
-          ].join("\n"),
-        });
-        quotationOrderNo = quotationResult?.data?.transaction_no ?? null;
-      } else if (mixedCheckout && heldQuotationItems.length > 0) {
-        quotationOrderNo =
-          heldQuotationItems.find((item) => item.quotationTransactionNo)
-            ?.quotationTransactionNo || null;
+        const orderNosByKey = await submitPendingQuotationItems(unsubmittedQuotes, activeCustomer, [
+          "Submitted with mixed cart checkout (other services paid via Paynamics)",
+        ]);
+        quotationOrderNos = Object.values(orderNosByKey);
+        quotedCart = applyQuotationTransactionNumbers(cartWithNotes, orderNosByKey);
+      } else if (mixedCheckout && quotedItems.length > 0) {
+        quotationOrderNos = quotedItems
+          .map((item) => String(item.quotationTransactionNo || "").trim())
+          .filter(Boolean);
       }
+
+      const quotationOrderLabel = quotationOrderNos.join(", ");
 
       const result = await checkoutWithPaynamics({
         customer_id: activeCustomer.id,
@@ -372,10 +429,13 @@ export default function PublicCartCheckoutPage() {
         notes: [
           "Customer checkout order",
           "Payment gateway: Paynamics hosted portal",
+          checkoutItems.length > 1
+            ? `Combined invoice: ${checkoutItems.length} priced services paid in one transaction.`
+            : null,
           mixedCheckout
-            ? `Note: Web design Pending Quotation kept in customer cart${
-                quotationOrderNo ? ` (${quotationOrderNo})` : ""
-              }.`
+            ? `Note: Pending quotation kept on a separate invoice${
+                quotationOrderLabel ? ` (${quotationOrderLabel})` : ""
+              } and was not included in this payment.`
             : null,
           "",
           "Items:",
@@ -392,22 +452,16 @@ export default function PublicCartCheckoutPage() {
 
       // Keep the FULL cart (priced services + Pending Quotation) until payment succeeds.
       // Snapshot survives browser Back from Paynamics.
-      const cartToKeep =
-        heldQuotationItems.length > 0
-          ? markQuotationSubmittedCartItems(
-              items,
-              quotationOrderNo ||
-                heldQuotationItems.find((item) => item.quotationTransactionNo)
-                  ?.quotationTransactionNo
-            )
-          : items;
+      const cartToKeep = heldQuotationItems.length > 0 ? quotedCart : items;
       stashPublicCartForCheckout(cartToKeep);
       toast.success(
         mixedCheckout
-          ? quotationOrderNo
-            ? `Web design quotation ${quotationOrderNo} sent to Sales and kept in your cart. Opening payment...`
-            : "Web design Pending Quotation stays in your cart. Opening payment for other items..."
-          : "Redirecting to the secure Paynamics payment portal..."
+          ? quotationOrderNos.length
+            ? `Pending quotation${quotationOrderNos.length > 1 ? "s" : ""} ${quotationOrderLabel} filed on ${quotationOrderNos.length > 1 ? "separate invoices" : "a separate invoice"}. Opening one payment for all priced services...`
+            : "Pending quotation stays on a separate invoice. Opening one payment for priced services..."
+          : checkoutItems.length > 1
+            ? "Opening one payment for all priced services on the same invoice..."
+            : "Redirecting to the secure Paynamics payment portal..."
       );
       window.location.assign(redirectUrl);
     } catch (err: any) {
@@ -550,20 +604,60 @@ export default function PublicCartCheckoutPage() {
 
                     <div className={styles.itemBody}>
                       <h2 className={styles.itemTitle}>
-                        {getCartItemTitle(item)}
+                        {(() => {
+                          const meta = resolveWebDesignCartMeta(item);
+                          if (isWebDesign && meta?.templateLabel) {
+                            return (
+                              <>
+                                <span className={styles.templateName}>{meta.templateLabel}</span>
+                                <span className={styles.packageName}>{item.name}</span>
+                              </>
+                            );
+                          }
+                          return getCartItemTitle(item);
+                        })()}
                       </h2>
 
                       {isWebDesign ? (
-                        <p className={styles.renewalNote}>
-                          {isQuotationSubmittedCartItem(item)
-                            ? `Sent to Sales${
-                                item.quotationTransactionNo &&
-                                item.quotationTransactionNo !== "submitted"
-                                  ? ` (${item.quotationTransactionNo})`
-                                  : ""
-                              } · Pending Quotation · stays in your cart`
-                            : "One-time web design package · Pending Quotation · no renewal term"}
-                        </p>
+                        <>
+                          {(() => {
+                            const extras = webDesignAdditionalServicesLabel(resolveWebDesignCartMeta(item));
+                            return extras ? (
+                              <p className={styles.addonLine}>Add-ons: {extras}</p>
+                            ) : null;
+                          })()}
+                          <p className={styles.renewalNote}>
+                            {isQuotationSubmittedCartItem(item)
+                              ? `Sent to Sales${
+                                  item.quotationTransactionNo &&
+                                  item.quotationTransactionNo !== "submitted"
+                                    ? ` (${item.quotationTransactionNo})`
+                                    : ""
+                                } · Pending Quotation · stays in your cart`
+                              : "One-time web design package · Pending Quotation · no renewal term"}
+                          </p>
+                          <label className={styles.quoteNotes}>
+                            <span>Notes:</span>
+                            <textarea
+                              value={quoteNotes[item.key] ?? item.clientNotes ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setQuoteNotes((current) => ({
+                                  ...current,
+                                  [item.key]: value,
+                                }));
+                              }}
+                              onBlur={(event) => {
+                                updatePublicCartItemNotes(item.key, event.target.value);
+                              }}
+                              placeholder="Add details for the quotation (pages, branding, timeline, extras, etc.)"
+                              rows={3}
+                              maxLength={2000}
+                              disabled={isQuotationSubmittedCartItem(item)}
+                              aria-label={`Notes for ${item.name}`}
+                            />
+                          </label>
+                        </>
                       ) : (
                         <>
                           <div className={styles.termRow}>
