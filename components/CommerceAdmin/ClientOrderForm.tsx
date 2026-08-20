@@ -4,6 +4,7 @@ import {
   buildDealNotes,
   CLIENT_STATUS_OPTIONS,
   COLLECTION_NOTE_OPTIONS,
+  DEAL_NAME_OPTIONS,
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
   emptyClientOrderForm,
@@ -181,11 +182,8 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
     setForm((current) => ({
       ...current,
       expectedRevenue: price != null ? String(price) : current.expectedRevenue || "0",
-      dealName: current.dealName.trim()
-        ? current.dealName
-        : [selectedClient ? clientDisplayName(selectedClient) : "", form.productName].filter(Boolean).join(" - "),
     }));
-  }, [form.productName, selectedClient, services]);
+  }, [form.productName, services]);
 
   const handleClientChange = (clientId: string) => {
     const client = clients.find((row) => String(row.id) === clientId);
@@ -287,8 +285,8 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
             <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
           </button>
           <div>
-            <h3 className={styles.panelTitle}>Create Client Order</h3>
-            <p className={styles.panelSubtitle}>Orders</p>
+            <h3 className={styles.panelTitle}>Create Deal</h3>
+            <p className={styles.panelSubtitle}>Deals</p>
           </div>
         </div>
         <div className={styles.clientCrmActions}>
@@ -466,13 +464,20 @@ export default function ClientOrderForm({ defaultCustomerId = null, onBack, onSa
                 ))}
               </select>
             </Field>
-            <Field label="Deal Name" required hint="Display name for this deal">
-              <input
+            <Field label="Deal Name" required hint="Select the deal name">
+              <select
                 className={inputClass(true)}
                 value={form.dealName}
                 onChange={(e) => setField("dealName", e.target.value)}
                 required
-              />
+              >
+                <option value="">-None-</option>
+                {DEAL_NAME_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Invoice Sent Date">
               <input

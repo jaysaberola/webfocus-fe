@@ -43,6 +43,8 @@ import styles from "@/styles/commerceAdmin.module.css";
 type Props = {
   mode: "create" | "edit";
   client?: CustomerRow | null;
+  pageTitle?: string;
+  pageSubtitle?: string;
   onBack: () => void;
   onSaved: () => void;
   onSectionChange?: (section: ClientRelatedSection) => void;
@@ -134,7 +136,7 @@ function FileField({
 }
 
 const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmForm(
-  { mode, client, onBack, onSaved, onSectionChange },
+  { mode, client, pageTitle, pageSubtitle, onBack, onSaved, onSectionChange },
   ref,
 ) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
@@ -520,8 +522,10 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
           </button>
           <div>
-            <h3 className={styles.panelTitle}>{mode === "edit" ? "Edit Client" : "Create Client"}</h3>
-            <p className={styles.panelSubtitle}>Clients</p>
+            <h3 className={styles.panelTitle}>
+              {pageTitle || (mode === "edit" ? "Edit Client" : "Create Client")}
+            </h3>
+            <p className={styles.panelSubtitle}>{pageSubtitle || "Clients"}</p>
           </div>
         </div>
         <div className={styles.clientCrmActions}>

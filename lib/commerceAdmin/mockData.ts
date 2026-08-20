@@ -13,7 +13,7 @@ import type {
 export const COMMERCE_ADMIN_TABS = [
   { id: "dashboard", label: "Dashboard", icon: "fa-solid fa-gauge-high" },
   { id: "clients", label: "Clients", icon: "fa-solid fa-users" },
-  { id: "orders", label: "Orders", icon: "fa-regular fa-credit-card" },
+  { id: "orders", label: "Deals", icon: "fa-regular fa-handshake" },
   { id: "approvals", label: "Approvals", icon: "fa-solid fa-circle-check", badge: true },
   { id: "notifications", label: "Notifications", icon: "fa-regular fa-bell", badge: true },
   { id: "helpdesk", label: "Helpdesk", icon: "fa-solid fa-headset" },

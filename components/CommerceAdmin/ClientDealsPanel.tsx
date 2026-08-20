@@ -37,6 +37,8 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return deal.clientOwner;
     case "clientName":
       return deal.clientName;
+    case "dealName":
+      return deal.dealName;
     case "planName":
       return deal.planName;
     case "stage":
@@ -177,8 +179,8 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     <div className={styles.clientDealsBlock}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Orders</h3>
-          <p className={styles.panelSubtitle}>Orders and services for this client.</p>
+          <h3 className={styles.panelTitle}>Deals</h3>
+          <p className={styles.panelSubtitle}>Deals and services for this client.</p>
         </div>
         <div className={styles.dealsHeaderActions}>
           <div className={styles.colVisWrap} ref={colVisRef}>
@@ -256,11 +258,11 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={Math.max(visibleColumns.length, 1)}>Loading orders...</td>
+                <td colSpan={Math.max(visibleColumns.length, 1)}>Loading deals...</td>
               </tr>
             ) : paginatedDeals.length === 0 ? (
               <tr>
-                <td colSpan={Math.max(visibleColumns.length, 1)}>No orders found for this client.</td>
+                <td colSpan={Math.max(visibleColumns.length, 1)}>No deals found for this client.</td>
               </tr>
             ) : (
               paginatedDeals.map((deal) => (
@@ -269,17 +271,30 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   className={selectedOrder?.id === deal.id ? styles.rowDealOpen : undefined}
                 >
                   {visibleColumns.map((column) => {
-                    if (column === "subject") {
+                    if (column === "clientName") {
+                      return (
+                        <td key={column} className={styles.dealsNowrap}>
+                          <button
+                            type="button"
+                            className={styles.tableCellLink}
+                            onClick={() => onEditClient?.()}
+                          >
+                            {deal.clientName}
+                          </button>
+                        </td>
+                      );
+                    }
+                    if (column === "dealName" || column === "subject") {
                       return (
                         <td key={column}>
                           <button
                             type="button"
-                            className={styles.dealsSubject}
+                            className={styles.tableCellLink}
                             onClick={() =>
                               setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
                             }
                           >
-                            {deal.subject}
+                            {column === "dealName" ? deal.dealName : deal.subject}
                           </button>
                         </td>
                       );

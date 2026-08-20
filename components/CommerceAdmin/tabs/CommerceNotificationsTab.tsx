@@ -30,7 +30,7 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
   const tab = alertActionTab(row);
   if (tab === "approvals") return "Open Approvals";
   if (tab === "helpdesk") return "Open Helpdesk";
-  return "Open Orders";
+  return "Open Deals";
 }
 
 function NotificationCard({

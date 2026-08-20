@@ -8,16 +8,18 @@ import {
 
 export type TxColumnKey =
   | "clientOwner"
+  | "clientName"
+  | "dealName"
+  | "domainName"
+  | "productCategory"
   | "probability"
   | "expectedRevenue"
   | "stage"
   | "closingDate"
-  | "clientName"
   | "contactName"
   | "clientStatus"
   | "productStatus"
   | "subject"
-  | "productCategory"
   | "salesStatus"
   | "statusTriggerDate"
   | "joNumber"
@@ -47,16 +49,18 @@ export type TxFilterKey = "all" | "paid" | "pending";
 
 export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   clientOwner: "Client Owner",
+  clientName: "Client Name",
+  dealName: "Deal Name",
+  domainName: "Domain Name",
+  productCategory: "Product Category",
   probability: "Probability (%)",
   expectedRevenue: "Expected Revenue ₱",
   stage: "Stage",
   closingDate: "Closing Date",
-  clientName: "Client Name",
   contactName: "Contact Name",
   clientStatus: "Client Status",
   productStatus: "Product Status",
   subject: "Subject",
-  productCategory: "Product Category",
   salesStatus: "Sales Status",
   statusTriggerDate: "Status Trigger Date",
   joNumber: "JO Number",
@@ -74,16 +78,18 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
 
 export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   clientOwner: true,
+  clientName: true,
+  dealName: true,
+  domainName: true,
+  productCategory: true,
   probability: false,
   expectedRevenue: false,
-  stage: true,
+  stage: false,
   closingDate: false,
-  clientName: true,
   contactName: false,
-  clientStatus: true,
+  clientStatus: false,
   productStatus: false,
-  subject: true,
-  productCategory: true,
+  subject: false,
   salesStatus: false,
   statusTriggerDate: false,
   joNumber: false,
@@ -100,6 +106,9 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
 };
 
 export const TX_COLUMN_KEYS = Object.keys(TX_COLUMN_LABELS) as TxColumnKey[];
+
+/** Columns shown in Deals Column Visibility. Deal Name is included. */
+export const TX_COLUMN_VISIBILITY_KEYS = TX_COLUMN_KEYS;
 
 const normalizeItems = (items: SalesTransaction["items"]) =>
   (items ?? []).map((item) => ({

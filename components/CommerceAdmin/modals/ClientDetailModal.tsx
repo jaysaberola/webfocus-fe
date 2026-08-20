@@ -47,7 +47,7 @@ export default function ClientDetailModal({ open, client, mode, onClose, onEdit 
   const title =
     mode === "audit"
       ? `Audit Trail · ${client.name}`
-      : `Client Account · ${client.name}`;
+      : `Client Info · ${client.name}`;
 
   const audits = detail?.audits ?? [];
 

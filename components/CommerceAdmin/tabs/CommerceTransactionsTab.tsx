@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import AssignTransactionModal from "@/components/CommerceAdmin/modals/AssignTransactionModal";
+import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientOrderForm from "@/components/CommerceAdmin/ClientOrderForm";
 import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTransactionModal";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
@@ -20,6 +21,7 @@ import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_KEYS,
   TX_COLUMN_LABELS,
+  TX_COLUMN_VISIBILITY_KEYS,
   formatTxDate,
   isPaidStatus,
   paymentStatusLabel,
@@ -84,6 +86,7 @@ import {
   uploadWebDesignProposal,
   type SalesTransaction,
 } from "@/services/salesTransactionService";
+import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 5;
@@ -138,8 +141,9 @@ export default function CommerceTransactionsTab() {
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
-  const [view, setView] = useState<"list" | "create">("list");
+  const [view, setView] = useState<"list" | "create" | "client">("list");
   const [createCustomerId, setCreateCustomerId] = useState<number | null>(null);
+  const [clientInfo, setClientInfo] = useState<CustomerRow | null>(null);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
   );
@@ -369,6 +373,25 @@ export default function CommerceTransactionsTab() {
     setModalMode("view");
   };
 
+  const openClientInfo = async (row: SalesTransaction) => {
+    const customerId = Number(row.customer_id);
+    if (!customerId) {
+      toast.info("No client record is linked to this deal.");
+      return;
+    }
+    try {
+      const customer = await getCustomer(customerId, { silent: true });
+      if (!customer) {
+        toast.error("Unable to load client info.");
+        return;
+      }
+      setClientInfo(customer);
+      setView("client");
+    } catch {
+      toast.error("Unable to load client info.");
+    }
+  };
+
   const openEdit = (row: SalesTransaction) => {
     setSelected(row);
     setForm({
@@ -524,26 +547,25 @@ export default function CommerceTransactionsTab() {
   };
 
   const renderAssignedBadge = (row: SalesTransaction) => {
-    const label = assignedUserLabel(row);
+    const label = assignedUserLabel(row) ?? "Unassigned";
     if (canAssign) {
       return (
         <button
           type="button"
-          className={label ? styles.txAssignedBadge : styles.txAssignedEmpty}
+          className={styles.tableCellLink}
           onClick={() => setAssignTarget(row)}
           title="Assign staff"
         >
-          {label ?? "Unassigned"}
+          {label}
         </button>
       );
     }
-    if (label) return <span className={styles.txAssignedBadge}>{label}</span>;
-    return <span className={styles.txAssignedEmpty}>Unassigned</span>;
+    return <span className={styles.tableCellLink}>{label}</span>;
   };
 
   const renderOrderColumnCell = (row: SalesTransaction, column: TxColumnKey) => {
     if (column === "clientOwner") {
-      return <td key={column} className={styles.txAssignedCell}>{renderAssignedBadge(row)}</td>;
+      return <td key={column} className={styles.dealsNowrap}>{renderAssignedBadge(row)}</td>;
     }
     if (column === "paymentStatus") {
       const label = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
@@ -562,6 +584,16 @@ export default function CommerceTransactionsTab() {
       );
     }
     if (column === "clientName") {
+      const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
+      return (
+        <td key={column} className={styles.dealsNowrap}>
+          <button type="button" className={styles.tableCellLink} onClick={() => void openClientInfo(row)}>
+            {name}
+          </button>
+        </td>
+      );
+    }
+    if (column === "dealName") {
       const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       return (
         <td key={column} className={styles.dealsNowrap}>
@@ -616,7 +648,7 @@ export default function CommerceTransactionsTab() {
           ),
           transactionOrderType(row),
         ]),
-        "orders",
+        "deals",
       );
     } finally {
       setExporting(false);
@@ -630,16 +662,38 @@ export default function CommerceTransactionsTab() {
       for (const row of selectedRows) {
         await deleteSalesTransaction(row.id);
       }
-      toast.success(`${selectedRows.length} order(s) deleted.`);
+      toast.success(`${selectedRows.length} deal(s) deleted.`);
       selection.clearSelection();
       setBulkDeleteOpen(false);
       loadRows();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to delete selected orders.");
+      toast.error(err?.response?.data?.message || "Failed to delete selected deals.");
     } finally {
       setBulkDeleting(false);
     }
   };
+
+  if (view === "client" && clientInfo) {
+    return (
+      <section className={styles.panel}>
+        <ClientCrmForm
+          mode="edit"
+          client={clientInfo}
+          pageTitle="Client Info"
+          pageSubtitle="Deals"
+          onBack={() => {
+            setView("list");
+            setClientInfo(null);
+          }}
+          onSaved={() => {
+            setView("list");
+            setClientInfo(null);
+            loadRows();
+          }}
+        />
+      </section>
+    );
+  }
 
   if (view === "create") {
     return (
@@ -666,9 +720,9 @@ export default function CommerceTransactionsTab() {
     <section className={styles.panel}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>All Orders &amp; Invoices</h3>
+          <h3 className={styles.panelTitle}>Deals</h3>
           <p className={styles.panelSubtitle}>
-            View and verify all financial invoices, payment gateway checkouts, and receipts.
+            Track client deals, owners, domains, and product categories.
           </p>
         </div>
         <div className={styles.analyticsToggle}>
@@ -693,7 +747,7 @@ export default function CommerceTransactionsTab() {
         <div className={styles.filterBanner}>
           <span>
             {queueFilter === "new"
-              ? "Showing new orders in queue"
+              ? "Showing new deals in queue"
               : "Showing overdue invoices"}
           </span>
           <button type="button" className={styles.secondaryBtnSm} onClick={() => setQueueFilter(null)}>
@@ -716,7 +770,7 @@ export default function CommerceTransactionsTab() {
       {hasSelection ? (
         <CommerceBulkSelectionBar
           selectedCount={selection.selectedCount}
-          entityLabel="order"
+          entityLabel="deal"
           exporting={exporting}
           deleting={bulkDeleting}
           onExport={handleExportSelected}
@@ -740,7 +794,7 @@ export default function CommerceTransactionsTab() {
               {colVisOpen ? (
                 <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
                   <div className={styles.colVisTitle}>Toggle Columns</div>
-                  {(Object.keys(TX_COLUMN_LABELS) as TxColumnKey[]).map((key) => (
+                  {TX_COLUMN_VISIBILITY_KEYS.map((key) => (
                     <label key={key} className={styles.colVisItem}>
                       <input
                         type="checkbox"
@@ -762,13 +816,13 @@ export default function CommerceTransactionsTab() {
               setView("create");
             }}
           >
-            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client Order
+            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Deal
           </button>
         </div>
       )}
 
       {loading ? (
-        <p className={styles.emptyState}>Loading orders...</p>
+        <p className={styles.emptyState}>Loading deals...</p>
       ) : (
         <TableFilterShell
           open={filterOpen}
@@ -834,7 +888,7 @@ export default function CommerceTransactionsTab() {
                 <tbody>
                   {displayRows.length === 0 ? (
                     <tr>
-                      <td colSpan={visibleColumnCount}>No orders found matching filter.</td>
+                      <td colSpan={visibleColumnCount}>No deals found matching filter.</td>
                     </tr>
                   ) : (
                     displayRows.map((row) => (
@@ -845,7 +899,7 @@ export default function CommerceTransactionsTab() {
                         <CommerceSelectRowCell
                           checked={selection.isSelected(row)}
                           onChange={() => selection.toggleRow(row)}
-                          label={`Select order ${row.transaction_no}`}
+                          label={`Select deal ${row.transaction_no}`}
                         />
                         {visibleOrderColumns.map((column) => renderOrderColumnCell(row, column))}
                       </tr>
@@ -857,14 +911,18 @@ export default function CommerceTransactionsTab() {
           ) : (
             <div className={styles.txGrid}>
               {displayRows.length === 0 ? (
-                <p className={styles.emptyState}>No orders found matching filter.</p>
+                <p className={styles.emptyState}>No deals found matching filter.</p>
               ) : (
                 displayRows.map((row) => (
                   <article key={row.id} className={styles.txGridCard}>
                     <div className={styles.txGridCardTop}>
-                      <span className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
-                      </span>
+                      <button
+                        type="button"
+                        className={styles.tableCellLink}
+                        onClick={() => openView(row)}
+                      >
+                        {orderAdminColumnValue(row, "dealName", { assigned: assignedUserLabel(row) })}
+                      </button>
                       {renderStatusBadge(row)}
                     </div>
                     <div>
@@ -874,25 +932,31 @@ export default function CommerceTransactionsTab() {
                     <div>
                       <div className={styles.txGridLabel}>Client Name</div>
                       <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
+                        <button
+                          type="button"
+                          className={styles.tableCellLink}
+                          onClick={() => void openClientInfo(row)}
+                        >
+                          {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
+                        </button>
                       </div>
                     </div>
                     <div>
-                      <div className={styles.txGridLabel}>Stage</div>
+                      <div className={styles.txGridLabel}>Deal Name</div>
                       <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "stage", { assigned: assignedUserLabel(row) })}
+                        <button
+                          type="button"
+                          className={styles.tableCellLink}
+                          onClick={() => openView(row)}
+                        >
+                          {orderAdminColumnValue(row, "dealName", { assigned: assignedUserLabel(row) })}
+                        </button>
                       </div>
                     </div>
                     <div>
-                      <div className={styles.txGridLabel}>Client Status</div>
+                      <div className={styles.txGridLabel}>Domain Name</div>
                       <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "clientStatus", { assigned: assignedUserLabel(row) })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Subject</div>
-                      <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "subject", { assigned: assignedUserLabel(row) })}
+                        {orderAdminColumnValue(row, "domainName", { assigned: assignedUserLabel(row) })}
                       </div>
                     </div>
                     <div>
@@ -1082,7 +1146,7 @@ export default function CommerceTransactionsTab() {
           <div className={styles.modalCardWide}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>
-                {modalMode === "view" ? "Purchase Details" : "Edit Transaction"}
+                {modalMode === "view" ? "Deal Info" : "Edit Transaction"}
               </h3>
               <button type="button" className={styles.modalCloseBtn} onClick={closeModal} aria-label="Close">
                 <i className="fa-solid fa-xmark" aria-hidden="true" />
@@ -1090,10 +1154,22 @@ export default function CommerceTransactionsTab() {
             </div>
             {modalMode === "view" && selected ? (
               <div className={styles.detailGrid}>
-                <DetailField label="Invoice ID" value={selected.transaction_no} />
-                <DetailField label="Customer" value={selected.customer_name} />
+                <DetailField
+                  label="Deal Name"
+                  value={orderAdminColumnValue(selected, "dealName", { assigned: assignedUserLabel(selected) })}
+                />
+                <DetailField label="Client Name" value={selected.customer_name} />
+                <DetailField
+                  label="Domain Name"
+                  value={orderAdminColumnValue(selected, "domainName", { assigned: assignedUserLabel(selected) })}
+                />
+                <DetailField
+                  label="Product Category"
+                  value={orderAdminColumnValue(selected, "productCategory", { assigned: assignedUserLabel(selected) })}
+                />
                 <DetailField label="Assigned To" value={assignedUserLabel(selected)} />
                 <DetailField label="Email" value={selected.customer_email} />
+                <DetailField label="Invoice ID" value={selected.transaction_no} />
                 <DetailField label="Service" value={transactionItemSummary(selected)} />
                 {isWebDesignTransaction(selected) ? (
                   <>
@@ -1252,10 +1328,10 @@ export default function CommerceTransactionsTab() {
 
       <ConfirmModal
         show={bulkDeleteOpen}
-        title="Delete orders"
+        title="Delete deals"
         message={
           <>
-            Delete <strong>{selection.selectedCount}</strong> selected order
+            Delete <strong>{selection.selectedCount}</strong> selected deal
             {selection.selectedCount === 1 ? "" : "s"}? This cannot be undone.
           </>
         }

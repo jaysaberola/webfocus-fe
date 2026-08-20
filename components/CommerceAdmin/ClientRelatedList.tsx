@@ -7,7 +7,7 @@ const RELATED_ITEMS: Array<{ id: ClientRelatedSection; label: string; icon: stri
   { id: "files", label: "File Attachments", icon: "fa-solid fa-paperclip" },
   { id: "address", label: "Address Information", icon: "fa-solid fa-location-dot" },
   { id: "timeline", label: "Timeline", icon: "fa-solid fa-clock-rotate-left" },
-  { id: "orders", label: "Orders", icon: "fa-solid fa-receipt" },
+  { id: "orders", label: "Deals", icon: "fa-solid fa-handshake" },
 ];
 
 type Props = {

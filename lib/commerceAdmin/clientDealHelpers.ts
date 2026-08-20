@@ -28,6 +28,7 @@ export type ClientDealRow = {
   transactionNo?: string | null;
   clientOwner: string;
   clientName: string;
+  dealName: string;
   planName: string;
   stage: string;
   clientStatus: string;
@@ -66,13 +67,14 @@ export type ClientDealRow = {
 export type DealColumnKey =
   | "clientOwner"
   | "clientName"
+  | "dealName"
+  | "domain"
+  | "productCategory"
   | "planName"
   | "stage"
   | "clientStatus"
   | "productStatus"
   | "subject"
-  | "productCategory"
-  | "domain"
   | "contactName"
   | "closingDate"
   | "salesStatus"
@@ -93,16 +95,18 @@ export type DealColumnKey =
 
 export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   clientOwner: "Client Owner",
+  clientName: "Client Name",
+  dealName: "Deal Name",
+  domain: "Domain Name",
+  productCategory: "Product Category",
   probability: "Probability (%)",
   expectedRevenue: "Expected Revenue ₱",
   stage: "Stage",
   closingDate: "Closing Date",
-  clientName: "Client Name",
   contactName: "Contact Name",
   clientStatus: "Client Status",
   productStatus: "Product Status",
   subject: "Subject",
-  productCategory: "Product Category",
   salesStatus: "Sales Status",
   statusTriggerDate: "Status Trigger Date",
   joNumber: "JO Number",
@@ -117,21 +121,22 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   paymentCommitmentDate: "Payment Commitment Date",
   collectionNote: "Collection Note",
   planName: "Plan Name",
-  domain: "Domain",
 };
 
 export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   clientOwner: true,
+  clientName: true,
+  dealName: true,
+  domain: true,
+  productCategory: true,
   probability: false,
   expectedRevenue: false,
-  stage: true,
+  stage: false,
   closingDate: false,
-  clientName: true,
   contactName: false,
-  clientStatus: true,
+  clientStatus: false,
   productStatus: false,
-  subject: true,
-  productCategory: true,
+  subject: false,
   salesStatus: false,
   statusTriggerDate: false,
   joNumber: false,
@@ -146,15 +151,12 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   paymentCommitmentDate: false,
   collectionNote: false,
   planName: false,
-  domain: false,
 };
 
 export const DEAL_COLUMN_KEYS = Object.keys(DEAL_COLUMN_LABELS) as DealColumnKey[];
 
-/** Fields with Column Visibility = YES. Plan Name and Domain stay reserved/off. */
-export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter(
-  (key) => key !== "planName" && key !== "domain",
-);
+/** Fields with Column Visibility = YES. Plan Name stays reserved/off. */
+export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter((key) => key !== "planName");
 
 export function formatDealAmount(amount: number | null) {
   if (amount == null || !Number.isFinite(amount)) return "—";
@@ -193,6 +195,10 @@ export function orderAdminColumnValue(
       return formatDealDate(meta?.closingDate || transaction.issued_date || transaction.transacted_at);
     case "clientName":
       return dash(transaction.customer_name);
+    case "dealName":
+      return transactionDealName(transaction);
+    case "domainName":
+      return transactionDomainName(transaction);
     case "contactName":
       return metaText(meta?.contactName);
     case "clientStatus":
@@ -232,6 +238,48 @@ export function orderAdminColumnValue(
     default:
       return "—";
   }
+}
+
+function stripClientPrefixFromDealName(dealName?: string | null, clientName?: string | null) {
+  const name = String(dealName ?? "").trim();
+  const client = String(clientName ?? "").trim();
+  if (!name) return "";
+  if (client && name.toLowerCase().startsWith(client.toLowerCase())) {
+    return name.slice(client.length).replace(/^\s*[-–—:]\s*/, "").trim();
+  }
+  return name;
+}
+
+function resolveDealName(params: {
+  metaDealName?: string | null;
+  clientName?: string | null;
+  itemName?: string | null;
+}) {
+  const fromMeta = stripClientPrefixFromDealName(params.metaDealName, params.clientName);
+  if (fromMeta) return fromMeta;
+  const product = String(params.itemName ?? "").trim();
+  return product || "—";
+}
+
+export function transactionDealName(transaction: SalesTransaction) {
+  const meta = parseDealMeta(transaction.notes);
+  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  return resolveDealName({
+    metaDealName: meta?.dealName,
+    clientName: transaction.customer_name,
+    itemName,
+  });
+}
+
+export function transactionDomainName(transaction: SalesTransaction) {
+  const items = transaction.items ?? [];
+  for (const item of items) {
+    const name = String(item.name ?? "").trim();
+    const fromItem = formatDomain(looksLikeDomain(name) ? name : extractDomain(name));
+    if (fromItem) return fromItem;
+  }
+  const fromNotes = extractDomain(String(transaction.notes ?? ""));
+  return fromNotes || "—";
 }
 
 function dash(value?: string | null) {
@@ -494,6 +542,11 @@ function crmFields(params: {
   return {
     clientOwner: ownerFallback || "—",
     clientName: clientDisplayName(client),
+    dealName: resolveDealName({
+      metaDealName: meta?.dealName,
+      clientName: clientDisplayName(client),
+      itemName,
+    }),
     planName: matchingPlanName(itemName, client, adminServices),
     stage,
     clientStatus: metaText(meta?.dealType, dealType),

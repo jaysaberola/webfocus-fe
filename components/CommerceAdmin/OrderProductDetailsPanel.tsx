@@ -26,9 +26,9 @@ export default function OrderProductDetailsPanel({ order, onClose }: Props) {
     <div className={styles.productDetailsPanel}>
       <div className={styles.productDetailsHead}>
         <div>
-          <h4 className={styles.clientCrmSectionTitle}>Product Details</h4>
+          <h4 className={styles.clientCrmSectionTitle}>Deal Info</h4>
           <p className={styles.panelSubtitle}>
-            {order.subject}
+            {order.dealName || order.subject}
             {order.transactionNo ? ` · ${order.transactionNo}` : ""}
           </p>
         </div>

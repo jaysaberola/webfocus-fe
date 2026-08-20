@@ -24,7 +24,6 @@ import {
   clientDisplayNameWithOrderCount,
   clientDisplayStatus,
   clientHasExpiringService,
-  clientIsAssigned,
   clientOwnerName,
   clientPlanName,
   clientProductCategory,
@@ -597,11 +596,7 @@ export default function CommerceClientsTab(_props: Props) {
                             <td>
                               <button
                                 type="button"
-                                className={
-                                  clientIsAssigned(client)
-                                    ? styles.txAssignedBadge
-                                    : styles.txAssignedEmpty
-                                }
+                                className={styles.tableCellLink}
                                 onClick={() => setAssignOwnerClient(client)}
                                 title="Assign client owner"
                               >
