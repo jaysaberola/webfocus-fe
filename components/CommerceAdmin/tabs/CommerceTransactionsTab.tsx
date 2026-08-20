@@ -681,10 +681,16 @@ export default function CommerceTransactionsTab() {
             setView("list");
             setDealInfo(null);
           }}
-          onSaved={() => {
+          onSaved={(opts) => {
+            loadRows();
+            if (opts?.andNew) {
+              setCreateCustomerId(dealInfo.customer_id ?? null);
+              setDealInfo(null);
+              setView("create");
+              return;
+            }
             setView("list");
             setDealInfo(null);
-            loadRows();
           }}
         />
       </section>
@@ -722,12 +728,13 @@ export default function CommerceTransactionsTab() {
             setView("list");
             setCreateCustomerId(null);
           }}
-          onSaved={() => {
+          onSaved={(opts) => {
+            loadRows();
+            if (opts?.andNew) return;
             setView("list");
             setCreateCustomerId(null);
             setSortBy("date-desc");
             setPage(1);
-            loadRows();
           }}
         />
       </section>

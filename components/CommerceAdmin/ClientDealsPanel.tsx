@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
+import LookupHoverActions from "@/components/CommerceAdmin/LookupHoverActions";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import {
@@ -14,7 +15,9 @@ import {
   type DealColumnKey,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
-import { fetchCommerceServices } from "@/services/commerceAdminService";
+import { clientIsAssigned, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
+import { toast } from "@/lib/toast";
+import { assignCommerceCustomerOwner, fetchCommerceServices } from "@/services/commerceAdminService";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -99,6 +102,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<ClientDealRow | null>(null);
   const [columnsVisible, setColumnsVisible] = useState(DEFAULT_DEAL_COLUMNS);
   const [colVisOpen, setColVisOpen] = useState(false);
@@ -171,6 +175,21 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  const handleUnassignOwner = async () => {
+    if (unassigning || !clientIsAssigned(client)) return;
+    try {
+      setUnassigning(true);
+      const result = await assignCommerceCustomerOwner(Number(client.id), null);
+      toast.success(result?.message || "Client owner unassigned.");
+      if (result?.data) onClientUpdated?.(result.data);
+      reloadDeals();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to unassign client owner.");
+    } finally {
+      setUnassigning(false);
+    }
+  };
 
   useEffect(() => {
     if (!selectedOrder) return;
@@ -275,6 +294,19 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   className={selectedOrder?.id === deal.id ? styles.rowDealOpen : undefined}
                 >
                   {visibleColumns.map((column) => {
+                    if (column === "clientOwner") {
+                      return (
+                        <td key={column} className={styles.dealsNowrap}>
+                          <LookupHoverActions
+                            label={clientOwnerName(client)}
+                            assigned={clientIsAssigned(client)}
+                            onEdit={() => setAssignOpen(true)}
+                            onUnassign={() => void handleUnassignOwner()}
+                            unassigning={unassigning}
+                          />
+                        </td>
+                      );
+                    }
                     if (column === "clientName") {
                       return (
                         <td key={column} className={styles.dealsNowrap}>

@@ -273,6 +273,11 @@ export function transactionDealName(transaction: SalesTransaction) {
 }
 
 export function transactionDomainName(transaction: SalesTransaction) {
+  const meta = parseDealMeta(transaction.notes);
+  const fromMeta = formatDomain(meta?.domainName);
+  if (fromMeta) return fromMeta;
+  const rawMeta = String(meta?.domainName ?? "").trim();
+  if (rawMeta && rawMeta !== "—") return rawMeta;
   const items = transaction.items ?? [];
   for (const item of items) {
     const name = String(item.name ?? "").trim();

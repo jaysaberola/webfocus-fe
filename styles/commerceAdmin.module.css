@@ -646,6 +646,14 @@
   color: var(--ca-slate-700);
 }
 
+.table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+.table tbody tr.rowSelected:hover {
+  background: #e8f1ff;
+}
+
 .tableActions {
   display: flex;
   gap: 0.35rem;
@@ -2426,6 +2434,117 @@
 .tableCellLink:hover,
 .tableCellLink:focus-visible {
   color: #1d4ed8;
+  text-decoration: underline;
+  outline: none;
+}
+
+.lookupHover {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.35rem;
+  max-width: 100%;
+}
+
+.lookupHoverActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.05rem;
+  width: 2.15rem;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.dealsTable tbody tr:hover .lookupHoverActions,
+.dealsTable tbody tr:focus-within .lookupHoverActions,
+.lookupHover:focus-within .lookupHoverActions {
+  opacity: 1;
+}
+
+.lookupHoverBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.15rem;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+
+.lookupHoverBtn i {
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.lookupHoverBtn:hover,
+.lookupHoverBtn:focus-visible {
+  color: #0f172a;
+  background: #e2e8f0;
+  outline: none;
+}
+
+.lookupHoverBtn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.lookupHoverTooltip {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  z-index: 4;
+  transform: translateX(-50%);
+  padding: 0.22rem 0.45rem;
+  border-radius: 0.2rem;
+  background: #334155;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+}
+
+.lookupHoverTooltip::before {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid #334155;
+}
+
+.lookupHoverBtn:hover .lookupHoverTooltip,
+.lookupHoverBtn:focus-visible .lookupHoverTooltip {
+  opacity: 1;
+}
+
+.lookupHoverLabel {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.lookupHoverLabel:hover,
+.lookupHoverLabel:focus-visible {
+  color: #2563eb;
   text-decoration: underline;
   outline: none;
 }
@@ -4892,6 +5011,14 @@ select.clientCrmInput {
 
 .dealsTable tbody tr:nth-child(even) {
   background: #f8fafc;
+}
+
+.dealsTable tbody tr:hover {
+  background: #e8eef5;
+}
+
+.dealsTable tbody tr.rowDealOpen:hover {
+  background: #dbeafe;
 }
 
 .dealsNowrap {

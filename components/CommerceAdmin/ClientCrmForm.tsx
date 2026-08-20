@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import {
   CLIENT_CLASSIFICATION_OPTIONS,
   CLIENT_INDUSTRY_OPTIONS,
@@ -46,7 +46,7 @@ type Props = {
   pageTitle?: string;
   pageSubtitle?: string;
   onBack: () => void;
-  onSaved: () => void;
+  onSaved: (options?: { andNew?: boolean }) => void;
   onSectionChange?: (section: ClientRelatedSection) => void;
 };
 
@@ -148,6 +148,12 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   const [audits, setAudits] = useState<ClientAuditEntry[]>([]);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClientTab>("overview");
+  const [formMode, setFormMode] = useState(mode);
+  const skipNextClientLoadRef = useRef(false);
+
+  useEffect(() => {
+    setFormMode(mode);
+  }, [mode]);
 
   const billingOfficers = useMemo(() => {
     const isBillingRole = (value?: string | null) =>
@@ -202,6 +208,10 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   }, []);
 
   useEffect(() => {
+    if (skipNextClientLoadRef.current) {
+      skipNextClientLoadRef.current = false;
+      return;
+    }
     if (mode !== "edit" || !client?.id) {
       setForm(emptyClientCrmForm);
       setExistingFiles({});
@@ -481,9 +491,21 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     setSubmitting(true);
     try {
       const payload = toPayload();
-      if (mode === "edit" && client?.id) {
+      if (formMode === "edit" && client?.id) {
         await updateCustomerCrmAccount(client.id, payload);
         toast.success("Client updated successfully.");
+        if (andNew) {
+          skipNextClientLoadRef.current = true;
+          setFormMode("create");
+          setForm(emptyClientCrmForm);
+          setExistingFiles({});
+          setExistingFileUrls({});
+          setAudits([]);
+          setCreatedAt(null);
+          setActiveTab("overview");
+          onSaved({ andNew: true });
+          return;
+        }
         onSaved();
         onBack();
         return;
@@ -491,7 +513,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
       await createCustomerCrmAccount(payload);
       toast.success(`Client ${form.company.trim()} added successfully!`);
-      onSaved();
+      onSaved({ andNew });
       if (andNew) {
         setForm(emptyClientCrmForm);
         setExistingFiles({});
@@ -523,7 +545,9 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </button>
           <div>
             <h3 className={styles.panelTitle}>
-              {pageTitle || (mode === "edit" ? "Edit Client" : "Create Client")}
+              {formMode === "create"
+                ? "Create Client"
+                : pageTitle || (mode === "edit" ? "Edit Client" : "Create Client")}
             </h3>
             <p className={styles.panelSubtitle}>{pageSubtitle || "Clients"}</p>
           </div>
@@ -532,30 +556,26 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
             Cancel
           </button>
-          {mode === "create" ? (
-            <button
-              type="button"
-              className={styles.secondaryBtnSm}
-              onClick={() => void save(true)}
-              disabled={submitting}
-            >
-              Save and New
-            </button>
-          ) : null}
-          {activeTab === "overview" ? (
-            <button
-              type="button"
-              className={styles.primaryBtnSm}
-              onClick={() => void save(false)}
-              disabled={submitting}
-            >
-              {submitting ? "Saving..." : "Save"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => void save(true)}
+            disabled={submitting}
+          >
+            Save and New
+          </button>
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            onClick={() => void save(false)}
+            disabled={submitting}
+          >
+            {submitting ? "Saving..." : "Save"}
+          </button>
         </div>
       </div>
 
-      {mode === "edit" ? (
+      {formMode === "edit" ? (
         <div className={styles.clientCrmTabs} role="tablist" aria-label="Client sections">
           <button
             type="button"
@@ -584,7 +604,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         </div>
       ) : null}
 
-      {activeTab === "timeline" && mode === "edit" ? (
+      {activeTab === "timeline" && formMode === "edit" ? (
         <div id="client-section-timeline" className={styles.clientEditScrollTarget}>
           <ClientTimeline
             audits={audits}

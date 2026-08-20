@@ -324,6 +324,10 @@ export const CONTRACT_STATUS_OPTIONS = [
   "Uploaded",
 ] as const;
 
+export const DOMAIN_TYPE_OPTIONS = PRODUCT_NAMES_BY_SUBJECT["Domain Registration"];
+
+export const DOMAIN_REGISTRAR_OPTIONS = ["Enom", "Webnic"] as const;
+
 export type ClientOrderFormState = {
   dealOwnerId: string;
   campaignSource: string;
@@ -363,6 +367,14 @@ export type ClientOrderFormState = {
   cancellationDocumentName: string;
   totalEstimatedCost: string;
   expectedDiscount: string;
+  domainName: string;
+  domainType: string;
+  domainRegistrar: string;
+  domainSubscriptionStartDate: string;
+  domainSubscriptionEndDate: string;
+  domainRegistrationStartDate: string;
+  domainRegistrationExpirationDate: string;
+  domainRegistrationCost: string;
 };
 
 export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): ClientOrderFormState => ({
@@ -404,6 +416,14 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   cancellationDocumentName: "",
   totalEstimatedCost: "",
   expectedDiscount: "",
+  domainName: "",
+  domainType: "",
+  domainRegistrar: "",
+  domainSubscriptionStartDate: "",
+  domainSubscriptionEndDate: "",
+  domainRegistrationStartDate: "",
+  domainRegistrationExpirationDate: "",
+  domainRegistrationCost: "",
   ...defaults,
 });
 
@@ -485,6 +505,14 @@ export type DealMeta = {
   cancellationDocumentName?: string;
   totalEstimatedCost?: string;
   expectedDiscount?: string;
+  domainName?: string;
+  domainType?: string;
+  domainRegistrar?: string;
+  domainSubscriptionStartDate?: string;
+  domainSubscriptionEndDate?: string;
+  domainRegistrationStartDate?: string;
+  domainRegistrationExpirationDate?: string;
+  domainRegistrationCost?: string;
 };
 
 const DEAL_META_PREFIX = "[DEAL_META]";
@@ -580,6 +608,14 @@ export function clientOrderFormFromTransaction(transaction: {
     cancellationDocumentName: String(meta?.cancellationDocumentName ?? "").trim(),
     totalEstimatedCost: String(meta?.totalEstimatedCost ?? "").trim(),
     expectedDiscount: String(meta?.expectedDiscount ?? "").trim(),
+    domainName: String(meta?.domainName ?? "").trim(),
+    domainType: matchOption(DOMAIN_TYPE_OPTIONS, meta?.domainType) || matchOption(DOMAIN_TYPE_OPTIONS, dealName),
+    domainRegistrar: matchOption(DOMAIN_REGISTRAR_OPTIONS, meta?.domainRegistrar),
+    domainSubscriptionStartDate: toDateInput(meta?.domainSubscriptionStartDate),
+    domainSubscriptionEndDate: toDateInput(meta?.domainSubscriptionEndDate),
+    domainRegistrationStartDate: toDateInput(meta?.domainRegistrationStartDate),
+    domainRegistrationExpirationDate: toDateInput(meta?.domainRegistrationExpirationDate),
+    domainRegistrationCost: String(meta?.domainRegistrationCost ?? "").trim(),
   });
 }
 
@@ -621,6 +657,14 @@ function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
     cancellationDocumentName: form.cancellationDocumentName,
     totalEstimatedCost: form.totalEstimatedCost,
     expectedDiscount: form.expectedDiscount,
+    domainName: form.domainName.trim(),
+    domainType: form.domainType,
+    domainRegistrar: form.domainRegistrar,
+    domainSubscriptionStartDate: form.domainSubscriptionStartDate,
+    domainSubscriptionEndDate: form.domainSubscriptionEndDate,
+    domainRegistrationStartDate: form.domainRegistrationStartDate,
+    domainRegistrationExpirationDate: form.domainRegistrationExpirationDate,
+    domainRegistrationCost: form.domainRegistrationCost,
   };
 }
 

@@ -342,7 +342,13 @@ export default function CommerceClientsTab(_props: Props) {
               mode={view === "edit" ? "edit" : "create"}
               client={view === "edit" ? editClient : null}
               onBack={backToList}
-              onSaved={loadRows}
+              onSaved={(opts) => {
+                loadRows();
+                if (opts?.andNew && view === "edit") {
+                  setView("create");
+                  setEditClient(null);
+                }
+              }}
               onSectionChange={view === "edit" ? setActiveSection : undefined}
             />
           </section>

@@ -9,6 +9,8 @@ import {
   DEAL_NAME_OPTIONS,
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
+  DOMAIN_REGISTRAR_OPTIONS,
+  DOMAIN_TYPE_OPTIONS,
   emptyClientOrderForm,
   INVOICE_STATUS_OPTIONS,
   mergeDealMetaIntoNotes,
@@ -44,7 +46,7 @@ type Props = {
   pageTitle?: string;
   pageSubtitle?: string;
   onBack: () => void;
-  onSaved: () => void;
+  onSaved: (options?: { andNew?: boolean }) => void;
 };
 
 function withExtraOption(options: readonly string[], value?: string | null) {
@@ -272,11 +274,15 @@ export default function ClientOrderForm({
   };
 
   const handleDealNameChange = (dealName: string) => {
+    const domainType = DOMAIN_TYPE_OPTIONS.includes(dealName as (typeof DOMAIN_TYPE_OPTIONS)[number])
+      ? dealName
+      : undefined;
     setForm((current) => ({
       ...current,
       dealName,
       productName: dealName,
       productCategory: current.productCategory || subjectForProductName(dealName),
+      domainType: current.domainType || domainType || "",
     }));
   };
 
@@ -295,8 +301,26 @@ export default function ClientOrderForm({
     }));
   };
 
+  const blankDealForm = () => {
+    const currentUser = readStoredCurrentUser();
+    const defaultOwner = owners.find((owner) => owner.id === currentUser?.id) ?? owners[0];
+    const defaultClient = defaultCustomerId
+      ? clients.find((client) => Number(client.id) === Number(defaultCustomerId))
+      : null;
+    return emptyClientOrderForm({
+      dealOwnerId: defaultOwner ? String(defaultOwner.id) : "",
+      clientId: defaultClient ? String(defaultClient.id) : "",
+      contactName: String(defaultClient?.contact_person ?? ""),
+      billingInCharge: defaultClient ? clientBillingInCharge(defaultClient) : "",
+    });
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    await saveDeal(false);
+  };
+
+  const saveDeal = async (andNew: boolean) => {
     const validationError = validateClientOrderForm(form, { requireCrmFields: !isEditing });
     if (validationError) {
       toast.error(validationError);
@@ -338,6 +362,10 @@ export default function ClientOrderForm({
         }
 
         toast.success("Deal information saved.");
+        if (andNew) {
+          onSaved({ andNew: true });
+          return;
+        }
         onSaved();
         return;
       }
@@ -377,7 +405,11 @@ export default function ClientOrderForm({
       }
 
       toast.success("Client order created successfully.");
-      onSaved();
+      onSaved({ andNew });
+      if (andNew) {
+        setForm(blankDealForm());
+        return;
+      }
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message ||
@@ -407,6 +439,14 @@ export default function ClientOrderForm({
         <div className={styles.clientCrmActions}>
           <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
             Cancel
+          </button>
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => void saveDeal(true)}
+            disabled={submitting}
+          >
+            Save and New
           </button>
           <button type="submit" className={styles.primaryBtnSm} disabled={submitting}>
             {submitting ? "Saving..." : "Save"}
@@ -745,6 +785,91 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("joNumber", e.target.value)}
               />
             </Field>
+        </div>
+      </section>
+
+      <section className={styles.clientCrmSection}>
+        <h4 className={styles.clientCrmSectionTitle}>Domain Registration</h4>
+        <div className={styles.clientOrderGrid}>
+          <Field label="Domain Name" hint="Registered domain for this deal">
+            <input
+              className={inputClass()}
+              value={form.domainName}
+              onChange={(e) => setField("domainName", e.target.value)}
+              placeholder="example.com"
+            />
+          </Field>
+          <Field label="Domain Registrar" hint="Registrar used for this domain">
+            <select
+              className={inputClass()}
+              value={form.domainRegistrar}
+              onChange={(e) => setField("domainRegistrar", e.target.value)}
+            >
+              <option value="">-None-</option>
+              {withExtraOption(DOMAIN_REGISTRAR_OPTIONS, form.domainRegistrar).map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Domain Type" hint="Type of domain registration">
+            <select
+              className={inputClass()}
+              value={form.domainType}
+              onChange={(e) => setField("domainType", e.target.value)}
+            >
+              <option value="">-None-</option>
+              {withExtraOption(DOMAIN_TYPE_OPTIONS, form.domainType).map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Domain Registration Start Date" hint="When domain registration started">
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.domainRegistrationStartDate}
+              onChange={(e) => setField("domainRegistrationStartDate", e.target.value)}
+            />
+          </Field>
+          <Field label="Domain Subscription Start Date" hint="When the domain subscription starts">
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.domainSubscriptionStartDate}
+              onChange={(e) => setField("domainSubscriptionStartDate", e.target.value)}
+            />
+          </Field>
+          <Field label="Domain Registration Expiration Date" hint="When domain registration expires">
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.domainRegistrationExpirationDate}
+              onChange={(e) => setField("domainRegistrationExpirationDate", e.target.value)}
+            />
+          </Field>
+          <Field label="Domain Subscription End Date" hint="When the domain subscription ends">
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.domainSubscriptionEndDate}
+              onChange={(e) => setField("domainSubscriptionEndDate", e.target.value)}
+            />
+          </Field>
+          <Field label="Domain Registration Cost" hint="Cost of domain registration">
+            <span className={styles.clientCrmPesoPrefix}>₱</span>
+            <input
+              className={inputClass(false, styles.clientCrmPesoInput)}
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.domainRegistrationCost}
+              onChange={(e) => setField("domainRegistrationCost", e.target.value)}
+            />
+          </Field>
         </div>
       </section>
 
