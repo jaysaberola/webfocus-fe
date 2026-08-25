@@ -317,7 +317,9 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                           <LookupHoverActions
                             label={clientOwnerName(client)}
                             assigned={clientIsAssigned(client)}
-                            onEdit={() => setAssignOpen(true)}
+                            editLabel="Edit Deal"
+                            onEdit={() => openEditDeal(deal)}
+                            onLabelClick={() => setAssignOpen(true)}
                             onUnassign={() => void handleUnassignOwner()}
                             unassigning={unassigning}
                           />

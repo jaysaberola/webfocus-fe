@@ -7,6 +7,8 @@ type Props = {
   onLabelClick?: () => void;
   onUnassign?: () => void;
   unassigning?: boolean;
+  editLabel?: string;
+  unassignLabel?: string;
 };
 
 export default function LookupHoverActions({
@@ -16,6 +18,8 @@ export default function LookupHoverActions({
   onLabelClick,
   onUnassign,
   unassigning = false,
+  editLabel = "Edit",
+  unassignLabel = "Unassign",
 }: Props) {
   return (
     <span className={styles.lookupHover}>
@@ -27,10 +31,10 @@ export default function LookupHoverActions({
             event.stopPropagation();
             onEdit();
           }}
-          aria-label="Edit"
+          aria-label={editLabel}
         >
           <i className="fa-solid fa-pencil" aria-hidden="true" />
-          <span className={styles.lookupHoverTooltip}>Edit</span>
+          <span className={styles.lookupHoverTooltip}>{editLabel}</span>
         </button>
         {assigned && onUnassign ? (
           <button
@@ -41,10 +45,10 @@ export default function LookupHoverActions({
               if (!unassigning) onUnassign();
             }}
             disabled={unassigning}
-            aria-label="Unassign"
+            aria-label={unassignLabel}
           >
             <i className="fa-solid fa-xmark" aria-hidden="true" />
-            <span className={styles.lookupHoverTooltip}>Unassign</span>
+            <span className={styles.lookupHoverTooltip}>{unassignLabel}</span>
           </button>
         ) : null}
       </span>

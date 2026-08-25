@@ -1,5 +1,9 @@
 import { parseHostingClassification } from "@/lib/commerceAdmin/hostingTransactionTypes";
-import { parseDealMeta } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import {
+  parseDealMeta,
+  SUBJECT_OPTIONS,
+  subjectForProductName,
+} from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
@@ -469,6 +473,19 @@ function matchingServiceStatus(
   return "status" in line ? line.status : null;
 }
 
+function matchingProductCategory(
+  itemName: string,
+  client: CustomerRow,
+  adminServices: CommerceServiceAdminRow[] = [],
+) {
+  const line = matchingServiceLine(itemName, client, adminServices);
+  if (!line) return "";
+  const named = line as CustomerServiceLine & CommerceServiceAdminRow;
+  return String(
+    named.product_category || named.productCategory || named.subject || "",
+  ).trim();
+}
+
 function matchingPlanName(
   itemName: string,
   client: CustomerRow,
@@ -485,9 +502,49 @@ export function dealSubjectFromName(name: string): string {
   if (!raw) return "—";
   const hay = raw.toLowerCase();
 
+  const exactSubject = SUBJECT_OPTIONS.find((option) => option.toLowerCase() === hay);
+  if (exactSubject) return exactSubject;
+
+  const fromCatalog = subjectForProductName(raw);
+  if (fromCatalog) return fromCatalog;
+
   if (hay.startsWith("add on") || hay.includes("addon")) return "Add On";
+  if (
+    hay.includes("ssl") ||
+    hay.includes("sitelock") ||
+    hay.includes("back up") ||
+    hay.includes("backup") ||
+    hay.includes("back-up") ||
+    hay.includes("dedicated ip") ||
+    hay.includes("additional ip") ||
+    hay.includes("static ip") ||
+    hay.includes("codeguard") ||
+    hay.includes("cpanel") ||
+    hay.includes("immunify") ||
+    hay.includes("bandwidth") ||
+    hay.includes("wildcard") ||
+    hay.includes("whois") ||
+    hay.includes("disk capacity") ||
+    hay.includes("geotrust")
+  ) {
+    return "Add On";
+  }
   if (hay.includes("bare metal")) return "Dedicated Bare Metal Server";
-  if (hay.includes("dedicated cloud")) return "Dedicated Cloud Server";
+  if (
+    hay.includes("dedicated cloud") ||
+    hay.includes("cloud micro") ||
+    hay.includes("micro server") ||
+    (hay.includes("cloud") && hay.includes("server"))
+  ) {
+    return "Dedicated Cloud Server";
+  }
+  if (
+    (hay.includes("custom") && hay.includes("professional")) ||
+    (hay.includes("custom") && hay.includes("corporate")) ||
+    (hay.includes("professional") && hay.includes("corporate"))
+  ) {
+    return "Dedicated Cloud Server";
+  }
   if (hay.includes("docukit") || hay.includes("filehold") || hay.includes("filecare")) {
     return "Document Management System";
   }
@@ -514,7 +571,8 @@ export function dealSubjectFromName(name: string): string {
     hay.includes("linux cloud") ||
     hay.includes("windows cloud") ||
     hay.includes("web hosting") ||
-    hay.includes("shared")
+    hay.includes("shared") ||
+    hay.includes("starter")
   ) {
     return "Web Hosting - Shared";
   }
@@ -571,7 +629,10 @@ function crmFields(params: {
     stage,
     clientStatus: metaText(meta?.dealType, dealType),
     productStatus: metaText(meta?.dealSubType, resolveProductStatus(transaction ?? null, dealType)),
-    productCategory: metaText(meta?.productCategory, dealSubjectFromName(itemName)),
+    productCategory: metaText(
+      meta?.productCategory,
+      dealSubjectFromName(matchingProductCategory(itemName, client, adminServices) || itemName),
+    ),
     domainName: domain,
     contactName: metaText(meta?.contactName, dash(client.contact_person)),
     closingDate: meta?.closingDate ? formatDealDate(meta.closingDate) : formatDealDate(transaction?.issued_date ?? transaction?.transacted_at),
@@ -799,7 +860,10 @@ export function buildClientDealRows(
         id: `${transaction.id}:${item.id ?? itemName}`,
         transactionId: transaction.id,
         transactionNo: transaction.transaction_no,
-        subject: metaText(meta?.productCategory, dealSubjectFromName(itemName)),
+        subject: metaText(
+          meta?.productCategory,
+          dealSubjectFromName(matchingProductCategory(itemName, client, adminServices) || itemName),
+        ),
         ...crmFields({
           client,
           transaction,

@@ -152,13 +152,49 @@ export function allProductCategoryOptions() {
   return options;
 }
 
+function normalizeProductKey(value: string) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function subjectForProductName(productName: string) {
-  const needle = String(productName ?? "").trim();
+  const needle = normalizeProductKey(productName);
   if (!needle) return "";
+  const needleWords = needle.split(" ").filter(Boolean);
+
+  let bestSubject = "";
+  let bestScore = 0;
+
+  const consider = (subject: string, catalogRaw: string) => {
+    const catalog = normalizeProductKey(catalogRaw);
+    if (!catalog) return;
+    const core = catalog.replace(/^add on /, "");
+    if (!core) return;
+    if (catalog === needle || core === needle) {
+      bestSubject = subject;
+      bestScore = 1000;
+      return;
+    }
+    const coreWords = core.split(" ").filter(Boolean);
+    const wordHit = core.length >= 3 && (needleWords.includes(core) || coreWords.includes(needle));
+    const containsHit = core.length >= 6 && (needle.includes(core) || core.includes(needle));
+    if (!wordHit && !containsHit) return;
+    if (core.length > bestScore) {
+      bestScore = core.length;
+      bestSubject = subject;
+    }
+  };
+
   for (const [subject, names] of Object.entries(PRODUCT_NAMES_BY_SUBJECT)) {
-    if (names.includes(needle)) return subject;
+    consider(subject, subject);
+    for (const name of names) consider(subject, name);
+    if (bestScore >= 1000) return bestSubject;
   }
-  return "";
+
+  return bestSubject;
 }
 
 export const DEAL_NAME_OPTIONS = [
