@@ -204,7 +204,7 @@ export default function ClientOrderForm({
     setLoading(true);
     Promise.all([
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
-      fetchCommerceAssignableUsers().catch(() => [] as CommerceAssignableUser[]),
+      fetchCommerceAssignableUsers({ for: "billing_in_charge" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
       getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
     ])

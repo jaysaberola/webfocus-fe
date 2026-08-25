@@ -7,7 +7,9 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import ClientCrmForm, { type ClientCrmFormHandle } from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientOrderForm from "@/components/CommerceAdmin/ClientOrderForm";
+import ClientInvoiceForm from "@/components/CommerceAdmin/ClientInvoiceForm";
 import ClientDealsPanel from "@/components/CommerceAdmin/ClientDealsPanel";
+import ClientInvoicesPanel from "@/components/CommerceAdmin/ClientInvoicesPanel";
 import ClientSearchResults from "@/components/CommerceAdmin/ClientSearchResults";
 import ClientRelatedList, { type ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
 import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
@@ -102,6 +104,7 @@ export default function CommerceClientsTab(_props: Props) {
   const [view, setView] = useState<ClientView>("list");
   const [editClient, setEditClient] = useState<CustomerRow | null>(null);
   const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [detailClient, setDetailClient] = useState<CustomerRow | null>(null);
   const [detailMode, setDetailMode] = useState<"info" | "audit">("info");
   const [assignOwnerClient, setAssignOwnerClient] = useState<CustomerRow | null>(null);
@@ -112,6 +115,7 @@ export default function CommerceClientsTab(_props: Props) {
   const editFormRef = useRef<HTMLElement | null>(null);
   const formRef = useRef<ClientCrmFormHandle>(null);
   const dealsRef = useRef<HTMLElement | null>(null);
+  const invoicesRef = useRef<HTMLElement | null>(null);
   const [activeSection, setActiveSection] = useState<ClientRelatedSection>("info");
   const [relatedListVisible, setRelatedListVisible] = useState(true);
   const [expiringOnly, setExpiringOnly] = useState(false);
@@ -272,9 +276,14 @@ export default function CommerceClientsTab(_props: Props) {
   };
 
   const navigateToSection = useCallback((section: ClientRelatedSection) => {
+    setCreatingInvoice(false);
     setActiveSection(section);
     if (section === "orders") {
       scrollToClientSection(dealsRef.current);
+      return;
+    }
+    if (section === "invoices") {
+      scrollToClientSection(invoicesRef.current);
       return;
     }
     formRef.current?.goToSection(section);
@@ -284,6 +293,7 @@ export default function CommerceClientsTab(_props: Props) {
     setView("list");
     setEditClient(null);
     setDealInfo(null);
+    setCreatingInvoice(false);
   };
 
   const handleExportExcel = async () => {
@@ -344,6 +354,45 @@ export default function CommerceClientsTab(_props: Props) {
           }}
         />
       </section>
+    );
+  }
+
+  if (creatingInvoice && editClient) {
+    return (
+      <div
+        className={`${styles.clientEditShell}${relatedListVisible ? "" : ` ${styles.clientEditShellExpanded}`}`}
+      >
+        {relatedListVisible ? (
+          <ClientRelatedList
+            activeSection="invoices"
+            onNavigate={navigateToSection}
+            onHide={() => setRelatedListVisible(false)}
+          />
+        ) : null}
+        <div className={styles.clientEditLayout}>
+          {!relatedListVisible ? (
+            <button
+              type="button"
+              className={styles.clientRelatedListShowBtn}
+              onClick={() => setRelatedListVisible(true)}
+            >
+              <i className="fa-solid fa-list" aria-hidden="true" />
+              Show Related List
+            </button>
+          ) : null}
+          <section className={styles.panel}>
+            <ClientInvoiceForm
+              client={editClient}
+              onBack={() => setCreatingInvoice(false)}
+              onSaved={(opts) => {
+                loadRows();
+                if (opts?.andNew) return;
+                setCreatingInvoice(false);
+              }}
+            />
+          </section>
+        </div>
+      </div>
     );
   }
 
@@ -427,6 +476,22 @@ export default function CommerceClientsTab(_props: Props) {
             />
           </section>
         ) : null}
+          {view === "edit" && editClient?.id ? (
+            <section
+              className={`${styles.panel} ${styles.clientEditScrollTarget}`}
+              ref={invoicesRef}
+              id="client-section-invoices"
+            >
+              <ClientInvoicesPanel
+                client={editClient}
+                onEditClient={() => navigateToSection("info")}
+                onCreateInvoice={() => {
+                  setActiveSection("invoices");
+                  setCreatingInvoice(true);
+                }}
+              />
+            </section>
+          ) : null}
         </div>
       </div>
     );

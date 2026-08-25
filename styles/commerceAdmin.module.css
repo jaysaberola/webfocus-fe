@@ -4042,6 +4042,37 @@ select.clientCrmInput {
   }
 }
 
+.invoiceForm .clientOrderLabel {
+  justify-content: flex-end;
+}
+
+.invoiceForm .clientOrderLabelText {
+  justify-content: flex-end;
+  width: 100%;
+  text-align: right;
+}
+
+.invoiceSectionTitle {
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+}
+
+.invoiceAddressSection {
+  margin-top: 2.25rem;
+}
+
+.invoiceAddressGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: 0.55rem;
+}
+
+@media (min-width: 960px) {
+  .invoiceAddressGrid {
+    max-width: calc(50% - 1rem);
+  }
+}
+
 .clientOrderGridSpacer {
   display: none;
 }
@@ -5019,6 +5050,43 @@ select.clientCrmInput {
 
 .dealsTable tbody tr.rowDealOpen:hover {
   background: #dbeafe;
+}
+
+.invoicesTable {
+  width: 100%;
+  min-width: 0;
+}
+
+.invoicesTable th {
+  background: #eef2ff;
+  color: #334155;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.85rem 0.75rem;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.invoicesTable td {
+  padding: 0.9rem 0.75rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.invoicesTable th,
+.invoicesTable td {
+  min-width: 12rem;
+}
+
+.invoicesTable tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.invoicesTable tbody tr:hover {
+  background: #e8eef5;
 }
 
 .dealsNowrap {

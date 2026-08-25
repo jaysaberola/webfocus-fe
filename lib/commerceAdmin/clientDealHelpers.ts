@@ -761,6 +761,8 @@ export function buildClientDealRows(
   const rows: ClientDealRow[] = [];
 
   for (const transaction of sorted) {
+    if (String(transaction.notes ?? "").includes("[INVOICE_META]")) continue;
+
     const items = transaction.items?.length
       ? transaction.items
       : [

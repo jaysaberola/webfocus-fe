@@ -98,6 +98,14 @@ export type CustomerRow = UserRow & {
   product_category?: string | null;
   domain?: string | null;
   subject_domain?: string | null;
+  currency?: string | null;
+  exchange_rate?: string | number | null;
+  address_street?: string | null;
+  address_city?: string | null;
+  address_province?: string | null;
+  address_region?: string | null;
+  address_zip?: string | null;
+  address_country?: string | null;
   services?: CustomerServiceLine[];
   rowKey?: string;
 };

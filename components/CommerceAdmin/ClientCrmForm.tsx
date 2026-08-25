@@ -141,6 +141,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 ) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
+  const [billingUsers, setBillingUsers] = useState<CommerceAssignableUser[]>([]);
   const [loading, setLoading] = useState(mode === "edit");
   const [submitting, setSubmitting] = useState(false);
   const [existingFiles, setExistingFiles] = useState<Record<string, string | null>>({});
@@ -156,27 +157,20 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   }, [mode]);
 
   const billingOfficers = useMemo(() => {
-    const isBillingRole = (value?: string | null) =>
-      String(value || "")
-        .trim()
-        .toLowerCase()
-        .replace(/[_-]+/g, " ") === "billing in charge";
-
-    const officers = owners.filter((owner) => {
-      const roles = [owner.role, ...(owner.roles || [])];
-      return roles.some((role) => isBillingRole(role));
-    });
-
-    if (form.billing_in_charge && !officers.some((owner) => owner.name === form.billing_in_charge)) {
-      return [{ id: -1, name: form.billing_in_charge }, ...officers];
+    const officers = billingUsers.filter((owner) => owner.name || owner.email);
+    const selected = String(form.billing_in_charge || "").trim();
+    if (
+      selected &&
+      !officers.some((owner) => owner.name === selected || owner.email === selected)
+    ) {
+      return [{ id: -1, name: selected }, ...officers];
     }
-
     return officers;
-  }, [owners, form.billing_in_charge]);
+  }, [billingUsers, form.billing_in_charge]);
 
   const goToSection = useCallback(
     (section: ClientRelatedSection) => {
-      if (section === "orders") return;
+      if (section === "orders" || section === "invoices") return;
 
       onSectionChange?.(section);
 
@@ -205,6 +199,9 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     fetchCommerceAssignableUsers({ for: "client_owner" })
       .then((rows) => setOwners(rows))
       .catch(() => setOwners([]));
+    fetchCommerceAssignableUsers({ for: "billing_in_charge" })
+      .then((rows) => setBillingUsers(Array.isArray(rows) ? rows : []))
+      .catch(() => setBillingUsers([]));
   }, []);
 
   useEffect(() => {
