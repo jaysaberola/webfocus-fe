@@ -1,5 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
+import InvoiceItemsPanel from "@/components/CommerceAdmin/InvoiceItemsPanel";
 import { SUBJECT_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
   buildInvoiceNotes,
@@ -9,6 +10,8 @@ import {
   invoiceAddressFromClient,
   invoiceApiOrderStatus,
   invoiceApiPaymentStatus,
+  invoiceItemsForApi,
+  invoiceTotals,
   validateClientInvoiceForm,
   type ClientInvoiceFormState,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
@@ -265,7 +268,9 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
       ? clientDisplayName(selectedClient)
       : clientDisplayName(client);
     const clientEmail = selectedClient?.email ?? client.email ?? "";
-    const subject = form.subject.trim();
+
+    const namedItems = invoiceItemsForApi(form.items);
+    const totals = invoiceTotals(form.items, form.adjustment);
 
     setSubmitting(true);
     try {
@@ -273,24 +278,16 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
         customer_id: clientId,
         customer_name: clientName,
         customer_email: clientEmail,
-        subtotal: 0,
-        discount_total: 0,
-        tax_total: 0,
-        shipping_total: 0,
-        grand_total: 0,
+        subtotal: totals.subTotal,
+        discount_total: totals.discount,
+        tax_total: totals.tax,
+        shipping_total: totals.adjustment,
+        grand_total: totals.grandTotal,
         payment_status: invoiceApiPaymentStatus(form.status),
         order_status: invoiceApiOrderStatus(form.status),
         notes: buildInvoiceNotes(form),
         transacted_at: form.invoiceDate || undefined,
-        items: [
-          {
-            name: subject,
-            item_type: "invoice",
-            price: 0,
-            quantity: 1,
-            total_price: 0,
-          },
-        ],
+        items: namedItems,
       });
 
       const transactionId = Number(created?.data?.id ?? created?.id);
@@ -573,6 +570,13 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
           </div>
         </div>
       </section>
+
+      <InvoiceItemsPanel
+        items={form.items}
+        adjustment={form.adjustment}
+        onItemsChange={(items) => setField("items", items)}
+        onAdjustmentChange={(value) => setField("adjustment", value)}
+      />
     </form>
   );
 }

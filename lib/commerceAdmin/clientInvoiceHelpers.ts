@@ -23,6 +23,16 @@ export const INVOICE_FORM_STATUS_OPTIONS = [
 
 export const INVOICE_CURRENCY_OPTIONS = ["PHP", "USD"] as const;
 
+export type InvoiceLineItem = {
+  id: string;
+  productName: string;
+  description: string;
+  listPrice: string;
+  quantity: string;
+  discount: string;
+  tax: string;
+};
+
 export type ClientInvoiceFormState = {
   invoiceOwnerId: string;
   subject: string;
@@ -41,6 +51,8 @@ export type ClientInvoiceFormState = {
   billingRegion: string;
   billingCode: string;
   billingCountry: string;
+  items: InvoiceLineItem[];
+  adjustment: string;
 };
 
 function todayInput() {
@@ -80,6 +92,8 @@ export function emptyClientInvoiceForm(
     collectionDate: "",
     officialReceipt: "",
     exchangeRate: String(client?.exchange_rate ?? "1").trim() || "1",
+    items: [emptyInvoiceLineItem()],
+    adjustment: "",
     ...invoiceAddressFromClient(client),
     ...overrides,
   };
@@ -123,12 +137,76 @@ export function buildInvoiceNotes(form: ClientInvoiceFormState) {
     billingRegion: form.billingRegion,
     billingCode: form.billingCode,
     billingCountry: form.billingCountry,
+    items: form.items,
+    adjustment: form.adjustment,
   })}`;
+}
+
+export function emptyInvoiceLineItem(): InvoiceLineItem {
+  return {
+    id: `inv-item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    productName: "",
+    description: "",
+    listPrice: "",
+    quantity: "1",
+    discount: "0",
+    tax: "0",
+  };
+}
+
+export function invoiceMoney(value: string | number | null | undefined) {
+  const amount = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+export function invoiceLineAmount(item: InvoiceLineItem) {
+  return invoiceMoney(item.listPrice) * Math.max(0, invoiceMoney(item.quantity));
+}
+
+export function invoiceLineTotal(item: InvoiceLineItem) {
+  return invoiceLineAmount(item) - invoiceMoney(item.discount) + invoiceMoney(item.tax);
+}
+
+export function invoiceTotals(items: InvoiceLineItem[], adjustment?: string) {
+  const named = items.filter((item) => item.productName.trim());
+  const subTotal = named.reduce((sum, item) => sum + invoiceLineAmount(item), 0);
+  const discount = named.reduce((sum, item) => sum + invoiceMoney(item.discount), 0);
+  const tax = named.reduce((sum, item) => sum + invoiceMoney(item.tax), 0);
+  const adjustmentAmount = invoiceMoney(adjustment);
+  return {
+    subTotal,
+    discount,
+    tax,
+    adjustment: adjustmentAmount,
+    grandTotal: subTotal - discount + tax + adjustmentAmount,
+  };
+}
+
+export function invoiceItemsForApi(items: InvoiceLineItem[]) {
+  return items
+    .filter((item) => item.productName.trim())
+    .map((item) => ({
+      name: item.productName.trim(),
+      item_type: "invoice" as const,
+      price: invoiceMoney(item.listPrice),
+      quantity: Math.max(0, invoiceMoney(item.quantity)),
+      total_price: invoiceLineAmount(item),
+    }));
+}
+
+export function formatInvoiceAmount(value: number) {
+  return value.toLocaleString("en-PH", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function validateClientInvoiceForm(form: ClientInvoiceFormState) {
   if (!String(form.subject ?? "").trim()) return "Product Category is required.";
   if (!String(form.clientId ?? "").trim()) return "Client Name is required.";
+  if (!form.items.some((item) => item.productName.trim())) {
+    return "Add at least one invoiced item.";
+  }
   return null;
 }
 

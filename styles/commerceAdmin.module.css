@@ -4061,6 +4061,204 @@ select.clientCrmInput {
   margin-top: 2.25rem;
 }
 
+.invoiceItemsSection {
+  margin-top: 2.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--ca-slate-200);
+}
+
+.invoiceItemsTableWrap {
+  overflow-x: auto;
+  margin-top: 0.85rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.invoiceItemsTable {
+  width: 100%;
+  min-width: 64rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.invoiceItemsTable th {
+  padding: 0.7rem 0.65rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+  background: #f8fafc;
+  color: var(--ca-slate-700);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.invoiceItemsTable td {
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid var(--ca-slate-100);
+  vertical-align: top;
+}
+
+.invoiceItemsActionHead,
+.invoiceItemsActionCell {
+  width: 2.4rem;
+  padding-left: 0.7rem !important;
+  padding-right: 0.15rem !important;
+}
+
+.invoiceItemsSno {
+  width: 3.2rem;
+  color: var(--ca-slate-600);
+  font-weight: 700;
+  padding-top: 1rem !important;
+}
+
+.invoiceItemsProduct {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 16rem;
+}
+
+.invoiceItemsDescription {
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.45rem;
+  background: #fff;
+  color: var(--ca-slate-800);
+  font: inherit;
+  resize: vertical;
+}
+
+.invoiceItemsDescription::placeholder {
+  color: var(--ca-slate-400);
+}
+
+.invoiceItemsMoney,
+.invoiceItemsQty {
+  display: block;
+  width: 7.25rem !important;
+  min-height: var(--ca-control-height);
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--ca-slate-200) !important;
+  border-radius: 0.35rem;
+  background: #fff !important;
+  color: var(--ca-slate-900) !important;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: right;
+  box-sizing: border-box;
+  box-shadow: none;
+  outline: none;
+}
+
+.invoiceItemsQty {
+  width: 5rem !important;
+}
+
+.invoiceItemsMoney:focus,
+.invoiceItemsQty:focus {
+  border-color: var(--ca-blue) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+.invoiceItemsMoney[readonly],
+.invoiceItemsTotals input[readonly] {
+  background: #f8fafc !important;
+  color: var(--ca-slate-600) !important;
+}
+
+.invoiceItemsRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin-top: 0.2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.invoiceItemsRemove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.invoiceItemsFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-top: 0.85rem;
+}
+
+.invoiceItemsAddRow {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid #2563eb;
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #2563eb;
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.invoiceItemsAddRow:hover {
+  background: #eff6ff;
+}
+
+.invoiceItemsTotals {
+  width: min(22rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.invoiceItemsTotals label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin: 0;
+  color: var(--ca-slate-600);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+}
+
+.invoiceItemsTotals input {
+  width: 8.5rem;
+  min-height: var(--ca-control-height);
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--ca-slate-200) !important;
+  border-radius: 0.35rem;
+  background: #fff !important;
+  color: var(--ca-slate-900) !important;
+  text-align: right;
+  font: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.invoiceItemsGrand {
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--ca-slate-200);
+  color: var(--ca-slate-900) !important;
+}
+
 .invoiceAddressGrid {
   display: grid;
   grid-template-columns: 1fr;
