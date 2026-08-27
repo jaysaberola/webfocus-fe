@@ -3,6 +3,7 @@ import ConfirmModal from "@/components/UI/ConfirmModal";
 import CreateManageServiceModal from "@/components/CommerceAdmin/modals/CreateManageServiceModal";
 import EditManageServiceModal from "@/components/CommerceAdmin/modals/EditManageServiceModal";
 import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
@@ -569,7 +570,21 @@ export default function CommerceManagedTab() {
                 }
               >
                 {viewMode === "list" ? (
-                  <div className={styles.tableWrap}>
+                  <ResizableTableFrame
+                    storageKey="commerceAdmin:managed"
+                    columns={["name", "type", "price", "status", "created", "modified", "action"]}
+                    labels={{
+                      name: "Service Name",
+                      type: "Type",
+                      price: "Base Price",
+                      status: "Status",
+                      created: "Date create",
+                      modified: "Date Modified",
+                      action: "Action",
+                    }}
+                    selectColumn
+                    className={styles.tableWrap}
+                  >
                     <table className={styles.table}>
                       <thead>
                         <tr>
@@ -598,7 +613,7 @@ export default function CommerceManagedTab() {
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </ResizableTableFrame>
                 ) : (
                   <div className={styles.managedServiceGrid}>
                     {paginatedServices.length === 0 ? (

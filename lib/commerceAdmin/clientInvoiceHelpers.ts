@@ -13,12 +13,12 @@ import type { SalesTransaction } from "@/services/salesTransactionService";
 const INVOICE_META_PREFIX = "[INVOICE_META]";
 
 export const INVOICE_FORM_STATUS_OPTIONS = [
-  "Draft",
   "Approved",
-  "Sent to Client",
-  "Paid",
-  "Overdue",
   "Cancelled",
+  "Created",
+  "Delivered",
+  "Paid",
+  "Partially Paid",
 ] as const;
 
 export const INVOICE_CURRENCY_OPTIONS = ["PHP", "USD"] as const;
@@ -211,6 +211,10 @@ export function validateClientInvoiceForm(form: ClientInvoiceFormState) {
 }
 
 export function invoiceApiPaymentStatus(status: string) {
+  const value = status.trim().toLowerCase();
+  if (value === "paid") return "paid";
+  if (value === "partially paid") return "pending";
+  if (value.includes("cancelled") || value.includes("canceled")) return "cancelled";
   return toApiPaymentStatus(status);
 }
 
@@ -369,7 +373,6 @@ export function buildClientInvoiceRows(
       const meta = parseDealMeta(transaction.notes);
       const itemName = String(transaction.items?.[0]?.name ?? transaction.transaction_no ?? "").trim();
       const invoiceOwner = assignedStaffName(transaction) || owner;
-      const transactionNo = String(transaction.transaction_no ?? "").trim();
 
       return {
         id: String(transaction.id),
@@ -392,7 +395,9 @@ export function buildClientInvoiceRows(
           : meta?.invoiceReceivedDate
             ? formatDealDate(meta.invoiceReceivedDate)
             : "—",
-        officialReceipt: dash(invoiceMeta?.officialReceipt, transactionNo ? `INV-${transactionNo}` : "—"),
+        officialReceipt: invoiceMeta?.officialReceipt
+          ? formatDealDate(invoiceMeta.officialReceipt)
+          : "—",
         exchangeRate: dash(invoiceMeta?.exchangeRate, exchangeRate),
         billingStreet: dash(invoiceMeta?.billingStreet, billingStreet),
         billingCity: dash(invoiceMeta?.billingCity, billingCity),

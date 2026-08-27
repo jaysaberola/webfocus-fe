@@ -5274,9 +5274,118 @@ select.clientCrmInput {
   vertical-align: middle;
 }
 
+.dealsTable.resizableTable,
+.invoicesTable.resizableTable {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 .invoicesTable th,
-.invoicesTable td {
-  min-width: 12rem;
+.invoicesTable td,
+.dealsTable.resizableTable th,
+.dealsTable.resizableTable td {
+  min-width: 0;
+}
+
+.resizableTh {
+  position: relative;
+  overflow: hidden;
+}
+
+.resizableThLabel {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 0.45rem;
+}
+
+.resizableTableInner {
+  position: relative;
+  width: 100%;
+}
+
+.resizableTableWrap {
+  overflow-x: hidden;
+}
+
+.colResizeLine:last-child {
+  margin-left: -10px;
+}
+
+.colResizeLines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.colResizeLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  margin-left: -5px;
+  cursor: col-resize;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: none;
+  z-index: 3;
+}
+
+.colResizeLine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: #d1d5db;
+}
+
+.colResizeLine:hover::after,
+.colResizeLine:focus-visible::after,
+:global(body[data-col-resizing="true"]) .colResizeLine::after {
+  width: 2px;
+  left: 3.5px;
+  background: #93c5fd;
+}
+
+.resizableTable th,
+.resizableTable td {
+  box-shadow: inset -1px 0 0 #e5e7eb;
+}
+
+.resizableTable th:last-child,
+.resizableTable td:last-child {
+  box-shadow: none;
+}
+
+.resizableCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.resizableCell .tableCellLink {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resizableCell .lookupHover {
+  max-width: 100%;
+}
+
+.resizableCell .lookupHoverLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .invoicesTable tbody tr:nth-child(even) {

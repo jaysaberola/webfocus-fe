@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   approveCommerceProfileChange,
   fetchCommerceApprovals,
@@ -428,7 +429,23 @@ export default function CommerceApprovalsTab() {
         >
           {viewMode === "list" ? (
             <>
-              <div className={styles.tableWrap}>
+              <ResizableTableFrame
+                storageKey="commerceAdmin:approvals"
+                columns={["invoice", "service", "plan", "client", "issued", "due", "amount", "status", "action"]}
+                labels={{
+                  invoice: "Invoice #",
+                  service: "Service Name",
+                  plan: "Plan",
+                  client: "Client",
+                  issued: "Issued Date",
+                  due: "Due Date",
+                  amount: "Amount",
+                  status: "Status",
+                  action: "Action",
+                }}
+                selectColumn
+                className={styles.tableWrap}
+              >
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -491,7 +508,7 @@ export default function CommerceApprovalsTab() {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </ResizableTableFrame>
 
               <div className={styles.paginationBar}>
                 <div className={styles.paginationInfo}>

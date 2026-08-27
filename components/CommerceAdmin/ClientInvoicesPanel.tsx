@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ResizableTableHead from "@/components/CommerceAdmin/ResizableTableHead";
+import ColumnResizeLines from "@/components/CommerceAdmin/ColumnResizeLines";
 import {
   buildClientInvoiceRows,
   DEFAULT_INVOICE_COLUMNS,
@@ -9,6 +11,7 @@ import {
   type ClientInvoiceRow,
   type InvoiceColumnKey,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
+import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -29,6 +32,11 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
   });
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
+  const invoiceColumnLabel = useCallback((key: InvoiceColumnKey) => INVOICE_COLUMN_LABELS[key], []);
+  const { containerRef, layoutFor, startResize } = useResizableColumns<InvoiceColumnKey>(
+    "commerceAdmin:invoiceColumnWidths",
+    invoiceColumnLabel,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +89,7 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
     () => INVOICE_COLUMN_VISIBILITY_KEYS.filter((key) => columnsVisible[key]),
     [columnsVisible],
   );
+  const invoiceLayout = layoutFor(visibleColumns);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / INVOICE_PAGE_SIZE));
   const paginatedRows = useMemo(() => {
@@ -139,15 +148,28 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
         </div>
       </div>
 
-      <div className={styles.tableWrap}>
-        <table className={`${styles.table} ${styles.invoicesTable}`}>
-          <thead>
-            <tr>
+      <div
+        className={`${styles.tableWrap} ${styles.resizableTableWrap}`}
+        ref={containerRef}
+        style={{ overflowX: invoiceLayout.overflowing ? "auto" : "hidden" }}
+      >
+        <div className={styles.resizableTableInner} style={{ width: invoiceLayout.innerWidth }}>
+          <table
+            className={`${styles.table} ${styles.invoicesTable} ${styles.resizableTable}`}
+            style={{ width: "100%" }}
+          >
+            <colgroup>
               {visibleColumns.map((column) => (
-                <th key={column}>{INVOICE_COLUMN_LABELS[column]}</th>
+                <col key={column} style={{ width: invoiceLayout.widthOf(column) }} />
               ))}
-            </tr>
-          </thead>
+            </colgroup>
+            <thead>
+              <tr>
+                {visibleColumns.map((column) => (
+                  <ResizableTableHead key={column} label={INVOICE_COLUMN_LABELS[column]} />
+                ))}
+              </tr>
+            </thead>
           <tbody>
             {loading ? (
               <tr>
@@ -166,6 +188,13 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
             )}
           </tbody>
         </table>
+          <ColumnResizeLines
+            columns={visibleColumns}
+            widthOf={invoiceLayout.widthOf}
+            onResizeStart={(column, event) => startResize(column, event, visibleColumns)}
+            labelOf={invoiceColumnLabel}
+          />
+        </div>
       </div>
 
       <div className={styles.paginationBar}>
@@ -207,7 +236,7 @@ function renderInvoiceCell(
 ) {
   if (column === "clientName") {
     return (
-      <td key={column} className={styles.dealsNowrap}>
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
         <button type="button" className={styles.tableCellLink} onClick={() => onEditClient?.()}>
           {invoice.clientName}
         </button>
@@ -217,14 +246,14 @@ function renderInvoiceCell(
 
   if (column === "productCategory") {
     return (
-      <td key={column} className={styles.dealsNowrap}>
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
         {invoice.productCategory}
       </td>
     );
   }
 
   return (
-    <td key={column} className={styles.dealsNowrap}>
+    <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
       {invoiceCellValue(invoice, column)}
     </td>
   );

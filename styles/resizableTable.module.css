@@ -1,0 +1,71 @@
+.wrap {
+  overflow-x: hidden;
+}
+
+.inner {
+  position: relative;
+  width: 100%;
+}
+
+.table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
+}
+
+.table th,
+.table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 0;
+}
+
+.table :global(.dt-select-col),
+.table th:has(input[type="checkbox"]),
+.table td:has(input[type="checkbox"]) {
+  overflow: visible;
+  max-width: none;
+  text-overflow: clip;
+}
+
+.lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  margin-left: -5px;
+  cursor: col-resize;
+  pointer-events: auto;
+  user-select: none;
+  touch-action: none;
+  z-index: 3;
+}
+
+.line::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 1px;
+  background: #d1d5db;
+}
+
+.line:hover::after,
+.line:focus-visible::after,
+:global(body[data-col-resizing="true"]) .line::after {
+  width: 2px;
+  left: 3.5px;
+  background: #93c5fd;
+}
+
+.line:last-child {
+  margin-left: -10px;
+}

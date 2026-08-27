@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { createPortalTicket, fetchPortalTickets } from "@/services/customerPortalService";
 import type { PortalTicket } from "@/lib/customerPortal/types";
@@ -258,7 +259,17 @@ export default function HelpTab() {
                 />
               }
             >
-              <div className={styles.tableWrap}>
+              <ResizableTableFrame
+                storageKey="customerPortal:helpTickets"
+                columns={["ticket", "subject", "date", "status"]}
+                labels={{
+                  ticket: "Ticket",
+                  subject: "Subject",
+                  date: "Date",
+                  status: "Status",
+                }}
+                className={styles.tableWrap}
+              >
                 <table className={styles.dataTable}>
                   <thead>
                     <tr>
@@ -309,7 +320,7 @@ export default function HelpTab() {
                     )}
                   </tbody>
                 </table>
-              </div>
+              </ResizableTableFrame>
             </TableFilterShell>
           ) : null}
         </section>

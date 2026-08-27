@@ -3,6 +3,7 @@ import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   PortalSelectAllHead,
   PortalSelectRowCell,
@@ -667,7 +668,22 @@ export default function BillingTab() {
             />
           }
         >
-          <div className={styles.tableWrap}>
+          <ResizableTableFrame
+            storageKey="customerPortal:billing"
+            columns={["id", "service", "plan", "issued", "due", "amount", "status", "actions"]}
+            labels={{
+              id: "Invoice ID",
+              service: "Service Name",
+              plan: "Plan",
+              issued: "Issued",
+              due: "Due Date",
+              amount: "Amount",
+              status: "Status",
+              actions: "Actions",
+            }}
+            selectColumn
+            className={styles.tableWrap}
+          >
             <table className={styles.dataTable}>
               <thead>
                 <tr>
@@ -821,7 +837,7 @@ export default function BillingTab() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResizableTableFrame>
 
           <div className={styles.paginationBar}>
             <div className={styles.paginationInfo}>Total Records {filteredInvoices.length}</div>

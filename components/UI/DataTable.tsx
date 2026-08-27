@@ -1,5 +1,7 @@
 import { ReactNode, useMemo, useState, useEffect, useCallback } from "react";
 import type { CSSProperties } from "react";
+import { useRouter } from "next/router";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import { DEFAULT_CMS_TABLE_PAGE_SIZE } from "@/components/Modules/moduleTableUi";
 import { defaultAdminRowId } from "@/lib/useRowSelection";
 
@@ -86,6 +88,7 @@ export default function DataTable<T>({
   selectedIds: controlledSelectedIds,
   onSelectionChange,
 }: DataTableProps<T>) {
+  const router = useRouter();
   const isServerPaginated =
     typeof currentPage === "number" &&
     typeof totalPages === "number" &&
@@ -290,6 +293,10 @@ export default function DataTable<T>({
   );
 
   const selectedCount = selectedIds.length;
+  const resizeColumns = columns.map((col) => col.key);
+  const resizeLabels = Object.fromEntries(
+    columns.map((col) => [col.key, typeof col.header === "string" ? col.header : col.key]),
+  );
 
   return (
     <>
@@ -305,13 +312,15 @@ export default function DataTable<T>({
         </div>
       )}
 
-      <div
+      <ResizableTableFrame
+        storageKey={`datatable:${router.pathname || "admin"}`}
+        columns={resizeColumns}
+        labels={resizeLabels}
+        selectColumn={selectable}
         className={[
           "cms-table-wrap",
-          !wrapperClassName ? "cms-table-wrap--scroll" : "",
           wrapperClassName ?? "",
         ].join(" ")}
-        style={wrapperStyle}
       >
         <table
           className={`dt-enhanced-table${tableClassName ? ` ${tableClassName}` : ""}`}
@@ -435,7 +444,7 @@ export default function DataTable<T>({
               })}
           </tbody>
         </table>
-      </div>
+      </ResizableTableFrame>
 
       {shouldRenderPaginationBlock && (
         <div className="dt-footer" data-cms-token="module-pagination">

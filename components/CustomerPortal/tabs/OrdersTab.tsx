@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
 import {
   PortalSelectAllHead,
@@ -376,7 +377,23 @@ export default function OrdersTab() {
             />
           }
         >
-          <div className={styles.tableWrap}>
+          <ResizableTableFrame
+            storageKey="customerPortal:orders"
+            columns={["id", "service", "plan", "amount", "gateway", "date", "due", "status", "action"]}
+            labels={{
+              id: "Order #",
+              service: "Service Name",
+              plan: "Plan",
+              amount: "Amount",
+              gateway: "Payment Method",
+              date: "Date Ordered",
+              due: "Due Date",
+              status: "Status",
+              action: "Action",
+            }}
+            selectColumn
+            className={styles.tableWrap}
+          >
             <table className={styles.dataTable}>
               <thead>
                 <tr>
@@ -502,7 +519,7 @@ export default function OrdersTab() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ResizableTableFrame>
 
           <div className={styles.paginationBar}>
             <div className={styles.paginationInfo}>Total Records {filteredOrders.length}</div>

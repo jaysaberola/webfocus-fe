@@ -414,6 +414,7 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
           <Field label="Official Receipt">
             <input
               className={inputClass()}
+              type="date"
               value={form.officialReceipt}
               onChange={(e) => setField("officialReceipt", e.target.value)}
             />

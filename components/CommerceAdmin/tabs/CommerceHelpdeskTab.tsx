@@ -5,6 +5,7 @@ import {
   type CommerceTicketAdminRow,
 } from "@/services/commerceAdminService";
 import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
@@ -231,7 +232,19 @@ export default function CommerceHelpdeskTab() {
             <p className={styles.emptyState}>No support tickets yet.</p>
           ) : (
             <>
-              <div className={styles.tableWrap}>
+              <ResizableTableFrame
+                storageKey="commerceAdmin:helpdesk"
+                columns={["ticket", "subject", "client", "updated", "status"]}
+                labels={{
+                  ticket: "Ticket",
+                  subject: "Subject",
+                  client: "Client",
+                  updated: "Updated",
+                  status: "Status",
+                }}
+                selectColumn
+                className={styles.tableWrap}
+              >
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -296,7 +309,7 @@ export default function CommerceHelpdeskTab() {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ResizableTableFrame>
 
               <div className={styles.paginationBar}>
                 <div className={styles.paginationInfo}>

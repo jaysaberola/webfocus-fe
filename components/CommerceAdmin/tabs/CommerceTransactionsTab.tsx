@@ -9,6 +9,7 @@ import HostingTransactionModal from "@/components/CommerceAdmin/modals/HostingTr
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
 import UploadProposalModal from "@/components/CommerceAdmin/modals/UploadProposalModal";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
 import {
   CommerceSelectAllHead,
@@ -897,7 +898,13 @@ export default function CommerceTransactionsTab() {
           }
         >
           {viewMode === "list" ? (
-            <div className={styles.tableWrap}>
+            <ResizableTableFrame
+              storageKey="commerceAdmin:transactions"
+              columns={visibleOrderColumns}
+              labels={TX_COLUMN_LABELS}
+              selectColumn
+              className={styles.tableWrap}
+            >
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -932,7 +939,7 @@ export default function CommerceTransactionsTab() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResizableTableFrame>
           ) : (
             <div className={styles.txGrid}>
               {displayRows.length === 0 ? (
@@ -1124,7 +1131,17 @@ export default function CommerceTransactionsTab() {
                 <i className="fa-solid fa-xmark" aria-hidden="true" />
               </button>
             </div>
-            <div className={styles.tableWrap}>
+            <ResizableTableFrame
+              storageKey="commerceAdmin:neededActions"
+              columns={["invoice", "client", "needed", "action"]}
+              labels={{
+                invoice: "Invoice",
+                client: "Client",
+                needed: "Needed Action",
+                action: "Action",
+              }}
+              className={styles.tableWrap}
+            >
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -1161,7 +1178,7 @@ export default function CommerceTransactionsTab() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ResizableTableFrame>
           </div>
         </div>
       ) : null}

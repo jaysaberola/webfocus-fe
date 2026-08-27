@@ -3,7 +3,10 @@ import { useRouter } from "next/router";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import LookupHoverActions from "@/components/CommerceAdmin/LookupHoverActions";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
+import ResizableTableHead from "@/components/CommerceAdmin/ResizableTableHead";
+import ColumnResizeLines from "@/components/CommerceAdmin/ColumnResizeLines";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
+import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
 import {
   buildClientDealRows,
   DEAL_COLUMN_VISIBILITY_KEYS,
@@ -111,6 +114,11 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const productDetailsRef = useRef<HTMLDivElement | null>(null);
+  const dealColumnLabel = useCallback((key: DealColumnKey) => DEAL_COLUMN_LABELS[key], []);
+  const { containerRef, layoutFor, startResize } = useResizableColumns<DealColumnKey>(
+    "commerceAdmin:dealColumnWidths",
+    dealColumnLabel,
+  );
 
   const reloadDeals = useCallback(() => {
     setReloadKey((current) => current + 1);
@@ -170,6 +178,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     () => DEAL_COLUMN_VISIBILITY_KEYS.filter((key) => columnsVisible[key]),
     [columnsVisible],
   );
+  const dealLayout = layoutFor(visibleColumns);
 
   const totalPages = Math.max(1, Math.ceil(dealRows.length / DEAL_PAGE_SIZE));
   const paginatedDeals = useMemo(() => {
@@ -281,20 +290,32 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
         </div>
       </div>
 
-      <div className={styles.tableWrap}>
-        <table className={`${styles.table} ${styles.dealsTable}`}>
-          <thead>
-            <tr>
+      <div
+        className={`${styles.tableWrap} ${styles.resizableTableWrap}`}
+        ref={containerRef}
+        style={{ overflowX: dealLayout.overflowing ? "auto" : "hidden" }}
+      >
+        <div className={styles.resizableTableInner} style={{ width: dealLayout.innerWidth }}>
+          <table
+            className={`${styles.table} ${styles.dealsTable} ${styles.resizableTable}`}
+            style={{ width: "100%" }}
+          >
+            <colgroup>
               {visibleColumns.map((column) => (
-                <th
-                  key={column}
-                  className={column === "expectedRevenue" ? styles.dealsAmount : undefined}
-                >
-                  {DEAL_COLUMN_LABELS[column]}
-                </th>
+                <col key={column} style={{ width: dealLayout.widthOf(column) }} />
               ))}
-            </tr>
-          </thead>
+            </colgroup>
+            <thead>
+              <tr>
+                {visibleColumns.map((column) => (
+                  <ResizableTableHead
+                    key={column}
+                    label={DEAL_COLUMN_LABELS[column]}
+                    className={column === "expectedRevenue" ? styles.dealsAmount : undefined}
+                  />
+                ))}
+              </tr>
+            </thead>
           <tbody>
             {loading ? (
               <tr>
@@ -313,7 +334,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   {visibleColumns.map((column) => {
                     if (column === "clientOwner") {
                       return (
-                        <td key={column} className={styles.dealsNowrap}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
                           <LookupHoverActions
                             label={clientOwnerName(client)}
                             assigned={clientIsAssigned(client)}
@@ -328,7 +349,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "clientName") {
                       return (
-                        <td key={column} className={styles.dealsNowrap}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -341,7 +362,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "dealName") {
                       return (
-                        <td key={column}>
+                        <td key={column} className={styles.resizableCell}>
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -356,7 +377,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "dealStatus") {
                       return (
-                        <td key={column} className={styles.dealsNowrap}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
                           {deal.dealStatus.toLowerCase() === "active" ? (
                             <span className={styles.badgePaid}>ACTIVE</span>
                           ) : (
@@ -368,13 +389,16 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     return (
                       <td
                         key={column}
-                        className={
+                        className={[
+                          styles.resizableCell,
                           column === "expectedRevenue"
                             ? styles.dealsAmount
                             : column === "collectionNote"
                               ? undefined
-                              : styles.dealsNowrap
-                        }
+                              : styles.dealsNowrap,
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
                       >
                         {dealCellValue(deal, column)}
                       </td>
@@ -385,6 +409,13 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
             )}
           </tbody>
         </table>
+          <ColumnResizeLines
+            columns={visibleColumns}
+            widthOf={dealLayout.widthOf}
+            onResizeStart={(column, event) => startResize(column, event, visibleColumns)}
+            labelOf={dealColumnLabel}
+          />
+        </div>
       </div>
 
       <div className={styles.paginationBar}>

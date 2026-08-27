@@ -6,6 +6,7 @@ import {
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { highlightSearch } from "@/lib/commerceAdmin/highlightSearch";
 import { clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import type { CustomerRow } from "@/services/customerService";
 import type { SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -215,7 +216,12 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
     <div className={styles.clientSearchResults}>
       <section className={styles.searchResultSection}>
         <SectionPager title="Clients" count={clients.length} page={clientPage} totalPages={clientPages} onPage={setClientPage} />
-        <div className={styles.tableWrap}>
+        <ResizableTableFrame
+          storageKey="commerceAdmin:searchClients"
+          columns={["owner", "name", "phone", "website"]}
+          labels={{ owner: "Client Owner", name: "Client Name", phone: "Phone", website: "Website" }}
+          className={styles.tableWrap}
+        >
           <table className={styles.table}>
             <thead>
               <tr>
@@ -246,12 +252,25 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               )}
             </tbody>
           </table>
-        </div>
+        </ResizableTableFrame>
       </section>
 
       <section className={styles.searchResultSection}>
         <SectionPager title="Deals" count={deals.length} page={dealPage} totalPages={dealPages} onPage={setDealPage} />
-        <div className={styles.tableWrap}>
+        <ResizableTableFrame
+          storageKey="commerceAdmin:searchDeals"
+          columns={["owner", "amount", "name", "closing", "client", "stage", "contact"]}
+          labels={{
+            owner: "Deal Owner",
+            amount: "Amount",
+            name: "Deal Name",
+            closing: "Closing Date",
+            client: "Client Name",
+            stage: "Stage",
+            contact: "Contact Name",
+          }}
+          className={styles.tableWrap}
+        >
           <table className={styles.table}>
             <thead>
               <tr>
@@ -296,7 +315,7 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               )}
             </tbody>
           </table>
-        </div>
+        </ResizableTableFrame>
       </section>
 
       <section className={styles.searchResultSection}>
@@ -307,7 +326,20 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
           totalPages={invoicePages}
           onPage={setInvoicePage}
         />
-        <div className={styles.tableWrap}>
+        <ResizableTableFrame
+          storageKey="commerceAdmin:searchInvoices"
+          columns={["subject", "date", "status", "client", "owner", "total", "contact"]}
+          labels={{
+            subject: "Subject",
+            date: "Invoice Date",
+            status: "Status",
+            client: "Client Name",
+            owner: "Invoice Owner",
+            total: "Grand Total",
+            contact: "Contact Name",
+          }}
+          className={styles.tableWrap}
+        >
           <table className={styles.table}>
             <thead>
               <tr>
@@ -352,7 +384,7 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               )}
             </tbody>
           </table>
-        </div>
+        </ResizableTableFrame>
       </section>
     </div>
   );

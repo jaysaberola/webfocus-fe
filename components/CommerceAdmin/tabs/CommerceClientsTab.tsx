@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
+import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   CommerceSelectAllHead,
   CommerceSelectRowCell,
@@ -322,6 +323,9 @@ export default function CommerceClientsTab(_props: Props) {
   };
 
   const visibleColumnCount = Object.values(columnsVisible).filter(Boolean).length + 1;
+  const visibleClientColumns = (Object.keys(CLIENT_COLUMN_LABELS) as ClientColumnKey[]).filter(
+    (key) => columnsVisible[key],
+  );
 
   if (dealInfo) {
     return (
@@ -650,7 +654,13 @@ export default function CommerceClientsTab(_props: Props) {
           />
         ) : (
           <>
-            <div className={styles.tableWrap}>
+            <ResizableTableFrame
+              storageKey="commerceAdmin:clients"
+              columns={visibleClientColumns}
+              labels={CLIENT_COLUMN_LABELS}
+              selectColumn
+              className={styles.tableWrap}
+            >
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -753,7 +763,7 @@ export default function CommerceClientsTab(_props: Props) {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ResizableTableFrame>
 
             <div className={styles.paginationBar}>
               <div className={styles.paginationInfo}>
