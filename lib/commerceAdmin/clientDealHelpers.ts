@@ -174,6 +174,16 @@ export function formatDealAmount(amount: number | null) {
   })}`;
 }
 
+export function transactionClientOwner(transaction: SalesTransaction) {
+  if (transaction.customer) return clientOwnerName(transaction.customer);
+  return "Unassigned";
+}
+
+export function transactionBillingInCharge(transaction: SalesTransaction) {
+  if (transaction.customer) return clientBillingInCharge(transaction.customer);
+  return "—";
+}
+
 export function orderAdminColumnValue(
   transaction: SalesTransaction,
   column: TxColumnKey,
@@ -182,11 +192,10 @@ export function orderAdminColumnValue(
   const meta = parseDealMeta(transaction.notes);
   const itemName = String(transaction.items?.[0]?.name ?? "").trim();
   const stage = dealStage(transaction);
-  const assigned = String(extras?.assigned ?? "").trim();
 
   switch (column) {
     case "clientOwner":
-      return assigned || "Unassigned";
+      return transactionClientOwner(transaction);
     case "probability":
       return dealProbability(stage, meta?.probability);
     case "expectedRevenue": {
@@ -226,7 +235,7 @@ export function orderAdminColumnValue(
     case "joNumber":
       return metaText(meta?.joNumber, extractJoNumber(transaction.notes, transaction.transaction_no));
     case "billingInCharge":
-      return metaText(meta?.billingInCharge);
+      return transactionBillingInCharge(transaction);
     case "dealStatus":
       return metaText(meta?.dealStatus, resolveDealStatus(transaction));
     case "paymentTerms":
@@ -616,8 +625,6 @@ function crmFields(params: {
   const { client, transaction, itemName, dealType, domain, amount, dealStatus, adminServices = [] } = params;
   const meta = parseDealMeta(transaction?.notes);
   const stage = dealStage(transaction);
-  const clientOwner = clientOwnerName(client);
-  const ownerFallback = clientOwner !== "Unassigned" ? clientOwner : clientBillingInCharge(client);
   const metaRevenue = Number(meta?.expectedRevenue);
   const expectedRevenue =
     Number.isFinite(metaRevenue) && String(meta?.expectedRevenue ?? "").trim() !== ""
@@ -625,7 +632,7 @@ function crmFields(params: {
       : amount;
 
   return {
-    clientOwner: ownerFallback || "—",
+    clientOwner: clientOwnerName(client),
     clientName: clientDisplayName(client),
     dealName: resolveDealName({
       metaDealName: meta?.dealName,
@@ -653,7 +660,7 @@ function crmFields(params: {
       ? formatDealDate(meta.statusTriggerDate)
       : formatDealDate(transaction?.created_at ?? transaction?.transacted_at),
     joNumber: metaText(meta?.joNumber, extractJoNumber(transaction?.notes, transaction?.transaction_no)),
-    billingInCharge: metaText(meta?.billingInCharge, clientBillingInCharge(client)),
+    billingInCharge: clientBillingInCharge(client),
     dealStatus: metaText(meta?.dealStatus, dealStatus),
     invoiceStatus: metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction)),
     invoiceSentDate: meta?.invoiceSentDate
@@ -665,7 +672,7 @@ function crmFields(params: {
       : formatDealDate(transaction?.due_date),
     collectionNote: metaText(meta?.collectionNote, collectionNoteFrom(transaction?.notes)),
     contractStatus: metaText(meta?.contractStatus),
-    dealOwner: ownerFallback || "—",
+    dealOwner: clientOwnerName(client),
     status: metaText(meta?.dealType, dealType),
     amount,
   };

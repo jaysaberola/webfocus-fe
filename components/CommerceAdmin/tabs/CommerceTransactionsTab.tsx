@@ -78,7 +78,7 @@ import {
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import { readStoredCurrentUser } from "@/lib/currentUser";
-import { canAssignSalesTransactions, isSalesRoleUser } from "@/lib/userRoles";
+import { isSalesRoleUser } from "@/lib/userRoles";
 import {
   deleteSalesTransaction,
   getSalesTransactions,
@@ -166,7 +166,6 @@ export default function CommerceTransactionsTab() {
   const colVisRef = useRef<HTMLDivElement>(null);
   const neededShownRef = useRef(false);
   const currentUser = readStoredCurrentUser();
-  const canAssign = canAssignSalesTransactions(currentUser);
   const salesRole = isSalesRoleUser(currentUser);
 
   useEffect(() => {
@@ -552,26 +551,13 @@ export default function CommerceTransactionsTab() {
     return <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>;
   };
 
-  const renderAssignedBadge = (row: SalesTransaction) => {
-    const label = assignedUserLabel(row) ?? "Unassigned";
-    if (canAssign) {
-      return (
-        <button
-          type="button"
-          className={styles.tableCellLink}
-          onClick={() => setAssignTarget(row)}
-          title="Assign staff"
-        >
-          {label}
-        </button>
-      );
-    }
-    return <span className={styles.tableCellLink}>{label}</span>;
-  };
-
   const renderOrderColumnCell = (row: SalesTransaction, column: TxColumnKey) => {
     if (column === "clientOwner") {
-      return <td key={column} className={styles.dealsNowrap}>{renderAssignedBadge(row)}</td>;
+      return (
+        <td key={column} className={styles.dealsNowrap}>
+          {orderAdminColumnValue(row, column)}
+        </td>
+      );
     }
     if (column === "paymentStatus") {
       const label = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
@@ -959,7 +945,9 @@ export default function CommerceTransactionsTab() {
                     </div>
                     <div>
                       <div className={styles.txGridLabel}>Client Owner</div>
-                      <div className={styles.txGridValue}>{renderAssignedBadge(row)}</div>
+                      <div className={styles.txGridValue}>
+                        {orderAdminColumnValue(row, "clientOwner")}
+                      </div>
                     </div>
                     <div>
                       <div className={styles.txGridLabel}>Client Name</div>

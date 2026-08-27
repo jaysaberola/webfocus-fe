@@ -29,15 +29,16 @@ import {
   validateClientOrderForm,
   type ClientOrderFormState,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
-import { clientBillingInCharge, clientDisplayName } from "@/lib/commerceAdmin/clientHelpers";
+import { clientDisplayName, assignablePersonLabel, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
 import { readStoredCurrentUser } from "@/lib/currentUser";
 import { toast } from "@/lib/toast";
 import {
   fetchCommerceAssignableUsers,
   assignCommerceSalesTransaction,
+  assignCommerceCustomerOwner,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
-import { getCustomers, type CustomerRow } from "@/services/customerService";
+import { getCustomers, getCustomer, updateCustomer, type CustomerRow } from "@/services/customerService";
 import { getServices } from "@/services/serviceService";
 import { createSalesTransaction, updateSalesTransaction, type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -209,24 +210,55 @@ export default function ClientOrderForm({
       fetchCommerceAssignableUsers({ for: "billing_in_charge" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
       getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
+      transaction?.customer_id
+        ? getCustomer(transaction.customer_id, { silent: true }).catch(() => null)
+        : Promise.resolve(null),
     ])
-      .then(([clientOwners, assignable, clientRes, serviceRes]) => {
+      .then(([clientOwners, assignable, clientRes, serviceRes, clientDetail]) => {
         if (cancelled) return;
         const nextOwners = Array.isArray(clientOwners) ? clientOwners : [];
         const nextStaff = Array.isArray(assignable) ? assignable : [];
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
         const nextServices = Array.isArray(serviceRes?.data) ? serviceRes.data : [];
+        const detailClient = clientDetail as CustomerRow | null;
+        const mergedClients =
+          detailClient && !nextClients.some((row) => Number(row.id) === Number(detailClient.id))
+            ? [detailClient, ...nextClients]
+            : nextClients;
         setOwners(nextOwners);
         setStaffUsers(nextStaff);
-        setClients(nextClients);
+        setClients(mergedClients);
         setServices(nextServices);
 
         if (transaction) {
           const nextForm = clientOrderFormFromTransaction(transaction);
+          const listedClient = mergedClients.find(
+            (row) => Number(row.id) === Number(transaction.customer_id),
+          );
+          const linkedClient = listedClient || detailClient
+            ? {
+                ...(listedClient ?? {}),
+                ...(detailClient ?? {}),
+                owner: detailClient?.owner ?? listedClient?.owner,
+                owner_name: detailClient?.owner_name ?? listedClient?.owner_name,
+                owner_id: detailClient?.owner_id ?? listedClient?.owner_id,
+                billing_in_charge:
+                  detailClient?.billing_in_charge ?? listedClient?.billing_in_charge,
+                contact_person: detailClient?.contact_person ?? listedClient?.contact_person,
+              } as CustomerRow
+            : null;
+          const clientOwnerId = linkedClient?.owner_id ? String(linkedClient.owner_id) : "";
+          const billingFromClient = String(linkedClient?.billing_in_charge ?? "").trim();
+          const billingInCharge = resolveAssignableSelectValue(
+            billingFromClient || nextForm.billingInCharge,
+            nextStaff,
+          );
           setForm({
             ...nextForm,
-            dealOwnerId: transaction.user_id ? String(transaction.user_id) : nextForm.dealOwnerId,
+            dealOwnerId: clientOwnerId,
             clientId: transaction.customer_id ? String(transaction.customer_id) : nextForm.clientId,
+            billingInCharge,
+            contactName: nextForm.contactName || String(linkedClient?.contact_person ?? ""),
           });
           return;
         }
@@ -240,10 +272,14 @@ export default function ClientOrderForm({
 
         setForm(
           emptyClientOrderForm({
-            dealOwnerId: defaultOwner ? String(defaultOwner.id) : "",
+            dealOwnerId: defaultClient?.owner_id
+              ? String(defaultClient.owner_id)
+              : defaultOwner
+                ? String(defaultOwner.id)
+                : "",
             clientId: defaultClient ? String(defaultClient.id) : "",
             contactName: String(defaultClient?.contact_person ?? ""),
-            billingInCharge: defaultClient ? clientBillingInCharge(defaultClient) : "",
+            billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
           }),
         );
       })
@@ -257,6 +293,41 @@ export default function ClientOrderForm({
   }, [defaultCustomerId, transaction]);
 
   const selectedClient = clients.find((client) => String(client.id) === form.clientId);
+
+  const ownerOptions = useMemo(() => {
+    let list = withCurrentAssignablePerson(owners, null);
+    if (selectedClient?.owner_id) {
+      list = withCurrentAssignablePerson(list, {
+        id: Number(selectedClient.owner_id),
+        name: selectedClient.owner?.name || selectedClient.owner_name,
+        email: selectedClient.owner?.email,
+      });
+    }
+    if (
+      transaction?.user &&
+      !(selectedClient && Number(transaction.user.id) === Number(selectedClient.id))
+    ) {
+      list = withCurrentAssignablePerson(list, {
+        id: Number(transaction.user.id),
+        name:
+          `${transaction.user.fname || ""} ${transaction.user.lname || ""}`.trim() ||
+          transaction.user.email,
+        email: transaction.user.email,
+      });
+    }
+    if (form.dealOwnerId) {
+      list = withCurrentAssignablePerson(list, { id: Number(form.dealOwnerId) });
+    }
+    return list;
+  }, [owners, selectedClient, transaction, form.dealOwnerId]);
+
+  const billingOfficers = useMemo(() => {
+    const officers = staffUsers.filter((user) => user.name || user.email);
+    const selected = resolveAssignableSelectValue(form.billingInCharge, officers);
+    return withCurrentAssignablePerson(officers, selected ? { name: selected } : null);
+  }, [staffUsers, form.billingInCharge]);
+
+  const billingSelectValue = resolveAssignableSelectValue(form.billingInCharge, billingOfficers);
 
   const productDeal = useMemo(() => {
     if (!transaction) return null;
@@ -289,7 +360,8 @@ export default function ClientOrderForm({
       ...current,
       clientId,
       contactName: String(client?.contact_person ?? ""),
-      billingInCharge: client ? clientBillingInCharge(client) : "",
+      dealOwnerId: client?.owner_id ? String(client.owner_id) : "",
+      billingInCharge: String(client?.billing_in_charge ?? "").trim(),
     }));
   };
 
@@ -328,10 +400,14 @@ export default function ClientOrderForm({
       ? clients.find((client) => Number(client.id) === Number(defaultCustomerId))
       : null;
     return emptyClientOrderForm({
-      dealOwnerId: defaultOwner ? String(defaultOwner.id) : "",
+      dealOwnerId: defaultClient?.owner_id
+        ? String(defaultClient.owner_id)
+        : defaultOwner
+          ? String(defaultOwner.id)
+          : "",
       clientId: defaultClient ? String(defaultClient.id) : "",
       contactName: String(defaultClient?.contact_person ?? ""),
-      billingInCharge: defaultClient ? clientBillingInCharge(defaultClient) : "",
+      billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
     });
   };
 
@@ -373,11 +449,28 @@ export default function ClientOrderForm({
         });
 
         const ownerId = Number(form.dealOwnerId);
-        if (ownerId && ownerId !== Number(transaction.user_id || 0)) {
+        if (ownerId) {
           try {
-            await assignCommerceSalesTransaction(transaction.id, ownerId);
+            await assignCommerceCustomerOwner(clientId, ownerId);
           } catch {
-            // Deal is saved even if assignment is skipped.
+            // Client owner is shown from the client record even if this update is skipped.
+          }
+          if (ownerId !== Number(transaction.user_id || 0)) {
+            try {
+              await assignCommerceSalesTransaction(transaction.id, ownerId);
+            } catch {
+              // Deal is saved even if assignment is skipped.
+            }
+          }
+        }
+        if (form.billingInCharge && clientEmail) {
+          try {
+            await updateCustomer(clientId, {
+              email: clientEmail,
+              billing_in_charge: form.billingInCharge,
+            });
+          } catch {
+            // Billing-in-Charge still displays from the client record.
           }
         }
 
@@ -416,6 +509,23 @@ export default function ClientOrderForm({
 
       const transactionId = Number(created?.data?.id ?? created?.id);
       const ownerId = Number(form.dealOwnerId);
+      if (ownerId) {
+        try {
+          await assignCommerceCustomerOwner(clientId, ownerId);
+        } catch {
+          // Client owner is shown from the client record even if this update is skipped.
+        }
+      }
+      if (form.billingInCharge && clientEmail) {
+        try {
+          await updateCustomer(clientId, {
+            email: clientEmail,
+            billing_in_charge: form.billingInCharge,
+          });
+        } catch {
+          // Billing-in-Charge still displays from the client record.
+        }
+      }
       if (transactionId && ownerId) {
         try {
           await assignCommerceSalesTransaction(transactionId, ownerId);
@@ -484,33 +594,25 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("dealOwnerId", e.target.value)}
               >
                 <option value="">-None-</option>
-                {owners.map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.name || owner.email}
+                {ownerOptions.map((owner) => (
+                  <option key={owner.id} value={String(owner.id)}>
+                    {assignablePersonLabel(owner) || "Current owner"}
                   </option>
                 ))}
-                {form.dealOwnerId &&
-                !owners.some((owner) => String(owner.id) === String(form.dealOwnerId)) ? (
-                  <option value={form.dealOwnerId}>Current owner</option>
-                ) : null}
               </select>
             </Field>
             <Field label="Billing-in-Charge" hint="Person responsible for billing">
               <select
                 className={inputClass()}
-                value={form.billingInCharge}
+                value={billingSelectValue}
                 onChange={(e) => setField("billingInCharge", e.target.value)}
               >
                 <option value="">-None-</option>
-                {staffUsers.map((owner) => (
-                  <option key={`bill-${owner.id}`} value={owner.name || owner.email || ""}>
-                    {owner.name || owner.email}
+                {billingOfficers.map((owner) => (
+                  <option key={`bill-${owner.id}-${assignablePersonLabel(owner)}`} value={assignablePersonLabel(owner)}>
+                    {assignablePersonLabel(owner)}
                   </option>
                 ))}
-                {form.billingInCharge &&
-                !staffUsers.some((owner) => (owner.name || owner.email) === form.billingInCharge) ? (
-                  <option value={form.billingInCharge}>{form.billingInCharge}</option>
-                ) : null}
               </select>
             </Field>
             <Field label="Campaign Source" hint="Where this deal originated" icon="fa-solid fa-bullhorn">

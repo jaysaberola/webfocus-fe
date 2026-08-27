@@ -13,6 +13,22 @@ export interface SalesTransaction {
     lname?: string | null;
     email?: string | null;
   } | null;
+  customer?: {
+    id: number;
+    fname?: string | null;
+    lname?: string | null;
+    email?: string | null;
+    owner_id?: number | null;
+    billing_in_charge?: string | null;
+    contact_person?: string | null;
+    owner?: {
+      id: number;
+      fname?: string | null;
+      lname?: string | null;
+      name?: string | null;
+      email?: string | null;
+    } | null;
+  } | null;
   subtotal: string | number;
   discount_total: string | number;
   tax_total: string | number;

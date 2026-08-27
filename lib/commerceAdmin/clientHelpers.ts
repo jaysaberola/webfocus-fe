@@ -267,9 +267,21 @@ export function expandClientServiceRows(customers: CustomerRow[]): CustomerRow[]
   });
 }
 
-export function clientOwnerName(client: CustomerRow) {
+export function clientOwnerName(client: {
+  owner?: {
+    id?: number | null;
+    name?: string | null;
+    fname?: string | null;
+    lname?: string | null;
+    email?: string | null;
+  } | null;
+  owner_name?: string | null;
+  owner_id?: number | null;
+}) {
   const assigned =
-    String(client.owner?.name || client.owner_name || "").trim() ||
+    String(client.owner?.name || "").trim() ||
+    `${client.owner?.fname || ""} ${client.owner?.lname || ""}`.trim() ||
+    String(client.owner_name || "").trim() ||
     String(client.owner?.email || "").trim();
   return assigned || "Unassigned";
 }
@@ -278,8 +290,69 @@ export function clientIsAssigned(client: CustomerRow) {
   return Boolean(client.owner_id || client.owner?.id);
 }
 
-export function clientBillingInCharge(client: CustomerRow) {
-  return String(client.billing_in_charge || client.email || "").trim() || "—";
+export function clientBillingInCharge(client: {
+  billing_in_charge?: string | null;
+  email?: string | null;
+}) {
+  return String(client.billing_in_charge || "").trim() || "—";
+}
+
+export type AssignablePerson = {
+  id: number;
+  name?: string | null;
+  email?: string | null;
+};
+
+export function assignablePersonLabel(person: AssignablePerson) {
+  return String(person.name || person.email || "").trim();
+}
+
+export function matchesAssignablePerson(
+  person: AssignablePerson,
+  selected?: string | number | null,
+) {
+  const value = String(selected ?? "").trim();
+  if (!value) return false;
+  const lower = value.toLowerCase();
+  return (
+    String(person.id) === value ||
+    String(person.name ?? "").trim().toLowerCase() === lower ||
+    String(person.email ?? "").trim().toLowerCase() === lower
+  );
+}
+
+export function resolveAssignableSelectValue(
+  stored: string | number | null | undefined,
+  people: AssignablePerson[],
+) {
+  const selected = String(stored ?? "").trim();
+  if (!selected) return "";
+  const match = people.find((person) => matchesAssignablePerson(person, selected));
+  return match ? assignablePersonLabel(match) : selected;
+}
+
+export function withCurrentAssignablePerson(
+  people: AssignablePerson[],
+  current?: Partial<AssignablePerson> | null,
+): AssignablePerson[] {
+  const id = Number(current?.id);
+  const hasId = Number.isFinite(id) && id > 0;
+  const label = assignablePersonLabel({
+    id: hasId ? id : -1,
+    name: current?.name,
+    email: current?.email,
+  });
+
+  if (hasId) {
+    if (people.some((person) => Number(person.id) === id)) return people;
+    return [
+      { id, name: label || "Current owner", email: current?.email ?? null },
+      ...people,
+    ];
+  }
+
+  if (!label || people.some((person) => matchesAssignablePerson(person, label))) return people;
+  return [{ id: -1, name: label, email: current?.email ?? null }, ...people];
 }
 
 export function clientActiveServicesCount(client: CustomerRow) {

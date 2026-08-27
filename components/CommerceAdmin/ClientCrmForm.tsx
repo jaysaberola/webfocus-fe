@@ -38,6 +38,11 @@ import {
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
+import {
+  assignablePersonLabel,
+  resolveAssignableSelectValue,
+  withCurrentAssignablePerson,
+} from "@/lib/commerceAdmin/clientHelpers";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -151,6 +156,11 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   const [activeTab, setActiveTab] = useState<ClientTab>("overview");
   const [formMode, setFormMode] = useState(mode);
   const skipNextClientLoadRef = useRef(false);
+  const [currentOwner, setCurrentOwner] = useState<{
+    id: number;
+    name?: string | null;
+    email?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     setFormMode(mode);
@@ -158,15 +168,16 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
   const billingOfficers = useMemo(() => {
     const officers = billingUsers.filter((owner) => owner.name || owner.email);
-    const selected = String(form.billing_in_charge || "").trim();
-    if (
-      selected &&
-      !officers.some((owner) => owner.name === selected || owner.email === selected)
-    ) {
-      return [{ id: -1, name: selected }, ...officers];
-    }
-    return officers;
+    const selected = resolveAssignableSelectValue(form.billing_in_charge, officers);
+    return withCurrentAssignablePerson(officers, selected ? { name: selected } : null);
   }, [billingUsers, form.billing_in_charge]);
+
+  const ownerOptions = useMemo(
+    () => withCurrentAssignablePerson(owners, currentOwner),
+    [owners, currentOwner],
+  );
+
+  const billingSelectValue = resolveAssignableSelectValue(form.billing_in_charge, billingOfficers);
 
   const goToSection = useCallback(
     (section: ClientRelatedSection) => {
@@ -216,6 +227,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       setAudits([]);
       setCreatedAt(null);
       setActiveTab("overview");
+      setCurrentOwner(null);
       setLoading(false);
       return;
     }
@@ -223,9 +235,22 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     setLoading(true);
     getCustomer(client.id, { silent: true })
       .then((detail) => {
+        const ownerId = Number(detail?.owner_id ?? client.owner_id ?? 0) || null;
+        const ownerName =
+          String(detail?.owner?.name || detail?.owner_name || client.owner?.name || client.owner_name || "").trim() ||
+          String(detail?.owner?.email || client.owner?.email || "").trim();
+        setCurrentOwner(
+          ownerId
+            ? {
+                id: ownerId,
+                name: ownerName,
+                email: detail?.owner?.email ?? client.owner?.email ?? null,
+              }
+            : null,
+        );
         setForm({
           ...emptyClientCrmForm,
-          owner_id: detail?.owner_id ?? client.owner_id ?? null,
+          owner_id: ownerId,
           company: detail?.company ?? client.company ?? client.name ?? "",
           industry: detail?.industry ?? "",
           tax_classification: detail?.tax_classification ?? "",
@@ -244,7 +269,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           email: detail?.email ?? client.email ?? "",
           website: detail?.website ?? "",
           ownership: detail?.ownership ?? "",
-          billing_in_charge: detail?.billing_in_charge ?? "",
+          billing_in_charge: String(detail?.billing_in_charge || client.billing_in_charge || "").trim(),
           exchange_rate: String(detail?.exchange_rate ?? "1"),
           workdrive_folder_id: detail?.workdrive_folder_id ?? "",
           address_street: detail?.address_street ?? "",
@@ -283,8 +308,18 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           ...emptyClientCrmForm,
           company: client.company ?? client.name ?? "",
           email: client.email ?? "",
-          owner_id: client.owner_id ?? null,
+          owner_id: Number(client.owner_id ?? 0) || null,
+          billing_in_charge: String(client.billing_in_charge || "").trim(),
         });
+        setCurrentOwner(
+          client.owner_id
+            ? {
+                id: Number(client.owner_id),
+                name: client.owner?.name || client.owner_name,
+                email: client.owner?.email ?? null,
+              }
+            : null,
+        );
         setAudits([]);
       })
       .finally(() => setLoading(false));
@@ -618,20 +653,17 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             <Field label="Client Owner">
               <select
                 className={styles.clientCrmInput}
-                value={form.owner_id ?? ""}
+                value={form.owner_id ? String(form.owner_id) : ""}
                 onChange={(e) =>
                   setField("owner_id", e.target.value ? Number(e.target.value) : null)
                 }
               >
                 <option value="">-None-</option>
-                {owners.map((owner) => (
-                  <option key={owner.id} value={owner.id}>
-                    {owner.name}
+                {ownerOptions.map((owner) => (
+                  <option key={owner.id} value={String(owner.id)}>
+                    {assignablePersonLabel(owner) || "Current owner"}
                   </option>
                 ))}
-                {form.owner_id && !owners.some((owner) => owner.id === form.owner_id) ? (
-                  <option value={form.owner_id}>Current owner</option>
-                ) : null}
               </select>
             </Field>
             <Field label="Client Name">
@@ -768,13 +800,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             <Field label="Billing in Charge">
               <select
                 className={styles.clientCrmInput}
-                value={form.billing_in_charge}
+                value={billingSelectValue}
                 onChange={(e) => setField("billing_in_charge", e.target.value)}
               >
                 <option value="">-None-</option>
                 {billingOfficers.map((owner) => (
-                  <option key={owner.id} value={owner.name}>
-                    {owner.name}
+                  <option key={`${owner.id}-${assignablePersonLabel(owner)}`} value={assignablePersonLabel(owner)}>
+                    {assignablePersonLabel(owner)}
                   </option>
                 ))}
               </select>
