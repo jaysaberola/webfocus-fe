@@ -14,6 +14,7 @@ export type TxColumnKey =
   | "productCategory"
   | "probability"
   | "expectedRevenue"
+  | "dealAmount"
   | "stage"
   | "closingDate"
   | "contactName"
@@ -55,6 +56,7 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   productCategory: "Product Category",
   probability: "Probability (%)",
   expectedRevenue: "Expected Revenue ₱",
+  dealAmount: "Deal Amount",
   stage: "Stage",
   closingDate: "Closing Date",
   contactName: "Contact Name",
@@ -84,6 +86,7 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   productCategory: true,
   probability: false,
   expectedRevenue: false,
+  dealAmount: false,
   stage: false,
   closingDate: false,
   contactName: false,

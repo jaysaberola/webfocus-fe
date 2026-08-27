@@ -1,4 +1,6 @@
-import { Children, isValidElement, useEffect, useState } from "react";
+import { Children, isValidElement, useEffect, useMemo, useState } from "react";
+import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
+import { buildClientDealRows } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -255,6 +257,20 @@ export default function ClientOrderForm({
   }, [defaultCustomerId, transaction]);
 
   const selectedClient = clients.find((client) => String(client.id) === form.clientId);
+
+  const productDeal = useMemo(() => {
+    if (!transaction) return null;
+    const client =
+      selectedClient ??
+      clients.find((row) => Number(row.id) === Number(transaction.customer_id)) ??
+      ({
+        id: Number(transaction.customer_id ?? 0),
+        company: transaction.customer_name ?? "",
+        email: transaction.customer_email ?? "",
+      } as CustomerRow);
+    const rows = buildClientDealRows(client, [transaction], services);
+    return rows.find((row) => row.dealName === form.dealName) ?? rows[0] ?? null;
+  }, [transaction, selectedClient, clients, services, form.dealName]);
 
   useEffect(() => {
     if (isEditing) return;
@@ -993,6 +1009,12 @@ export default function ClientOrderForm({
           </Field>
         </div>
       </section>
+
+      {productDeal ? (
+        <section className={styles.clientCrmSection}>
+          <OrderProductDetailsPanel order={productDeal} embedded />
+        </section>
+      ) : null}
     </form>
   );
 }

@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import AssignClientOwnerModal from "@/components/CommerceAdmin/modals/AssignClientOwnerModal";
 import LookupHoverActions from "@/components/CommerceAdmin/LookupHoverActions";
-import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
 import ResizableTableHead from "@/components/CommerceAdmin/ResizableTableHead";
 import ColumnResizeLines from "@/components/CommerceAdmin/ColumnResizeLines";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
@@ -17,7 +16,6 @@ import {
   type ClientDealRow,
   type DealColumnKey,
 } from "@/lib/commerceAdmin/clientDealHelpers";
-import { scrollToClientSection } from "@/lib/commerceAdmin/clientScrollHelpers";
 import { clientIsAssigned, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { toast } from "@/lib/toast";
 import { assignCommerceCustomerOwner, fetchCommerceServices } from "@/services/commerceAdminService";
@@ -73,6 +71,8 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return deal.paymentStatus;
     case "expectedRevenue":
       return formatDealAmount(deal.expectedRevenue);
+    case "dealAmount":
+      return formatDealAmount(deal.amount);
     case "probability":
       return deal.probability;
     case "statusTriggerDate":
@@ -109,11 +109,9 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassigning, setUnassigning] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<ClientDealRow | null>(null);
   const [columnsVisible, setColumnsVisible] = useState(DEFAULT_DEAL_COLUMNS);
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
-  const productDetailsRef = useRef<HTMLDivElement | null>(null);
   const dealColumnLabel = useCallback((key: DealColumnKey) => DEAL_COLUMN_LABELS[key], []);
   const { containerRef, layoutFor, startResize } = useResizableColumns<DealColumnKey>(
     "commerceAdmin:dealColumnWidths",
@@ -128,7 +126,6 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     let cancelled = false;
     setLoading(true);
     setPage(1);
-    setSelectedOrder(null);
 
     Promise.all([
       fetchCustomerDealTransactions(Number(client.id)),
@@ -208,7 +205,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   };
 
   const openEditDeal = (deal?: ClientDealRow | null) => {
-    const target = deal ?? selectedOrder ?? dealRows.find((row) => row.transactionId);
+    const target = deal ?? dealRows.find((row) => row.transactionId);
     const transaction = transactions.find((row) => row.id === target?.transactionId);
     if (!transaction) {
       toast.info("Select a deal to edit.");
@@ -216,13 +213,6 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     }
     onEditDeal?.(transaction);
   };
-
-  useEffect(() => {
-    if (!selectedOrder) return;
-    requestAnimationFrame(() => {
-      scrollToClientSection(productDetailsRef.current);
-    });
-  }, [selectedOrder]);
 
   return (
     <div className={styles.clientDealsBlock}>
@@ -311,7 +301,11 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   <ResizableTableHead
                     key={column}
                     label={DEAL_COLUMN_LABELS[column]}
-                    className={column === "expectedRevenue" ? styles.dealsAmount : undefined}
+                    className={
+                      column === "expectedRevenue" || column === "dealAmount"
+                        ? styles.dealsAmount
+                        : undefined
+                    }
                   />
                 ))}
               </tr>
@@ -327,10 +321,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
               </tr>
             ) : (
               paginatedDeals.map((deal) => (
-                <tr
-                  key={deal.id}
-                  className={selectedOrder?.id === deal.id ? styles.rowDealOpen : undefined}
-                >
+                <tr key={deal.id}>
                   {visibleColumns.map((column) => {
                     if (column === "clientOwner") {
                       return (
@@ -366,9 +357,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                           <button
                             type="button"
                             className={styles.tableCellLink}
-                            onClick={() =>
-                              setSelectedOrder((current) => (current?.id === deal.id ? null : deal))
-                            }
+                            onClick={() => openEditDeal(deal)}
                           >
                             {deal.dealName}
                           </button>
@@ -391,7 +380,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         key={column}
                         className={[
                           styles.resizableCell,
-                          column === "expectedRevenue"
+                          column === "expectedRevenue" || column === "dealAmount"
                             ? styles.dealsAmount
                             : column === "collectionNote"
                               ? undefined
@@ -446,16 +435,6 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           </button>
         </div>
       </div>
-
-      {selectedOrder ? (
-        <div
-          ref={productDetailsRef}
-          id="client-section-product-details"
-          className={styles.clientEditScrollTarget}
-        >
-          <OrderProductDetailsPanel order={selectedOrder} onClose={() => setSelectedOrder(null)} />
-        </div>
-      ) : null}
 
       <AssignClientOwnerModal
         open={assignOpen}

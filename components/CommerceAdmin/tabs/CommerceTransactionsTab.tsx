@@ -582,7 +582,7 @@ export default function CommerceTransactionsTab() {
         </td>
       );
     }
-    if (column === "expectedRevenue") {
+    if (column === "expectedRevenue" || column === "dealAmount") {
       return (
         <td key={column} className={styles.amountCell}>
           {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}

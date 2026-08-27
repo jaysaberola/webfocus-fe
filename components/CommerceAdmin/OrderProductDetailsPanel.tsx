@@ -3,7 +3,8 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
   order: ClientDealRow;
-  onClose: () => void;
+  embedded?: boolean;
+  onClose?: () => void;
 };
 
 function moneyCell(value: number) {
@@ -21,20 +22,21 @@ function splitPeriod(period?: string) {
   };
 }
 
-export default function OrderProductDetailsPanel({ order, onClose }: Props) {
+export default function OrderProductDetailsPanel({ order, embedded = false, onClose }: Props) {
+  const subtitle = [order.dealName || order.subject, order.transactionNo].filter(Boolean).join(" · ");
+
   return (
-    <div className={styles.productDetailsPanel}>
+    <div className={`${styles.productDetailsPanel}${embedded ? ` ${styles.productDetailsPanelEmbedded}` : ""}`}>
       <div className={styles.productDetailsHead}>
         <div>
-          <h4 className={styles.clientCrmSectionTitle}>Deal Info</h4>
-          <p className={styles.panelSubtitle}>
-            {order.dealName || order.subject}
-            {order.transactionNo ? ` · ${order.transactionNo}` : ""}
-          </p>
+          {embedded ? null : <h4 className={styles.clientCrmSectionTitle}>Deal Info</h4>}
+          {subtitle ? <p className={styles.panelSubtitle}>{subtitle}</p> : null}
         </div>
-        <button type="button" className={styles.secondaryBtnSm} onClick={onClose}>
-          Close
-        </button>
+        {embedded || !onClose ? null : (
+          <button type="button" className={styles.secondaryBtnSm} onClick={onClose}>
+            Close
+          </button>
+        )}
       </div>
 
       <div className={styles.tableWrap}>

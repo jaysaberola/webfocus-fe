@@ -86,6 +86,7 @@ export type DealColumnKey =
   | "paymentMethod"
   | "paymentStatus"
   | "expectedRevenue"
+  | "dealAmount"
   | "probability"
   | "statusTriggerDate"
   | "joNumber"
@@ -106,6 +107,7 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   productCategory: "Product Category",
   probability: "Probability (%)",
   expectedRevenue: "Expected Revenue ₱",
+  dealAmount: "Deal Amount",
   stage: "Stage",
   closingDate: "Closing Date",
   contactName: "Contact Name",
@@ -136,6 +138,7 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   productCategory: true,
   probability: false,
   expectedRevenue: false,
+  dealAmount: false,
   stage: false,
   closingDate: false,
   contactName: false,
@@ -192,6 +195,10 @@ export function orderAdminColumnValue(
         Number.isFinite(fromMeta) && String(meta?.expectedRevenue ?? "").trim() !== ""
           ? fromMeta
           : Number(transaction.grand_total ?? 0);
+      return formatDealAmount(Number.isFinite(amount) ? amount : null);
+    }
+    case "dealAmount": {
+      const amount = Number(transaction.grand_total ?? 0);
       return formatDealAmount(Number.isFinite(amount) ? amount : null);
     }
     case "stage":
