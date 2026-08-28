@@ -59,6 +59,10 @@ export const tour = {
   grapesCanvas: '[data-cms-tour="grapes-canvas"]',
   grapesLayersTab: '[data-cms-tour="grapes-layers-tab"]',
   grapesStyles: '[data-cms-tour="grapes-styles"]',
+  grapesGuide: '[data-cms-tour="grapes-guide"]',
+  grapesPageSwitcher: '[data-cms-tour="grapes-page-switcher"]',
+  grapesSave: '[data-cms-tour="grapes-save"]',
+  grapesSettings: '[data-cms-tour="grapes-settings"]',
 } as const;
 
 export function pathMatchesRoute(pathname: string, route?: string): boolean {

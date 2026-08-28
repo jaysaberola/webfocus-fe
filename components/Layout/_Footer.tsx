@@ -3,6 +3,7 @@ import type { PublicFooter } from "@/services/publicPageService";
 import { getFooterCached, useStoredPublicFooter } from "@/lib/publicFooterCache";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
+import { activateCmsPageAnimations } from "@/lib/publicPageScripts";
 
 function buildFooterHtml(footer: PublicFooter | null) {
   if (!footer) return "";
@@ -64,6 +65,10 @@ export default function LandingFooter() {
       nextScript.text = oldScript.textContent || "";
       oldScript.replaceWith(nextScript);
     });
+  }, [html]);
+
+  useEffect(() => {
+    return activateCmsPageAnimations(contentRef.current);
   }, [html]);
 
   if (!html) {

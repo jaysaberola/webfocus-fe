@@ -21,21 +21,16 @@ type GrapesRteDocBarProps = {
   rteHostRef: React.RefObject<HTMLDivElement | null>;
   onMenuAction: (action: string) => void;
   onRteAction: (action: string) => void;
+  onOpenGuide?: () => void;
 };
 
 const MENUS: MenuGroup[] = [
   {
     id: "insert",
     label: "Insert",
-    items: [{ label: "Hero section", action: "cms:insert-hero" }],
-  },
-  {
-    id: "help",
-    label: "Help",
     items: [
-      { label: "Click text once to format", action: "noop" },
-      { label: "Ctrl+D duplicate · Del delete", action: "noop" },
-      { label: "Ctrl+Shift+P preview", action: "noop" },
+      { label: "Hero section", action: "cms:insert-hero" },
+      { label: "Open library", action: "cms:open-library" },
     ],
   },
 ];
@@ -46,6 +41,7 @@ export default function GrapesRteDocBar({
   rteHostRef,
   onMenuAction,
   onRteAction,
+  onOpenGuide,
 }: GrapesRteDocBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +107,18 @@ export default function GrapesRteDocBar({
               )}
             </div>
           ))}
+          {onOpenGuide ? (
+            <button
+              type="button"
+              className="cms-grapes-doc-bar__guide"
+              data-cms-tour="grapes-guide"
+              disabled={!editorReady}
+              onClick={onOpenGuide}
+            >
+              <i className="fa-solid fa-circle-question" aria-hidden="true" />
+              User guide
+            </button>
+          ) : null}
           <span className="cms-grapes-doc-bar__hint">Select any text block to show formatting tools</span>
         </div>
       )}

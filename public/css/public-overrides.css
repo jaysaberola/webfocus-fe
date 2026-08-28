@@ -3,6 +3,8 @@
    by restoring Bootstrap-like borders where we use .form-control/.form-select.
 */
 
+@import url("/css/cms-studio-buttons.css");
+
 /* Public layout: remove trailing white gap below footer */
 html,
 body {
@@ -779,5 +781,73 @@ div[class*="wh-"] {
 
   .public-page-content .wsi-brand-marquee-group[aria-hidden="true"] {
     display: none;
+  }
+}
+
+.cms-anim-ready [data-anim]:not(.is-anim-in) {
+  opacity: 0;
+}
+
+.cms-anim-ready [data-anim="fade"].is-anim-in {
+  animation: cms-page-fade-in 0.7s ease both;
+}
+
+.cms-anim-ready [data-anim="slide"].is-anim-in {
+  animation: cms-page-slide-up 0.7s ease both;
+}
+
+.cms-anim-ready [data-anim="slide-left"].is-anim-in {
+  animation: cms-page-slide-left 0.7s ease both;
+}
+
+.cms-anim-ready [data-anim="zoom"].is-anim-in {
+  animation: cms-page-zoom-in 0.55s ease both;
+}
+
+.cms-anim-ready [data-anim="scale"].is-anim-in {
+  animation: cms-page-scale-in 0.55s ease both;
+}
+
+.cms-anim-ready [data-anim="bounce"].is-anim-in {
+  animation: cms-page-bounce-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cms-page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cms-page-slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cms-page-slide-left {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cms-page-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes cms-page-scale-in {
+  from { transform: scale(0.9); }
+  to { transform: none; }
+}
+
+@keyframes cms-page-bounce-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  60% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-anim-ready [data-anim]:not(.is-anim-in),
+  .cms-anim-ready [data-anim].is-anim-in {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
   }
 }

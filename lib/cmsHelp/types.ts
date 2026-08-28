@@ -14,6 +14,8 @@ export type CmsHelpStep = {
   /** Navigate here before highlighting (if user is on another page) */
   route?: string;
   placement?: CmsHelpStepPlacement;
+  /** Skip this step when the target is not on screen (TinyMCE vs Visual Builder). */
+  skipIfMissing?: boolean;
 };
 
 export type CmsHelpGuide = {

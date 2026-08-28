@@ -1,7 +1,7 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { getPublicPageBySlug, PublicPage } from "@/services/publicPageService";
 import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesContent";
-import { cleanupPublicPageScripts } from "@/lib/publicPageScripts";
+import { activateCmsPageAnimations, cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
 import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
@@ -85,6 +85,10 @@ export default function PublicPageView({ pageData, htmlContent }: PublicPageView
       cleanupPublicPageScripts();
     };
   }, [pageData?.slug]);
+
+  useEffect(() => {
+    return activateCmsPageAnimations(contentRef.current);
+  }, [htmlContent, pageData?.slug]);
 
   useEffect(() => {
     const slug = String(pageData?.slug || "").toLowerCase();

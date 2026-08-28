@@ -1,6 +1,10 @@
+import { resolveBlockThumb } from "./grapesBlockThumbs";
+
 export const CMS_STUDIO_BLOCK_COUNT = 30;
 
 export const cmsStudioCanvasCss = `
+  @import url("/css/cms-studio-buttons.css");
+
   :root {
     color-scheme: light;
   }
@@ -9,10 +13,17 @@ export const cmsStudioCanvasCss = `
     box-sizing: border-box;
   }
 
+  html {
+    height: 100% !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
+
   html, body {
     margin: 0;
-    min-height: 100%;
-    background: #f6f8fb;
+    width: 100% !important;
+    min-width: 100%;
+    background: #ffffff;
     color: #0f172a;
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -22,8 +33,19 @@ export const cmsStudioCanvasCss = `
   body {
     line-height: 1.5;
     position: relative;
-    min-height: 100vh;
-    overflow: visible;
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
+  }
+
+  [data-gjs-type="wrapper"] {
+    width: 100% !important;
+    min-width: 100%;
+    min-height: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding-bottom: 0 !important;
   }
 
   img, video, iframe {
@@ -57,6 +79,29 @@ export const cmsStudioCanvasCss = `
 
   a:hover {
     text-decoration: underline;
+    filter: brightness(1.05);
+  }
+
+  [data-anim="fade"] { animation: cms-fade-in .7s ease both; }
+  [data-anim="slide"] { animation: cms-slide-up .7s ease both; }
+  [data-anim="slide-left"] { animation: cms-slide-left .7s ease both; }
+  [data-anim="zoom"] { animation: cms-zoom-in .55s ease both; }
+  [data-anim="scale"] { animation: cms-scale-in .55s ease both; }
+  [data-anim="bounce"] { animation: cms-bounce-in .7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  @keyframes cms-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes cms-slide-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+  @keyframes cms-slide-left { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+  @keyframes cms-zoom-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+  @keyframes cms-scale-in { from { transform: scale(.9); } to { transform: none; } }
+  @keyframes cms-bounce-in {
+    from { opacity: 0; transform: translateY(18px) scale(.96); }
+    60% { opacity: 1; transform: translateY(-6px) scale(1.02); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-anim] { animation: none !important; }
   }
 
   blockquote {
@@ -94,12 +139,16 @@ export const cmsStudioCanvasCss = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 20px;
+    width: auto;
+    min-height: 44px;
+    padding: 12px 22px;
     border: 0;
-    border-radius: 999px;
-    background: #2563eb;
+    border-radius: 12px;
+    background: #4f46e5;
     color: #fff;
     font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
   }
 
@@ -161,10 +210,13 @@ export const resolveCmsBlockMedia = (iconClass?: string) => {
 };
 
 export const CMS_PRESETS_CATEGORY = "Presets";
+export const CMS_SECTIONS_CATEGORY = "Sections";
+export const CMS_ELEMENTS_CATEGORY = "Elements";
+export const CMS_BUTTONS_CATEGORY = "Buttons";
+export const CMS_LAYOUT_CATEGORY = "Layout";
 
 const LEGACY_PRESET_CATEGORIES = new Set([
   "CMS Page Starters",
-  "CMS Sections",
   "CMS Business",
   "CMS Social Proof",
   "CMS Forms",
@@ -173,6 +225,7 @@ const LEGACY_PRESET_CATEGORIES = new Set([
 
 export const normalizeStudioCategory = (category?: string) => {
   const label = String(category || "").trim();
+  if (label === "CMS Sections") return CMS_SECTIONS_CATEGORY;
   return LEGACY_PRESET_CATEGORIES.has(label) ? CMS_PRESETS_CATEGORY : label;
 };
 
@@ -188,7 +241,7 @@ const addBlock = (editor: any, id: string, config: any) => {
     ...config,
     category: normalizedCategory || config?.category,
     attributes: Object.keys(nextAttributes).length ? nextAttributes : undefined,
-    media: config?.media || resolveCmsBlockMedia(iconClass),
+    media: config?.media || resolveBlockThumb(id, iconClass),
   });
 };
 
@@ -197,6 +250,10 @@ export const configureStudioCategories = (editor: any) => {
   if (!categories) return;
 
   const order = [
+    CMS_ELEMENTS_CATEGORY,
+    CMS_BUTTONS_CATEGORY,
+    CMS_LAYOUT_CATEGORY,
+    CMS_SECTIONS_CATEGORY,
     CMS_PRESETS_CATEGORY,
     "CMS Media",
     "CMS Utility",
@@ -211,10 +268,10 @@ export const configureStudioCategories = (editor: any) => {
 
   const apply = (category: any) => {
     const label = normalizeStudioCategory(String(category?.get?.("id") || category?.get?.("label") || ""));
-    category?.set?.("open", false);
-    if (label === CMS_PRESETS_CATEGORY) {
-      category?.set?.("id", CMS_PRESETS_CATEGORY);
-      category?.set?.("label", CMS_PRESETS_CATEGORY);
+    category?.set?.("open", label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === "Basic");
+    if (label === CMS_PRESETS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_LAYOUT_CATEGORY) {
+      category?.set?.("id", label);
+      category?.set?.("label", label);
     }
     category?.set?.("order", rank(label));
   };
@@ -672,7 +729,7 @@ const FOUNDATION_BLOCK_STYLES: Record<string, string> = {
   `,
   button: `
     <section style="padding:32px 24px;text-align:center;">
-      <button type="button" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Button</button>
+      <a href="#" class="cms-btn" data-btn="primary" data-btn-shape="rounded" data-btn-size="md" data-btn-icon="none">Get started</a>
     </section>
   `,
   label: `
@@ -716,18 +773,23 @@ export const enhanceFoundationBlocks = (editor: any) => {
     const styledContent = FOUNDATION_BLOCK_STYLES[id];
     if (styledContent) {
       block.set("content", styledContent);
-      return;
+    } else {
+      const categoryId = getBlockCategoryId(block);
+      if (categoryId === "Basic" || categoryId === "Forms") {
+        const currentContent = String(block.get("content") || "");
+        if (!currentContent.includes("style=")) {
+          block.set(
+            "content",
+            `<section style="padding:32px 24px;"><div style="max-width:900px;margin:0 auto;padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;">${currentContent}</div></section>`,
+          );
+        }
+      }
     }
 
-    const categoryId = getBlockCategoryId(block);
-    if (categoryId !== "Basic" && categoryId !== "Forms") return;
-
-    const currentContent = String(block.get("content") || "");
-    if (currentContent.includes("style=")) return;
-
-    block.set(
-      "content",
-      `<section style="padding:32px 24px;"><div style="max-width:900px;margin:0 auto;padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;">${currentContent}</div></section>`,
-    );
+    const currentMedia = String(block.get("media") || "");
+    const nextMedia = resolveBlockThumb(id);
+    if (currentMedia !== nextMedia) {
+      block.set("media", nextMedia);
+    }
   });
 };

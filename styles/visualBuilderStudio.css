@@ -1,0 +1,948 @@
+/* Canva / WebWave-style light visual builder chrome */
+
+body.cms-visual-studio-open {
+  overflow: hidden !important;
+}
+
+body.cms-visual-studio-open .cms-admin-layout {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+body.cms-visual-studio-open .cms-admin-layout > aside,
+body.cms-visual-studio-open .sb-root,
+body.cms-visual-studio-open .cms-topbar,
+body.cms-visual-studio-open .admin-topbar,
+body.cms-visual-studio-open header.cms-admin-topbar,
+body.cms-visual-studio-open .cms-sidebar-overlay {
+  display: none !important;
+}
+
+body.cms-visual-studio-open .cms-help-launcher {
+  display: none !important;
+}
+
+body.cms-visual-studio-open .cms-admin-main {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.cms-grapes-shell--app {
+  --vb-bg: #e8eaed;
+  --vb-panel: #ffffff;
+  --vb-line: #e5e7eb;
+  --vb-text: #111827;
+  --vb-muted: #6b7280;
+  --vb-accent: #6366f1;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2400 !important;
+  width: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: var(--vb-bg) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 12px 0 8px;
+  background: #fff !important;
+  border-bottom: 1px solid var(--vb-line) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__brand {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px;
+  color: var(--vb-text) !important;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__brand i {
+  color: var(--vb-accent) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__tools,
+.cms-grapes-shell--app .cms-grapes-studio-bar__actions {
+  justify-self: unset !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: none;
+  flex: 0 1 auto;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher {
+  width: min(280px, 100%);
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  max-width: none;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px;
+  background: #f8fafc !important;
+  box-shadow: none !important;
+  color: #111827;
+  outline: none;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger:hover,
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger[aria-expanded="true"],
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger:focus-visible {
+  border-color: #c7d2fe !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__panel {
+  z-index: 80;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6b7280;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__status.is-dirty {
+  color: #b45309;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__status.is-saved {
+  color: #047857;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn {
+  color: #4b5563 !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn:hover:not(:disabled) {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn.is-active {
+  background: #eef2ff !important;
+  color: #4338ca !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__zoom {
+  color: #4b5563 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar__divider {
+  background: #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn--primary,
+.cms-grapes-shell--app .cms-grapes-studio-btn--save {
+  width: auto !important;
+  padding: 0 14px !important;
+  background: #111827 !important;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn--publish {
+  width: auto !important;
+  padding: 0 14px !important;
+  background: #4f46e5 !important;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn--guide {
+  width: auto !important;
+  padding: 0 10px !important;
+  gap: 6px;
+  color: #4f46e5 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn--text {
+  width: auto !important;
+  padding: 0 10px !important;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar:not(.is-rte-mode) {
+  display: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-docbar,
+.cms-grapes-shell--app .cms-grapes-docbar,
+.cms-grapes-shell--app .cms-grapes-doc-bar.is-rte-mode {
+  background: #fff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  color: #374151 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__workspace {
+  background: #e8eaed !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__host-wrap,
+.cms-grapes-shell--app .cms-grapes-shell__host,
+.cms-grapes-shell--app .gjs-editor,
+.cms-grapes-shell--app .gjs-cv-canvas,
+.cms-grapes-shell--app .cms-grapes-shell__host .gjs-editor-cont {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-page-loader {
+  background: rgba(232, 234, 237, 0.92) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-page-loader__card {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-page-loader__card strong {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  color: #111827 !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel.is-active {
+  overflow: auto !important;
+  min-height: 0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right {
+  border-left: 1px solid #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__toolbar {
+  background: #fff !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__tab {
+  color: #6b7280 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__tab.is-active {
+  color: #111827 !important;
+  background: #f3f4f6 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__collapse {
+  color: #6b7280 !important;
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__collapse:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar__collapse:focus {
+  color: #111827 !important;
+  background: #f3f4f6 !important;
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__search {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__search input {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__host-wrap,
+.cms-grapes-shell--app .cms-grapes-shell__host,
+.cms-grapes-shell--app .gjs-editor,
+.cms-grapes-shell--app .gjs-cv-canvas {
+  background: #e8eaed !important;
+}
+
+.cms-grapes-shell--app .gjs-cv-canvas__frames,
+.cms-grapes-shell--app .gjs-frames {
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: none !important;
+}
+
+.cms-grapes-shell--app .gjs-frame-wrapper {
+  display: block !important;
+  background: #fff !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 100% !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="tablet"] .gjs-cv-canvas__frames,
+.cms-grapes-shell--app[data-cms-device="mobile"] .gjs-cv-canvas__frames {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="tablet"] .gjs-frames,
+.cms-grapes-shell--app[data-cms-device="mobile"] .gjs-frames {
+  display: flex !important;
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="tablet"] .gjs-frame-wrapper,
+.cms-grapes-shell--app[data-cms-device="mobile"] .gjs-frame-wrapper {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  min-height: calc(100% - 40px) !important;
+  max-width: calc(100% - 40px) !important;
+  margin: 20px auto !important;
+  overflow: hidden !important;
+  border-radius: 24px !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22) !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="tablet"] .gjs-frame-wrapper {
+  width: 834px !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="mobile"] .gjs-frame-wrapper {
+  width: 390px !important;
+}
+
+.cms-grapes-shell--app .gjs-frame {
+  display: block !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  height: auto !important;
+  min-height: 100% !important;
+}
+
+.cms-grapes-shell--app[data-cms-device="tablet"] .gjs-frame,
+.cms-grapes-shell--app[data-cms-device="mobile"] .gjs-frame {
+  min-width: 0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-selection-bar {
+  display: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-add-section,
+.cms-grapes-shell--app .cms-grapes-add-section:hover,
+.cms-grapes-shell--app .cms-grapes-add-section:focus,
+.cms-grapes-shell--app .cms-grapes-add-section:active {
+  position: absolute !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 18px !important;
+  width: max-content !important;
+  margin: 0 auto !important;
+  transform: none !important;
+  translate: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:hover,
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:focus,
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:active {
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-empty-guide {
+  background: transparent !important;
+  color: #111827 !important;
+  border: 0 !important;
+  pointer-events: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-empty-guide h2,
+.cms-grapes-shell--app .cms-grapes-empty-guide p {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-one-bg {
+  background: #fff !important;
+}
+
+.cms-grapes-shell--app .gjs-two-color,
+.cms-grapes-shell--app .gjs-four-color,
+.cms-grapes-shell--app .gjs-pn-btn,
+.cms-grapes-shell--app .gjs-block-label,
+.cms-grapes-shell--app .gjs-title,
+.cms-grapes-shell--app .gjs-layer-name,
+.cms-grapes-shell--app .gjs-sm-label,
+.cms-grapes-shell--app .gjs-trt-header,
+.cms-grapes-shell--app .gjs-clm-label,
+.cms-grapes-shell--app .gjs-sm-sector .gjs-sm-title {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-block {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #0f172a !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06) !important;
+}
+
+.cms-grapes-shell--app .gjs-block:hover {
+  border-color: #6366f1 !important;
+  background: #fff !important;
+}
+
+.cms-grapes-shell--app .gjs-block-label {
+  color: #0f172a !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.cms-grapes-shell--app .gjs-block .gjs-block__media {
+  width: 100% !important;
+  height: 118px !important;
+  min-height: 118px !important;
+  background: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-gjs-block-media {
+  color: #4f46e5 !important;
+}
+
+.cms-grapes-shell--app .gjs-blocks-c,
+.cms-grapes-shell--app .gjs-block-category .gjs-title {
+  background: #fff !important;
+  border-color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sectors,
+.cms-grapes-shell--app .gjs-trt-traits {
+  padding: 8px !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sector,
+.cms-grapes-shell--app .gjs-sm-sector:hover,
+.cms-grapes-shell--app .gjs-sm-sector.gjs-sm-open,
+.cms-grapes-shell--app .gjs-trt-traits .gjs-trt-trait {
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sector::before {
+  display: none !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sector-title,
+.cms-grapes-shell--app .gjs-sm-sector .gjs-sm-title,
+.cms-grapes-shell--app .gjs-sm-sector:hover .gjs-sm-sector-title,
+.cms-grapes-shell--app .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .gjs-sm-sector.gjs-sm-open .gjs-sm-title {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+  box-shadow: none !important;
+  border-radius: 10px !important;
+  padding: 10px 12px !important;
+  font-weight: 700 !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .gjs-sm-sector.gjs-sm-open .gjs-sm-title {
+  background: #eef2ff !important;
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-sector-caret,
+.cms-grapes-shell--app .gjs-layer-caret,
+.cms-grapes-shell--app .gjs-field-arrow-u,
+.cms-grapes-shell--app .gjs-field-arrow-d,
+.cms-grapes-shell--app .gjs-two-color,
+.cms-grapes-shell--app .gjs-four-color {
+  color: #4b5563 !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-properties {
+  padding: 12px !important;
+  background: #fff !important;
+}
+
+.cms-grapes-shell--app .gjs-sm-properties,
+.cms-grapes-shell--app .gjs-sm-property,
+.cms-grapes-shell--app .gjs-sm-label,
+.cms-grapes-shell--app .gjs-sm-property__label,
+.cms-grapes-shell--app .gjs-label,
+.cms-grapes-shell--app .gjs-sm-empty,
+.cms-grapes-shell--app .gjs-clm-tags,
+.cms-grapes-shell--app .gjs-trt-trait,
+.cms-grapes-shell--app .gjs-trt-trait__label,
+.cms-grapes-shell--app .gjs-trt-header,
+.cms-grapes-shell--app .gjs-radio-items,
+.cms-grapes-shell--app .gjs-radio-item,
+.cms-grapes-shell--app .gjs-radio-items label,
+.cms-grapes-shell--app .gjs-sm-sector .gjs-sm-field,
+.cms-grapes-shell--app .gjs-field,
+.cms-grapes-shell--app .gjs-field *,
+.cms-grapes-shell--app .gjs-field input,
+.cms-grapes-shell--app .gjs-field select,
+.cms-grapes-shell--app .gjs-field textarea,
+.cms-grapes-shell--app .gjs-input-holder,
+.cms-grapes-shell--app .gjs-input-holder input,
+.cms-grapes-shell--app .gjs-input-holder select,
+.cms-grapes-shell--app .gjs-input-holder textarea,
+.cms-grapes-shell--app .gjs-select option {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-field,
+.cms-grapes-shell--app .gjs-field input,
+.cms-grapes-shell--app .gjs-field select,
+.cms-grapes-shell--app .gjs-field textarea,
+.cms-grapes-shell--app .gjs-input-holder input,
+.cms-grapes-shell--app .gjs-input-holder select,
+.cms-grapes-shell--app .gjs-input-holder textarea,
+.cms-grapes-shell--app .gjs-select option {
+  background: #fff !important;
+  border-color: #d1d5db !important;
+}
+
+.cms-grapes-shell--app .gjs-field::placeholder,
+.cms-grapes-shell--app .gjs-field input::placeholder,
+.cms-grapes-shell--app .gjs-input-holder input::placeholder {
+  color: #6b7280 !important;
+  opacity: 1 !important;
+}
+
+.cms-grapes-shell--app .gjs-field:focus-within,
+.cms-grapes-shell--app .gjs-input-holder input:focus,
+.cms-grapes-shell--app .gjs-input-holder select:focus,
+.cms-grapes-shell--app .gjs-input-holder textarea:focus {
+  background: #fff !important;
+  color: #111827 !important;
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .gjs-radio-items,
+.cms-grapes-shell--app .gjs-field-radio {
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .gjs-radio-item,
+.cms-grapes-shell--app .gjs-radio-items label {
+  background: #fff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.cms-grapes-shell--app .gjs-radio-item:hover,
+.cms-grapes-shell--app .gjs-radio-items label:hover {
+  background: #f3f4f6 !important;
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-radio-item input:checked + label,
+.cms-grapes-shell--app .gjs-radio-items input:checked + label,
+.cms-grapes-shell--app .gjs-radio-item.gjs-radio-item-active,
+.cms-grapes-shell--app .gjs-radio-item.gjs-radio-item-active label {
+  background: #eef2ff !important;
+  color: #1e3a8a !important;
+  border-color: #c7d2fe !important;
+  font-weight: 700 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-sectors,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-trt-traits,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-layers,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-layer-manager,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-clm-tags {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__panel input,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel select,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel textarea,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel label,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-label,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-label,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-property__label,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-trt-trait__wrp,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-field-units,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-field-unit,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-input-unit,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-stack,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-composite,
+.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-icon {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-gjs-color-field__picker,
+.cms-grapes-shell--app .cms-gjs-color-field__picker:hover,
+.cms-grapes-shell--app .cms-gjs-color-field__picker:focus,
+.cms-grapes-shell--app .cms-gjs-color-field__picker[aria-expanded="true"] {
+  background: #fff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-gjs-color-field__value {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-gjs-color-field__affordance,
+.cms-grapes-shell--app .cms-gjs-color-field__picker:hover .cms-gjs-color-field__affordance,
+.cms-grapes-shell--app .cms-gjs-color-field__picker:focus .cms-gjs-color-field__affordance,
+.cms-grapes-shell--app .cms-gjs-color-field__picker[aria-expanded="true"] .cms-gjs-color-field__affordance {
+  border-right-color: #4b5563 !important;
+  border-bottom-color: #4b5563 !important;
+}
+
+.cms-gjs-color-field__popover {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.cms-gjs-color-field__popover-label,
+.cms-gjs-color-field__popover input,
+.cms-gjs-color-field__popover select {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-layer,
+.cms-grapes-shell--app .gjs-layer-item,
+.cms-grapes-shell--app .gjs-layer-title,
+.cms-grapes-shell--app .gjs-layer-name,
+.cms-grapes-shell--app .gjs-layer-count,
+.cms-grapes-shell--app .gjs-layer-vis,
+.cms-grapes-shell--app .gjs-no-sel,
+.cms-grapes-shell--app .gjs-trt-header,
+.cms-grapes-shell--app .gjs-clm-header,
+.cms-grapes-shell--app .gjs-clm-sels-info,
+.cms-grapes-shell--app .gjs-clm-tag,
+.cms-grapes-shell--app .gjs-clm-sels,
+.cms-grapes-shell--app .gjs-clm-sel-id {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .gjs-layer-title,
+.cms-grapes-shell--app .gjs-layer-title-inn {
+  cursor: grab;
+}
+
+.cms-grapes-shell--app .gjs-layer-move {
+  color: #4b5563 !important;
+  cursor: grab !important;
+  pointer-events: auto !important;
+}
+
+.cms-grapes-shell--app .gjs-layer-move:active,
+.cms-grapes-shell--app .gjs-layer-title:active,
+.cms-grapes-shell--app .gjs-layer-title-inn:active {
+  cursor: grabbing !important;
+}
+
+.cms-grapes-shell--app .gjs-placeholder,
+.cms-grapes-shell--app .gjs-placeholder-int {
+  border-color: #2563eb !important;
+  background: rgba(37, 99, 235, 0.08) !important;
+}
+
+.cms-grapes-shell--app .gjs-clm-tag {
+  background: #f3f4f6 !important;
+  border-color: #e5e7eb !important;
+}
+
+.cms-grapes-shell--app .gjs-trt-trait .gjs-field,
+.cms-grapes-shell--app .gjs-trt-trait .gjs-field input,
+.cms-grapes-shell--app .gjs-trt-trait .gjs-field select,
+.cms-grapes-shell--app .gjs-trt-trait .gjs-field textarea {
+  background: #fff !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+
+.cms-grapes-shell--app .gjs-trt-trait .gjs-label,
+.cms-grapes-shell--app .gjs-trt-trait__label {
+  color: #374151 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle {
+  background: #2563eb !important;
+  color: #fff !important;
+  border: 1px solid #1d4ed8 !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.38) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:hover {
+  background: #1d4ed8 !important;
+  color: #fff !important;
+  border-color: #1e40af !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-context-menu {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-context-menu button {
+  color: #111827 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-context-menu button:hover {
+  background: #eef2ff !important;
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--page-settings-open .cms-grapes-shell__workspace {
+  margin-right: 360px;
+}
+
+.cms-visual-builder-settings {
+  position: absolute;
+  top: 56px;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 360px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6f8;
+  border-left: 1px solid #dbe1ea;
+  box-shadow: none;
+  padding: 0;
+  color: #0f172a;
+}
+
+.cms-visual-builder-settings__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  color: #0f172a;
+}
+
+.cms-visual-builder-settings__header strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cms-visual-builder-settings__close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.cms-visual-builder-settings__close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.cms-visual-builder-settings__body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 16px;
+  background: #f4f6f8;
+}
+
+.cms-visual-builder-settings,
+.cms-visual-builder-settings * {
+  color-scheme: light;
+}
+
+.cms-visual-builder-settings .page-editor__settings-stack {
+  gap: 12px;
+}
+
+.cms-visual-builder-settings .page-editor__settings-card {
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04) !important;
+  overflow: hidden;
+}
+
+.cms-visual-builder-settings .page-editor__settings-header,
+.cms-visual-builder-settings .page-editor__settings-header:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-header h5,
+.cms-visual-builder-settings .page-editor__settings-header h4,
+.cms-visual-builder-settings .page-editor__settings-toggle,
+.cms-visual-builder-settings .form-label,
+.cms-visual-builder-settings .form-check-label,
+.cms-visual-builder-settings .small,
+.cms-visual-builder-settings p,
+.cms-visual-builder-settings strong {
+  color: #0f172a !important;
+}
+
+.cms-visual-builder-settings .form-label {
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+}
+
+.cms-visual-builder-settings .form-control,
+.cms-visual-builder-settings .form-select,
+.cms-visual-builder-settings textarea {
+  background: #fff !important;
+  color: #0f172a !important;
+  border: 1px solid #d7dee8 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.cms-visual-builder-settings .form-control::placeholder,
+.cms-visual-builder-settings textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.cms-visual-builder-settings .form-control:focus,
+.cms-visual-builder-settings .form-select:focus,
+.cms-visual-builder-settings textarea:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+}
+
+.cms-visual-builder-settings .page-editor__editor-toggle {
+  display: flex !important;
+  width: 100%;
+  padding: 4px !important;
+  border-radius: 999px !important;
+  background: #e2e8f0 !important;
+}
+
+.cms-visual-builder-settings .page-editor__editor-toggle .form-check {
+  flex: 1 1 0;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.cms-visual-builder-settings .page-editor__editor-toggle .form-check-input {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.cms-visual-builder-settings .page-editor__editor-toggle .form-check-label {
+  display: flex !important;
+  justify-content: center;
+  width: 100%;
+  margin: 0 !important;
+  padding: 8px 12px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: #475569 !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.cms-visual-builder-settings .page-editor__editor-toggle .form-check-input:checked + .form-check-label {
+  background: #fff !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+}
+
+.cms-visual-builder-settings .form-check-input {
+  background-color: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+}
+
+.cms-visual-builder-settings .form-check-input:checked {
+  background-color: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+}
+
+.cms-visual-builder-settings .form-check-label {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.cms-visual-builder-settings .text-muted,
+.cms-visual-builder-settings .small.text-muted {
+  color: #64748b !important;
+}

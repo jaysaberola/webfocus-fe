@@ -32,6 +32,7 @@ export default function CustomDocument({ isPublicRoute, isAdminRoute }: CustomDo
             <link rel="stylesheet" href="/css/banner.css" />
             <link rel="stylesheet" href="/css/navigation.css" />
             <link rel="stylesheet" href="/css/public-overrides.css" />
+            <link rel="stylesheet" href="/css/cms-studio-buttons.css" />
           </>
         )}
         {isAdminRoute && (

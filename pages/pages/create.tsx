@@ -5,10 +5,11 @@ import { createPage } from "@/services/pageService";
 import { useRouter } from "next/router";
 import { toast } from "@/lib/toast";
 import { extractGrapesParts } from "@/lib/grapesContent";
-import Tooltip from "@/components/UI/Tooltip";
 import PageEditorToolbar from "@/components/Pages/PageEditorToolbar";
-import PageEditorSettingsPanel from "@/components/Pages/PageEditorSettingsPanel";
+import PageEditorMetaFields from "@/components/Pages/PageEditorMetaFields";
 import { getAlbumsCached, getMenusCached, scheduleIdleTask } from "@/lib/referenceDataCache";
+import { prefetchPagesSwitcherList } from "@/lib/pagesListCache";
+import { beginStudioPageSwitch } from "@/lib/studioPageSwitch";
 
 const TinyEditor = dynamic(() => import("@/components/UI/Editor"), {
   ssr: false,
@@ -87,6 +88,7 @@ export default function CreatePage() {
   const [seoDescription, setSeoDescription] = useState("");
   const [seoKeywords, setSeoKeywords] = useState("");
   const [loading, setLoading] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(true);
 
   const buildSnapshot = useCallback(
     (): PageSnapshot => ({
@@ -121,6 +123,7 @@ export default function CreatePage() {
 
   useEffect(() => {
     const cancel = scheduleIdleTask(() => {
+      prefetchPagesSwitcherList();
       Promise.all([getAlbumsCached(), getMenusCached()])
         .then(([albumRows, menuRows]) => {
           setAlbums(albumRows);
@@ -144,7 +147,7 @@ export default function CreatePage() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
 
-  const handleSave = async () => {
+  const handleSave = async (opts?: { publish?: boolean }) => {
     if (!title.trim()) {
       toast.error("Page title is required");
       return;
@@ -158,6 +161,7 @@ export default function CreatePage() {
       const hasGrapesData = Boolean(
         grapesParts.grapes_html?.trim() || grapesParts.grapes_css?.trim() || grapesParts.grapes_js?.trim(),
       );
+      const nextVisibility = opts?.publish ? true : visibility;
 
       const response = await createPage({
         name: title,
@@ -169,7 +173,7 @@ export default function CreatePage() {
         grapes_html: isGrapes || hasGrapesData ? grapesParts.grapes_html : undefined,
         grapes_css: isGrapes || hasGrapesData ? grapesParts.grapes_css : undefined,
         grapes_js: isGrapes || hasGrapesData ? grapesParts.grapes_js : undefined,
-        status: visibility ? "published" : "private",
+        status: nextVisibility ? "published" : "private",
         meta_title: seoTitle || undefined,
         meta_description: seoDescription || undefined,
         meta_keyword: seoKeywords || undefined,
@@ -198,6 +202,60 @@ export default function CreatePage() {
     router.push("/pages");
   };
 
+  const handlePageSelect = (nextId: number) => {
+    if (!nextId) return;
+    if (isDirty && !window.confirm("You have unsaved changes on this new page. Switch without saving?")) return;
+    beginStudioPageSwitch(editorType === "grapesjs");
+    router.push(`/pages/edit/${nextId}`);
+  };
+
+  const metaFields = (
+    <PageEditorMetaFields
+      mode="create"
+      title={title}
+      onTitleChange={setTitle}
+      label={label}
+      onLabelChange={setLabel}
+      albumId={albumId}
+      onAlbumIdChange={setAlbumId}
+      albums={albums}
+      menuId={menuId}
+      onMenuIdChange={setMenuId}
+      menus={menus}
+      visibility={visibility}
+      onVisibilityChange={setVisibility}
+      seoTitle={seoTitle}
+      onSeoTitleChange={setSeoTitle}
+      seoDescription={seoDescription}
+      onSeoDescriptionChange={setSeoDescription}
+      seoKeywords={seoKeywords}
+      onSeoKeywordsChange={setSeoKeywords}
+      editorType={editorType}
+      onEditorTypeChange={handleEditorTypeChange}
+      showEditorToggle
+    />
+  );
+
+  if (editorType === "grapesjs") {
+    return (
+      <GrapesEditor
+        fullScreen
+        value={grapesContent}
+        onChange={setGrapesContent}
+        pageTitle={title}
+        saveStatus={loading ? "saving" : isDirty ? "unsaved" : "saved"}
+        onPageSelect={handlePageSelect}
+        onBack={handleCancel}
+        onSave={() => void handleSave()}
+        onPublish={() => void handleSave({ publish: true })}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onCloseSettings={() => setSettingsOpen(false)}
+        settingsOpen={settingsOpen}
+        settingsPanel={metaFields}
+      />
+    );
+  }
+
   return (
     <div className="container-fluid px-4 pt-3 page-editor">
       <PageEditorToolbar
@@ -220,7 +278,7 @@ export default function CreatePage() {
                     type="radio"
                     name="editorType"
                     id="editorTinyMce"
-                    checked={editorType === "tinymce"}
+                    checked
                     onChange={() => handleEditorTypeChange("tinymce")}
                   />
                   <label className="form-check-label" htmlFor="editorTinyMce">
@@ -233,7 +291,7 @@ export default function CreatePage() {
                     type="radio"
                     name="editorType"
                     id="editorGrapes"
-                    checked={editorType === "grapesjs"}
+                    checked={false}
                     onChange={() => handleEditorTypeChange("grapesjs")}
                   />
                   <label className="form-check-label" htmlFor="editorGrapes">
@@ -244,138 +302,14 @@ export default function CreatePage() {
             </div>
             <div className="page-editor__canvas-body">
               <div className="page-editor__editor-shell">
-                {editorType === "tinymce" ? (
-                  <TinyEditor value={tinyContent} onChange={setTinyContent} />
-                ) : (
-                  <GrapesEditor value={grapesContent} onChange={setGrapesContent} />
-                )}
+                <TinyEditor value={tinyContent} onChange={setTinyContent} />
               </div>
             </div>
           </div>
         </div>
 
         <aside className="page-editor__sidebar" data-cms-tour="page-editor-sidebar">
-          <div className="page-editor__settings-stack">
-            <PageEditorSettingsPanel title="Page Details" tourId="page-editor-details">
-              <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    Page Title
-                    <Tooltip text="Main title of the page. This is used for generating the page slug and identifying the page." />
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    Page Label
-                    <Tooltip text="Internal name used inside the CMS to help identify the page. It does not appear on the website." />
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={label}
-                    onChange={(event) => setLabel(event.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    Album (optional)
-                    <Tooltip text="Attach this page to an album to group related pages like galleries or portfolios." />
-                  </label>
-                  <select
-                    className="form-select"
-                    value={albumId}
-                    onChange={(event) => setAlbumId(event.target.value ? Number(event.target.value) : 0)}
-                  >
-                    <option value="0">— No Album —</option>
-                    {albums.map((album) => (
-                      <option key={album.id} value={album.id}>
-                        {album.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    Menu Group (optional)
-                    <Tooltip text="Select a menu group if you want this page to appear in the website navigation." />
-                  </label>
-                  <select
-                    className="form-select"
-                    value={menuId}
-                    onChange={(event) => setMenuId(event.target.value ? Number(event.target.value) : 0)}
-                  >
-                    <option value="0">— No Menu —</option>
-                    {menus.map((menu) => (
-                      <option key={menu.id} value={menu.id}>
-                        {menu.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    checked={visibility}
-                    onChange={() => setVisibility(!visibility)}
-                  />
-                  <label className="form-check-label d-flex align-items-center">
-                    {visibility ? "Published" : "Private"}
-                    <Tooltip text="Published pages are visible to visitors. Private pages remain hidden." />
-                  </label>
-                </div>
-            </PageEditorSettingsPanel>
-
-            <PageEditorSettingsPanel title="SEO Settings" defaultOpen={false} tourId="page-editor-seo">
-              <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    SEO Title
-                    <Tooltip text="Title displayed in search engine results and browser tabs. Recommended length: 50–60 characters." />
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={seoTitle}
-                    onChange={(event) => setSeoTitle(event.target.value)}
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label d-flex align-items-center">
-                    SEO Description
-                    <Tooltip text="Short summary of the page used by search engines. Recommended length: 150–160 characters." />
-                  </label>
-                  <textarea
-                    rows={4}
-                    className="form-control"
-                    value={seoDescription}
-                    onChange={(event) => setSeoDescription(event.target.value)}
-                  />
-                </div>
-
-                <div className="mb-0">
-                  <label className="form-label d-flex align-items-center">
-                    SEO Keywords
-                    <Tooltip text="Optional keywords related to the page. Separate multiple keywords with commas." />
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={seoKeywords}
-                    onChange={(event) => setSeoKeywords(event.target.value)}
-                />
-              </div>
-            </PageEditorSettingsPanel>
-          </div>
+          {metaFields}
         </aside>
       </div>
 

@@ -2,6 +2,7 @@ import Head from "next/head";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { ensureClientPreviewAccess, requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import { activateCmsPageAnimations } from "@/lib/publicPageScripts";
 import { getPageById } from "@/services/pageService";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -127,6 +128,10 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
   }, [pageData]);
 
   useEffect(() => {
+    return activateCmsPageAnimations(contentRef.current);
+  }, [htmlContent]);
+
+  useEffect(() => {
     const root = contentRef.current;
     if (!root || !pageData) return;
 
@@ -188,9 +193,10 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
     <LandingPageLayout
       pageData={{
         title: pageData?.title,
+        slug: pageData?.slug,
         album: pageData?.album || null,
       }}
-      layout={{ fullWidth: true }}
+      layout={{ fullWidth: true, hideBanner: true }}
     >
       <Head>
         <meta name="robots" content="noindex,nofollow,noarchive" />

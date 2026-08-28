@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import grapesjs from "grapesjs";
 import grapesjsPresetWebpage from "grapesjs-preset-webpage";
 import grapesjsBlocksBasic from "grapesjs-blocks-basic";
@@ -11,14 +11,15 @@ import {
   enhanceFoundationBlocks,
   normalizeStudioCategory,
   registerAdvancedCmsBlocks,
-  resolveCmsBlockMedia,
 } from "./grapesStudio";
 import {
   filterBlockPanel,
-  getComponentBreadcrumb,
   isEditorCanvasEmpty,
   installCanvasInteractionGuards,
+  installStudioContextMenu,
   registerStudioEditorFeatures,
+  unlockCanvasPageScroll,
+  ensureComponentAnimationTrait,
 } from "./grapesStudioFeatures";
 import {
   activateStudioTextFormatting,
@@ -30,19 +31,81 @@ import {
 } from "./grapesStudioRteToolbar";
 import GrapesRteDocBar from "./GrapesRteDocBar";
 import { normalizePublicHref } from "@/lib/publicMenuLinks";
+import { registerDesignedStudioBlocks } from "./grapesDesignedBlocks";
+import { CMS_BUTTON_STYLE_TRAITS, isCmsButtonComponent, registerCmsButtonType } from "./grapesButtonPresets";
+import { loadCmsMediaIntoAssetManager } from "@/lib/cmsMediaAssets";
+import { resolveBlockThumb } from "./grapesBlockThumbs";
+import PageSwitcher from "@/components/Pages/PageSwitcher";
+import { useCmsHelp } from "@/lib/cmsHelp/CmsHelpContext";
+import { useRouter } from "next/router";
+
+export type GrapesSaveStatus = "idle" | "unsaved" | "saving" | "saved";
 
 type GrapesEditorProps = {
   value?: string;
   onChange: (content: string) => void;
   height?: number;
+  fullScreen?: boolean;
+  pageTitle?: string;
+  saveStatus?: GrapesSaveStatus;
+  onBack?: () => void;
+  onSave?: () => void;
+  onPublish?: () => void;
+  onPreviewPublic?: () => void;
+  onOpenSettings?: () => void;
+  onCloseSettings?: () => void;
+  settingsOpen?: boolean;
+  settingsPanel?: ReactNode;
+  pageId?: number;
+  onPageSelect?: (pageId: number) => void;
+  onCreatePage?: () => void;
+  isPageLoading?: boolean;
 };
 
 type StudioDeviceKey = "desktop" | "tablet" | "mobile";
+
+const GRAPES_UI_KEY = "cms-visual-builder-ui";
+
+function readGrapesUiPref() {
+  if (typeof window === "undefined") {
+    return { leftHidden: false, rightHidden: false, grid: false };
+  }
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(GRAPES_UI_KEY) || "{}") as Record<string, unknown>;
+    return {
+      leftHidden: parsed.leftHidden === true,
+      rightHidden: parsed.rightHidden === true,
+      grid: parsed.grid === true,
+    };
+  } catch {
+    return { leftHidden: false, rightHidden: false, grid: false };
+  }
+}
+
+function writeGrapesUiPref(next: { leftHidden: boolean; rightHidden: boolean; grid: boolean }) {
+  try {
+    window.localStorage.setItem(GRAPES_UI_KEY, JSON.stringify(next));
+  } catch {
+    /* ignore */
+  }
+}
 
 const STUDIO_DEVICE_LABELS: Record<StudioDeviceKey, string> = {
   desktop: "Desktop",
   tablet: "Tablet",
   mobile: "Mobile",
+};
+
+const STUDIO_DEVICE_WIDTHS: Record<StudioDeviceKey, string> = {
+  desktop: "100%",
+  tablet: "834px",
+  mobile: "390px",
+};
+
+const STUDIO_DEVICE_ALIASES: Record<StudioDeviceKey, string[]> = {
+  desktop: ["desktop", "Desktop"],
+  tablet: ["tablet", "Tablet"],
+  mobile: ["mobile", "Mobile", "mobilePortrait", "Mobile portrait"],
 };
 
 const STUDIO_DEVICE_KEYS: Record<string, StudioDeviceKey> = {
@@ -52,7 +115,50 @@ const STUDIO_DEVICE_KEYS: Record<string, StudioDeviceKey> = {
   desktop: "desktop",
   tablet: "tablet",
   mobile: "mobile",
+  mobilePortrait: "mobile",
+  "Mobile portrait": "mobile",
+  mobileLandscape: "tablet",
+  "Mobile landscape": "tablet",
 };
+
+function resolveStudioDeviceKey(editor: any): StudioDeviceKey {
+  const current = String(editor?.getDevice?.() || "desktop");
+  return STUDIO_DEVICE_KEYS[current] || "desktop";
+}
+
+function applyStudioDeviceFrameWidth(editor: any, device?: StudioDeviceKey) {
+  const key = device || resolveStudioDeviceKey(editor);
+  const root = editor?.getContainer?.() as HTMLElement | null;
+  if (!root) return;
+
+  const canvas = (root.querySelector(".gjs-cv-canvas") || editor?.Canvas?.getElement?.()) as HTMLElement | null;
+  const isDesktop = key === "desktop";
+  const canvasWidth = canvas?.clientWidth || 0;
+  const width = isDesktop
+    ? canvasWidth > 0
+      ? `${canvasWidth}px`
+      : "100%"
+    : STUDIO_DEVICE_WIDTHS[key];
+
+  const applyBox = (selector: string, desktopWidth: string, deviceWidth: string) => {
+    root.querySelectorAll(selector).forEach((node) => {
+      const el = node as HTMLElement;
+      el.style.setProperty("width", isDesktop ? desktopWidth : deviceWidth, "important");
+      if (isDesktop) {
+        el.style.setProperty("min-width", "100%", "important");
+        el.style.setProperty("max-width", "none", "important");
+      } else {
+        el.style.setProperty("min-width", "0", "important");
+        el.style.setProperty("max-width", selector.includes("frame-wrapper") ? "calc(100% - 40px)" : "none", "important");
+      }
+    });
+  };
+
+  applyBox(".gjs-cv-canvas__frames", "100%", "100%");
+  applyBox(".gjs-frames", "100%", "auto");
+  applyBox(".gjs-frame-wrapper", width, width);
+  applyBox("iframe.gjs-frame", "100%", "100%");
+}
 
 const extractContentParts = (html: string): { body: string; css: string; js: string } => {
   const raw = html || "";
@@ -117,7 +223,7 @@ const registerCmsBlocks = (editor: any) => {
       ...config,
       category: normalizedCategory || config?.category,
       attributes: Object.keys(nextAttributes).length ? nextAttributes : undefined,
-      media: config?.media || resolveCmsBlockMedia(iconClass),
+      media: config?.media || resolveBlockThumb(id, iconClass),
     });
   };
 
@@ -126,11 +232,12 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-flag" },
     content: `
-      <section class="cms-hero" style="padding:64px 24px;background:#f8fafc;text-align:center;">
-        <div style="max-width:900px;margin:0 auto;">
-          <h1 style="font-size:42px;line-height:1.2;margin:0 0 12px;">Build Beautiful Pages Faster</h1>
-          <p style="font-size:18px;color:#475569;margin:0 0 24px;">Drop in ready sections and customize text, colors, and spacing in seconds.</p>
-          <a href="#" style="display:inline-block;background:#0d6efd;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;">Get Started</a>
+      <section class="cms-hero" style="padding:88px 24px;background:linear-gradient(180deg,rgba(15,23,42,.55),rgba(15,23,42,.35)),url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&q=80') center/cover no-repeat;color:#fff;text-align:center;">
+        <div style="max-width:860px;margin:0 auto;">
+          <p style="margin:0 0 12px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:800;color:#c7d2fe;">Welcome</p>
+          <h1 style="font-size:56px;line-height:1.08;margin:0 0 16px;font-weight:800;">Build a page that looks professionally designed.</h1>
+          <p style="font-size:18px;color:#e2e8f0;margin:0 0 28px;line-height:1.7;">Replace this photo, headline, and button. Everything stays fully editable after you drop it in.</p>
+          <a href="#" style="display:inline-block;background:#fff;color:#111827;text-decoration:none;padding:14px 24px;border-radius:999px;font-weight:800;">Get Started</a>
         </div>
       </section>
     `,
@@ -141,12 +248,14 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-info-circle" },
     content: `
-      <section style="padding:56px 24px;">
-        <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center;">
-          <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200" alt="About" style="width:100%;border-radius:12px;object-fit:cover;min-height:260px;"/>
+      <section style="padding:72px 24px;background:#fff;">
+        <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:36px;align-items:center;">
+          <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1400&q=80" alt="About our team" style="width:100%;height:420px;object-fit:cover;border-radius:28px;box-shadow:0 24px 50px rgba(15,23,42,.12);"/>
           <div>
-            <h2 style="margin:0 0 12px;">About Our Brand</h2>
-            <p style="margin:0;color:#475569;line-height:1.7;">Share your company story, mission, and what makes your team different.</p>
+            <p style="margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#4f46e5;font-weight:800;">About</p>
+            <h2 style="margin:0 0 14px;font-size:42px;line-height:1.12;">A studio built around clear stories and polished design.</h2>
+            <p style="margin:0 0 22px;color:#475569;line-height:1.8;font-size:17px;">Share your company story, mission, and what makes your team different. Replace this photo and copy with your own brand.</p>
+            <a href="#" style="display:inline-flex;padding:12px 20px;border-radius:999px;background:#111827;color:#fff;text-decoration:none;font-weight:700;">Learn more</a>
           </div>
         </div>
       </section>
@@ -158,13 +267,14 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-th-large" },
     content: `
-      <section style="padding:56px 24px;background:#fff;">
+      <section style="padding:80px 24px;background:#f8fafc;">
         <div style="max-width:1100px;margin:0 auto;">
-          <h2 style="text-align:center;margin:0 0 22px;">Why Choose Us</h2>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
-            <div style="padding:18px;border:1px solid #e2e8f0;border-radius:12px;"><h3 style="margin-top:0;">Fast Setup</h3><p style="margin:0;color:#475569;">Launch quickly with ready-made building blocks.</p></div>
-            <div style="padding:18px;border:1px solid #e2e8f0;border-radius:12px;"><h3 style="margin-top:0;">Responsive</h3><p style="margin:0;color:#475569;">Layouts adapt naturally across desktop and mobile.</p></div>
-            <div style="padding:18px;border:1px solid #e2e8f0;border-radius:12px;"><h3 style="margin-top:0;">Customizable</h3><p style="margin:0;color:#475569;">Edit text, spacing, and visuals with full control.</p></div>
+          <h2 style="text-align:center;margin:0 0 10px;font-size:40px;">Why teams choose this layout</h2>
+          <p style="text-align:center;margin:0 auto 28px;max-width:52ch;color:#64748b;line-height:1.7;">Three clear benefit cards with room for icons, copy, and links.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;">
+            <div style="padding:24px;border:1px solid #e2e8f0;border-radius:24px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.06);"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:14px;">01</div><h3 style="margin:0 0 8px;">Fast Setup</h3><p style="margin:0;color:#475569;line-height:1.7;">Launch quickly with ready-made building blocks.</p></div>
+            <div style="padding:24px;border:1px solid #e2e8f0;border-radius:24px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.06);"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:14px;">02</div><h3 style="margin:0 0 8px;">Responsive</h3><p style="margin:0;color:#475569;line-height:1.7;">Layouts adapt naturally across desktop and mobile.</p></div>
+            <div style="padding:24px;border:1px solid #e2e8f0;border-radius:24px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.06);"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;margin-bottom:14px;">03</div><h3 style="margin:0 0 8px;">Customizable</h3><p style="margin:0;color:#475569;line-height:1.7;">Edit text, spacing, and visuals with full control.</p></div>
           </div>
         </div>
       </section>
@@ -176,12 +286,25 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-commenting" },
     content: `
-      <section style="padding:56px 24px;background:#f8fafc;">
-        <div style="max-width:1000px;margin:0 auto;">
-          <h2 style="text-align:center;margin:0 0 20px;">What Customers Say</h2>
-          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
-            <blockquote style="margin:0;padding:20px;border-radius:12px;background:#fff;border:1px solid #e2e8f0;">“Great service and excellent quality.”<br/><strong>- Customer A</strong></blockquote>
-            <blockquote style="margin:0;padding:20px;border-radius:12px;background:#fff;border:1px solid #e2e8f0;">“Very easy to use and manage content.”<br/><strong>- Customer B</strong></blockquote>
+      <section style="padding:80px 24px;background:#f8fafc;">
+        <div style="max-width:1100px;margin:0 auto;">
+          <p style="margin:0 0 8px;text-align:center;letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:800;color:#2563eb;">Testimonials</p>
+          <h2 style="text-align:center;margin:0 0 32px;font-size:40px;line-height:1.15;">Trusted by teams who ship faster</h2>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;">
+            <blockquote style="margin:0;padding:28px;border-radius:24px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 16px 36px rgba(15,23,42,.06);">
+              <p style="margin:0 0 20px;color:#334155;line-height:1.8;font-size:17px;">“We launched a polished homepage in an afternoon. The sections already looked like a finished product.”</p>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160&q=80" alt="Maya Chen" style="width:48px;height:48px;border-radius:999px;object-fit:cover;" />
+                <div><strong style="display:block;color:#0f172a;">Maya Chen</strong><span style="color:#64748b;font-size:13px;">Head of Marketing</span></div>
+              </div>
+            </blockquote>
+            <blockquote style="margin:0;padding:28px;border-radius:24px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 16px 36px rgba(15,23,42,.06);">
+              <p style="margin:0 0 20px;color:#334155;line-height:1.8;font-size:17px;">“Editing is as easy as Canva. We swap photos, rewrite copy, and publish without waiting on a developer.”</p>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=160&q=80" alt="James Ortiz" style="width:48px;height:48px;border-radius:999px;object-fit:cover;" />
+                <div><strong style="display:block;color:#0f172a;">James Ortiz</strong><span style="color:#64748b;font-size:13px;">Founder</span></div>
+              </div>
+            </blockquote>
           </div>
         </div>
       </section>
@@ -193,11 +316,16 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-tags" },
     content: `
-      <section style="padding:56px 24px;">
-        <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;">
-          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:18px;"><h3>Starter</h3><p style="font-size:28px;font-weight:700;margin:8px 0;">₱19</p><p style="color:#475569;">Great for small teams.</p></div>
-          <div style="border:2px solid #0d6efd;border-radius:12px;padding:18px;"><h3>Pro</h3><p style="font-size:28px;font-weight:700;margin:8px 0;">₱49</p><p style="color:#475569;">Best for growing teams.</p></div>
-          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:18px;"><h3>Business</h3><p style="font-size:28px;font-weight:700;margin:8px 0;">₱99</p><p style="color:#475569;">Advanced needs and support.</p></div>
+      <section style="padding:80px 24px;background:#fff;">
+        <div style="max-width:1100px;margin:0 auto;">
+          <p style="margin:0 0 8px;text-align:center;letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:800;color:#2563eb;">Pricing</p>
+          <h2 style="text-align:center;margin:0 0 8px;font-size:40px;">Simple plans that scale with you</h2>
+          <p style="text-align:center;margin:0 auto 32px;max-width:48ch;color:#64748b;line-height:1.7;">Replace the prices and features with your own offer. The highlighted card is ready for your recommended plan.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;">
+            <div style="border:1px solid #e2e8f0;border-radius:24px;padding:28px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.04);"><h3 style="margin:0 0 8px;">Starter</h3><p style="font-size:36px;font-weight:800;margin:0 0 8px;color:#0f172a;">₱19<span style="font-size:14px;font-weight:600;color:#64748b;"> /mo</span></p><p style="margin:0 0 20px;color:#64748b;line-height:1.7;">Great for small teams getting started.</p><a href="#" style="display:inline-flex;padding:10px 16px;border-radius:999px;border:1px solid #d1d5db;color:#111827;text-decoration:none;font-weight:700;">Choose Starter</a></div>
+            <div style="border:2px solid #2563eb;border-radius:24px;padding:28px;background:#0f172a;color:#fff;box-shadow:0 24px 50px rgba(37,99,235,.22);transform:translateY(-6px);"><p style="margin:0 0 10px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#93c5fd;font-weight:800;">Most popular</p><h3 style="margin:0 0 8px;color:#fff;">Pro</h3><p style="font-size:36px;font-weight:800;margin:0 0 8px;">₱49<span style="font-size:14px;font-weight:600;color:#94a3b8;"> /mo</span></p><p style="margin:0 0 20px;color:#cbd5e1;line-height:1.7;">Best for growing teams that publish often.</p><a href="#" style="display:inline-flex;padding:10px 16px;border-radius:999px;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;">Choose Pro</a></div>
+            <div style="border:1px solid #e2e8f0;border-radius:24px;padding:28px;background:#fff;box-shadow:0 16px 36px rgba(15,23,42,.04);"><h3 style="margin:0 0 8px;">Business</h3><p style="font-size:36px;font-weight:800;margin:0 0 8px;color:#0f172a;">₱99<span style="font-size:14px;font-weight:600;color:#64748b;"> /mo</span></p><p style="margin:0 0 20px;color:#64748b;line-height:1.7;">Advanced needs, support, and extra room to grow.</p><a href="#" style="display:inline-flex;padding:10px 16px;border-radius:999px;border:1px solid #d1d5db;color:#111827;text-decoration:none;font-weight:700;">Choose Business</a></div>
+          </div>
         </div>
       </section>
     `,
@@ -208,12 +336,18 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-question-circle" },
     content: `
-      <section style="padding:56px 24px;background:#fff;">
-        <div style="max-width:900px;margin:0 auto;">
-          <h2 style="margin:0 0 14px;">Frequently Asked Questions</h2>
-          <details open style="padding:12px 0;border-bottom:1px solid #e2e8f0;"><summary style="font-weight:600;cursor:pointer;">How do I update content?</summary><p style="margin:8px 0 0;color:#475569;">Use the visual editor and click save when done.</p></details>
-          <details style="padding:12px 0;border-bottom:1px solid #e2e8f0;"><summary style="font-weight:600;cursor:pointer;">Is this mobile-friendly?</summary><p style="margin:8px 0 0;color:#475569;">Yes, all section templates are responsive-ready.</p></details>
-          <details style="padding:12px 0;"><summary style="font-weight:600;cursor:pointer;">Can I add custom code?</summary><p style="margin:8px 0 0;color:#475569;">Yes, use the code editor option in the top panel.</p></details>
+      <section style="padding:80px 24px;background:#fff;">
+        <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:.9fr 1.1fr;gap:36px;align-items:start;">
+          <div>
+            <p style="margin:0 0 8px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:800;color:#2563eb;">FAQ</p>
+            <h2 style="margin:0 0 14px;font-size:40px;line-height:1.15;">Answers before you start building</h2>
+            <p style="margin:0;color:#64748b;line-height:1.8;">Replace these questions with the ones your visitors actually ask. Everything here stays editable.</p>
+          </div>
+          <div>
+            <details open style="padding:18px 20px;border:1px solid #e2e8f0;border-radius:16px;margin-bottom:12px;background:#f8fafc;"><summary style="font-weight:700;cursor:pointer;color:#0f172a;">How do I update content?</summary><p style="margin:10px 0 0;color:#475569;line-height:1.7;">Click any text on the canvas, rewrite it, then save. Photos can be swapped from the media library.</p></details>
+            <details style="padding:18px 20px;border:1px solid #e2e8f0;border-radius:16px;margin-bottom:12px;background:#fff;"><summary style="font-weight:700;cursor:pointer;color:#0f172a;">Is this mobile-friendly?</summary><p style="margin:10px 0 0;color:#475569;line-height:1.7;">Yes. Preview desktop, tablet, and mobile from the top bar while you design.</p></details>
+            <details style="padding:18px 20px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;"><summary style="font-weight:700;cursor:pointer;color:#0f172a;">Can I add custom code?</summary><p style="margin:10px 0 0;color:#475569;line-height:1.7;">Yes. Open the code editor from the toolbar when you need extra HTML or CSS.</p></details>
+          </div>
         </div>
       </section>
     `,
@@ -240,13 +374,13 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-bullhorn" },
     content: `
-      <section style="padding:48px 24px;background:#0f172a;color:#fff;">
-        <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <section style="padding:72px 24px;background:linear-gradient(180deg,rgba(15,23,42,.68),rgba(15,23,42,.48)),url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1600&q=80') center/cover no-repeat;color:#fff;">
+        <div style="max-width:960px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;">
           <div>
-            <h2 style="margin:0 0 8px;">Ready to get started?</h2>
-            <p style="margin:0;color:#cbd5e1;">Create your next page with reusable visual blocks.</p>
+            <h2 style="margin:0 0 10px;font-size:40px;line-height:1.15;">Ready to get started?</h2>
+            <p style="margin:0;color:#e2e8f0;font-size:18px;line-height:1.7;">Create your next page with reusable visual blocks, then publish when it looks right.</p>
           </div>
-          <a href="#" style="display:inline-block;background:#fff;color:#0f172a;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">Contact Us</a>
+          <a href="#" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:14px 22px;border-radius:999px;font-weight:800;">Contact Us</a>
         </div>
       </section>
     `,
@@ -257,15 +391,15 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-header" },
     content: `
-      <header style="position:sticky;top:0;z-index:20;background:#0f172a;color:#fff;padding:14px 24px;">
+      <header style="position:sticky;top:0;z-index:20;background:#0f172a;color:#fff;padding:16px 24px;">
         <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
-          <a href="#" style="color:#fff;text-decoration:none;font-size:20px;font-weight:700;letter-spacing:.4px;">Restaurant Place</a>
-          <nav style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+          <a href="#" style="color:#fff;text-decoration:none;font-size:18px;font-weight:800;letter-spacing:-.02em;">Studio</a>
+          <nav style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
             <a href="#" style="color:#e2e8f0;text-decoration:none;">Home</a>
-            <a href="#" style="color:#e2e8f0;text-decoration:none;">Menu</a>
+            <a href="#" style="color:#e2e8f0;text-decoration:none;">Work</a>
             <a href="#" style="color:#e2e8f0;text-decoration:none;">About</a>
             <a href="#" style="color:#e2e8f0;text-decoration:none;">Contact</a>
-            <a href="#" style="display:inline-block;background:#f43f5e;color:#fff;text-decoration:none;padding:8px 14px;border-radius:999px;font-weight:600;">Book Now</a>
+            <a href="#" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:8px 16px;border-radius:999px;font-weight:700;">Get started</a>
           </nav>
         </div>
       </header>
@@ -277,26 +411,26 @@ const registerCmsBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-window-minimize" },
     content: `
-      <footer style="background:#111827;color:#cbd5e1;padding:34px 24px;">
-        <div style="max-width:1120px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;">
+      <footer style="background:#0f172a;color:#cbd5e1;padding:48px 24px 28px;">
+        <div style="max-width:1120px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:28px;">
           <div>
-            <h3 style="margin:0 0 10px;color:#fff;">Restaurant Place</h3>
-            <p style="margin:0;line-height:1.7;">Serve great food and warm experiences. Update this content with your address and contact details.</p>
+            <h3 style="margin:0 0 12px;color:#fff;font-size:22px;">Studio</h3>
+            <p style="margin:0;line-height:1.8;max-width:36ch;">A cleaner homepage for modern brands. Replace this copy with your company story, address, and contact details.</p>
           </div>
           <div>
-            <h4 style="margin:0 0 10px;color:#fff;">Quick Links</h4>
+            <h4 style="margin:0 0 12px;color:#fff;">Quick Links</h4>
             <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Home</a></p>
-            <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Menu</a></p>
+            <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Work</a></p>
             <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Contact</a></p>
           </div>
           <div>
-            <h4 style="margin:0 0 10px;color:#fff;">Follow</h4>
-            <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Facebook</a></p>
+            <h4 style="margin:0 0 12px;color:#fff;">Follow</h4>
+            <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">LinkedIn</a></p>
             <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Instagram</a></p>
-            <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Twitter</a></p>
+            <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">X</a></p>
           </div>
         </div>
-        <div style="max-width:1120px;margin:18px auto 0;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);font-size:13px;color:#94a3b8;">© 2026 Restaurant Place. All rights reserved.</div>
+        <div style="max-width:1120px;margin:24px auto 0;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);font-size:13px;color:#94a3b8;">© 2026 Studio. All rights reserved.</div>
       </footer>
     `,
   });
@@ -307,23 +441,24 @@ const registerCmsBlocks = (editor: any) => {
     attributes: { class: "fa fa-object-group" },
     content: `
       <section>
-        <header style="position:relative;z-index:10;background:#0f172a;color:#fff;padding:14px 24px;">
+        <header style="position:relative;z-index:10;background:#0f172a;color:#fff;padding:16px 24px;">
           <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
-            <a href="#" style="color:#fff;text-decoration:none;font-size:20px;font-weight:700;letter-spacing:.4px;">Restaurant Place</a>
-            <nav style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <a href="#" style="color:#fff;text-decoration:none;font-size:18px;font-weight:800;letter-spacing:-.02em;">Studio</a>
+            <nav style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;">
               <a href="#" style="color:#e2e8f0;text-decoration:none;">Home</a>
-              <a href="#" style="color:#e2e8f0;text-decoration:none;">Menu</a>
+              <a href="#" style="color:#e2e8f0;text-decoration:none;">Work</a>
               <a href="#" style="color:#e2e8f0;text-decoration:none;">About</a>
               <a href="#" style="color:#e2e8f0;text-decoration:none;">Contact</a>
+              <a href="#" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:8px 16px;border-radius:999px;font-weight:700;">Get started</a>
             </nav>
           </div>
         </header>
-        <div style="padding:74px 24px;background:linear-gradient(135deg,#111827,#1f2937);color:#fff;text-align:center;">
-          <div style="max-width:900px;margin:0 auto;">
-            <p style="margin:0 0 8px;color:#93c5fd;letter-spacing:.08em;text-transform:uppercase;font-size:12px;">Welcome</p>
-            <h1 style="font-size:44px;line-height:1.2;margin:0 0 12px;">Good Food, Great Moments</h1>
-            <p style="font-size:18px;color:#d1d5db;margin:0 0 24px;">Craft your homepage quickly using prebuilt blocks, then customize every detail.</p>
-            <a href="#" style="display:inline-block;background:#f43f5e;color:#fff;text-decoration:none;padding:12px 20px;border-radius:999px;font-weight:600;">Explore Menu</a>
+        <div style="padding:96px 24px;background:linear-gradient(180deg,rgba(15,23,42,.62),rgba(15,23,42,.38)),url('https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&q=80') center/cover no-repeat;color:#fff;text-align:center;">
+          <div style="max-width:860px;margin:0 auto;">
+            <p style="margin:0 0 10px;color:#bfdbfe;letter-spacing:.14em;text-transform:uppercase;font-size:12px;font-weight:800;">Welcome</p>
+            <h1 style="font-size:56px;line-height:1.08;margin:0 0 16px;font-weight:800;">Build a page that looks professionally designed.</h1>
+            <p style="font-size:18px;color:#e2e8f0;margin:0 0 28px;line-height:1.7;">Craft your homepage quickly using prebuilt blocks, then customize every detail.</p>
+            <a href="#" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:14px 24px;border-radius:999px;font-weight:800;">Get Started</a>
           </div>
         </div>
       </section>
@@ -336,33 +471,33 @@ const registerCmsBlocks = (editor: any) => {
     attributes: { class: "fa fa-address-card" },
     content: `
       <section>
-        <div style="background:#f8fafc;padding:14px 24px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;">
-          <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#334155;font-size:14px;">
+        <div style="background:#eff6ff;padding:16px 24px;border-top:1px solid #dbeafe;border-bottom:1px solid #dbeafe;">
+          <div style="max-width:1120px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#1e3a8a;font-size:14px;font-weight:600;">
             <span>📍 123 Main Street, Quezon City</span>
             <span>📞 +63 900 123 4567</span>
-            <span>✉️ hello@restaurantplace.com</span>
+            <span>✉️ hello@example.com</span>
           </div>
         </div>
-        <footer style="background:#111827;color:#cbd5e1;padding:34px 24px;">
-          <div style="max-width:1120px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:18px;">
+        <footer style="background:#0f172a;color:#cbd5e1;padding:48px 24px 28px;">
+          <div style="max-width:1120px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr;gap:28px;">
             <div>
-              <h3 style="margin:0 0 10px;color:#fff;">Restaurant Place</h3>
-              <p style="margin:0;line-height:1.7;">Serve great food and warm experiences. Update this content with your address and contact details.</p>
+              <h3 style="margin:0 0 12px;color:#fff;font-size:22px;">Studio</h3>
+              <p style="margin:0;line-height:1.8;max-width:36ch;">A cleaner homepage for modern brands. Update this content with your address and contact details.</p>
             </div>
             <div>
-              <h4 style="margin:0 0 10px;color:#fff;">Quick Links</h4>
+              <h4 style="margin:0 0 12px;color:#fff;">Quick Links</h4>
               <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Home</a></p>
-              <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Menu</a></p>
+              <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Work</a></p>
               <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Contact</a></p>
             </div>
             <div>
-              <h4 style="margin:0 0 10px;color:#fff;">Follow</h4>
-              <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Facebook</a></p>
+              <h4 style="margin:0 0 12px;color:#fff;">Follow</h4>
+              <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">LinkedIn</a></p>
               <p style="margin:0 0 8px;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Instagram</a></p>
-              <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">Twitter</a></p>
+              <p style="margin:0;"><a href="#" style="color:#cbd5e1;text-decoration:none;">X</a></p>
             </div>
           </div>
-          <div style="max-width:1120px;margin:18px auto 0;padding-top:14px;border-top:1px solid rgba(255,255,255,0.15);font-size:13px;color:#94a3b8;">© 2026 Restaurant Place. All rights reserved.</div>
+          <div style="max-width:1120px;margin:24px auto 0;padding-top:16px;border-top:1px solid rgba(255,255,255,0.12);font-size:13px;color:#94a3b8;">© 2026 Studio. All rights reserved.</div>
         </footer>
       </section>
     `,
@@ -412,16 +547,16 @@ const registerCmsBlocks = (editor: any) => {
           <div class="cms-car js-cms-car" data-autoplay="true" data-interval="4000">
             <div class="cms-car-track">
               <div class="cms-car-slide">
-                <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1400" alt="Slide 1"/>
-                <div class="cms-car-cap"><h3>Freshly Prepared</h3><p>Highlight your latest offer here.</p></div>
+                <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=80" alt="Slide 1"/>
+                <div class="cms-car-cap"><h3>A workspace that feels finished</h3><p>Highlight your latest offer or campaign here.</p></div>
               </div>
               <div class="cms-car-slide">
-                <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1400" alt="Slide 2"/>
-                <div class="cms-car-cap"><h3>Family Favorites</h3><p>Showcase bestselling dishes.</p></div>
+                <img src="https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1400&q=80" alt="Slide 2"/>
+                <div class="cms-car-cap"><h3>Built around your team</h3><p>Showcase the people, product, or service you want visitors to remember.</p></div>
               </div>
               <div class="cms-car-slide">
-                <img src="https://images.unsplash.com/photo-1514326640560-7d063ef2aed5?w=1400" alt="Slide 3"/>
-                <div class="cms-car-cap"><h3>Reserve a Table</h3><p>Add your CTA and booking link.</p></div>
+                <img src="https://images.unsplash.com/photo-1497215728101-856f4ea83613?w=1400&q=80" alt="Slide 3"/>
+                <div class="cms-car-cap"><h3>Ready to publish</h3><p>Swap these photos and connect the button to your own page.</p></div>
               </div>
             </div>
             <button type="button" class="cms-car-arrow prev" aria-label="Previous slide">❮</button>
@@ -507,7 +642,7 @@ const registerCmsBlocks = (editor: any) => {
       <section style="padding:56px 24px;background:#fff;">
         <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1.2fr .8fr;gap:18px;align-items:stretch;">
           <div style="position:relative;overflow:hidden;border-radius:14px;min-height:300px;">
-            <img src="https://images.unsplash.com/photo-1528605248644-14dd04022da1?w=1400" alt="Slicer Visual" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+            <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1400&q=80" alt="Slicer Visual" style="width:100%;height:100%;object-fit:cover;display:block;"/>
             <div style="position:absolute;inset:0;background:linear-gradient(120deg,rgba(15,23,42,.62),rgba(15,23,42,.12));"></div>
             <div style="position:absolute;left:20px;bottom:18px;color:#fff;max-width:70%;">
               <h3 style="margin:0 0 6px;font-size:30px;">Feature Spotlight</h3>
@@ -582,21 +717,39 @@ const registerCmsBlocks = (editor: any) => {
 };
 
 const DEFAULT_STUDIO_MARKUP = `
-  <main style="min-height:100vh;padding:72px 24px;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);color:#0f172a;">
-    <section style="max-width:980px;margin:0 auto;padding:36px;border-radius:32px;background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 24px 60px rgba(15,23,42,.08);">
-      <span style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">CMS Studio</span>
-      <h1 style="margin:18px 0 12px;font-size:52px;line-height:1.04;max-width:12ch;">Start with a polished page block.</h1>
-      <p style="margin:0;max-width:62ch;font-size:18px;line-height:1.8;color:#64748b;">Open the block library and drag in page starters, hero sections, testimonials, service grids, forms, pricing tables, and media layouts.</p>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:28px;">
-        <div style="padding:18px;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:800;">Page starters</div><div style="margin-top:8px;font-size:20px;font-weight:800;">Drop in a full starter layout.</div></div>
-        <div style="padding:18px;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:800;">Responsive preview</div><div style="margin-top:8px;font-size:20px;font-weight:800;">Switch between desktop, tablet, and mobile.</div></div>
-        <div style="padding:18px;border-radius:22px;background:#f8fafc;border:1px solid #e2e8f0;"><div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#64748b;font-weight:800;">Custom code</div><div style="margin-top:8px;font-size:20px;font-weight:800;">Fine-tune HTML, CSS, and JS when needed.</div></div>
+  <main style="min-height:100vh;background:#ffffff;color:#111827;">
+    <section style="min-height:72vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;">
+      <div style="max-width:720px;text-align:center;">
+        <p style="margin:0 0 12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#4f46e5;font-weight:800;">Visual builder</p>
+        <h1 style="margin:0 0 14px;font-size:52px;line-height:1.05;">Design this page visually.</h1>
+        <p style="margin:0;font-size:18px;line-height:1.7;color:#64748b;">Drag a section from the left, then click any element to move, resize, and style it.</p>
       </div>
     </section>
   </main>
 `;
 
-export default function GrapesEditor({ value = "", onChange, height = 800 }: GrapesEditorProps) {
+export default function GrapesEditor({
+  value = "",
+  onChange,
+  height = 800,
+  fullScreen = false,
+  pageTitle = "",
+  saveStatus = "idle",
+  onBack,
+  onSave,
+  onPublish,
+  onPreviewPublic,
+  onOpenSettings,
+  onCloseSettings,
+  settingsOpen = false,
+  settingsPanel,
+  pageId,
+  onPageSelect,
+  onCreatePage,
+  isPageLoading = false,
+}: GrapesEditorProps) {
+  const router = useRouter();
+  const { openHelp } = useCmsHelp();
   const shellRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
   const editorRef = useRef<any>(null);
@@ -605,8 +758,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const emitTimerRef = useRef<number | null>(null);
   const fullscreenSenderRef = useRef<any>(null);
   const studioHeightRef = useRef(height);
-  const isLeftSidebarHiddenRef = useRef(true);
-  const isRightSidebarHiddenRef = useRef(true);
+  const isLeftSidebarHiddenRef = useRef(false);
+  const isRightSidebarHiddenRef = useRef(false);
   const leftBlocksRef = useRef<HTMLDivElement | null>(null);
   const leftLayersRef = useRef<HTMLDivElement | null>(null);
   const rightStylesRef = useRef<HTMLDivElement | null>(null);
@@ -616,15 +769,16 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   const rteHostRef = useRef<HTMLDivElement | null>(null);
   const rteInstanceRef = useRef<any>(null);
   const rteToolbarCleanupRef = useRef<(() => void) | null>(null);
+  const grapesUiPref = readGrapesUiPref();
   const [activeLeftPanel, setActiveLeftPanel] = useState<"blocks" | "layers">("blocks");
   const [activeRightPanel, setActiveRightPanel] = useState<"styles" | "settings">("styles");
-  const [isLeftSidebarHidden, setIsLeftSidebarHidden] = useState(true);
-  const [isRightSidebarHidden, setIsRightSidebarHidden] = useState(true);
+  const [isLeftSidebarHidden, setIsLeftSidebarHidden] = useState(grapesUiPref.leftHidden);
+  const [isRightSidebarHidden, setIsRightSidebarHidden] = useState(grapesUiPref.rightHidden);
+  const [showCanvasGrid, setShowCanvasGrid] = useState(grapesUiPref.grid);
   const [studioHeight, setStudioHeight] = useState(height);
   const [editorReady, setEditorReady] = useState(false);
   const [activeDevice, setActiveDevice] = useState<StudioDeviceKey>("desktop");
   const [blockSearch, setBlockSearch] = useState("");
-  const [selectionLabel, setSelectionLabel] = useState("");
   const [hasSelection, setHasSelection] = useState(false);
   const [canvasEmpty, setCanvasEmpty] = useState(true);
   const [canvasZoom, setCanvasZoom] = useState(100);
@@ -634,6 +788,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   useEffect(() => {
     studioHeightRef.current = studioHeight;
   }, [studioHeight]);
+
+  useEffect(() => {
+    writeGrapesUiPref({
+      leftHidden: isLeftSidebarHidden,
+      rightHidden: isRightSidebarHidden,
+      grid: showCanvasGrid,
+    });
+  }, [isLeftSidebarHidden, isRightSidebarHidden, showCanvasGrid]);
 
   useEffect(() => {
     isLeftSidebarHiddenRef.current = isLeftSidebarHidden;
@@ -651,15 +813,25 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   }, []);
 
   useEffect(() => {
+    if (!fullScreen) return;
+    document.body.classList.add("cms-visual-studio-open");
+    return () => document.body.classList.remove("cms-visual-studio-open");
+  }, [fullScreen]);
+
+  useEffect(() => {
     const computeHeight = () => {
       const shell = shellRef.current;
       if (shell && document.fullscreenElement === shell) return;
-      setStudioHeight(Math.max(640, window.innerHeight - 220));
+      if (fullScreen) {
+        setStudioHeight(window.innerHeight);
+        return;
+      }
+      setStudioHeight(Math.max(720, window.innerHeight - 148));
     };
     computeHeight();
     window.addEventListener("resize", computeHeight);
     return () => window.removeEventListener("resize", computeHeight);
-  }, []);
+  }, [fullScreen]);
 
   useEffect(() => {
     if (!hostRef.current || editorRef.current) return;
@@ -677,7 +849,6 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
 
     const { body, css, js } = extractContentParts(value);
-    const previewFrameMinHeight = `${Math.max(680, studioHeight - 120)}px`;
     jsRef.current = js;
 
     const editor = grapesjs.init({
@@ -696,14 +867,15 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       },
       plugins: [grapesjsPresetWebpage, grapesjsBlocksBasic, grapesjsPluginForms],
       deviceManager: {
+        default: "desktop",
         devices: [
-          { id: "desktop", name: "Desktop", width: "", height: "auto", minHeight: previewFrameMinHeight },
-          { id: "tablet", name: "Tablet", width: "834px", widthMedia: "992px", height: "auto", minHeight: previewFrameMinHeight },
-          { id: "mobile", name: "Mobile", width: "390px", widthMedia: "480px", height: "auto", minHeight: previewFrameMinHeight },
+          { id: "desktop", name: "Desktop", width: "100%", widthMedia: "", height: "" },
+          { id: "tablet", name: "Tablet", width: STUDIO_DEVICE_WIDTHS.tablet, widthMedia: "992px", height: "" },
+          { id: "mobile", name: "Mobile", width: STUDIO_DEVICE_WIDTHS.mobile, widthMedia: "480px", height: "" },
         ],
       },
       canvas: {
-        styles: [],
+        styles: ["/css/cms-studio-buttons.css"],
         scrollableCanvas: true,
         infiniteCanvas: false,
       },
@@ -783,6 +955,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       layerManager: leftLayersRef.current
         ? {
             appendTo: leftLayersRef.current,
+            sortable: true,
+            hidable: true,
           }
         : undefined,
       styleManager: rightStylesRef.current
@@ -1153,6 +1327,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     registerCmsBlocks(editor);
     registerAdvancedCmsBlocks(editor);
+    registerDesignedStudioBlocks(editor);
+    registerCmsButtonType(editor);
     enhanceFoundationBlocks(editor);
 
     const blockSearchRef = blockSearchQueryRef;
@@ -1185,7 +1361,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
       };
 
-      renderInto(leftLayersRef.current, isEditorReady ? safeRender(() => editor.LayerManager.render()) : undefined);
+      if (leftLayersRef.current && !leftLayersRef.current.querySelector(".gjs-layer")) {
+        renderInto(leftLayersRef.current, isEditorReady ? safeRender(() => editor.LayerManager.render()) : undefined);
+      }
       syncExistingColorPropertyViews();
       if (rightStylesRef.current && !rightStylesRef.current.querySelector(".gjs-sm-sectors")) {
         renderInto(rightStylesRef.current, safeRender(() => editor.StyleManager.render()));
@@ -1198,6 +1376,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       }
       suppressNativeStyleColorInputs();
       filterBlockPanel(leftBlocksRef.current, blockSearchRef.current);
+      leftBlocksRef.current?.querySelectorAll(".gjs-block").forEach((node) => {
+        (node as HTMLElement).removeAttribute("title");
+      });
     };
 
     const syncCanvasEmptyState = () => {
@@ -1236,7 +1417,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       frameWrapper: HTMLElement,
       frameElement: HTMLElement | null,
     ) => {
-      ["left", "top", "right", "bottom", "width", "height", "minHeight", "maxHeight"].forEach((prop) => {
+      ["left", "top", "right", "bottom"].forEach((prop) => {
         frameWrapper.style.removeProperty(prop);
         frameElement?.style.removeProperty(prop);
       });
@@ -1249,6 +1430,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       if (!frameWrapper) return;
 
       clearFrameWrapperInlineStyles(frameWrapper, frameElement);
+      applyStudioDeviceFrameWidth(editor);
     };
 
     const buildContent = (ed: any) => {
@@ -1261,12 +1443,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
 
     registerStudioEditorFeatures(editor, buildContent);
+    installStudioContextMenu(editor);
     const canvasInteractionGuards = installCanvasInteractionGuards(
       editor,
       shellRef.current,
       () => editorAlive,
     );
     registerStudioRteActions(editor);
+    const syncPageScroll = () => unlockCanvasPageScroll(editor);
 
     editor.on("rte:enable", (_view: unknown, rte: unknown) => {
       rteInstanceRef.current = rte;
@@ -1405,14 +1589,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const baseEditorHeight = 300;
 
       const getCodeModalContainer = () =>
-        (shellRef.current?.querySelector(".gjs-mdl-container") ||
-          document.querySelector(".gjs-mdl-container.cms-code-modal-overlay")) as HTMLElement | null;
+        (document.querySelector(".gjs-mdl-container.cms-code-modal-overlay") ||
+          shellRef.current?.querySelector(".gjs-mdl-container") ||
+          document.querySelector(".gjs-mdl-container")) as HTMLElement | null;
 
       const syncCodeModalViewport = () => {
         const modalContainer = getCodeModalContainer();
         if (!modalContainer) return;
 
         modalContainer.classList.add("cms-code-modal-overlay");
+        if (modalContainer.parentElement !== document.body) {
+          document.body.appendChild(modalContainer);
+        }
         document.body.classList.add("cms-code-modal-open");
         shellRef.current?.classList.add("cms-code-modal-open");
       };
@@ -1684,17 +1872,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         if (dialog) {
           const dialogWidth = isExpanded
-            ? Math.min(window.innerWidth * 0.98, 1600)
+            ? Math.min(window.innerWidth * 0.96, 1440)
             : isStretched
-              ? Math.min(window.innerWidth * 0.96, 1400)
-              : Math.min(window.innerWidth * 0.92, 960);
+              ? Math.min(window.innerWidth * 0.9, 1180)
+              : Math.min(window.innerWidth * 0.86, 920);
 
           dialog.classList.toggle("cms-code-modal-dialog--expanded", isExpanded);
           dialog.classList.add("cms-code-modal-dialog");
           dialog.style.width = `${Math.round(dialogWidth)}px`;
-          dialog.style.maxWidth = isExpanded ? "98vw" : isStretched ? "96vw" : "92vw";
+          dialog.style.maxWidth = isExpanded ? "96vw" : isStretched ? "90vw" : "86vw";
           dialog.style.minWidth = "320px";
-          dialog.style.maxHeight = `calc(100vh - ${isExpanded ? 32 : 48}px)`;
+          dialog.style.maxHeight = `calc(100vh - ${isExpanded ? 32 : 80}px)`;
         }
 
         const height = getCodeModalEditorHeight(dialog);
@@ -1972,7 +2160,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     const syncStudioDeviceState = () => {
       const current = String(editor.getDevice?.() || "Desktop");
-      setActiveDevice(STUDIO_DEVICE_KEYS[current] || "desktop");
+      const key = STUDIO_DEVICE_KEYS[current] || "desktop";
+      setActiveDevice(key);
+      shellRef.current?.setAttribute("data-cms-device", key);
+      applyStudioDeviceFrameWidth(editor, key);
     };
 
     if (editor.Panels?.getPanels) {
@@ -2005,29 +2196,30 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       if (!editorAlive || canvasInteractionGuards.isDragging()) return;
       hideLegacyViewsUi();
       syncFrameWrapperStyle();
+      syncPageScroll();
 
       const isFs = isShellInFullscreen() || editor.Commands.isActive("fullscreen");
-      const previewMin = isFs ? "auto" : `${Math.max(680, studioHeightRef.current - 120)}px`;
-
-      try {
-        (["desktop", "tablet", "mobile"] as const).forEach((id) => {
-          editor.DeviceManager?.get?.(id)?.set?.("minHeight", previewMin);
-        });
-      } catch {
-        // ignore device update errors
+      if (!isFs) {
+        try {
+          (["desktop", "tablet", "mobile"] as const).forEach((id) => {
+            editor.DeviceManager?.get?.(id)?.set?.({ height: "" });
+          });
+        } catch {
+          // ignore device update errors
+        }
       }
 
       const fitCanvas = () => {
         if (!editorAlive) return;
         try {
           editor.refresh?.({ tools: true });
-          const zoom = Number(editor.Canvas?.getZoom?.() || 100);
-          const gap = 0;
-          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap, zoom });
+          editor.Canvas?.setCoords?.(0, 0);
           canvasInteractionGuards.rememberViewport();
           if (canvasInteractionGuards.isDragging()) {
             canvasInteractionGuards.pinViewport();
           }
+          applyStudioDeviceFrameWidth(editor);
+          unlockCanvasPageScroll(editor);
         } catch {
           // ignore canvas fit errors
         }
@@ -2059,7 +2251,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         setActiveRightPanel("styles");
         setIsLeftSidebarHidden(true);
         setIsRightSidebarHidden(true);
-        editor.setDevice("Desktop");
+        editor.setDevice("desktop");
+        editor.DeviceManager?.get?.("desktop")?.set?.({ width: "100%", widthMedia: "", height: "" });
+        applyStudioDeviceFrameWidth(editor, "desktop");
         hideLegacyViewsUi();
         queueCanvasLayoutRefresh();
         mountStudioPanels();
@@ -2113,6 +2307,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     editor.on("load", attachCanvasStyleObserver);
     editor.on("load", syncInitialStudioState);
     editor.on("load", syncStudioDefaults);
+    editor.on("load", syncPageScroll);
+    editor.on("canvas:frame:load", syncPageScroll);
+    editor.on("canvas:frame:load:body", syncPageScroll);
+    editor.on("component:add", syncPageScroll);
+    editor.on("component:remove", syncPageScroll);
     editor.on("change:device", syncStudioDeviceState);
     editor.on("load", refreshCanvasLayout);
     editor.on("change:device", refreshCanvasLayout);
@@ -2130,7 +2329,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const tagName = String(component.get("tagName") || "").toLowerCase();
 
       if (tagName === "a") {
-        component.set("traits", [
+        const linkTraits: any[] = [
           {
             type: "text",
             name: "href",
@@ -2152,11 +2351,15 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             label: "Rel",
             placeholder: "noopener noreferrer",
           },
-        ]);
+        ];
+        if (isCmsButtonComponent(component)) {
+          linkTraits.push(...CMS_BUTTON_STYLE_TRAITS);
+        }
+        component.set("traits", linkTraits);
       }
 
       if (tagName === "button") {
-        component.set("traits", [
+        const buttonTraits: any[] = [
           {
             type: "text",
             name: "data-url",
@@ -2172,7 +2375,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               { id: "_blank", label: "New tab" },
             ],
           },
-        ]);
+        ];
+        if (isCmsButtonComponent(component)) {
+          buttonTraits.push(...CMS_BUTTON_STYLE_TRAITS);
+        }
+        component.set("traits", buttonTraits);
       }
 
       if (tagName === "video" || tagName === "iframe") {
@@ -2196,7 +2403,6 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     const handleComponentDeselected = () => {
       setHasSelection(false);
-      setSelectionLabel("");
       setTextToolbarVisible(false);
       deactivateStudioTextFormatting(editor);
     };
@@ -2216,8 +2422,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     editor.on("component:selected", (component: any) => {
       ensureUrlTraits(component);
+      ensureComponentAnimationTrait(component);
       setHasSelection(true);
-      setSelectionLabel(getComponentBreadcrumb(component));
       // Keep right sidebar state as-is so selecting components does not shift the canvas.
       if (!isRightSidebarHiddenRef.current) {
         const tagName = String(component?.get?.("tagName") || "").toLowerCase();
@@ -2309,8 +2515,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       setEditorReady(true);
       syncCanvasEmptyState();
       syncCanvasZoomState();
+      void loadCmsMediaIntoAssetManager(editor);
       try {
-        editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom: 100 });
+        editor.Canvas?.setCoords?.(0, 0);
+        unlockCanvasPageScroll(editor);
       } catch {
         // ignore
       }
@@ -2318,6 +2526,11 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
     editor.on("update", emit);
     editor.on("load", handleEditorReady);
+    editor.on("device:select", syncStudioDeviceState);
+    editor.on("cms:open-blocks", () => {
+      setIsLeftSidebarHidden(false);
+      setActiveLeftPanel("blocks");
+    });
 
     return () => {
       editorAlive = false;
@@ -2333,11 +2546,17 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         editor.off("load", syncInitialStudioState);
         editor.off("load", syncStudioDefaults);
         editor.off("load", handleEditorReady);
+        editor.off("load", syncPageScroll);
+        editor.off("canvas:frame:load", syncPageScroll);
+        editor.off("canvas:frame:load:body", syncPageScroll);
+        editor.off("component:add", syncPageScroll);
+        editor.off("component:remove", syncPageScroll);
         editor.off("component:deselected", handleComponentDeselected);
         editor.off("component:add", syncCanvasEmptyState);
         editor.off("component:remove", syncCanvasEmptyState);
         editor.off("component:update", syncCanvasEmptyState);
         editor.off("change:device", syncStudioDeviceState);
+        editor.off("device:select", syncStudioDeviceState);
         editor.off("load", refreshCanvasLayout);
         editor.off("change:device", refreshCanvasLayout);
         editor.off("command:run:fullscreen", refreshCanvasLayout);
@@ -2368,7 +2587,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     if (!editor) return;
 
     const incoming = value || "";
-    if (!incoming || incoming === lastEmittedRef.current) return;
+    if (incoming === lastEmittedRef.current) return;
 
     const { body, css, js } = extractContentParts(incoming);
     jsRef.current = js;
@@ -2384,9 +2603,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       const shell = shellRef.current;
       const isFs = Boolean(shell && document.fullscreenElement === shell);
       if (!isFs) {
-        const previewMin = `${Math.max(680, studioHeight - 120)}px`;
         (["desktop", "tablet", "mobile"] as const).forEach((id) => {
-          editor.DeviceManager?.get?.(id)?.set?.("minHeight", previewMin);
+          editor.DeviceManager?.get?.(id)?.set?.({ height: "" });
         });
       }
 
@@ -2409,8 +2627,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             canvas.style.height = "auto";
             canvas.style.overflow = "auto";
           }
-          const zoom = Number(editor.Canvas?.getZoom?.() || 100);
-          editor.Canvas?.fitViewport?.({ ignoreHeight: true, gap: 0, zoom });
+          editor.Canvas?.setCoords?.(0, 0);
+          unlockCanvasPageScroll(editor);
         } catch {
           // ignore
         }
@@ -2429,12 +2647,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         editor.refresh?.({ tools: true });
         editor.refreshCanvas?.({ tools: true });
         editor.Canvas?.refresh?.({ all: true });
-        const zoom = Number(editor.Canvas?.getZoom?.() || 100);
-        editor.Canvas?.fitViewport?.({
-          ignoreHeight: true,
-          gap: 0,
-          zoom,
-        });
+        editor.Canvas?.setCoords?.(0, 0);
+        unlockCanvasPageScroll(editor);
       } catch {
         // ignore canvas refresh errors
       }
@@ -2481,15 +2695,30 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     };
   }, [editorReady]);
 
+  const openStudioGuide = () => {
+    const guideId = router.pathname.includes("/pages/create") ? "pages-create" : "pages-edit";
+    openHelp(guideId);
+  };
+
   const handleDocMenuAction = (action: string) => {
+    if (action === "cms:open-guide") {
+      openStudioGuide();
+      return;
+    }
+
+    if (action === "cms:open-library") {
+      setActiveLeftPanel("blocks");
+      setIsLeftSidebarHidden(false);
+      return;
+    }
+
     const editor = editorRef.current;
     if (!editor) return;
 
     if (action.startsWith("device:")) {
       const deviceKey = action.replace("device:", "") as StudioDeviceKey;
       if (STUDIO_DEVICE_LABELS[deviceKey]) {
-        editor.setDevice?.(STUDIO_DEVICE_LABELS[deviceKey]);
-        setActiveDevice(deviceKey);
+        applyStudioDevice(deviceKey);
       }
       return;
     }
@@ -2524,6 +2753,44 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
     }
 
     runStudioRteAction(editor, action);
+  };
+
+  const applyStudioDevice = (device: StudioDeviceKey) => {
+    const editor = editorRef.current;
+    setActiveDevice(device);
+    shellRef.current?.setAttribute("data-cms-device", device);
+    if (!editor) return;
+    try {
+      const manager = editor.Devices || editor.DeviceManager;
+      const aliases = STUDIO_DEVICE_ALIASES[device];
+      let selected: any = null;
+      for (const alias of aliases) {
+        selected = manager?.get?.(alias);
+        if (selected) break;
+      }
+      if (selected && manager?.select) {
+        manager.select(selected);
+      } else {
+        editor.setDevice?.(selected?.id || selected?.get?.("id") || device);
+      }
+
+      applyStudioDeviceFrameWidth(editor, device);
+
+      window.requestAnimationFrame(() => {
+        try {
+          editor.Canvas?.updateDevice?.();
+          applyStudioDeviceFrameWidth(editor, device);
+          editor.refresh?.({ tools: true });
+          editor.Canvas?.refresh?.({ tools: true });
+          applyStudioDeviceFrameWidth(editor, device);
+          unlockCanvasPageScroll(editor);
+        } catch {
+          // ignore
+        }
+      });
+    } catch {
+      // ignore device switch errors
+    }
   };
 
   const runEditorCommand = (command: string) => {
@@ -2567,19 +2834,59 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
   return (
     <div
       ref={shellRef}
-      className={`cms-grapes-shell${isLeftSidebarHidden ? " cms-grapes-shell--left-hidden" : ""}${isRightSidebarHidden ? " cms-grapes-shell--right-hidden" : ""}${isShellFullscreen ? " cms-grapes-shell--fullscreen-active" : ""}`}
+      className={`cms-grapes-shell${fullScreen ? " cms-grapes-shell--app" : ""}${isLeftSidebarHidden ? " cms-grapes-shell--left-hidden" : ""}${isRightSidebarHidden ? " cms-grapes-shell--right-hidden" : ""}${showCanvasGrid ? " cms-grapes-shell--grid" : ""}${isShellFullscreen ? " cms-grapes-shell--fullscreen-active" : ""}${fullScreen && settingsOpen && settingsPanel ? " cms-grapes-shell--page-settings-open" : ""}`}
+      data-cms-device={activeDevice}
       data-cms-tour="grapes-shell"
     >
       <div className="cms-grapes-studio-bar" data-cms-tour="grapes-studio-bar">
         <div className="cms-grapes-studio-bar__brand">
-          <i className="fa-solid fa-wand-magic-sparkles" />
-          <span>Visual Builder</span>
+          {fullScreen && onBack ? (
+            <button type="button" className="cms-grapes-studio-btn" title="Back to pages" onClick={onBack}>
+              <i className="fa-solid fa-arrow-left" />
+            </button>
+          ) : (
+            <i className="fa-solid fa-wand-magic-sparkles" />
+          )}
+          {fullScreen ? (
+            <div className="cms-grapes-studio-bar__title">
+              {onPageSelect ? (
+                <div data-cms-tour="grapes-page-switcher">
+                  <PageSwitcher
+                    compact
+                    currentPageId={pageId}
+                    currentTitle={pageTitle.trim() || "Untitled page"}
+                    onSelect={onPageSelect}
+                    onCreatePage={onCreatePage}
+                    onViewAllPages={onBack}
+                  />
+                </div>
+              ) : (
+                <strong>{pageTitle.trim() || "Untitled page"}</strong>
+              )}
+              <span
+                className={`cms-grapes-studio-bar__status${
+                  saveStatus === "unsaved" ? " is-dirty" : saveStatus === "saved" ? " is-saved" : ""
+                }`}
+                data-cms-tour="page-editor-status"
+              >
+                {saveStatus === "saving"
+                  ? "Saving…"
+                  : saveStatus === "unsaved"
+                    ? "Unsaved changes"
+                    : saveStatus === "saved"
+                      ? "Saved"
+                      : ""}
+              </span>
+            </div>
+          ) : (
+            <span>Visual Builder</span>
+          )}
         </div>
         <div className="cms-grapes-studio-bar__tools">
           <button
             type="button"
             className="cms-grapes-studio-btn"
-            title="Undo"
+            title="Undo (Ctrl+Z)"
             disabled={!editorReady}
             onClick={() => editorRef.current?.UndoManager?.undo?.()}
           >
@@ -2588,7 +2895,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           <button
             type="button"
             className="cms-grapes-studio-btn"
-            title="Redo"
+            title="Redo (Ctrl+Shift+Z)"
             disabled={!editorReady}
             onClick={() => editorRef.current?.UndoManager?.redo?.()}
           >
@@ -2600,12 +2907,10 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               key={device}
               type="button"
               className={`cms-grapes-studio-btn${activeDevice === device ? " is-active" : ""}`}
-              title={device.charAt(0).toUpperCase() + device.slice(1)}
+              title={STUDIO_DEVICE_LABELS[device]}
+              aria-pressed={activeDevice === device}
               disabled={!editorReady}
-              onClick={() => {
-                editorRef.current?.setDevice?.(STUDIO_DEVICE_LABELS[device]);
-                setActiveDevice(device);
-              }}
+              onClick={() => applyStudioDevice(device)}
             >
               <i className={`fa-solid fa-${device === "desktop" ? "desktop" : device === "tablet" ? "tablet-screen-button" : "mobile-screen-button"}`} />
             </button>
@@ -2615,105 +2920,89 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             aria-hidden={!hasSelection}
           >
             <span className="cms-grapes-studio-bar__divider" />
-            <button
-              type="button"
-              className="cms-grapes-studio-btn"
-              title="Duplicate (Ctrl+D)"
-              disabled={!editorReady || !hasSelection}
-              tabIndex={hasSelection ? 0 : -1}
-              onClick={() => runEditorCommand("cms:duplicate")}
-            >
+            <button type="button" className="cms-grapes-studio-btn" title="Align left" disabled={!editorReady || !hasSelection} tabIndex={hasSelection ? 0 : -1} onClick={() => runEditorCommand("cms:align-left")}>
+              <i className="fa-solid fa-align-left" />
+            </button>
+            <button type="button" className="cms-grapes-studio-btn" title="Align center" disabled={!editorReady || !hasSelection} tabIndex={hasSelection ? 0 : -1} onClick={() => runEditorCommand("cms:align-center")}>
+              <i className="fa-solid fa-align-center" />
+            </button>
+            <button type="button" className="cms-grapes-studio-btn" title="Align right" disabled={!editorReady || !hasSelection} tabIndex={hasSelection ? 0 : -1} onClick={() => runEditorCommand("cms:align-right")}>
+              <i className="fa-solid fa-align-right" />
+            </button>
+            <button type="button" className="cms-grapes-studio-btn" title="Duplicate (Ctrl+D)" disabled={!editorReady || !hasSelection} tabIndex={hasSelection ? 0 : -1} onClick={() => runEditorCommand("cms:duplicate")}>
               <i className="fa-solid fa-clone" />
             </button>
-            <button
-              type="button"
-              className="cms-grapes-studio-btn"
-              title="Move up"
-              disabled={!editorReady || !hasSelection}
-              tabIndex={hasSelection ? 0 : -1}
-              onClick={() => runEditorCommand("cms:move-up")}
-            >
-              <i className="fa-solid fa-arrow-up" />
-            </button>
-            <button
-              type="button"
-              className="cms-grapes-studio-btn"
-              title="Move down"
-              disabled={!editorReady || !hasSelection}
-              tabIndex={hasSelection ? 0 : -1}
-              onClick={() => runEditorCommand("cms:move-down")}
-            >
-              <i className="fa-solid fa-arrow-down" />
-            </button>
-            <button
-              type="button"
-              className="cms-grapes-studio-btn cms-grapes-studio-btn--danger"
-              title="Delete (Del)"
-              disabled={!editorReady || !hasSelection}
-              tabIndex={hasSelection ? 0 : -1}
-              onClick={() => runEditorCommand("cms:delete")}
-            >
+            <button type="button" className="cms-grapes-studio-btn cms-grapes-studio-btn--danger" title="Delete (Del)" disabled={!editorReady || !hasSelection} tabIndex={hasSelection ? 0 : -1} onClick={() => runEditorCommand("cms:delete")}>
               <i className="fa-solid fa-trash-can" />
             </button>
           </span>
         </div>
         <div className="cms-grapes-studio-bar__actions">
-          <button
-            type="button"
-            className="cms-grapes-studio-btn"
-            title="Zoom out"
-            disabled={!editorReady}
-            onClick={() => runEditorCommand("cms:canvas-zoom-out")}
-          >
+          <button type="button" className="cms-grapes-studio-btn" title="Zoom out" disabled={!editorReady} onClick={() => runEditorCommand("cms:canvas-zoom-out")}>
             <i className="fa-solid fa-magnifying-glass-minus" />
           </button>
           <span className="cms-grapes-studio-bar__zoom">{canvasZoom}%</span>
-          <button
-            type="button"
-            className="cms-grapes-studio-btn"
-            title="Zoom in"
-            disabled={!editorReady}
-            onClick={() => runEditorCommand("cms:canvas-zoom-in")}
-          >
+          <button type="button" className="cms-grapes-studio-btn" title="Zoom in" disabled={!editorReady} onClick={() => runEditorCommand("cms:canvas-zoom-in")}>
             <i className="fa-solid fa-magnifying-glass-plus" />
           </button>
-          <button
-            type="button"
-            className="cms-grapes-studio-btn"
-            title="Fit canvas"
-            disabled={!editorReady}
-            onClick={() => runEditorCommand("cms:canvas-fit")}
-          >
+          <button type="button" className="cms-grapes-studio-btn" title="Fit canvas" disabled={!editorReady} onClick={() => runEditorCommand("cms:canvas-fit")}>
             <i className="fa-solid fa-compress" />
           </button>
           <span className="cms-grapes-studio-bar__divider" />
-          <button
-            type="button"
-            className="cms-grapes-studio-btn"
-            title="Preview page (Ctrl+Shift+P)"
-            disabled={!editorReady}
-            onClick={() => runEditorCommand("cms:preview-page")}
-          >
+          <button type="button" className={`cms-grapes-studio-btn${showCanvasGrid ? " is-active" : ""}`} title="Toggle grid and guides" disabled={!editorReady} onClick={() => setShowCanvasGrid((current) => !current)}>
+            <i className="fa-solid fa-border-all" />
+          </button>
+          <button type="button" className="cms-grapes-studio-btn" title="Preview page (Ctrl+Shift+P)" disabled={!editorReady} onClick={() => runEditorCommand("cms:preview-page")}>
             <i className="fa-solid fa-eye" />
           </button>
-          <button
-            type="button"
-            className={`cms-grapes-studio-btn${isShellFullscreen ? " is-active" : ""}`}
-            title={isShellFullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"}
-            disabled={!editorReady}
-            onClick={toggleShellFullscreen}
-          >
-            <i className={`fa-solid ${isShellFullscreen ? "fa-compress" : "fa-expand"}`} />
-          </button>
-          <button
-            type="button"
-            className="cms-grapes-studio-btn cms-grapes-studio-btn--code"
-            title="Edit code"
-            disabled={!editorReady}
-            onClick={() => editorRef.current?.runCommand?.("cms:open-code")}
-          >
+          {onPreviewPublic ? (
+            <button type="button" className="cms-grapes-studio-btn" title="Open preview in a new tab" onClick={onPreviewPublic}>
+              <i className="fa-solid fa-arrow-up-right-from-square" />
+            </button>
+          ) : null}
+          {!fullScreen ? (
+            <button type="button" className={`cms-grapes-studio-btn${isShellFullscreen ? " is-active" : ""}`} title={isShellFullscreen ? "Exit fullscreen (Esc)" : "Fullscreen"} disabled={!editorReady} onClick={toggleShellFullscreen}>
+              <i className={`fa-solid ${isShellFullscreen ? "fa-compress" : "fa-expand"}`} />
+            </button>
+          ) : null}
+          <button type="button" className="cms-grapes-studio-btn cms-grapes-studio-btn--code" title="Edit code" disabled={!editorReady} onClick={() => editorRef.current?.runCommand?.("cms:open-code")}>
             {"</>"}
           </button>
+          {fullScreen ? (
+            <button
+              type="button"
+              className="cms-grapes-studio-btn cms-grapes-studio-btn--guide"
+              title="User guide"
+              data-cms-tour="grapes-guide"
+              onClick={openStudioGuide}
+            >
+              <i className="fa-solid fa-circle-question" />
+              Guide
+            </button>
+          ) : null}
+          {onOpenSettings ? (
+            <button
+              type="button"
+              className={`cms-grapes-studio-btn${settingsOpen ? " is-active" : ""}`}
+              title="Page settings"
+              data-cms-tour="grapes-settings"
+              onClick={() => (settingsOpen ? onCloseSettings?.() : onOpenSettings())}
+            >
+              <i className="fa-solid fa-gear" />
+            </button>
+          ) : null}
+          {onSave ? (
+            <button type="button" className="cms-grapes-studio-btn cms-grapes-studio-btn--save" title="Save (Ctrl+S)" data-cms-tour="grapes-save" onClick={onSave}>
+              <i className="fa-solid fa-floppy-disk" />
+              Save
+            </button>
+          ) : null}
+          {onPublish ? (
+            <button type="button" className="cms-grapes-studio-btn cms-grapes-studio-btn--publish" title="Publish" onClick={onPublish}>
+              <i className="fa-solid fa-globe" />
+              Publish
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -2726,21 +3015,15 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
       />
 
       <div className="cms-grapes-shell__workspace">
-        <div
-          className={`cms-grapes-selection-bar${selectionLabel ? " is-visible" : ""}`}
-          aria-hidden={!selectionLabel}
-        >
-          <i className="fa-solid fa-crosshairs" />
-          <span>{selectionLabel || "No selection"}</span>
-        </div>
         <aside className={`cms-grapes-sidebar cms-grapes-sidebar--left${isLeftSidebarHidden ? " is-hidden" : ""}`} data-cms-tour="grapes-blocks">
+          <div className="cms-grapes-sidebar__body">
           <div className="cms-grapes-sidebar__toolbar">
             <button
               type="button"
               className={`cms-grapes-sidebar__tab${activeLeftPanel === "blocks" ? " is-active" : ""}`}
               onClick={() => setActiveLeftPanel("blocks")}
             >
-              Blocks
+              Library
             </button>
             <button
               type="button"
@@ -2758,7 +3041,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
                 type="search"
                 value={blockSearch}
                 onChange={(event) => setBlockSearch(event.target.value)}
-                placeholder="Search blocks..."
+                placeholder="Search elements and sections..."
                 aria-label="Search blocks"
               />
             </div>
@@ -2771,6 +3054,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             ref={leftLayersRef}
             className={`cms-grapes-sidebar__panel${activeLeftPanel === "layers" ? " is-active" : ""}`}
           />
+          </div>
         </aside>
 
         <div className="cms-grapes-shell__host-wrap" data-cms-tour="grapes-canvas">
@@ -2786,6 +3070,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
           <div ref={hostRef} className="cms-grapes-shell__host" />
 
+          <div
+            className={`cms-grapes-page-loader${isPageLoading ? " is-visible" : ""}`}
+            aria-hidden={!isPageLoading}
+            aria-busy={isPageLoading}
+          >
+            <div className="cms-grapes-page-loader__card">
+              <span className="cms-grapes-page-loader__spinner" aria-hidden="true" />
+              <strong>Loading page</strong>
+              <span>Please wait while the canvas updates.</span>
+            </div>
+          </div>
+
           <button
             type="button"
             className="cms-grapes-shell__edge-toggle cms-grapes-shell__edge-toggle--right"
@@ -2796,7 +3092,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
             <span className={`fa ${isRightSidebarHidden ? "fa-chevron-left" : "fa-chevron-right"}`} aria-hidden="true" />
           </button>
 
-          {editorReady && canvasEmpty && (
+          {editorReady && canvasEmpty && !isPageLoading && (
             <div className="cms-grapes-empty-guide">
               <div className="cms-grapes-empty-guide__card">
                 <i className="fa-solid fa-wand-magic-sparkles" />
@@ -2827,6 +3123,20 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               </div>
             </div>
           )}
+
+          {!canvasEmpty ? (
+            <button
+              type="button"
+              className="cms-grapes-add-section"
+              onClick={() => {
+                setIsLeftSidebarHidden(false);
+                setActiveLeftPanel("blocks");
+              }}
+            >
+              <i className="fa-solid fa-plus" />
+              Add section
+            </button>
+          ) : null}
         </div>
 
         <aside
@@ -2839,14 +3149,14 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
               className={`cms-grapes-sidebar__tab${activeRightPanel === "styles" ? " is-active" : ""}`}
               onClick={() => setActiveRightPanel("styles")}
             >
-              Styles
+              Design
             </button>
             <button
               type="button"
               className={`cms-grapes-sidebar__tab${activeRightPanel === "settings" ? " is-active" : ""}`}
               onClick={() => setActiveRightPanel("settings")}
             >
-              Settings
+              Properties
             </button>
           </div>
           <div
@@ -2860,9 +3170,23 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         </aside>
       </div>
 
+      {settingsOpen && settingsPanel ? (
+        <aside className="cms-visual-builder-settings" aria-label="Page settings">
+          <div className="cms-visual-builder-settings__header">
+            <strong>Page settings</strong>
+            {onCloseSettings ? (
+              <button type="button" className="cms-visual-builder-settings__close" title="Close page settings" onClick={onCloseSettings}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            ) : null}
+          </div>
+          <div className="cms-visual-builder-settings__body">{settingsPanel}</div>
+        </aside>
+      ) : null}
+
       <style jsx global>{`
         .cms-grapes-shell {
-          --cms-left-sidebar-width: 320px;
+          --cms-left-sidebar-width: 340px;
           --cms-right-sidebar-width: 300px;
           --cms-canvas-padding: 0px;
           --cms-grapes-accent: #6366f1;
@@ -2875,6 +3199,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
           display: flex;
           flex-direction: column;
+          min-height: ${studioHeight}px;
         }
 
         .cms-grapes-studio-bar {
@@ -2898,6 +3223,28 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           font-size: 13px;
           font-weight: 600;
           letter-spacing: 0.01em;
+          min-width: 0;
+        }
+
+        .cms-grapes-studio-bar__title {
+          display: inline-flex;
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .cms-grapes-studio-bar__title strong {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .cms-grapes-studio-bar__status {
+          font-size: 11px;
+          font-weight: 700;
+          color: #94a3b8;
+          white-space: nowrap;
         }
 
         .cms-grapes-studio-bar__brand i {
@@ -2980,6 +3327,25 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           min-width: 42px;
         }
 
+        .cms-grapes-studio-btn--save,
+        .cms-grapes-studio-btn--publish {
+          width: auto;
+          padding: 0 14px;
+          font-size: 12px;
+          font-weight: 700;
+          gap: 6px;
+        }
+
+        .cms-grapes-studio-btn--save {
+          background: #111827;
+          color: #fff;
+        }
+
+        .cms-grapes-studio-btn--publish {
+          background: #4f46e5;
+          color: #fff;
+        }
+
         .cms-grapes-studio-btn--danger:hover:not(:disabled) {
           background: rgba(239, 68, 68, 0.18);
           border-color: rgba(248, 113, 113, 0.35);
@@ -3027,6 +3393,30 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           margin-left: auto;
           font-size: 12px;
           color: #64748b;
+        }
+
+        .cms-grapes-doc-bar__guide {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-left: 4px;
+          border: 1px solid #c7d2fe;
+          background: #eef2ff;
+          color: #3730a3;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 5px 10px;
+          border-radius: 999px;
+          cursor: pointer;
+        }
+
+        .cms-grapes-doc-bar__guide:hover:not(:disabled) {
+          background: #e0e7ff;
+        }
+
+        .cms-grapes-doc-bar__guide:disabled {
+          opacity: 0.55;
+          cursor: default;
         }
 
         .cms-grapes-doc-bar__menu {
@@ -3149,44 +3539,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-selection-bar {
-          position: absolute;
-          top: 0;
-          left: var(--cms-left-sidebar-width);
-          right: var(--cms-right-sidebar-width);
-          z-index: 25;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          height: 32px;
-          padding: 0 14px;
-          box-sizing: border-box;
-          background: rgba(15, 23, 42, 0.92);
-          border-bottom: 1px solid rgba(99, 102, 241, 0.28);
-          color: #c7d2fe;
-          font-size: 12px;
-          font-weight: 600;
-          opacity: 0;
-          pointer-events: none;
-          transform: translateY(-100%);
-          transition: opacity 120ms ease, transform 120ms ease;
-        }
-
-        .cms-grapes-selection-bar.is-visible {
-          opacity: 1;
-          pointer-events: none;
-          transform: translateY(0);
-        }
-
-        .cms-grapes-selection-bar i {
-          color: #818cf8;
-          font-size: 11px;
-        }
-
-        .cms-grapes-selection-bar__hint {
-          margin-left: auto;
-          color: #94a3b8;
-          font-size: 11px;
-          font-weight: 500;
+          display: none !important;
         }
 
         .cms-grapes-sidebar__search {
@@ -3224,12 +3577,74 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell__host-wrap {
           position: relative;
+          z-index: 1;
           min-width: 0;
           height: 100%;
           min-height: 0;
           overflow: hidden;
           display: flex;
           flex-direction: column;
+        }
+
+        .cms-grapes-page-loader {
+          position: absolute;
+          inset: 0;
+          z-index: 12;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(232, 234, 237, 0.88);
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          transition: none;
+        }
+
+        .cms-grapes-page-loader.is-visible {
+          opacity: 1;
+          visibility: visible;
+          pointer-events: auto;
+        }
+
+        .cms-grapes-page-loader__card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          min-width: 220px;
+          padding: 22px 28px;
+          border-radius: 16px;
+          background: #ffffff;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+          text-align: center;
+        }
+
+        .cms-grapes-page-loader__card strong {
+          color: #111827;
+          font-size: 15px;
+          font-weight: 700;
+        }
+
+        .cms-grapes-page-loader__card span:last-child {
+          color: #6b7280;
+          font-size: 12px;
+        }
+
+        .cms-grapes-page-loader__spinner {
+          width: 28px;
+          height: 28px;
+          margin-bottom: 6px;
+          border: 3px solid #e5e7eb;
+          border-top-color: #4f46e5;
+          border-radius: 50%;
+          animation: cms-grapes-page-loader-spin 0.8s linear infinite;
+        }
+
+        @keyframes cms-grapes-page-loader-spin {
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         .cms-grapes-empty-guide {
@@ -3244,7 +3659,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-empty-guide__card {
-          pointer-events: auto;
+          pointer-events: none;
           max-width: 420px;
           width: 100%;
           padding: 24px 22px;
@@ -3286,6 +3701,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-empty-guide__btn {
+          pointer-events: auto;
           display: inline-flex;
           align-items: center;
           gap: 6px;
@@ -3313,6 +3729,48 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           margin-top: 14px !important;
           font-size: 11px !important;
           color: #64748b !important;
+        }
+
+        .cms-grapes-add-section {
+          position: absolute !important;
+          left: 0 !important;
+          right: 0 !important;
+          top: auto !important;
+          bottom: 18px !important;
+          z-index: 6;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: max-content !important;
+          margin: 0 auto !important;
+          padding: 10px 16px;
+          border: 1px dashed #c7d2fe !important;
+          border-radius: 999px;
+          background: #fff !important;
+          color: #4338ca !important;
+          font-size: 13px;
+          font-weight: 700;
+          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+          cursor: pointer;
+          transform: none !important;
+          translate: none !important;
+          transition: background-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+        }
+
+        .cms-grapes-add-section:hover,
+        .cms-grapes-add-section:focus,
+        .cms-grapes-add-section:active {
+          background: #eef2ff !important;
+          color: #4338ca !important;
+          border-color: #c7d2fe !important;
+          transform: none !important;
+          translate: none !important;
+          top: auto !important;
+          bottom: 18px !important;
+          left: 0 !important;
+          right: 0 !important;
+          margin: 0 auto !important;
         }
 
         .cms-grapes-shell__workspace {
@@ -3404,8 +3862,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           position: relative;
           display: grid;
           grid-template-columns: var(--cms-left-sidebar-width) minmax(0, 1fr) var(--cms-right-sidebar-width);
-          height: ${studioHeight}px;
-          min-height: 640px;
+          flex: 1 1 auto;
+          height: auto;
+          min-height: 0;
           overflow: hidden;
           isolation: isolate;
         }
@@ -3413,9 +3872,12 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-sidebar {
           display: flex;
           flex-direction: column;
-          height: ${studioHeight}px;
+          position: relative;
+          z-index: 20;
+          height: 100%;
           min-width: 0;
-          min-height: ${studioHeight}px;
+          min-height: 0;
+          max-height: 100%;
           background: linear-gradient(180deg, #0c0f1a 0%, #0f172a 55%, #0a0e18 100%);
           color: #e2e8f0;
           overflow: hidden;
@@ -3430,19 +3892,59 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-sidebar--left {
+          overflow: visible;
           border-right: 1px solid rgba(148, 163, 184, 0.16);
         }
 
+        .cms-grapes-sidebar__body {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          min-height: 0;
+          flex: 1 1 auto;
+          overflow: hidden;
+        }
+
         .cms-grapes-sidebar--right {
+          overflow: visible;
           border-left: 1px solid rgba(148, 163, 184, 0.16);
+        }
+
+        .cms-grapes-sidebar--right .cms-grapes-sidebar__toolbar {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         }
 
         .cms-grapes-sidebar__toolbar {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           gap: 6px;
           padding: 12px;
           border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+          flex-shrink: 0;
+        }
+
+        .cms-grapes-sidebar--left .cms-grapes-sidebar__toolbar {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
+
+        .cms-grapes-sidebar__collapse {
+          width: 36px;
+          height: 36px;
+          border: 0;
+          border-radius: 8px;
+          background: transparent;
+          color: #94a3b8;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+        }
+
+        .cms-grapes-sidebar__collapse:hover,
+        .cms-grapes-sidebar__collapse:focus {
+          background: rgba(15, 23, 42, 0.06);
+          color: #111827;
+          transform: none;
         }
 
         .cms-grapes-sidebar__tab {
@@ -3501,6 +4003,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-sidebar__panel.is-active {
           display: block;
+          overflow: auto;
+          min-height: 0;
+          height: auto;
         }
 
         .cms-grapes-sidebar--right input[type="color"] {
@@ -3545,7 +4050,7 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           position: absolute;
           top: 0;
           bottom: 0;
-          z-index: 40;
+          z-index: 6;
           width: 28px;
           height: 56px;
           margin-top: auto;
@@ -3553,20 +4058,24 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          border: 1px solid rgba(148, 163, 184, 0.28);
+          border: 1px solid #1d4ed8;
           border-radius: 10px;
-          background: #1e293b;
-          color: #e2e8f0;
-          box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
-          transform: none;
-          transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+          background: #2563eb;
+          color: #fff;
+          box-shadow: 0 8px 18px rgba(37, 99, 235, 0.38);
+          transform: none !important;
+          transition: background-color 120ms ease, border-color 120ms ease;
           pointer-events: auto;
         }
 
-        .cms-grapes-shell__edge-toggle:hover {
-          border-color: rgba(129, 140, 248, 0.55);
-          background: #334155;
+        .cms-grapes-shell__edge-toggle:hover,
+        .cms-grapes-shell__edge-toggle:focus,
+        .cms-grapes-shell__edge-toggle:active {
+          border-color: #1e40af;
+          background: #1d4ed8;
           color: #fff;
+          transform: none !important;
+          translate: none !important;
         }
 
         .cms-grapes-shell__edge-toggle--left {
@@ -3622,28 +4131,129 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           background-image: none;
           padding: 0;
           box-sizing: border-box;
-          overflow: auto !important;
-          overscroll-behavior: auto;
+          overflow-x: auto !important;
+          overflow-y: auto !important;
+          overscroll-behavior: contain;
           -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+          scrollbar-color: #64748b #d1d5db;
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas::-webkit-scrollbar {
+          width: 12px;
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas::-webkit-scrollbar-track {
+          background: #e5e7eb;
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas::-webkit-scrollbar-thumb {
+          background: #64748b;
+          border-radius: 999px;
         }
 
         .cms-grapes-shell.cms-grapes-shell--dragging .gjs-cv-canvas {
           user-select: none;
         }
 
-        .cms-grapes-shell .gjs-cv-canvas__frames {
-          min-height: 100%;
+        .cms-grapes-shell.cms-grapes-shell--dragging .cms-grapes-empty-guide,
+        .cms-grapes-shell.cms-grapes-shell--dragging .cms-grapes-add-section {
+          display: none !important;
+          pointer-events: none !important;
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas .gjs-tools {
+          pointer-events: none !important;
+        }
+
+        .cms-grapes-shell .gjs-toolbar,
+        .cms-grapes-shell .gjs-toolbar-item,
+        .cms-grapes-shell .gjs-resizer,
+        .cms-grapes-shell .gjs-badge {
+          pointer-events: auto !important;
+        }
+
+        .cms-grapes-shell--grid .gjs-cv-canvas::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 3;
+          background-image:
+            linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+
+        .cms-grapes-context-menu {
+          position: fixed;
+          z-index: 12000;
+          min-width: 196px;
+          max-height: 70vh;
+          overflow: auto;
+          padding: 6px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background: #0f172a;
+          box-shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+        }
+
+        .cms-grapes-context-menu button {
           display: flex;
-          justify-content: center;
-          align-items: flex-start;
           width: 100%;
+          align-items: center;
+          gap: 8px;
+          border: 0;
+          background: transparent;
+          color: #e2e8f0;
+          font-size: 12px;
+          font-weight: 600;
+          text-align: left;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+
+        .cms-grapes-context-menu button:hover {
+          background: rgba(99, 102, 241, 0.18);
+        }
+
+        .cms-grapes-shell .gjs-cv-canvas__frames {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: 100% !important;
+          min-width: 100% !important;
+          max-width: none !important;
+          height: auto !important;
+          min-height: 100% !important;
+          display: block !important;
+        }
+
+        .cms-grapes-shell .gjs-frames {
+          display: block !important;
+          width: 100% !important;
+          min-width: 100% !important;
+          max-width: none !important;
+          height: auto !important;
+          min-height: 100%;
         }
 
         .cms-grapes-shell .gjs-frame-wrapper {
-          margin: 0 auto;
-          flex: 0 0 auto;
-          width: 100%;
-          max-width: 100%;
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          display: block !important;
+          margin: 0;
+          width: 100% !important;
+          min-width: 100% !important;
+          max-width: none !important;
+          height: auto !important;
+          min-height: 100%;
           border-radius: 0;
           overflow: visible !important;
           border: 0;
@@ -3651,9 +4261,66 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           background: #ffffff;
         }
 
+        .cms-grapes-shell[data-cms-device="tablet"] .gjs-cv-canvas__frames,
+        .cms-grapes-shell[data-cms-device="mobile"] .gjs-cv-canvas__frames {
+          display: flex !important;
+          justify-content: center;
+          align-items: flex-start;
+        }
+
+        .cms-grapes-shell[data-cms-device="tablet"] .gjs-frames,
+        .cms-grapes-shell[data-cms-device="mobile"] .gjs-frames {
+          display: flex !important;
+          justify-content: center;
+          width: auto !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          flex: 0 0 auto !important;
+        }
+
+        .cms-grapes-shell[data-cms-device="tablet"] .gjs-frame-wrapper,
+        .cms-grapes-shell[data-cms-device="mobile"] .gjs-frame-wrapper {
+          min-width: 0 !important;
+          margin: 20px auto;
+          min-height: calc(100% - 40px);
+          max-width: calc(100% - 40px);
+          border-radius: 24px;
+          overflow: hidden !important;
+          box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+        }
+
+        .cms-grapes-shell[data-cms-device="tablet"] .gjs-frame-wrapper {
+          width: 834px !important;
+        }
+
+        .cms-grapes-shell[data-cms-device="mobile"] .gjs-frame-wrapper {
+          width: 390px !important;
+        }
+
         .cms-grapes-shell .gjs-frame {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          display: block !important;
           width: 100% !important;
-          display: block;
+          min-width: 100% !important;
+          max-width: none !important;
+          height: auto !important;
+          min-height: 100%;
+        }
+
+        .cms-grapes-shell[data-cms-device="tablet"] .gjs-frame,
+        .cms-grapes-shell[data-cms-device="mobile"] .gjs-frame {
+          min-width: 0 !important;
+        }
+
+        .cms-grapes-shell .gjs-frame-wrapper__top,
+        .cms-grapes-shell .gjs-frame-wrapper__bottom,
+        .cms-grapes-shell .gjs-frame-wrapper__left,
+        .cms-grapes-shell .gjs-frame-wrapper__right {
+          display: none !important;
         }
 
         .cms-grapes-shell .gjs-pn-commands,
@@ -3789,28 +4456,29 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell .gjs-block-category .gjs-blocks-c {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
-          padding: 0 10px 12px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+          padding: 0 10px 16px;
         }
 
         .cms-grapes-shell .gjs-block {
           width: 100%;
           min-height: 0;
-          padding: 10px 6px;
+          padding: 0 0 8px;
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: stretch;
           justify-content: flex-start;
-          gap: 6px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(148, 163, 184, 0.12);
-          border-radius: 10px;
-          color: #e2e8f0;
-          box-shadow: none;
+          gap: 8px;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          color: #0f172a;
+          box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
           cursor: grab;
           touch-action: none;
-          transition: background-color 120ms ease, border-color 120ms ease;
+          overflow: hidden;
+          transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
         }
 
         .cms-grapes-shell .gjs-block:active {
@@ -3818,27 +4486,26 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-block:hover {
-          transform: none;
-          border-color: rgba(129, 140, 248, 0.35);
-          box-shadow: none;
-          background: rgba(99, 102, 241, 0.14);
+          transform: translateY(-1px);
+          border-color: #2563eb;
+          box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
+          background: #fff;
         }
 
         .cms-grapes-shell .gjs-block .gjs-block__media {
-          width: 36px;
-          min-width: 36px;
-          height: 36px;
-          min-height: 36px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          width: 100%;
+          min-width: 0;
+          height: 118px;
+          min-height: 118px;
+          display: block;
           font-size: 15px;
           line-height: 1;
           margin-bottom: 0;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.07);
+          border-radius: 0;
+          background: #eef2ff;
           border: 0;
           flex: 0 0 auto;
+          overflow: hidden;
         }
 
         .cms-grapes-shell .cms-gjs-block-media {
@@ -3847,7 +4514,573 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #f8fafc;
+          color: #4f46e5;
+          background: #eef2ff;
+          font-size: 22px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb {
+          width: 100%;
+          height: 118px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%);
+          background-size: cover;
+          background-position: center;
+          position: relative;
+        }
+
+        .cms-grapes-shell .cms-block-thumb.has-image::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.08) 0%, rgba(15, 23, 42, 0.28) 100%);
+        }
+
+        .cms-grapes-shell .cms-block-thumb--cta:not(.has-image) {
+          background: linear-gradient(135deg, #2563eb, #0f172a);
+        }
+
+        .cms-grapes-shell .cms-block-thumb--footer:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--nav:not(.has-image) {
+          background: #0f172a;
+        }
+
+        .cms-grapes-shell .cms-block-thumb--price:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--faq:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--cards:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--layout:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--text:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--heading:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--paragraph:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--richtext:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--button:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--link:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--icon:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--shape:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--logo:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--breadcrumb:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--columns1:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--columns2:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--columns3:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--columns37:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--spacer:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--divider:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--form:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--quote:not(.has-image),
+        .cms-grapes-shell .cms-block-thumb--map:not(.has-image) {
+          background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui {
+          position: relative;
+          z-index: 1;
+          width: calc(100% - 16px);
+          height: calc(100% - 16px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--center {
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--split {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cards,
+        .cms-grapes-shell .cms-block-thumb__ui--gallery,
+        .cms-grapes-shell .cms-block-thumb__ui--footer {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 4px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--gallery {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--list {
+          flex-direction: column;
+          gap: 5px;
+          align-items: stretch;
+          justify-content: center;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cta {
+          justify-content: space-between;
+          padding: 0 4px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--nav {
+          justify-content: flex-end;
+          gap: 5px;
+          padding: 0 6px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--layout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 6px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cards span,
+        .cms-grapes-shell .cms-block-thumb__ui--gallery span,
+        .cms-grapes-shell .cms-block-thumb__ui--footer span,
+        .cms-grapes-shell .cms-block-thumb__ui--layout span,
+        .cms-grapes-shell .cms-block-thumb__pane {
+          display: block;
+          height: 100%;
+          min-height: 36px;
+          border-radius: 6px;
+          background: rgba(255, 255, 255, 0.86);
+          box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cards span.is-featured {
+          background: #4f46e5;
+        }
+
+        .cms-grapes-shell .cms-block-thumb.has-image .cms-block-thumb__ui--cards span,
+        .cms-grapes-shell .cms-block-thumb.has-image .cms-block-thumb__pane {
+          background: rgba(255, 255, 255, 0.28);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__stack {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 4px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__line {
+          display: block;
+          height: 5px;
+          width: 72%;
+          border-radius: 999px;
+          background: rgba(15, 23, 42, 0.28);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__line--lg {
+          width: 86%;
+          height: 7px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb.has-image .cms-block-thumb__line,
+        .cms-grapes-shell .cms-block-thumb--cta .cms-block-thumb__line,
+        .cms-grapes-shell .cms-block-thumb--nav .cms-block-thumb__line,
+        .cms-grapes-shell .cms-block-thumb--footer .cms-block-thumb__line {
+          background: rgba(255, 255, 255, 0.82);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn {
+          display: inline-block;
+          width: 42px;
+          height: 10px;
+          border-radius: 999px;
+          background: #4f46e5;
+        }
+
+        .cms-grapes-shell .cms-block-thumb.has-image .cms-block-thumb__btn,
+        .cms-grapes-shell .cms-block-thumb--cta .cms-block-thumb__btn {
+          background: #fff;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__play {
+          width: 22px;
+          height: 22px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.92);
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 4px;
+          background: #818cf8;
+          margin-right: auto;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--nav span:not(.cms-block-thumb__dot) {
+          width: 14px;
+          height: 4px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.7);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--heading {
+          flex-direction: column;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__letter {
+          font-size: 34px;
+          font-weight: 800;
+          line-height: 1;
+          letter-spacing: -0.06em;
+          color: #312e81;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--text,
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph,
+        .cms-grapes-shell .cms-block-thumb__ui--richtext,
+        .cms-grapes-shell .cms-block-thumb__ui--form,
+        .cms-grapes-shell .cms-block-thumb__ui--quote {
+          flex-direction: column;
+          gap: 6px;
+          align-items: stretch;
+          justify-content: center;
+          padding: 0 10px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph span {
+          display: block;
+          height: 7px;
+          border-radius: 999px;
+          background: #c7d2fe;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph span:nth-child(1) { width: 92%; }
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph span:nth-child(2) { width: 100%; }
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph span:nth-child(3) { width: 86%; }
+        .cms-grapes-shell .cms-block-thumb__ui--paragraph span:nth-child(4) { width: 64%; }
+
+        .cms-grapes-shell .cms-block-thumb__bullets {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__bullets i {
+          display: block;
+          height: 6px;
+          width: 70%;
+          border-radius: 999px;
+          background: #a5b4fc;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--solid {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          text-align: center;
+          white-space: nowrap;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--outline {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #4f46e5;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 20px;
+          background: transparent;
+          border: 2px solid #4f46e5;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--ghost {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #4f46e5;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: transparent;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--soft {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #3730a3;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: #e0e7ff;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--gradient {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: linear-gradient(135deg, #6366f1, #2563eb);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--dark {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: #111827;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--light {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #111827;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 20px;
+          background: #fff;
+          border: 1px solid #d1d5db;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--success {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: #059669;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--danger {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          background: #dc2626;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--glass {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 20px;
+          background: rgba(255, 255, 255, 0.18);
+          border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .cms-grapes-shell .cms-block-thumb--btn-glass:not(.has-image) {
+          background: linear-gradient(145deg, #312e81, #1e1b4b);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--pill {
+          width: auto;
+          min-width: 58px;
+          height: 22px;
+          padding: 0 14px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          border-radius: 999px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--square {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 12px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          border-radius: 4px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--small {
+          width: auto;
+          min-width: 40px;
+          height: 16px;
+          padding: 0 8px;
+          color: #fff;
+          font-size: 9px;
+          font-weight: 800;
+          line-height: 16px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--large {
+          width: auto;
+          min-width: 72px;
+          height: 28px;
+          padding: 0 14px;
+          color: #fff;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 28px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--arrow,
+        .cms-grapes-shell .cms-block-thumb__btn--play,
+        .cms-grapes-shell .cms-block-thumb__btn--download {
+          width: auto;
+          min-width: 54px;
+          height: 22px;
+          padding: 0 10px;
+          color: #fff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 22px;
+          white-space: nowrap;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--play {
+          background: #111827;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__btn--download {
+          color: #4f46e5;
+          background: transparent;
+          border: 2px solid #4f46e5;
+          line-height: 18px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--btn-pair {
+          flex-direction: row;
+          gap: 6px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__link {
+          color: #4f46e5;
+          font-size: 15px;
+          font-weight: 800;
+          border-bottom: 2px solid currentColor;
+          line-height: 1.2;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 14px;
+          background: #eef2ff;
+          color: #4f46e5;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          box-shadow: 0 6px 14px rgba(79, 70, 229, 0.16);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__shape {
+          width: 46px;
+          height: 46px;
+          border-radius: 16px;
+          background: linear-gradient(145deg, #6366f1, #22d3ee);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--logo {
+          gap: 8px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--crumb {
+          gap: 4px;
+          color: #94a3b8;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--crumb span:not(:nth-child(even)) {
+          width: 18px;
+          height: 7px;
+          border-radius: 999px;
+          background: #cbd5e1;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--crumb span.is-current {
+          background: #4f46e5;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cols {
+          display: grid;
+          gap: 6px;
+          width: calc(100% - 20px);
+          height: 58px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cols span {
+          display: block;
+          min-height: 0;
+          border-radius: 8px;
+          background: #fff;
+          box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+          border: 1px dashed #c7d2fe;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--cols-1 { grid-template-columns: 1fr; }
+        .cms-grapes-shell .cms-block-thumb__ui--cols-2 { grid-template-columns: 1fr 1fr; }
+        .cms-grapes-shell .cms-block-thumb__ui--cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .cms-grapes-shell .cms-block-thumb__ui--cols-37 { grid-template-columns: 3fr 7fr; }
+
+        .cms-grapes-shell .cms-block-thumb__ui--spacer span {
+          width: 70%;
+          height: 18px;
+          border-radius: 8px;
+          border: 1px dashed #a5b4fc;
+          background: repeating-linear-gradient(-45deg, #eef2ff, #eef2ff 6px, #fff 6px, #fff 12px);
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--divider span {
+          width: 80%;
+          height: 3px;
+          border-radius: 999px;
+          background: #94a3b8;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--form span:not(.cms-block-thumb__btn) {
+          display: block;
+          height: 14px;
+          border-radius: 6px;
+          background: #fff;
+          border: 1px solid #c7d2fe;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__quote {
+          font-size: 28px;
+          line-height: 1;
+          color: #4f46e5;
+          font-weight: 800;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__ui--map {
+          background: linear-gradient(180deg, rgba(191, 219, 254, 0.7), rgba(165, 243, 252, 0.5));
+          border-radius: 12px;
+        }
+
+        .cms-grapes-shell .cms-block-thumb__pin {
+          width: 14px;
+          height: 14px;
+          border-radius: 50% 50% 50% 0;
+          background: #ef4444;
+          transform: rotate(-45deg);
         }
 
         .cms-grapes-shell .gjs-block .gjs-block__media svg {
@@ -3860,17 +5093,18 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           align-items: center;
           justify-content: center;
           margin-top: 0;
+          padding: 2px 8px 6px;
           line-height: 1.25;
-          font-size: 10px;
+          font-size: 12px;
           text-align: center;
           white-space: normal;
           word-break: normal;
           overflow-wrap: anywhere;
-          font-weight: 600;
-          flex: 1 1 auto;
+          font-weight: 700;
+          flex: 0 0 auto;
           min-width: 0;
-          min-height: 0;
-          color: #cbd5e1;
+          min-height: 28px;
+          color: #111827;
         }
 
         .cms-grapes-shell .gjs-sm-sector,
@@ -3935,9 +5169,9 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         }
 
         .cms-grapes-shell .gjs-sm-sector:hover {
-          transform: translateY(-2px);
-          border-color: rgba(96, 165, 250, 0.28);
-          box-shadow: 0 24px 42px rgba(8, 15, 30, 0.28);
+          transform: none;
+          border-color: #d1d5db;
+          box-shadow: none;
         }
 
         .cms-grapes-shell .gjs-sm-sector:hover::before,
@@ -3949,7 +5183,8 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
         .cms-grapes-shell .gjs-sm-sector.gjs-sm-open {
           background: rgba(15, 23, 42, 0.72);
           border-color: rgba(96, 165, 250, 0.24);
-          box-shadow: 0 22px 40px rgba(8, 15, 30, 0.3);
+          box-shadow: none;
+          transform: none;
         }
 
         .cms-grapes-shell .gjs-sm-properties,
@@ -4048,6 +5283,35 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
 
         .cms-grapes-shell .gjs-sm-sector-caret {
           transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), color 180ms ease;
+        }
+
+        .cms-grapes-shell .gjs-layer {
+          cursor: default;
+        }
+
+        .cms-grapes-shell .gjs-layer-move {
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          min-width: 28px;
+          height: 28px;
+          margin-left: 4px;
+          border-radius: 6px;
+          cursor: grab;
+          pointer-events: auto !important;
+          color: #64748b;
+        }
+
+        .cms-grapes-shell .gjs-layer-move:active {
+          cursor: grabbing;
+        }
+
+        .cms-grapes-shell .gjs-placeholder {
+          pointer-events: none;
+          border: 2px dashed #2563eb !important;
+          background: rgba(37, 99, 235, 0.08) !important;
+          min-height: 8px;
         }
 
         .cms-grapes-shell .gjs-field,
@@ -4305,53 +5569,66 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           }
         }
 
-        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay,
-        .gjs-mdl-container.cms-code-modal-overlay {
+        .gjs-mdl-container.cms-code-modal-overlay,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay {
           position: fixed !important;
           inset: 0 !important;
           z-index: 100000 !important;
           display: flex !important;
-          align-items: flex-start !important;
+          align-items: center !important;
           justify-content: center !important;
-          overflow-x: hidden !important;
-          overflow-y: auto !important;
-          padding: max(20px, env(safe-area-inset-top, 0px)) 16px 24px !important;
-          background: rgba(2, 6, 23, 0.78) !important;
-          backdrop-filter: blur(6px);
+          overflow: auto !important;
+          padding: 24px !important;
+          background: rgba(15, 23, 42, 0.45) !important;
+          backdrop-filter: blur(8px);
         }
 
-        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog,
-        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog {
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-dialog {
           position: relative !important;
           top: auto !important;
           left: auto !important;
           right: auto !important;
           bottom: auto !important;
           transform: none !important;
-          margin: 0 auto !important;
-          width: min(96vw, 1400px);
+          margin: auto !important;
+          width: min(92vw, 1180px);
           min-width: 320px;
-          border-radius: 24px;
+          max-height: min(88vh, 860px);
+          border-radius: 18px;
           overflow: hidden;
-          box-shadow: 0 34px 90px rgba(15, 23, 42, 0.32);
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          box-shadow: 0 24px 64px rgba(15, 23, 42, 0.22);
           display: flex;
           flex-direction: column;
-          max-height: calc(100vh - 40px);
         }
 
-        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header,
-        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header {
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-header {
           flex-shrink: 0;
           padding: 14px 18px;
-          background: #08101f;
-          color: #ffffff;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+          background: #fff;
+          color: #111827;
+          border-bottom: 1px solid #e5e7eb;
         }
 
-        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content,
-        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content {
-          background: #0b1220;
-          color: #ffffff;
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-title,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-title {
+          color: #111827 !important;
+          font-size: 16px;
+          font-weight: 700;
+        }
+
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-btn-close,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-btn-close {
+          color: #6b7280 !important;
+        }
+
+        .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .gjs-mdl-content {
+          background: #f8fafc;
+          color: #111827;
           padding: 0;
           flex: 1 1 auto;
           min-height: 0;
@@ -4367,25 +5644,25 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           overflow: hidden;
         }
 
-        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded {
-          max-height: calc(100vh - 24px) !important;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded,
+        .cms-grapes-shell .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal-dialog--expanded {
+          width: min(96vw, 1440px) !important;
+          max-height: calc(100vh - 32px) !important;
         }
 
-        .cms-grapes-shell .cms-code-modal,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal,
+        .cms-grapes-shell .cms-code-modal {
           display: flex;
           flex-direction: column;
-          gap: 16px;
-          min-height: 480px;
-          padding: 18px;
-          background:
-            radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 34%),
-            linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+          gap: 14px;
+          min-height: 0;
+          height: 100%;
+          padding: 16px 18px 18px;
+          background: #f8fafc;
         }
 
-        .cms-grapes-shell .cms-code-modal__toolbar,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__toolbar {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__toolbar,
+        .cms-grapes-shell .cms-code-modal__toolbar {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
@@ -4393,265 +5670,271 @@ export default function GrapesEditor({ value = "", onChange, height = 800 }: Gra
           flex-wrap: wrap;
         }
 
-        .cms-grapes-shell .cms-code-modal__intro,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__intro {
-          max-width: 560px;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__intro,
+        .cms-grapes-shell .cms-code-modal__intro {
+          max-width: 640px;
         }
 
-        .cms-grapes-shell .cms-code-modal__eyebrow,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__eyebrow {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__eyebrow,
+        .cms-grapes-shell .cms-code-modal__eyebrow {
           font-size: 11px;
           font-weight: 800;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #93c5fd;
+          color: #4f46e5;
           margin-bottom: 6px;
         }
 
-        .cms-grapes-shell .cms-code-modal__hint,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__hint {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__hint,
+        .cms-grapes-shell .cms-code-modal__hint {
           margin: 0;
           font-size: 13px;
           line-height: 1.6;
-          color: #94a3b8;
+          color: #6b7280;
         }
 
-        .cms-grapes-shell .cms-code-modal__toolbar-actions,
         .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__toolbar-actions,
-        .cms-grapes-shell .cms-code-modal__footer-actions,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-actions {
+        .cms-grapes-shell .cms-code-modal__toolbar-actions,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-actions,
+        .cms-grapes-shell .cms-code-modal__footer-actions {
           display: flex;
           align-items: center;
           gap: 8px;
           flex-wrap: wrap;
         }
 
-        .cms-grapes-shell .cms-code-modal__tabs,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tabs {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tabs,
+        .cms-grapes-shell .cms-code-modal__tabs {
           display: none;
           gap: 8px;
           flex-wrap: wrap;
         }
 
-        .cms-grapes-shell .cms-code-modal__tab,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab,
+        .cms-grapes-shell .cms-code-modal__tab {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          padding: 10px 14px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
+          padding: 8px 14px;
+          border: 1px solid #e5e7eb;
           border-radius: 999px;
-          background: rgba(15, 23, 42, 0.72);
-          color: #cbd5e1;
+          background: #fff;
+          color: #4b5563;
           font-size: 13px;
           font-weight: 700;
           cursor: pointer;
         }
 
-        .cms-grapes-shell .cms-code-modal__tab.is-active,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab.is-active {
-          background: #2563eb;
-          border-color: #2563eb;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__tab.is-active,
+        .cms-grapes-shell .cms-code-modal__tab.is-active {
+          background: #4f46e5;
+          border-color: #4f46e5;
           color: #fff;
-          box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
         }
 
-        .cms-grapes-shell .cms-code-modal__panels,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels,
+        .cms-grapes-shell .cms-code-modal__panels {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 14px;
+          gap: 12px;
           min-height: 0;
           flex: 1 1 auto;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel,
+        .cms-grapes-shell .cms-code-modal__panel {
           display: flex;
           flex-direction: column;
           min-width: 0;
           min-height: 0;
-          border: 1px solid rgba(148, 163, 184, 0.16);
-          border-radius: 18px;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
           overflow: hidden;
-          background: rgba(15, 23, 42, 0.88);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+          background: #fff;
+          box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
         }
 
-        .cms-grapes-shell .cms-code-modal__panels--stacked,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked,
+        .cms-grapes-shell .cms-code-modal__panels--stacked {
           grid-template-columns: 1fr;
         }
 
-        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel,
+        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel {
           display: none;
         }
 
-        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active,
+        .cms-grapes-shell .cms-code-modal__panels--stacked .cms-code-modal__panel.is-active {
           display: flex;
         }
 
-        .cms-grapes-shell .cms-code-modal__panels--wide,
         .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide,
-        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panels,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panels {
+        .cms-grapes-shell .cms-code-modal__panels--wide,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panels,
+        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panels {
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panel,
         .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal.is-wide .cms-code-modal__panel,
-        .cms-grapes-shell .cms-code-modal__panels--wide .cms-code-modal__panel,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide .cms-code-modal__panel {
+        .cms-grapes-shell .cms-code-modal.is-wide .cms-code-modal__panel,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panels--wide .cms-code-modal__panel,
+        .cms-grapes-shell .cms-code-modal__panels--wide .cms-code-modal__panel {
           display: flex;
           flex-direction: column;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-head,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-head {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-head,
+        .cms-grapes-shell .cms-code-modal__panel-head {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          padding: 12px 14px;
-          border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-          background: rgba(8, 16, 31, 0.92);
+          padding: 10px 12px;
+          border-bottom: 1px solid #e5e7eb;
+          background: #fff;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-title,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title,
+        .cms-grapes-shell .cms-code-modal__panel-title {
           display: flex;
           align-items: center;
           gap: 10px;
           min-width: 0;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-title i,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title i {
-          width: 34px;
-          height: 34px;
-          border-radius: 10px;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title i,
+        .cms-grapes-shell .cms-code-modal__panel-title i {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          background: rgba(255, 255, 255, 0.06);
-          color: #e2e8f0;
+          background: #eef2ff;
+          color: #4f46e5;
           flex-shrink: 0;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel--html .cms-code-modal__panel-title i,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--html .cms-code-modal__panel-title i {
-          color: #fb7185;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--html .cms-code-modal__panel-title i,
+        .cms-grapes-shell .cms-code-modal__panel--html .cms-code-modal__panel-title i {
+          background: #fff1f2;
+          color: #e11d48;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel--css .cms-code-modal__panel-title i,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--css .cms-code-modal__panel-title i {
-          color: #60a5fa;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--css .cms-code-modal__panel-title i,
+        .cms-grapes-shell .cms-code-modal__panel--css .cms-code-modal__panel-title i {
+          background: #eff6ff;
+          color: #2563eb;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel--js .cms-code-modal__panel-title i,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--js .cms-code-modal__panel-title i {
-          color: #fbbf24;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel--js .cms-code-modal__panel-title i,
+        .cms-grapes-shell .cms-code-modal__panel--js .cms-code-modal__panel-title i {
+          background: #fffbeb;
+          color: #d97706;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-title strong,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title strong {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title strong,
+        .cms-grapes-shell .cms-code-modal__panel-title strong {
           display: block;
-          font-size: 14px;
-          color: #f8fafc;
+          font-size: 13px;
+          color: #111827;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-title span,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title span {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-title span,
+        .cms-grapes-shell .cms-code-modal__panel-title span {
           display: block;
-          font-size: 12px;
-          color: #94a3b8;
+          font-size: 11px;
+          color: #6b7280;
         }
 
-        .cms-grapes-shell .cms-code-modal__panel-body,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body,
+        .cms-grapes-shell .cms-code-modal__panel-body {
           min-height: 0;
-          padding: 10px;
+          padding: 0;
           flex: 1 1 auto;
           overflow: hidden;
+          background: #0f172a;
         }
 
-        .cms-grapes-shell .cms-code-modal__codemirror,
         .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__codemirror,
-        .cms-grapes-shell .cms-code-modal__panel-body .CodeMirror,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body .CodeMirror {
+        .cms-grapes-shell .cms-code-modal__codemirror,
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__panel-body .CodeMirror,
+        .cms-grapes-shell .cms-code-modal__panel-body .CodeMirror {
           height: 100% !important;
           min-height: 220px;
           max-height: 100%;
-          border-radius: 12px !important;
+          border-radius: 0 !important;
           overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, 0.14);
+          border: 0;
         }
 
-        .cms-grapes-shell .cms-code-modal__footer,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer,
+        .cms-grapes-shell .cms-code-modal__footer {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
           flex-wrap: wrap;
-          padding-top: 4px;
-          border-top: 1px solid rgba(148, 163, 184, 0.12);
+          padding-top: 12px;
+          border-top: 1px solid #e5e7eb;
         }
 
-        .cms-grapes-shell .cms-code-modal__footer-meta,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-meta {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__footer-meta,
+        .cms-grapes-shell .cms-code-modal__footer-meta {
           font-size: 12px;
-          color: #64748b;
+          color: #6b7280;
         }
 
-        .cms-grapes-shell .cms-code-modal__btn,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn {
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn,
+        .cms-grapes-shell .cms-code-modal__btn {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          min-height: 40px;
+          min-height: 38px;
           padding: 0 14px;
-          border-radius: 12px;
-          border: 1px solid rgba(148, 163, 184, 0.18);
-          background: rgba(15, 23, 42, 0.88);
-          color: #e2e8f0;
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
+          background: #fff;
+          color: #374151;
           font-size: 13px;
           font-weight: 700;
           cursor: pointer;
         }
 
-        .cms-grapes-shell .cms-code-modal__btn:hover,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn:hover {
-          border-color: rgba(148, 163, 184, 0.34);
-          background: rgba(30, 41, 59, 0.96);
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn:hover,
+        .cms-grapes-shell .cms-code-modal__btn:hover {
+          border-color: #c7d2fe;
+          background: #eef2ff;
+          color: #4338ca;
         }
 
-        .cms-grapes-shell .cms-code-modal__btn--primary,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary {
-          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-          border-color: #2563eb;
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary,
+        .cms-grapes-shell .cms-code-modal__btn--primary {
+          background: #4f46e5;
+          border-color: #4f46e5;
           color: #fff;
-          box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
+          box-shadow: 0 8px 18px rgba(79, 70, 229, 0.22);
         }
 
-        .cms-grapes-shell .cms-code-modal__btn--primary:hover,
-        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary:hover {
-          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        .gjs-mdl-container.cms-code-modal-overlay .cms-code-modal__btn--primary:hover,
+        .cms-grapes-shell .cms-code-modal__btn--primary:hover {
+          background: #4338ca;
+          border-color: #4338ca;
+          color: #fff;
         }
 
-        .cms-grapes-shell .CodeMirror,
-        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror {
-          background: #0b1220;
+        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror,
+        .cms-grapes-shell .CodeMirror {
+          background: #0f172a;
           color: #e2e8f0;
         }
 
-        .cms-grapes-shell .CodeMirror-gutters,
-        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror-gutters {
-          background: #08101f;
-          border-right: 1px solid rgba(148, 163, 184, 0.14);
+        .gjs-mdl-container.cms-code-modal-overlay .CodeMirror-gutters,
+        .cms-grapes-shell .CodeMirror-gutters {
+          background: #0b1220;
+          border-right: 1px solid rgba(148, 163, 184, 0.16);
         }
 
         .cms-grapes-shell .cms-side-panel-hidden .gjs-cv-canvas {

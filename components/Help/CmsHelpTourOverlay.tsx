@@ -294,7 +294,7 @@ export default function CmsHelpTourOverlay({
     }
 
     let attempts = 0;
-    const maxAttempts = 12;
+    const maxAttempts = step.skipIfMissing && !needsNavigation ? 3 : 12;
     const attemptDelay = needsNavigation ? 500 : 200;
 
     const tryMeasure = () => {
@@ -304,11 +304,16 @@ export default function CmsHelpTourOverlay({
       attempts += 1;
       if (attempts < maxAttempts) {
         retryTimerRef.current = window.setTimeout(tryMeasure, attemptDelay);
+        return;
+      }
+
+      if (step.skipIfMissing && !needsNavigation) {
+        onNext();
       }
     };
 
     retryTimerRef.current = window.setTimeout(tryMeasure, attemptDelay);
-  }, [step, needsNavigation, syncLayout]);
+  }, [step, needsNavigation, syncLayout, onNext]);
 
   useEffect(() => {
     setMounted(true);

@@ -57,6 +57,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
     void Promise.all([
       import("grapesjs/dist/css/grapes.min.css"),
       import("@/styles/admin-page-editor.css"),
+      import("@/styles/visualBuilderStudio.css"),
     ]);
   }, [router.pathname]);
 
