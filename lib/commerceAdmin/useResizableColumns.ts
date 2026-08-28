@@ -11,7 +11,7 @@ const DEFAULT_COL_WIDTH = 160;
 const FIXED_COL_WIDTH = 48;
 
 function isFixedColumn(key: string) {
-  return key.startsWith("__");
+  return key.startsWith("__") || key === "select";
 }
 
 function readStoredWidths(storageKey: string): Record<string, number> {
@@ -36,7 +36,9 @@ export function defaultColumnWidth(label: string) {
 export function useResizableColumns<K extends string>(
   storageKey: string,
   labelFor: (key: K) => string,
+  options?: { lockToContainer?: boolean },
 ) {
+  const lockToContainer = options?.lockToContainer ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [allowOverflow, setAllowOverflow] = useState(false);
@@ -78,7 +80,11 @@ export function useResizableColumns<K extends string>(
         0,
       );
       const flexSum = flexIndexes.reduce((total, item) => total + raw[item.index], 0) || 1;
-      const overflowing = allowOverflow && containerWidth > 0 && fixedSum + flexSum > containerWidth + 1;
+      const overflowing =
+        !lockToContainer &&
+        allowOverflow &&
+        containerWidth > 0 &&
+        fixedSum + flexSum > containerWidth + 1;
       const targetFlex = overflowing || containerWidth <= 0 ? flexSum : Math.max(containerWidth - fixedSum, flexIndexes.length * MIN_COL_WIDTH);
       const scale = overflowing || containerWidth <= 0 ? 1 : targetFlex / flexSum;
       const sized = columns.map((column, index) => {
@@ -103,7 +109,7 @@ export function useResizableColumns<K extends string>(
         overflowing,
       };
     },
-    [allowOverflow, containerWidth, rawWidthOf],
+    [allowOverflow, containerWidth, lockToContainer, rawWidthOf],
   );
 
   const persist = useCallback(
@@ -134,9 +140,26 @@ export function useResizableColumns<K extends string>(
       const startX = event.clientX;
 
       const onMove = (moveEvent: PointerEvent) => {
-        const nextWidth = Math.max(MIN_COL_WIDTH, Math.round(startWidth + (moveEvent.clientX - startX)));
-        setAllowOverflow(true);
-        setWidths({ ...snapshot, [key]: nextWidth });
+        const desired = Math.max(MIN_COL_WIDTH, Math.round(startWidth + (moveEvent.clientX - startX)));
+        if (!lockToContainer) {
+          setAllowOverflow(true);
+          setWidths({ ...snapshot, [key]: desired });
+          return;
+        }
+        const flexKeys = columns.filter((column) => !isFixedColumn(column));
+        const keyIndex = flexKeys.indexOf(key);
+        const neighbor = flexKeys[keyIndex + 1] ?? flexKeys[keyIndex - 1];
+        if (!neighbor || neighbor === key) {
+          setWidths({ ...snapshot, [key]: desired });
+          return;
+        }
+        const neighborStart = snapshot[neighbor] ?? MIN_COL_WIDTH;
+        const nextWidth = Math.min(desired, startWidth + Math.max(0, neighborStart - MIN_COL_WIDTH));
+        setWidths({
+          ...snapshot,
+          [key]: nextWidth,
+          [neighbor]: neighborStart - (nextWidth - startWidth),
+        });
       };
 
       const onUp = () => {
@@ -153,7 +176,7 @@ export function useResizableColumns<K extends string>(
       handle.addEventListener("pointerup", onUp);
       handle.addEventListener("pointercancel", onUp);
     },
-    [layoutFor, persist],
+    [layoutFor, lockToContainer, persist],
   );
 
   return { containerRef, layoutFor, startResize };

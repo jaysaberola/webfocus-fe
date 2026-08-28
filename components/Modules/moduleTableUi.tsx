@@ -70,13 +70,17 @@ export function CmsModuleTitleCell({
   return (
     <div className="cms-module__title-cell">
       {href && !muted ? (
-        <a href={href} target="_blank" rel="noreferrer" className="cms-module__title-link">
+        <a href={href} target="_blank" rel="noreferrer" className="cms-module__title-link" title={title}>
           {title}
         </a>
       ) : (
-        <strong className={muted ? "cms-module__title-muted" : undefined}>{title}</strong>
+        <strong className={muted ? "cms-module__title-muted" : undefined} title={title}>{title}</strong>
       )}
-      {subtitle ? <div className="cms-module__title-sub">{subtitle}</div> : null}
+      {subtitle ? (
+        <div className="cms-module__title-sub" title={subtitle}>
+          {subtitle}
+        </div>
+      ) : null}
     </div>
   );
 }

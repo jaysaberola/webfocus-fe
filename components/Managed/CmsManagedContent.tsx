@@ -291,6 +291,7 @@ export default function CmsManagedContent() {
       key: "name",
       header: "Service",
       sortable: true,
+      width: "24%",
       render: (row) => (
         <CmsModuleTitleCell
           title={String(row.name ?? row.title ?? "—")}
@@ -301,16 +302,19 @@ export default function CmsManagedContent() {
     {
       key: "type",
       header: "Category",
+      width: "14%",
       render: (row) => <CmsModuleLabelPill>{resolveServiceTypeLabel(row)}</CmsModuleLabelPill>,
     },
     {
       key: "price",
       header: "Base Price",
+      width: "12%",
       render: (row) => formatCommerceMoney(Number(row.price ?? 0)),
     },
     {
       key: "status",
       header: "Status",
+      width: "11%",
       render: (row) => (
         <CmsModuleStatusBadge
           status={serviceActive(row) ? "active" : "inactive"}
@@ -321,16 +325,19 @@ export default function CmsManagedContent() {
     {
       key: "created_at",
       header: "Created",
+      width: "11%",
       render: (row) => <CmsModuleDate value={formatServiceDate(row.created_at)} />,
     },
     {
       key: "updated_at",
       header: "Modified",
+      width: "11%",
       render: (row) => <CmsModuleDate value={formatServiceDate(row.updated_at)} />,
     },
     {
       key: "actions",
       header: "Actions",
+      width: "11.5rem",
       render: (row) => (
         <CmsModuleRowActions>
           <select
@@ -523,6 +530,7 @@ export default function CmsManagedContent() {
           data={pagedServices}
           loading={loadingServices}
           {...cmsModuleTableProps}
+          wrapperClassName="cms-table-wrap cms-managed__table-wrap"
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
@@ -539,6 +547,7 @@ export default function CmsManagedContent() {
           data={pagedCoupons}
           loading={loadingCoupons}
           {...cmsModuleTableProps}
+          wrapperClassName="cms-table-wrap cms-managed__table-wrap"
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}

@@ -1,7 +1,5 @@
 import { ReactNode, useMemo, useState, useEffect, useCallback } from "react";
 import type { CSSProperties } from "react";
-import { useRouter } from "next/router";
-import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import { DEFAULT_CMS_TABLE_PAGE_SIZE } from "@/components/Modules/moduleTableUi";
 import { defaultAdminRowId } from "@/lib/useRowSelection";
 
@@ -63,6 +61,28 @@ function buildPageList(current: number, total: number): (number | "ellipsis")[] 
   return pages;
 }
 
+function cmsColumnWidth(key: string, explicit?: number | string): string | undefined {
+  if (explicit != null) return typeof explicit === "number" ? `${explicit}px` : explicit;
+  switch (key) {
+    case "select":
+      return "48px";
+    case "title":
+    case "name":
+      return "24%";
+    case "created_at":
+    case "updated_at":
+    case "lastModified":
+    case "modified":
+      return "12%";
+    case "options":
+    case "action":
+    case "actions":
+      return "11.5rem";
+    default:
+      return undefined;
+  }
+}
+
 export default function DataTable<T>({
   columns,
   data,
@@ -88,7 +108,6 @@ export default function DataTable<T>({
   selectedIds: controlledSelectedIds,
   onSelectionChange,
 }: DataTableProps<T>) {
-  const router = useRouter();
   const isServerPaginated =
     typeof currentPage === "number" &&
     typeof totalPages === "number" &&
@@ -254,7 +273,9 @@ export default function DataTable<T>({
     );
   };
 
-  const colSpan = columns.length + (selectable ? 1 : 0);
+  const hasCustomSelectColumn = columns.some((col) => col.key === "select");
+  const showRowSelect = selectable && !hasCustomSelectColumn;
+  const colSpan = columns.length + (showRowSelect ? 1 : 0);
 
   const safeTotal = Math.max(1, effectiveTotalPages);
   const safeCurrent = Math.min(Math.max(1, effectiveCurrentPage), safeTotal);
@@ -266,7 +287,7 @@ export default function DataTable<T>({
   const shouldRenderPaginationBlock = showBottomEntries || effectiveTotalPages > 1;
 
   const thPad: CSSProperties = { padding: "12px 16px" };
-  const tdPad: CSSProperties = { padding: "13px 16px" };
+  const tdPad: CSSProperties = { padding: "12px 16px" };
 
   const entriesControl = (
     <div className="dt-entries-control">
@@ -293,18 +314,14 @@ export default function DataTable<T>({
   );
 
   const selectedCount = selectedIds.length;
-  const resizeColumns = columns.map((col) => col.key);
-  const resizeLabels = Object.fromEntries(
-    columns.map((col) => [col.key, typeof col.header === "string" ? col.header : col.key]),
-  );
 
   return (
     <>
-      {(entriesPlacement === "top" || actions || (selectable && selectedCount > 0)) && (
+      {(entriesPlacement === "top" || actions || (showRowSelect && selectedCount > 0)) && (
         <div className="dt-toolbar">
           <div className="dt-toolbar__left">
             {actions}
-            {selectable && selectedCount > 0 ? (
+            {showRowSelect && selectedCount > 0 ? (
               <span className="dt-selection-count">{selectedCount} selected</span>
             ) : null}
           </div>
@@ -312,26 +329,28 @@ export default function DataTable<T>({
         </div>
       )}
 
-      <ResizableTableFrame
-        storageKey={`datatable:${router.pathname || "admin"}`}
-        columns={resizeColumns}
-        labels={resizeLabels}
-        selectColumn={selectable}
-        className={[
-          "cms-table-wrap",
-          wrapperClassName ?? "",
-        ].join(" ")}
+      <div
+        className={["cms-table-wrap", wrapperClassName ?? ""].filter(Boolean).join(" ")}
+        style={wrapperStyle}
       >
         <table
           className={`dt-enhanced-table${tableClassName ? ` ${tableClassName}` : ""}`}
           style={{
-            ...(fixedLayout ? { tableLayout: "fixed" } : {}),
+            tableLayout: "fixed",
+            width: "100%",
             ...tableStyle,
           }}
         >
+          <colgroup>
+            {showRowSelect ? <col style={{ width: "52px" }} /> : null}
+            {columns.map((col) => {
+              const width = cmsColumnWidth(col.key, col.width);
+              return <col key={col.key} style={width ? { width } : undefined} />;
+            })}
+          </colgroup>
           <thead>
             <tr>
-              {selectable ? (
+              {showRowSelect ? (
                 <th
                   className="dt-select-col"
                   style={{
@@ -355,13 +374,11 @@ export default function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={col.thClassName}
+                  className={[col.key === "select" ? "dt-select-col" : "", col.thClassName].filter(Boolean).join(" ") || undefined}
                   style={{
                     ...thPad,
                     ...(stickyHeader ? { position: "sticky", top: 0, zIndex: 2 } : {}),
                     ...(col.width != null ? { width: col.width } : {}),
-                    ...(col.minWidth != null ? { minWidth: col.minWidth } : {}),
-                    ...(col.maxWidth != null ? { maxWidth: col.maxWidth } : {}),
                     ...col.thStyle,
                   }}
                 >
@@ -375,7 +392,7 @@ export default function DataTable<T>({
             {loading &&
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={`sk-${i}`} className="dt-skeleton-row">
-                  {selectable ? (
+                  {showRowSelect ? (
                     <td className="dt-select-col" style={tdPad}>
                       <div className="dt-skeleton-bar" style={{ width: 16 }} />
                     </td>
@@ -413,7 +430,7 @@ export default function DataTable<T>({
                 const checked = selectedIds.includes(rowId);
                 return (
                   <tr key={rowId} className={checked ? "dt-row-selected" : undefined}>
-                    {selectable ? (
+                    {showRowSelect ? (
                       <td className="dt-select-col" style={tdPad}>
                         <input
                           type="checkbox"
@@ -427,12 +444,11 @@ export default function DataTable<T>({
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className={col.tdClassName}
+                        className={[col.key === "select" ? "dt-select-col" : "", col.tdClassName].filter(Boolean).join(" ") || undefined}
                         style={{
                           ...tdPad,
+                          overflow: col.key === "select" ? "visible" : "hidden",
                           ...(col.width != null ? { width: col.width } : {}),
-                          ...(col.minWidth != null ? { minWidth: col.minWidth } : {}),
-                          ...(col.maxWidth != null ? { maxWidth: col.maxWidth } : {}),
                           ...col.tdStyle,
                         }}
                       >
@@ -444,64 +460,63 @@ export default function DataTable<T>({
               })}
           </tbody>
         </table>
-      </ResizableTableFrame>
+        {shouldRenderPaginationBlock ? (
+          <div className="dt-footer" data-cms-token="module-pagination">
+            <div>{showBottomEntries && entriesControl}</div>
 
-      {shouldRenderPaginationBlock && (
-        <div className="dt-footer" data-cms-token="module-pagination">
-          <div>{showBottomEntries && entriesControl}</div>
+            <nav aria-label="Pagination">
+              <div className="dt-pagination">
+                <button
+                  type="button"
+                  className="dt-pg-btn"
+                  onClick={() => handlePageChange(safeCurrent - 1)}
+                  disabled={safeCurrent <= 1}
+                  aria-label="Previous page"
+                >
+                  <i className="fas fa-chevron-left" style={{ fontSize: 10 }} />
+                  Prev
+                </button>
 
-          <nav aria-label="Pagination">
-            <div className="dt-pagination">
-              <button
-                type="button"
-                className="dt-pg-btn"
-                onClick={() => handlePageChange(safeCurrent - 1)}
-                disabled={safeCurrent <= 1}
-                aria-label="Previous page"
-              >
-                <i className="fas fa-chevron-left" style={{ fontSize: 10 }} />
-                Prev
-              </button>
-
-              {safeTotal <= 7 ? (
-                pageList.map((p, idx) =>
-                  p === "ellipsis" ? (
-                    <span key={`e-${idx}`} className="dt-pg-info" style={{ padding: "0 8px" }}>
-                      …
-                    </span>
-                  ) : (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`dt-pg-btn${p === safeCurrent ? " is-active" : ""}`}
-                      onClick={() => handlePageChange(p)}
-                      aria-label={`Page ${p}`}
-                      aria-current={p === safeCurrent ? "page" : undefined}
-                    >
-                      {p}
-                    </button>
+                {safeTotal <= 7 ? (
+                  pageList.map((p, idx) =>
+                    p === "ellipsis" ? (
+                      <span key={`e-${idx}`} className="dt-pg-info" style={{ padding: "0 8px" }}>
+                        …
+                      </span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        className={`dt-pg-btn${p === safeCurrent ? " is-active" : ""}`}
+                        onClick={() => handlePageChange(p)}
+                        aria-label={`Page ${p}`}
+                        aria-current={p === safeCurrent ? "page" : undefined}
+                      >
+                        {p}
+                      </button>
+                    )
                   )
-                )
-              ) : (
-                <span className="dt-pg-info">
-                  {safeCurrent} / {safeTotal}
-                </span>
-              )}
+                ) : (
+                  <span className="dt-pg-info">
+                    {safeCurrent} / {safeTotal}
+                  </span>
+                )}
 
-              <button
-                type="button"
-                className="dt-pg-btn"
-                onClick={() => handlePageChange(safeCurrent + 1)}
-                disabled={safeCurrent >= safeTotal}
-                aria-label="Next page"
-              >
-                Next
-                <i className="fas fa-chevron-right" style={{ fontSize: 10 }} />
-              </button>
-            </div>
-          </nav>
-        </div>
-      )}
+                <button
+                  type="button"
+                  className="dt-pg-btn"
+                  onClick={() => handlePageChange(safeCurrent + 1)}
+                  disabled={safeCurrent >= safeTotal}
+                  aria-label="Next page"
+                >
+                  Next
+                  <i className="fas fa-chevron-right" style={{ fontSize: 10 }} />
+                </button>
+              </div>
+            </nav>
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }

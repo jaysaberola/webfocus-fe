@@ -5,7 +5,6 @@ import api from '@/lib/axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CmsModuleShell from '@/components/Modules/CmsModuleShell';
-import ResizableTableFrame from '@/components/UI/ResizableTableFrame';
 
 const DISK = 'public' as const;
 
@@ -629,12 +628,7 @@ export default function FileManagerPage() {
 
         /* List view */
         ) : (
-          <ResizableTableFrame
-            storageKey="datatable:/files"
-            columns={["icon", "name", "size", "modified", "actions"]}
-            labels={{ icon: "Type", name: "Name", size: "Size", modified: "Modified", actions: "Actions" }}
-            className="cms-table-wrap"
-          >
+          <div className="cms-table-wrap">
             <table className="dt-enhanced-table mb-0">
                 <thead>
                   <tr>
@@ -698,7 +692,7 @@ export default function FileManagerPage() {
                   ))}
                 </tbody>
               </table>
-          </ResizableTableFrame>
+          </div>
         )}
 
         {/* Drag-over hint */}
