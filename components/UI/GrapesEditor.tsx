@@ -2423,11 +2423,12 @@ export default function GrapesEditor({
     editor.on("component:selected", (component: any) => {
       ensureUrlTraits(component);
       ensureComponentAnimationTrait(component);
-      setHasSelection(true);
-      // Keep right sidebar state as-is so selecting components does not shift the canvas.
-      if (!isRightSidebarHiddenRef.current) {
+      const isWrapper = Boolean(component?.is?.("wrapper"));
+      setHasSelection(!isWrapper);
+      if (!isWrapper) {
         const tagName = String(component?.get?.("tagName") || "").toLowerCase();
         setActiveRightPanel(["a", "button", "video", "iframe"].includes(tagName) ? "settings" : "styles");
+        setIsRightSidebarHidden(false);
       }
       handleTextComponentSelected(component);
     });
