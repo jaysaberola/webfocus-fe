@@ -149,21 +149,67 @@
   flex-direction: column;
   gap: 1.25rem;
   width: 100%;
-  max-width: 1320px;
+  max-width: none;
   margin: 0 auto;
-  padding: 1.25rem 0 2rem;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 .portalNav {
   composes: commerceAdmin;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem;
-  padding: 0.45rem;
-  background: #fff;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.portalNavEnd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin-left: auto;
+}
+
+.portalNavCms {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+  border-radius: 999px;
   border: 1px solid var(--ca-slate-200);
-  border-radius: 1rem;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+  background: #fff;
+  color: var(--ca-slate-800);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.portalNavCms:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: var(--ca-slate-900);
+}
+
+.portalNavCmsIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.72rem;
 }
 
 .portalNavItem,
@@ -193,6 +239,59 @@
   background: var(--ca-blue);
   color: #fff;
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.22);
+}
+
+.portalNavCommerce {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.9rem 0.35rem 0.35rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ca-slate-800);
+  border: 1px solid var(--ca-slate-200);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  letter-spacing: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.portalNavCommerce:hover {
+  color: var(--ca-slate-900);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.portalNavCommerceIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.portalNavCommerceCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+  padding-right: 0.15rem;
+}
+
+.portalNavCommerceCopy small {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ca-slate-500);
 }
 
 .hero {
@@ -392,7 +491,7 @@
   background: #fff;
   border: 1px solid var(--ca-slate-200);
   border-radius: 1.5rem;
-  padding: 1.5rem;
+  padding: 1.75rem 2.25rem 2rem;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
@@ -600,7 +699,7 @@
 }
 
 .table th {
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 0.85rem;
   border-bottom: 1px solid var(--ca-slate-200);
   color: #94a3b8;
   font-size: var(--ca-text-label);
@@ -640,7 +739,7 @@
 }
 
 .table td {
-  padding: 0.85rem 0.5rem;
+  padding: 0.85rem 0.85rem;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: var(--ca-slate-700);
@@ -1400,7 +1499,7 @@
 .queueCardHeaderBlue,
 .queueCardHeaderAmber,
 .queueCardHeaderRed {
-  padding: 0.65rem 0.85rem;
+  padding: 0.8rem 1.5rem;
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -1450,6 +1549,12 @@
 .queueTableWrap {
   overflow-x: auto;
   flex: 1;
+  padding: 0.15rem 1.5rem 0.5rem;
+}
+
+.queueTableWrapExpanded {
+  overflow-y: auto;
+  max-height: 22rem;
 }
 
 .queueTable {
@@ -1497,7 +1602,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.5rem;
-  padding: 0.65rem;
+  padding: 0.85rem 1.5rem;
 }
 
 .queueMiniCard {
@@ -1518,7 +1623,7 @@
   width: 100%;
   min-height: 2.75rem;
   margin: 0;
-  padding: 0 0.95rem;
+  padding: 0 1.5rem;
   border: none !important;
   border-top: 1px solid var(--ca-slate-100) !important;
   border-radius: 0 !important;

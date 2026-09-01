@@ -40,6 +40,15 @@ body {
   padding-bottom: 0 !important;
 }
 
+/* Commerce Control Center + Services — beat global `.container-fluid { padding: 0 !important }` */
+.commerce-admin-shell,
+.public-content-gutter {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  padding: 1.25rem clamp(2.5rem, 6vw, 5rem) 2rem !important;
+}
+
 .public-site-main.pt-0 {
   min-height: calc(100dvh - 80px);
 }

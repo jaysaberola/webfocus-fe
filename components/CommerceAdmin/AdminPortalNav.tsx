@@ -18,26 +18,33 @@ export default function AdminPortalNav({ active }: Props) {
 
   return (
     <nav className={styles.portalNav} aria-label="Admin portals">
-      {showCmsPortalLink ? (
-        <a
-          href="/dashboard"
-          className={active === "cms" ? styles.portalNavItemActive : styles.portalNavItem}
-          onClick={(event) => {
-            event.preventDefault();
-            window.location.assign("/dashboard");
-          }}
+      <div className={styles.portalNavEnd}>
+        {showCmsPortalLink ? (
+          <a
+            href="/dashboard"
+            className={styles.portalNavCms}
+            onClick={(event) => {
+              event.preventDefault();
+              window.location.assign("/dashboard");
+            }}
+          >
+            <span className={styles.portalNavCmsIcon} aria-hidden="true">
+              <i className="fa-solid fa-layer-group" />
+            </span>
+            CMS Admin
+          </a>
+        ) : null}
+        <Link
+          href={COMMERCE_ADMIN_PATH}
+          className={styles.portalNavCommerce}
+          aria-current={active === "commerce" ? "page" : undefined}
         >
-          <i className="fa-solid fa-layer-group" aria-hidden="true" />
-          CMS Admin
-        </a>
-      ) : null}
-      <Link
-        href={COMMERCE_ADMIN_PATH}
-        className={active === "commerce" ? styles.portalNavItemActive : styles.portalNavItem}
-      >
-        <i className="fa-solid fa-store" aria-hidden="true" />
-        Commerce Control Center
-      </Link>
+          <span className={styles.portalNavCommerceIcon} aria-hidden="true">
+            <i className="fa-solid fa-store" />
+          </span>
+          Commerce Control Center
+        </Link>
+      </div>
     </nav>
   );
 }

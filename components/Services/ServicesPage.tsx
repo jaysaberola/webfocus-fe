@@ -58,7 +58,7 @@ export default function ServicesPage({ initialTab = "hosting" }: { initialTab?: 
   };
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} public-content-gutter`}>
       <div className={styles.shell}>
         <ServicesIntro activeTab={activeTab} onTabChange={handleTabChange} />
 

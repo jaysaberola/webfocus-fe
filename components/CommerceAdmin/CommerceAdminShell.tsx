@@ -4,7 +4,6 @@ import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/co
 import { canAccessCommerceTab } from "@/lib/navPermissions";
 import type { User } from "@/services/accountService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
-import AdminPortalNav from "./AdminPortalNav";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -47,8 +46,6 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
 
   return (
     <>
-      <AdminPortalNav active="commerce" />
-
       <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
         {visibleTabs.map((tab) => {
           const isActive = activeTab === tab.id;

@@ -9,9 +9,9 @@ export default function CommerceAdminLayout({ children }: CommerceAdminLayoutPro
   return (
     <LandingPageLayout
       pageData={{ title: "Commerce Control Center", meta: { title: "Commerce Control Center" } }}
-      layout={{ hideBanner: true, minimalFooter: true, fullWidth: false }}
+      layout={{ hideBanner: true, minimalFooter: true, fullWidth: true }}
     >
-      {children}
+      <div className="commerce-admin-shell">{children}</div>
     </LandingPageLayout>
   );
 }

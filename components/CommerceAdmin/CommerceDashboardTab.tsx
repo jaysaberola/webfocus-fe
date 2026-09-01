@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/router";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import {
   COMMERCE_MONTHLY_RENEWALS,
@@ -9,7 +8,6 @@ import {
   formatCommerceMoney,
 } from "@/lib/commerceAdmin/mockData";
 import type { CommerceDashboardData } from "@/services/commerceAdminService";
-import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import { useCommerceDashboardWidgets } from "@/lib/commerceAdmin/useCommerceDashboardWidgets";
 import CommerceCustomizeDashboardModal from "./CommerceCustomizeDashboardModal";
@@ -20,6 +18,13 @@ type Props = {
 };
 
 type QueueView = "list" | "grid";
+type QueueKey = "new" | "expiring" | "overdue";
+
+const QUEUE_PREVIEW_COUNT = 3;
+
+function previewRows<T>(rows: T[], expanded: boolean) {
+  return expanded ? rows : rows.slice(0, QUEUE_PREVIEW_COUNT);
+}
 
 const STAT_WIDGET_MAP = {
   active: "active-summary",
@@ -42,9 +47,13 @@ function monthlyChartGeometry() {
 }
 
 export default function CommerceDashboardTab({ onTabChange }: Props) {
-  const router = useRouter();
   const [queueView, setQueueView] = useState<QueueView>("list");
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [expandedQueues, setExpandedQueues] = useState<Record<QueueKey, boolean>>({
+    new: false,
+    expiring: false,
+    overdue: false,
+  });
   const [dashboardData, setDashboardData] = useState<CommerceDashboardData | null>(() => readCommerceDashboardCache());
   const { visibleWidgets, visibleCount, toggleWidget, resetWidgets, isVisible } =
     useCommerceDashboardWidgets();
@@ -66,6 +75,9 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
   const newOrders = dashboardData?.newOrders ?? [];
   const expiringServices = dashboardData?.expiringServices ?? [];
   const overdueInvoices = dashboardData?.overdueInvoices ?? [];
+  const visibleNewOrders = previewRows(newOrders, expandedQueues.new);
+  const visibleExpiringServices = previewRows(expiringServices, expandedQueues.expiring);
+  const visibleOverdueInvoices = previewRows(overdueInvoices, expandedQueues.overdue);
 
   const geometry = useMemo(() => monthlyChartGeometry(), []);
   const polylinePoints = geometry.map((p) => `${p.xPercent},${p.actualY}`).join(" ");
@@ -74,26 +86,8 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
   const actualTotal = 36720;
   const collectionRate = ((actualTotal / projectedTotal) * 100).toFixed(2);
 
-  const goToOrdersQueue = (queue: "new" | "overdue") => {
-    void router.replace(
-      {
-        pathname: COMMERCE_ADMIN_PATH,
-        query: { tab: "orders", queue },
-      },
-      undefined,
-      { shallow: true },
-    );
-  };
-
-  const goToExpiringServices = () => {
-    void router.replace(
-      {
-        pathname: COMMERCE_ADMIN_PATH,
-        query: { tab: "clients", queue: "expiring" },
-      },
-      undefined,
-      { shallow: true },
-    );
+  const toggleQueue = (key: QueueKey) => {
+    setExpandedQueues((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const showQueueSection =
@@ -150,11 +144,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                 <button
                   type="button"
                   className={`${styles.queueCardHeaderBlue} ${styles.queueCardHeaderClickable}`}
-                  onClick={() => goToOrdersQueue("new")}
+                  onClick={() => toggleQueue("new")}
                 >
                   <span><i className="fa-regular fa-file-lines" aria-hidden="true" /> New Orders</span>
                 </button>
-                <div className={styles.queueTableWrap}>
+                <div className={`${styles.queueTableWrap}${expandedQueues.new ? ` ${styles.queueTableWrapExpanded}` : ""}`}>
                   <table className={styles.queueTable}>
                       <thead>
                         <tr>
@@ -166,12 +160,12 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {newOrders.length === 0 ? (
+                        {visibleNewOrders.length === 0 ? (
                           <tr>
                             <td colSpan={5}>No new orders in queue.</td>
                           </tr>
                         ) : (
-                          newOrders.map((row) => (
+                          visibleNewOrders.map((row) => (
                             <tr key={row.id}>
                               <td className={styles.queueCellStrong}>{row.orderId}</td>
                               <td>{row.company}</td>
@@ -184,9 +178,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => goToOrdersQueue("new")}>
-                  View All New Orders
-                </button>
+                {newOrders.length > QUEUE_PREVIEW_COUNT ? (
+                  <button type="button" className={styles.queueViewAllLink} onClick={() => toggleQueue("new")}>
+                    {expandedQueues.new ? "Show less" : "View All New Orders"}
+                  </button>
+                ) : null}
               </article>
             )}
 
@@ -195,11 +191,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                 <button
                   type="button"
                   className={`${styles.queueCardHeaderAmber} ${styles.queueCardHeaderClickable}`}
-                  onClick={goToExpiringServices}
+                  onClick={() => toggleQueue("expiring")}
                 >
                   <span><i className="fa-regular fa-calendar" aria-hidden="true" /> Expiring Services</span>
                 </button>
-                <div className={styles.queueTableWrap}>
+                <div className={`${styles.queueTableWrap}${expandedQueues.expiring ? ` ${styles.queueTableWrapExpanded}` : ""}`}>
                   <table className={styles.queueTable}>
                       <thead>
                         <tr>
@@ -211,12 +207,12 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {expiringServices.length === 0 ? (
+                        {visibleExpiringServices.length === 0 ? (
                           <tr>
                             <td colSpan={5}>No expiring services.</td>
                           </tr>
                         ) : (
-                          expiringServices.map((row) => (
+                          visibleExpiringServices.map((row) => (
                             <tr key={row.id}>
                               <td className={styles.queueCellStrong}>{row.service}</td>
                               <td>{row.company}</td>
@@ -229,9 +225,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={goToExpiringServices}>
-                  View All Expiring Services
-                </button>
+                {expiringServices.length > QUEUE_PREVIEW_COUNT ? (
+                  <button type="button" className={styles.queueViewAllLink} onClick={() => toggleQueue("expiring")}>
+                    {expandedQueues.expiring ? "Show less" : "View All Expiring Services"}
+                  </button>
+                ) : null}
               </article>
             )}
 
@@ -240,11 +238,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                 <button
                   type="button"
                   className={`${styles.queueCardHeaderRed} ${styles.queueCardHeaderClickable}`}
-                  onClick={() => goToOrdersQueue("overdue")}
+                  onClick={() => toggleQueue("overdue")}
                 >
                   <span><i className="fa-solid fa-circle-exclamation" aria-hidden="true" /> Overdue</span>
                 </button>
-                <div className={styles.queueTableWrap}>
+                <div className={`${styles.queueTableWrap}${expandedQueues.overdue ? ` ${styles.queueTableWrapExpanded}` : ""}`}>
                   <table className={styles.queueTable}>
                       <thead>
                         <tr>
@@ -256,12 +254,12 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {overdueInvoices.length === 0 ? (
+                        {visibleOverdueInvoices.length === 0 ? (
                           <tr>
                             <td colSpan={5}>No overdue invoices.</td>
                           </tr>
                         ) : (
-                          overdueInvoices.map((row) => (
+                          visibleOverdueInvoices.map((row) => (
                             <tr key={row.id}>
                               <td className={styles.queueCellStrong}>{row.reference}</td>
                               <td>{row.company}</td>
@@ -274,9 +272,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                       </tbody>
                     </table>
                 </div>
-                <button type="button" className={styles.queueViewAllLink} onClick={() => goToOrdersQueue("overdue")}>
-                  View All Overdue
-                </button>
+                {overdueInvoices.length > QUEUE_PREVIEW_COUNT ? (
+                  <button type="button" className={styles.queueViewAllLink} onClick={() => toggleQueue("overdue")}>
+                    {expandedQueues.overdue ? "Show less" : "View All Overdue"}
+                  </button>
+                ) : null}
               </article>
             )}
           </div>
