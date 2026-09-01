@@ -491,7 +491,7 @@
   background: #fff;
   border: 1px solid var(--ca-slate-200);
   border-radius: 1.5rem;
-  padding: 1.75rem 2.25rem 2rem;
+  padding: 1.75rem 2.75rem 2rem;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
@@ -1499,7 +1499,7 @@
 .queueCardHeaderBlue,
 .queueCardHeaderAmber,
 .queueCardHeaderRed {
-  padding: 0.8rem 1.5rem;
+  padding: 0.85rem 2.25rem;
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -1549,7 +1549,7 @@
 .queueTableWrap {
   overflow-x: auto;
   flex: 1;
-  padding: 0.15rem 1.5rem 0.5rem;
+  padding: 0.15rem 2.25rem 0.65rem;
 }
 
 .queueTableWrapExpanded {
@@ -1564,7 +1564,7 @@
 }
 
 .queueTable th {
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1.15rem;
   background: #fff;
   border-bottom: 1px solid var(--ca-slate-200);
   color: #94a3b8;
@@ -1576,8 +1576,18 @@
   white-space: nowrap;
 }
 
+.queueTable th:first-child,
+.queueTable td:first-child {
+  padding-left: 0.35rem;
+}
+
+.queueTable th:last-child,
+.queueTable td:last-child {
+  padding-right: 0.35rem;
+}
+
 .queueTable td {
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 1.15rem;
   border-bottom: 1px solid #f1f5f9;
   color: var(--ca-slate-700);
   font-size: var(--ca-text-sm);
@@ -1602,7 +1612,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.5rem;
-  padding: 0.85rem 1.5rem;
+  padding: 0.85rem 2.25rem;
 }
 
 .queueMiniCard {
@@ -1623,7 +1633,7 @@
   width: 100%;
   min-height: 2.75rem;
   margin: 0;
-  padding: 0 1.5rem;
+  padding: 0 2.25rem;
   border: none !important;
   border-top: 1px solid var(--ca-slate-100) !important;
   border-radius: 0 !important;
