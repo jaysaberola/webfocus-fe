@@ -107,8 +107,7 @@ export function approvalPlanLabel(row: CommercePaymentProofRow) {
   if (row.kind === "profile_change") {
     return row.summary?.trim() || row.plan?.trim() || "Profile update request";
   }
-  const plan = row.plan?.trim() || "Payment Deposit";
-  return row.client ? `${plan} (${row.client})` : plan;
+  return row.plan?.trim() || "Payment Deposit";
 }
 
 export function approvalAmountLabel(row: CommercePaymentProofRow) {
