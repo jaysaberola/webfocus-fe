@@ -157,22 +157,32 @@ export default function ServicesHostingTab() {
       <div className={styles.hostingWrap}>
         <section className={styles.hostingHero} aria-label="Hosting services overview">
           <div className={styles.hostingHeroInner}>
-            <p className={styles.hostingEyebrow}>Hosting Services</p>
-            <h2 className={styles.hostingHeroTitle}>Enterprise Hosting Plans</h2>
+            <div className={styles.hostingHeroCopy}>
+              <p className={styles.hostingEyebrow}>Hosting Services</p>
+              <h2 className={styles.hostingHeroTitle}>Enterprise Hosting Plans</h2>
+              <p className={styles.hostingHeroLead}>
+                Select a hosting type to view plans, specifications, and add-ons.
+              </p>
+            </div>
 
-            <div className={styles.hostingTypeRow}>
-              {HOSTING_TYPES.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  className={`${styles.hostingTypePill}${
-                    hostingType === type ? ` ${styles.hostingTypePillActive}` : ""
-                  }`}
-                  onClick={() => setHostingType(type)}
-                >
-                  {HOSTING_TYPE_LABELS[type]}
-                </button>
-              ))}
+            <div className={styles.hostingTypeRow} role="tablist" aria-label="Hosting types">
+              {HOSTING_TYPES.map((type) => {
+                const isActive = hostingType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={`${styles.hostingTypePill}${
+                      isActive ? ` ${styles.hostingTypePillActive}` : ""
+                    }`}
+                    onClick={() => setHostingType(type)}
+                  >
+                    <span className={styles.hostingTypeLabel}>{HOSTING_TYPE_LABELS[type]}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </section>

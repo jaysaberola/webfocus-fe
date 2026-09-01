@@ -8,22 +8,31 @@
     #f4f7fb;
 }
 
-/* Intro — professional catalogue header */
+.page p,
+.page a,
+.page h1,
+.page h2,
+.page h3,
+.page h4,
+.page h5,
+.page button {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Intro — enterprise catalogue header */
 .intro {
   position: relative;
   margin-bottom: 0;
-  border-radius: 1.15rem;
+  border-radius: 0.65rem;
   background: #ffffff;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.03),
-    0 12px 32px rgba(15, 23, 42, 0.05);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
 }
 
 .introAccent {
-  height: 3px;
-  background: linear-gradient(90deg, #021845 0%, #2563eb 55%, #ea580c 100%);
+  height: 2px;
+  background: #2563eb;
 }
 
 .introGlow {
@@ -33,10 +42,10 @@
 .introBody {
   position: relative;
   z-index: 1;
-  padding: 1.35rem 1.4rem 1.4rem;
+  padding: 1.5rem 1.5rem 1.35rem;
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  gap: 1.25rem;
 }
 
 .introCopy {
@@ -51,40 +60,40 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.4rem;
+  gap: 0.35rem;
   max-width: 36rem;
 }
 
 .introBadge {
   display: inline-flex;
-  padding: 0.22rem 0.58rem;
-  border-radius: 9999px;
-  background: rgba(2, 24, 69, 0.05);
-  border: 1px solid rgba(2, 24, 69, 0.1);
-  color: #334155;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .introTitle {
   margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(1.55rem, 2.8vw, 1.9rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1.4rem, 2.2vw, 1.65rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
   color: #0f172a;
-  line-height: 1.05;
+  line-height: 1.15;
 }
 
 .introLead {
-  margin: 0.1rem 0 0;
-  max-width: 28rem;
+  margin: 0.05rem 0 0;
+  max-width: 32rem;
   font-size: 0.875rem;
-  line-height: 1.45;
+  line-height: 1.5;
   color: #64748b;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .introQuoteBtn {
@@ -92,28 +101,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-shrink: 0;
-  margin-top: 0.15rem;
-  padding: 0.9rem 1.45rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: linear-gradient(135deg, #021845 0%, #1d4ed8 45%, #2563eb 100%);
+  margin-top: 0.2rem;
+  padding: 0.7rem 1.05rem;
+  border-radius: 0.4rem;
+  border: 1px solid #2563eb;
+  background: #2563eb;
   color: #ffffff;
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   line-height: 1;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
-  box-shadow:
-    0 10px 24px rgba(37, 99, 235, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  transition:
-    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.25s ease,
-    background 0.25s ease;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .introQuoteBtn::before {
@@ -131,42 +135,40 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
 }
 
 .introQuoteBtnIcon svg {
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 .introQuoteBtn:hover,
 .introQuoteBtn:focus-visible {
   color: #ffffff;
-  transform: translateY(-2px);
-  background: linear-gradient(135deg, #021845 0%, #1e40af 40%, #1d4ed8 100%);
-  box-shadow:
-    0 14px 30px rgba(37, 99, 235, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+  transform: none;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  box-shadow: none;
   text-decoration: none;
 }
 
 .introQuoteBtn:hover .introQuoteBtnIcon,
 .introQuoteBtn:focus-visible .introQuoteBtnIcon {
-  transform: translateX(2px);
-  background: rgba(255, 255, 255, 0.28);
+  transform: none;
+  background: transparent;
 }
 
 .introTabsShell {
   position: relative;
-  padding: 0.55rem;
-  border-radius: 0.95rem;
-  background: #f1f5f9;
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -175,98 +177,96 @@
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
-  perspective: 1000px;
-  transform-style: preserve-3d;
+  gap: 0.75rem;
 }
 
 .introTab {
   position: relative;
   display: block;
-  min-height: 7rem;
+  min-height: 0;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
-  transform-style: preserve-3d;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
 }
 
 .introTabCard {
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  gap: 0.85rem;
   width: 100%;
-  min-height: 7rem;
-  padding: 0.95rem 0.5rem 1.05rem;
-  border-radius: 0.8rem;
-  border: 1px solid transparent;
-  background: transparent;
+  min-height: 5.35rem;
+  padding: 1.05rem 1.1rem;
+  border-radius: 0.45rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   box-shadow: none;
-  transform: translateZ(0);
-  transform-style: preserve-3d;
   transition:
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.35s ease,
-    border-color 0.25s ease,
-    background 0.25s ease;
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .introTabIdle .introTabCard {
-  background: rgba(255, 255, 255, 0.55);
-  border-color: rgba(255, 255, 255, 0.7);
+  background: #ffffff;
+  border-color: #e2e8f0;
 }
 
 .introTabIdle:hover .introTabCard {
-  background: #ffffff;
-  border-color: rgba(148, 163, 184, 0.35);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.07);
-  transform: translateY(-2px) translateZ(8px);
+  background: #f8fafc;
+  border-color: #93c5fd;
+  box-shadow: none;
+  transform: none;
 }
 
 .introTabActive {
-  z-index: 3;
+  z-index: 1;
 }
 
 .introTabActive .introTabCard {
-  background: #ffffff;
-  border-color: rgba(2, 24, 69, 0.14);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 1) inset,
-    0 10px 24px rgba(15, 23, 42, 0.1),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-  animation: introTabLift 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-  transform: translateY(-3px) translateZ(18px) scale(1.015);
+  background: #eff6ff;
+  border-color: #2563eb;
+  box-shadow: none;
+  animation: none;
+  transform: none;
+}
+
+.introTabActive .introTabCard::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 2px;
+  background: #2563eb;
+  border-radius: 0 1px 1px 0;
 }
 
 .introTabIconWell {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3.6rem;
-  height: 3.6rem;
-  border-radius: 1rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgba(226, 232, 240, 0.95);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 1) inset,
-    0 6px 14px rgba(15, 23, 42, 0.06);
-  transition:
-    border-color 0.25s ease,
-    box-shadow 0.35s ease,
-    background 0.25s ease,
-    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  flex-shrink: 0;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.35rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+  color: #334155;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .introTabActive .introTabIconWell {
-  border-color: rgba(37, 99, 235, 0.18);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 1) inset,
-    0 10px 18px rgba(37, 99, 235, 0.12);
-  transform: translateZ(10px);
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: none;
+  transform: none;
 }
 
 .introTabIcon {
@@ -275,139 +275,66 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.85rem;
-  height: 2.85rem;
-  filter: drop-shadow(0 4px 8px rgba(15, 23, 42, 0.12));
-  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+  width: 1.15rem;
+  height: 1.15rem;
+  filter: none;
+}
+
+.introTabIcon svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
 }
 
 .introTabActive .introTabIcon {
-  transform: scale(1.06);
-  filter: drop-shadow(0 8px 12px rgba(15, 23, 42, 0.16));
-  animation: introTabIconPop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform: none;
+  filter: none;
+  animation: none;
 }
 
-.introTabIconImg {
-  width: 2.7rem !important;
-  height: 2.7rem !important;
-  object-fit: contain;
-  user-select: none;
-  pointer-events: none;
+.introTabText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .introTabLabel {
   position: relative;
   z-index: 1;
-  font-size: 0.8125rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  color: #0f172a;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.introTabHint {
+  font-size: 0.875rem;
+  font-weight: 400;
   color: #64748b;
-  text-align: center;
-  line-height: 1.2;
-  transition: color 0.25s ease;
+  line-height: 1.35;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .introTabActive .introTabLabel {
-  color: #0f172a;
-  font-weight: 700;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.introTabActive .introTabHint {
+  color: #475569;
 }
 
 .introTabIndicator {
-  position: absolute;
-  bottom: 0.55rem;
-  left: 50%;
-  width: 1.25rem;
-  height: 2.5px;
-  border-radius: 9999px;
-  background: currentColor;
-  opacity: 0;
-  transform: translateX(-50%) scaleX(0.35);
-  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.introTabActive .introTabIndicator {
-  opacity: 1;
-  transform: translateX(-50%) scaleX(1);
-}
-
-.introTab_blue { color: #1d4ed8; }
-.introTab_violet { color: #6d28d9; }
-.introTab_emerald { color: #047857; }
-.introTab_amber { color: #c2410c; }
-
-.introTab_blue.introTabActive .introTabCard {
-  border-color: rgba(29, 78, 216, 0.22);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 12px 26px rgba(37, 99, 235, 0.14),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-}
-.introTab_violet.introTabActive .introTabCard {
-  border-color: rgba(109, 40, 217, 0.22);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 12px 26px rgba(124, 58, 237, 0.14),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-}
-.introTab_emerald.introTabActive .introTabCard {
-  border-color: rgba(4, 120, 87, 0.22);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 12px 26px rgba(5, 150, 105, 0.14),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-}
-.introTab_amber.introTabActive .introTabCard {
-  border-color: rgba(194, 65, 12, 0.22);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 12px 26px rgba(234, 88, 12, 0.14),
-    0 2px 6px rgba(15, 23, 42, 0.04);
-}
-
-.introTab_blue.introTabActive .introTabIconWell {
-  border-color: rgba(37, 99, 235, 0.2);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 18px rgba(37, 99, 235, 0.12);
-}
-.introTab_violet.introTabActive .introTabIconWell {
-  border-color: rgba(124, 58, 237, 0.2);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 18px rgba(124, 58, 237, 0.12);
-}
-.introTab_emerald.introTabActive .introTabIconWell {
-  border-color: rgba(5, 150, 105, 0.2);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 18px rgba(5, 150, 105, 0.12);
-}
-.introTab_amber.introTabActive .introTabIconWell {
-  border-color: rgba(234, 88, 12, 0.2);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 18px rgba(234, 88, 12, 0.12);
-}
-
-@keyframes introTabLift {
-  0% {
-    transform: translateY(2px) translateZ(0) scale(0.985);
-  }
-  100% {
-    transform: translateY(-3px) translateZ(18px) scale(1.015);
-  }
-}
-
-@keyframes introTabIconPop {
-  0% {
-    transform: scale(0.94);
-  }
-  65% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1.06);
-  }
+  display: none;
 }
 
 .tabContent {
@@ -489,66 +416,123 @@
 }
 
 .hostingWrap {
-  border-radius: 1rem;
+  border-radius: 0.65rem;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .hostingHero {
   background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
   color: #ffffff;
-  padding: 3.5rem 2rem 3.25rem;
+  padding: 2.75rem 1.75rem 2.5rem;
+  border-bottom: 0;
 }
 
 .hostingHeroInner {
-  max-width: 48rem;
+  max-width: 56rem;
   margin: 0 auto;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.hostingHeroCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .hostingEyebrow {
-  margin: 0 0 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .hostingHeroTitle {
-  margin: 0 0 1.25rem;
-  font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 800;
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+  font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.hostingHeroLead {
+  margin: 0.1rem 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .hostingTypeRow {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  justify-items: stretch;
 }
 
 .hostingTypePill {
-  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.85rem 0.85rem;
+  border: 1px solid transparent;
   background: #ffffff;
-  color: #1d4ed8;
-  border-radius: 9999px;
-  padding: 0.4rem 0.95rem;
-  font-size: 0.8125rem;
+  color: #0f172a;
+  border-radius: 0.45rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.0625rem;
   font-weight: 600;
+  text-align: center;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.hostingTypePillActive {
-  background: #0f2f86;
+.hostingTypePill:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.65);
+}
+
+.hostingTypePillActive,
+.hostingTypePillActive:hover {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
   color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+}
+
+.hostingTypeLabel {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .hostingContent {
   background: #f3f5f8;
-  padding: 2.5rem 2rem 2.75rem;
+  padding: 1.75rem 1.5rem 2rem;
 }
 
 .hostingSectionHead {
@@ -707,9 +691,9 @@
 
 .serviceCardPrice {
   margin: 0;
-  font-family: "Space Grotesk", sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 1.4rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #0f172a;
   line-height: 1.1;
 }
@@ -1482,43 +1466,48 @@
 }
 
 .dmsWrap {
-  border-radius: 1rem;
+  border-radius: 0.65rem;
   overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .dmsHero {
-  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
-  color: #ffffff;
-  padding: 3.5rem 2rem 3.25rem;
+  background: #ffffff;
+  color: #0f172a;
+  padding: 1.5rem 1.5rem 1.35rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .dmsHeroInner {
-  max-width: 42rem;
-  margin: 0 auto;
-  text-align: center;
+  max-width: none;
+  margin: 0;
+  text-align: left;
 }
 
 .dmsEyebrow {
-  margin: 0 0 0.75rem;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  color: #64748b;
 }
 
 .dmsHeroTitle {
   margin: 0;
-  font-family: "Space Grotesk", sans-serif;
-  font-size: clamp(1.5rem, 3vw, 2rem);
-  font-weight: 800;
+  font-family: "Inter", sans-serif;
+  font-size: clamp(1.25rem, 2vw, 1.5rem);
+  font-weight: 600;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.2;
+  color: #0f172a;
 }
 
 .dmsContent {
-  background: #f3f5f8;
-  padding: 2.5rem 2rem 2.75rem;
+  background: #ffffff;
+  padding: 1.75rem 1.5rem 2rem;
 }
 
 .dmsSectionHead {
@@ -2464,6 +2453,13 @@
   }
 }
 
+@media (max-width: 1100px) {
+  .introTabs,
+  .hostingTypeRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .introCopy {
     flex-direction: column;
@@ -2481,13 +2477,8 @@
     gap: 0.55rem;
   }
 
-  .introTab,
   .introTabCard {
-    min-height: 6.35rem;
-  }
-
-  .introTabActive .introTabCard {
-    transform: translateY(-2px) translateZ(10px) scale(1.01);
+    min-height: 4.35rem;
   }
 }
 
