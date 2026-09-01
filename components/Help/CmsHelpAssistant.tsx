@@ -1,8 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CMS_HELP_GUIDES, CMS_HELP_GUIDE_MAP, CmsHelpGuide } from "@/lib/cmsHelp/guides";
 import { downloadUserGuidePptx } from "@/lib/cmsHelp/downloadUserGuidePptx";
+import {
+  CMS_GUIDE_NAME,
+  CMS_GUIDE_ROLE,
+  spokenGuideIntro,
+  spokenStepCue,
+  spokenStepScript,
+  spokenTip,
+  spokenWelcome,
+} from "@/lib/cmsHelp/guideVoice";
+import {
+  getAriaPrefs,
+  setAriaPrefs,
+  speakAria,
+  stopAriaSpeech,
+  type AriaPrefs,
+} from "@/lib/cmsHelp/ariaSpeech";
+import CmsHelpGuideAvatar from "@/components/Help/CmsHelpGuideAvatar";
+import CmsHelpLiveCaption, { CmsHelpKaraoke } from "@/components/Help/CmsHelpLiveCaption";
+import CmsHelpPlaybackControls from "@/components/Help/CmsHelpPlaybackControls";
 import CmsHelpStepIllustration from "@/components/Help/CmsHelpStepIllustration";
 import { toast } from "@/lib/toast";
 
@@ -17,9 +36,6 @@ type CmsHelpAssistantProps = {
   onBrowse?: () => void;
   onStartTour?: () => void;
 };
-
-const WELCOME_MESSAGE =
-  "Hi! I'm your CMS Guide. I'll walk you through every part of the screen — sidebar, toolbar, table, buttons, and forms — one step at a time. Follow the highlighted areas and read each bullet carefully.";
 
 export default function CmsHelpAssistant({
   variant,
@@ -36,10 +52,30 @@ export default function CmsHelpAssistant({
   const [typing, setTyping] = useState(false);
   const [revealed, setRevealed] = useState(true);
   const [downloading, setDownloading] = useState<"all" | "current" | null>(null);
+  const [prefs, setPrefs] = useState<AriaPrefs>({ voice: true, captions: true, speed: "normal" });
+  const [spoken, setSpoken] = useState("");
+  const [talking, setTalking] = useState(false);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   const guide = CMS_HELP_GUIDE_MAP[activeGuideId] ?? CMS_HELP_GUIDE_MAP.dashboard;
   const step = guide.steps[stepIndex];
   const totalSteps = guide.steps.length;
+  const welcome = spokenWelcome(guide.title);
+  const intro = spokenGuideIntro(guide.title, guide.summary);
+  const stepScript = step ? spokenStepScript(step, stepIndex, totalSteps) : "";
+  const script = stepIndex === 0 ? `${welcome} ${intro} ${stepScript}` : stepScript;
+  const introStart = welcome.length + 1;
+  const stepStart = stepIndex === 0 ? introStart + intro.length + 1 : 0;
+  const followAlong = prefs.captions;
+  const voiceOn = prefs.voice;
+  const stepSpokenChars = followAlong ? Math.max(0, spoken.length - stepStart) : stepScript.length;
+  const cue = spokenStepCue(stepIndex);
+  const showWelcome = stepIndex === 0 && (!followAlong || spoken.length > 0);
+  const showIntro = stepIndex === 0 && (!followAlong || spoken.length >= introStart);
+  const showStep = Boolean(step) && (stepIndex > 0 || !followAlong || spoken.length >= stepStart);
+  const showVisual = Boolean(step) && (!followAlong || (showStep && stepSpokenChars >= Math.min(cue.length, 24)));
+  const showDetails = Boolean(step?.details?.length) && (!followAlong || spoken.toLowerCase().includes("do this with me"));
+  const showTip = Boolean(step?.tip) && (!followAlong || spoken.toLowerCase().includes("quick tip from me"));
 
   const groupedGuides = useMemo(() => {
     const groups = new Map<string, CmsHelpGuide[]>();
@@ -69,14 +105,53 @@ export default function CmsHelpAssistant({
   }, [groupedGuides, query]);
 
   useEffect(() => {
+    setPrefs(getAriaPrefs());
+    return () => stopAriaSpeech();
+  }, []);
+
+  useEffect(() => {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+  }, [spoken, showStep, showVisual]);
+
+  useEffect(() => {
     setTyping(true);
     setRevealed(false);
+    setSpoken("");
+    setTalking(false);
+    stopAriaSpeech();
+    const delay = followAlong ? 280 : 0;
     const timer = window.setTimeout(() => {
       setTyping(false);
       setRevealed(true);
-    }, 350);
+    }, delay);
     return () => window.clearTimeout(timer);
-  }, [activeGuideId, stepIndex]);
+  }, [activeGuideId, stepIndex, followAlong]);
+
+  useEffect(() => {
+    if (typing || !revealed || !step || !script) return;
+
+    if (!voiceOn && !followAlong) {
+      setSpoken(script);
+      setTalking(false);
+      stopAriaSpeech();
+      return;
+    }
+
+    if (!followAlong) setSpoken(script);
+    else setSpoken("");
+    setTalking(voiceOn);
+    speakAria(script, {
+      onProgress: (said) => {
+        if (followAlong) setSpoken(said);
+      },
+      onEnd: () => setTalking(false),
+    });
+    return () => stopAriaSpeech();
+  }, [typing, revealed, step, script, voiceOn, followAlong, prefs.speed]);
+
+  const updatePrefs = (partial: Partial<AriaPrefs>) => {
+    setPrefs(setAriaPrefs(partial));
+  };
 
   const handleDownload = async (scope: "all" | "current") => {
     try {
@@ -98,23 +173,24 @@ export default function CmsHelpAssistant({
 
   if (variant === "dock") {
     return (
-      <div className="cms-help-dock" aria-label="CMS live guide">
+      <div className="cms-help-dock" aria-label={`${CMS_GUIDE_NAME} live guide`}>
         <div className="cms-help-dock__head">
-          <span className="cms-help-dock__bot">
-            <i className="fa-solid fa-robot" aria-hidden="true" />
-          </span>
+          <CmsHelpGuideAvatar size="sm" speaking={talking && voiceOn} />
           <div>
-            <strong>{guide.title}</strong>
-            <span>Live guide · Step {stepIndex + 1} of {totalSteps}</span>
+            <strong>{CMS_GUIDE_NAME} is guiding you</strong>
+            <span>
+              {guide.title} · Step {stepIndex + 1} of {totalSteps}
+              {!voiceOn ? " · voice off" : talking ? " · speaking" : ""}
+            </span>
           </div>
         </div>
 
         {revealed && step ? (
           <div className="cms-help-dock__body">
-            <CmsHelpStepIllustration step={step} stepTitle={step.title} compact />
+            {showVisual ? <CmsHelpStepIllustration step={step} stepTitle={step.title} compact /> : null}
             <h3>{step.title}</h3>
             <p>{step.body}</p>
-            {step.details && step.details.length > 0 ? (
+            {showDetails && step.details && step.details.length > 0 ? (
               <ul>
                 {step.details.map((line) => (
                   <li key={line}>{line}</li>
@@ -124,9 +200,17 @@ export default function CmsHelpAssistant({
           </div>
         ) : (
           <div className="cms-help-dock__typing">
-            <span /><span /><span />
+            <span />
+            <span />
+            <span />
           </div>
         )}
+
+        {followAlong ? (
+          <CmsHelpLiveCaption fullText={script} spoken={spoken} speaking={talking} variant="dock" />
+        ) : null}
+
+        <CmsHelpPlaybackControls prefs={prefs} onChange={updatePrefs} variant="compact" />
 
         <div className="cms-help-dock__actions">
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onBrowse}>
@@ -151,7 +235,7 @@ export default function CmsHelpAssistant({
       className="cms-help-assistant__backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="CMS Help Guide"
+      aria-label="CMS Guide Library"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -159,18 +243,19 @@ export default function CmsHelpAssistant({
       <div className="cms-help-assistant" onMouseDown={(event) => event.stopPropagation()}>
         <header className="cms-help-assistant__header">
           <div className="cms-help-assistant__header-copy">
-            <span className="cms-help-assistant__bot-icon" aria-hidden="true">
-              <i className="fa-solid fa-robot" />
-            </span>
+            <CmsHelpGuideAvatar size="md" speaking={talking && voiceOn} />
             <div>
+              <p className="cms-help-assistant__kicker">
+                {CMS_GUIDE_NAME} · {CMS_GUIDE_ROLE}
+              </p>
               <h2>CMS Guide Library</h2>
-              <p>Browse detailed guides for every module</p>
+              <p>Talk through every module with a live walkthrough</p>
             </div>
           </div>
           <div className="cms-help-assistant__header-actions">
             <button
               type="button"
-              className="btn btn-outline-primary btn-sm"
+              className="btn btn-outline-light btn-sm"
               disabled={downloading !== null}
               onClick={() => handleDownload("current")}
             >
@@ -179,15 +264,15 @@ export default function CmsHelpAssistant({
             </button>
             <button
               type="button"
-              className="btn btn-outline-primary btn-sm"
+              className="btn btn-outline-light btn-sm"
               disabled={downloading !== null}
               onClick={() => handleDownload("all")}
             >
               <i className="fa-solid fa-download me-1" aria-hidden="true" />
               {downloading === "all" ? "Preparing..." : "Download all topics"}
             </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={onStartTour}>
-              <i className="fa-solid fa-location-crosshairs me-1" aria-hidden="true" />
+            <button type="button" className="btn btn-light btn-sm" onClick={onStartTour}>
+              <i className="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true" />
               Start live tour
             </button>
             <button type="button" className="cms-help-assistant__close" onClick={onClose} aria-label="Close help">
@@ -198,12 +283,26 @@ export default function CmsHelpAssistant({
 
         <div className="cms-help-assistant__body">
           <aside className="cms-help-assistant__topics">
+            <div className="cms-help-assistant__persona">
+              <CmsHelpGuideAvatar size="lg" speaking={talking} />
+              <div>
+                <strong>{CMS_GUIDE_NAME}</strong>
+                <span>
+                  {talking && voiceOn
+                    ? "Speaking · follow the words"
+                    : !voiceOn && !followAlong
+                      ? "Read at your own pace"
+                      : "Online · ready to walk you through"}
+                </span>
+              </div>
+            </div>
+
             <div className="cms-help-assistant__search-wrap">
               <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
               <input
                 type="search"
                 className="cms-help-assistant__search"
-                placeholder="Search modules..."
+                placeholder="Ask or search a module..."
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
@@ -230,71 +329,98 @@ export default function CmsHelpAssistant({
           </aside>
 
           <section className="cms-help-assistant__chat">
-            <div className="cms-help-assistant__messages">
-              <article className="cms-help-assistant__message cms-help-assistant__message--bot">
-                <span className="cms-help-assistant__message-avatar" aria-hidden="true">
-                  <i className="fa-solid fa-robot" />
-                </span>
-                <div className="cms-help-assistant__bubble">
-                  <p>{WELCOME_MESSAGE}</p>
-                </div>
-              </article>
+            <div className="cms-help-assistant__messages" ref={messagesRef}>
+              {showWelcome ? (
+                <article className="cms-help-assistant__message cms-help-assistant__message--bot cms-help-assistant__message--live">
+                  <CmsHelpGuideAvatar size="sm" speaking={talking && spoken.length < introStart} />
+                  <div className="cms-help-assistant__bubble">
+                    <span className="cms-help-assistant__speaker">{CMS_GUIDE_NAME}</span>
+                    <p>
+                      <CmsHelpKaraoke
+                        text={welcome}
+                        spokenChars={followAlong ? Math.min(spoken.length, welcome.length) : welcome.length}
+                        hideAhead={followAlong}
+                      />
+                    </p>
+                  </div>
+                </article>
+              ) : null}
 
-              <article className="cms-help-assistant__message cms-help-assistant__message--bot">
-                <span className="cms-help-assistant__message-avatar" aria-hidden="true">
-                  <i className="fa-solid fa-robot" />
-                </span>
-                <div className="cms-help-assistant__bubble cms-help-assistant__bubble--guide">
-                  <div className="cms-help-assistant__guide-head">
-                    <i className={guide.icon} aria-hidden="true" />
-                    <div>
-                      <strong>{guide.title}</strong>
-                      <span>{guide.summary}</span>
+              {showIntro ? (
+                <article className="cms-help-assistant__message cms-help-assistant__message--bot cms-help-assistant__message--live">
+                  <CmsHelpGuideAvatar size="sm" speaking={talking && spoken.length >= introStart && spoken.length < stepStart} />
+                  <div className="cms-help-assistant__bubble cms-help-assistant__bubble--guide">
+                    <span className="cms-help-assistant__speaker">{CMS_GUIDE_NAME}</span>
+                    <div className="cms-help-assistant__guide-head">
+                      <i className={guide.icon} aria-hidden="true" />
+                      <div className="cms-help-assistant__guide-text">
+                        <strong>{guide.title}</strong>
+                        <p>
+                          <CmsHelpKaraoke
+                            text={intro}
+                            spokenChars={followAlong ? Math.max(0, spoken.length - introStart) : intro.length}
+                            hideAhead={followAlong}
+                          />
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </article>
+                </article>
+              ) : null}
 
-              {typing ? (
+              {typing && followAlong && !showWelcome ? (
                 <article className="cms-help-assistant__message cms-help-assistant__message--bot">
-                  <span className="cms-help-assistant__message-avatar" aria-hidden="true">
-                    <i className="fa-solid fa-robot" />
-                  </span>
+                  <CmsHelpGuideAvatar size="sm" speaking />
                   <div className="cms-help-assistant__bubble cms-help-assistant__bubble--typing">
                     <span className="cms-help-assistant__dot" />
                     <span className="cms-help-assistant__dot" />
                     <span className="cms-help-assistant__dot" />
+                    <em>Aria is about to speak…</em>
                   </div>
                 </article>
-              ) : revealed && step ? (
-                <article className="cms-help-assistant__message cms-help-assistant__message--bot">
-                  <span className="cms-help-assistant__message-avatar" aria-hidden="true">
-                    <i className="fa-solid fa-robot" />
-                  </span>
+              ) : null}
+
+              {showStep && step ? (
+                <article className="cms-help-assistant__message cms-help-assistant__message--bot cms-help-assistant__message--live">
+                  <CmsHelpGuideAvatar size="sm" speaking={talking && spoken.length >= stepStart} />
                   <div className="cms-help-assistant__bubble cms-help-assistant__bubble--step">
+                    <span className="cms-help-assistant__speaker">{CMS_GUIDE_NAME}</span>
                     <div className="cms-help-assistant__step-meta">
-                      Step {stepIndex + 1} of {totalSteps}
+                      Step {stepIndex + 1} of {totalSteps} · look here
                     </div>
-                    <CmsHelpStepIllustration step={step} stepTitle={step.title} />
-                    <h3>{step.title}</h3>
-                    <p>{step.body}</p>
-                    {step.details && step.details.length > 0 ? (
-                      <ul className="cms-help-assistant__details">
-                        {step.details.map((line) => (
-                          <li key={line}>{line}</li>
-                        ))}
-                      </ul>
+                    {showVisual ? <CmsHelpStepIllustration step={step} stepTitle={step.title} /> : null}
+                    {showVisual ? (
+                      <>
+                        <h3>{step.title}</h3>
+                        <p>{step.body}</p>
+                      </>
                     ) : null}
-                    {step.tip ? (
+                    {showDetails && step.details && step.details.length > 0 ? (
+                      <>
+                        <p className="cms-help-assistant__do-this">Do this with me:</p>
+                        <ol className="cms-help-assistant__details">
+                          {step.details.map((line) => (
+                            <li key={line}>{line}</li>
+                          ))}
+                        </ol>
+                      </>
+                    ) : null}
+                    {showTip && step.tip ? (
                       <div className="cms-help-assistant__tip">
                         <i className="fa-solid fa-lightbulb" aria-hidden="true" />
-                        <span>{step.tip}</span>
+                        <span>{spokenTip(step.tip)}</span>
                       </div>
                     ) : null}
                   </div>
                 </article>
               ) : null}
             </div>
+
+            {followAlong ? (
+              <CmsHelpLiveCaption fullText={script} spoken={spoken} speaking={talking} variant="chat" />
+            ) : null}
+
+            <CmsHelpPlaybackControls prefs={prefs} onChange={updatePrefs} />
 
             <footer className="cms-help-assistant__footer">
               <div className="cms-help-assistant__progress" aria-hidden="true">
@@ -316,11 +442,7 @@ export default function CmsHelpAssistant({
                   <i className="fa-solid fa-arrow-left" aria-hidden="true" />
                   Previous
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-primary cms-help-assistant__nav-btn"
-                  onClick={onStartTour}
-                >
+                <button type="button" className="btn btn-primary cms-help-assistant__nav-btn" onClick={onStartTour}>
                   <i className="fa-solid fa-location-crosshairs" aria-hidden="true" />
                   Guide me here
                 </button>

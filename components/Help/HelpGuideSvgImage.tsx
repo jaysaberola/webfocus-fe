@@ -55,8 +55,8 @@ const SETTINGS_ZONES: Record<string, Zone> = {
 };
 
 const SIDEBAR_ZONES: Record<string, Zone> = {
-  nav: { x: 8, y: 16, w: 108, h: 170, rx: 6 },
-  "view-site": { x: 8, y: 196, w: 108, h: 36, rx: 6 },
+  nav: { x: 0, y: 0, w: 148, h: 280, rx: 0 },
+  "view-site": { x: 12, y: 242, w: 124, h: 24, rx: 6 },
 };
 
 const GENERIC_ZONES: Record<string, Zone> = {
@@ -159,15 +159,36 @@ function drawSettingsBase() {
 }
 
 function drawSidebarBase() {
+  const items = ["Dashboard", "Pages", "News", "Files", "Menu", "Settings"];
   return (
     <>
-      <rect x="0" y="0" width="480" height="280" fill="#f1f5f9" />
-      <rect x="8" y="16" width="108" height="216" rx="6" fill="#0f172a" />
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <rect key={i} x="18" y={28 + i * 22} width="78" height="12" rx="3" fill="#334155" />
+      <rect x="0" y="0" width="480" height="280" fill="#eef2f7" />
+      <rect x="0" y="0" width="148" height="280" fill="#0f172a" />
+      <rect x="12" y="12" width="124" height="28" rx="6" fill="#1e293b" />
+      <text x="24" y="30" fill="#e2e8f0" fontSize="9" fontFamily="Inter, Arial, sans-serif">
+        WebFocus
+      </text>
+      {items.map((label, i) => (
+        <g key={label}>
+          <rect x="12" y={52 + i * 28} width="124" height="22" rx="5" fill={i === 1 ? "#2563eb" : "#1e293b"} />
+          <text x="22" y={67 + i * 28} fill="#f8fafc" fontSize="8" fontFamily="Inter, Arial, sans-serif">
+            {label}
+          </text>
+        </g>
       ))}
-      <rect x="8" y="196" width="108" height="36" rx="6" fill="#1d4ed8" />
-      <rect x="124" y="16" width="348" height="216" rx="8" fill="#ffffff" stroke="#cbd5e1" />
+      <rect x="12" y="242" width="124" height="24" rx="6" fill="#2563eb" />
+      <text x="36" y="258" fill="#ffffff" fontSize="8" fontFamily="Inter, Arial, sans-serif">
+        View Site
+      </text>
+      <rect x="156" y="12" width="312" height="28" rx="6" fill="#ffffff" />
+      <rect x="156" y="48" width="312" height="220" rx="8" fill="#ffffff" />
+      <text x="172" y="36" fill="#334155" fontSize="9" fontFamily="Inter, Arial, sans-serif">
+        Pages
+      </text>
+      <rect x="172" y="68" width="280" height="16" rx="4" fill="#eff6ff" />
+      <rect x="172" y="96" width="280" height="12" rx="3" fill="#e2e8f0" />
+      <rect x="172" y="116" width="280" height="12" rx="3" fill="#e2e8f0" />
+      <rect x="172" y="136" width="220" height="12" rx="3" fill="#e2e8f0" />
     </>
   );
 }

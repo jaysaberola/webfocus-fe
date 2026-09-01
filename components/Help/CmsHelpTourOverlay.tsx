@@ -4,7 +4,18 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import type { CmsHelpStep, CmsHelpStepPlacement } from "@/lib/cmsHelp/types";
+import CmsHelpGuideAvatar from "@/components/Help/CmsHelpGuideAvatar";
+import CmsHelpLiveCaption from "@/components/Help/CmsHelpLiveCaption";
+import CmsHelpPlaybackControls from "@/components/Help/CmsHelpPlaybackControls";
 import CmsHelpStepIllustration from "@/components/Help/CmsHelpStepIllustration";
+import { CMS_GUIDE_NAME, spokenStepScript } from "@/lib/cmsHelp/guideVoice";
+import {
+  getAriaPrefs,
+  setAriaPrefs,
+  speakAria,
+  stopAriaSpeech,
+  type AriaPrefs,
+} from "@/lib/cmsHelp/ariaSpeech";
 
 type Rect = {
   top: number;
@@ -205,7 +216,6 @@ function computeTooltipStyle(
 
 export default function CmsHelpTourOverlay({
   guideTitle,
-  guideIcon,
   step,
   stepIndex,
   totalSteps,
@@ -225,6 +235,44 @@ export default function CmsHelpTourOverlay({
   const [rect, setRect] = useState<Rect | null>(null);
   const [tooltipStyle, setTooltipStyle] = useState<CSSProperties>({});
   const [missingTarget, setMissingTarget] = useState(false);
+  const [prefs, setPrefs] = useState<AriaPrefs>({ voice: true, captions: true, speed: "normal" });
+  const [spoken, setSpoken] = useState("");
+  const [talking, setTalking] = useState(false);
+
+  const script = step ? spokenStepScript(step, stepIndex, totalSteps) : "";
+  const followAlong = prefs.captions;
+  const voiceOn = prefs.voice;
+
+  useEffect(() => {
+    setPrefs(getAriaPrefs());
+    return () => stopAriaSpeech();
+  }, []);
+
+  useEffect(() => {
+    if (!step || !script) return;
+
+    if (!voiceOn && !followAlong) {
+      setSpoken(script);
+      setTalking(false);
+      stopAriaSpeech();
+      return;
+    }
+
+    if (!followAlong) setSpoken(script);
+    else setSpoken("");
+    setTalking(voiceOn);
+    speakAria(script, {
+      onProgress: (said) => {
+        if (followAlong) setSpoken(said);
+      },
+      onEnd: () => setTalking(false),
+    });
+    return () => stopAriaSpeech();
+  }, [step, script, voiceOn, followAlong, prefs.speed]);
+
+  const updatePrefs = (partial: Partial<AriaPrefs>) => {
+    setPrefs(setAriaPrefs(partial));
+  };
 
   const updateTooltipPosition = useCallback((targetRect: Rect | null) => {
     if (!step) return;
@@ -389,13 +437,12 @@ export default function CmsHelpTourOverlay({
         aria-label={`Guide step ${stepIndex + 1}: ${step.title}`}
       >
         <div className="cms-help-tour__guide-bar">
-          <span className="cms-help-tour__guide-icon" aria-hidden="true">
-            <i className={guideIcon} />
-          </span>
+          <CmsHelpGuideAvatar size="sm" speaking={talking && voiceOn} />
           <div className="cms-help-tour__guide-copy">
-            <strong>{guideTitle}</strong>
+            <strong>{CMS_GUIDE_NAME} is guiding you</strong>
             <span>
-              Step {stepIndex + 1} of {totalSteps}
+              {guideTitle} · Step {stepIndex + 1} of {totalSteps}
+              {!voiceOn ? " · voice off" : talking ? " · speaking" : ""}
             </span>
           </div>
           <button type="button" className="cms-help-tour__close" onClick={onClose} aria-label="End guide">
@@ -443,11 +490,24 @@ export default function CmsHelpTourOverlay({
           ) : null}
         </div>
 
+        {followAlong ? (
+          <CmsHelpLiveCaption fullText={script} spoken={spoken} speaking={talking} variant="tour" />
+        ) : null}
+
+        <CmsHelpPlaybackControls prefs={prefs} onChange={updatePrefs} variant="compact" />
+
         {needsNavigation && step.route ? (
-          <button type="button" className="btn btn-primary w-100 cms-help-tour__nav-btn" onClick={onNavigate}>
-            <i className="fa-solid fa-arrow-right" aria-hidden="true" />
-            Take me to this page
-          </button>
+          <div className="cms-help-tour__actions">
+            <button type="button" className="btn btn-link btn-sm text-secondary" onClick={onBrowseTopics}>
+              All topics
+            </button>
+            <div className="cms-help-tour__actions-main">
+              <button type="button" className="btn btn-primary cms-help-tour__nav-btn" onClick={onNavigate}>
+                Take me there
+                <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="cms-help-tour__actions">
             <button type="button" className="btn btn-link btn-sm text-secondary" onClick={onBrowseTopics}>
@@ -457,7 +517,7 @@ export default function CmsHelpTourOverlay({
               <button type="button" className="btn btn-outline-secondary" onClick={onPrev} disabled={stepIndex === 0}>
                 Back
               </button>
-              <button type="button" className="btn btn-primary" onClick={onNext}>
+              <button type="button" className="btn btn-primary cms-help-tour__nav-btn" onClick={onNext}>
                 {stepIndex >= totalSteps - 1 ? "Finish" : "Next step"}
                 <i className="fa-solid fa-arrow-right" aria-hidden="true" />
               </button>
