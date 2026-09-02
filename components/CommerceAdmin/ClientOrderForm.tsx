@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, formatDealAmount, transactionDealName } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -617,6 +617,20 @@ export default function ClientOrderForm({
     }
   };
 
+  const headerTitle = useMemo(() => {
+    if (!isEditing) return pageTitle || "Create Deal";
+    const dealName =
+      String(form.dealName || "").trim() ||
+      (transaction ? transactionDealName(transaction) : "") ||
+      "Deal Info";
+    const fromForm = Number(form.expectedRevenue);
+    const amount =
+      Number.isFinite(fromForm) && String(form.expectedRevenue ?? "").trim() !== ""
+        ? fromForm
+        : Number(transaction?.grand_total ?? 0);
+    return `${dealName} - ${formatDealAmount(Number.isFinite(amount) ? amount : 0)}`;
+  }, [isEditing, pageTitle, form.dealName, form.expectedRevenue, transaction]);
+
   if (loading) {
     return <p className={styles.emptyState}>Loading order form...</p>;
   }
@@ -629,7 +643,7 @@ export default function ClientOrderForm({
             <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
           </button>
           <div>
-            <h3 className={styles.panelTitle}>{pageTitle || (isEditing ? "Deal Info" : "Create Deal")}</h3>
+            <h3 className={styles.panelTitle}>{headerTitle}</h3>
             <p className={styles.panelSubtitle}>{pageSubtitle}</p>
           </div>
         </div>
