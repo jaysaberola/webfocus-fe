@@ -41,9 +41,21 @@ export const INTERNATIONAL_TLDS = new Set<string>([
   ".io",
 ]);
 
-export function formatDomainFromPrice(price: number, currency = "PHP") {
-  const symbol = currency === "PHP" ? "₱" : currency;
-  return `from: ${symbol}${price.toLocaleString(undefined, {
+export function formatDomainFromPrice(
+  price: number | string | null | undefined,
+  currency = "PHP"
+) {
+  const numericPrice =
+    typeof price === "number" ? price : Number(price);
+
+  if (!Number.isFinite(numericPrice)) {
+    return "Price unavailable";
+  }
+
+  const normalizedCurrency = currency.trim().toUpperCase();
+  const symbol = normalizedCurrency === "PHP" ? "₱" : `${normalizedCurrency} `;
+
+  return `from: ${symbol}${numericPrice.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
