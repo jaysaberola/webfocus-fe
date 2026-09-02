@@ -17,6 +17,7 @@ import {
   type DealColumnKey,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { clientIsAssigned, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
+import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import { toast } from "@/lib/toast";
 import { assignCommerceCustomerOwner, fetchCommerceServices } from "@/services/commerceAdminService";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
@@ -109,7 +110,10 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassigning, setUnassigning] = useState(false);
-  const [columnsVisible, setColumnsVisible] = useState(DEFAULT_DEAL_COLUMNS);
+  const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
+    "commerceAdmin:columnVisibility:clientDeals",
+    DEFAULT_DEAL_COLUMNS,
+  );
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const dealColumnLabel = useCallback((key: DealColumnKey) => DEAL_COLUMN_LABELS[key], []);

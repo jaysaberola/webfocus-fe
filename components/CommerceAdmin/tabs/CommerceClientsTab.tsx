@@ -40,6 +40,7 @@ import {
   type ClientSortKey,
 } from "@/lib/commerceAdmin/clientHelpers";
 import { exportClientsToExcel } from "@/lib/commerceAdmin/exportClientsExcel";
+import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import {
   clientSortDirection,
   isClientColumnSorted,
@@ -99,7 +100,10 @@ export default function CommerceClientsTab(_props: Props) {
   const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
-  const [columnsVisible, setColumnsVisible] = useState(DEFAULT_CLIENT_COLUMNS);
+  const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
+    "commerceAdmin:columnVisibility:clients",
+    DEFAULT_CLIENT_COLUMNS,
+  );
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [view, setView] = useState<ClientView>("list");

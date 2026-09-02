@@ -12,6 +12,7 @@ import {
   type InvoiceColumnKey,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
 import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
+import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -27,9 +28,10 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
   const [rows, setRows] = useState<ClientInvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [columnsVisible, setColumnsVisible] = useState<Record<InvoiceColumnKey, boolean>>({
-    ...DEFAULT_INVOICE_COLUMNS,
-  });
+  const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
+    "commerceAdmin:columnVisibility:clientInvoices",
+    DEFAULT_INVOICE_COLUMNS,
+  );
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const invoiceColumnLabel = useCallback((key: InvoiceColumnKey) => INVOICE_COLUMN_LABELS[key], []);
@@ -80,10 +82,6 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, []);
-
-  useEffect(() => {
-    setColumnsVisible({ ...DEFAULT_INVOICE_COLUMNS });
-  }, [client.id]);
 
   const visibleColumns = useMemo(
     () => INVOICE_COLUMN_VISIBILITY_KEYS.filter((key) => columnsVisible[key]),

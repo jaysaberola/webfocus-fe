@@ -36,6 +36,7 @@ import {
   type TxColumnKey,
   type TxSortKey,
 } from "@/lib/commerceAdmin/transactionHelpers";
+import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import { isTxColumnSorted, toggleTxSort, txSortDirection } from "@/lib/commerceAdmin/tableSortHelpers";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import {
@@ -185,7 +186,10 @@ export default function CommerceTransactionsTab() {
   const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
-  const [columnsVisible, setColumnsVisible] = useState(DEFAULT_TX_COLUMNS);
+  const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
+    "commerceAdmin:columnVisibility:deals",
+    DEFAULT_TX_COLUMNS,
+  );
   const [colVisOpen, setColVisOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [showAll, setShowAll] = useState(false);
