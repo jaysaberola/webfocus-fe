@@ -24,6 +24,7 @@ import {
   TX_COLUMN_LABELS,
   TX_COLUMN_VISIBILITY_KEYS,
   formatTxDate,
+  isNewDealRow,
   isPaidStatus,
   paymentStatusLabel,
   sortTransactions,
@@ -91,6 +92,31 @@ import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 5;
+const SEEN_DEALS_KEY = "commerceAdmin:seenDealIds";
+
+function readSeenDealIds(): number[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SEEN_DEALS_KEY) || "[]");
+    return Array.isArray(parsed)
+      ? parsed.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSeenDealIds(ids: Iterable<number>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      SEEN_DEALS_KEY,
+      JSON.stringify(Array.from(new Set(Array.from(ids, (id) => Number(id)).filter((id) => id > 0)))),
+    );
+  } catch {
+    // Ignore storage failures; the indicator still works for this session.
+  }
+}
 
 const TX_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "payment_status", label: "Payment Status" },
@@ -188,6 +214,23 @@ export default function CommerceTransactionsTab() {
   const neededShownRef = useRef(false);
   const currentUser = readStoredCurrentUser();
   const canAssign = canAssignSalesTransactions(currentUser);
+  const [seenDealIds, setSeenDealIds] = useState<Set<number>>(() => new Set());
+
+  useEffect(() => {
+    setSeenDealIds(new Set(readSeenDealIds()));
+  }, []);
+
+  const markDealSeen = (id: number) => {
+    const dealId = Number(id);
+    if (!(dealId > 0)) return;
+    setSeenDealIds((current) => {
+      if (current.has(dealId)) return current;
+      const next = new Set(current);
+      next.add(dealId);
+      writeSeenDealIds(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -388,6 +431,7 @@ export default function CommerceTransactionsTab() {
   );
 
   const openDealInfo = (row: SalesTransaction) => {
+    markDealSeen(row.id);
     setDealInfo(row);
     setView("deal");
   };
@@ -927,10 +971,19 @@ export default function CommerceTransactionsTab() {
                       <td colSpan={visibleColumnCount}>No deals found matching filter.</td>
                     </tr>
                   ) : (
-                    displayRows.map((row) => (
+                    displayRows.map((row) => {
+                      const isNew = isNewDealRow(row, seenDealIds);
+                      return (
                       <tr
                         key={row.id}
-                        className={selection.isSelected(row) ? styles.rowSelected : undefined}
+                        className={[
+                          selection.isSelected(row) ? styles.rowSelected : "",
+                          isNew ? styles.rowNew : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ") || undefined}
+                        data-new={isNew ? "true" : undefined}
+                        aria-label={isNew ? `New deal ${row.transaction_no}` : undefined}
                       >
                         <CommerceSelectRowCell
                           checked={selection.isSelected(row)}
@@ -939,7 +992,8 @@ export default function CommerceTransactionsTab() {
                         />
                         {visibleOrderColumns.map((column) => renderOrderColumnCell(row, column))}
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -949,14 +1003,25 @@ export default function CommerceTransactionsTab() {
               {displayRows.length === 0 ? (
                 <p className={styles.emptyState}>No deals found matching filter.</p>
               ) : (
-                displayRows.map((row) => (
-                  <article key={row.id} className={styles.txGridCard}>
+                displayRows.map((row) => {
+                  const isNew = isNewDealRow(row, seenDealIds);
+                  return (
+                  <article
+                    key={row.id}
+                    className={[styles.txGridCard, isNew ? styles.txGridCardNew : ""]
+                      .filter(Boolean)
+                      .join(" ")}
+                    data-new={isNew ? "true" : undefined}
+                  >
                     <div className={styles.txGridCardTop}>
                       <button
                         type="button"
                         className={styles.tableCellLink}
                         onClick={() => openView(row)}
                       >
+                        {isNew ? (
+                          <span className={styles.newDealDot} aria-hidden="true" />
+                        ) : null}
                         {orderAdminColumnValue(row, "dealName", { assigned: assignedUserLabel(row) })}
                       </button>
                       {renderStatusBadge(row)}
@@ -1046,7 +1111,8 @@ export default function CommerceTransactionsTab() {
                       )}
                     </div>
                   </article>
-                ))
+                  );
+                })
               )}
             </div>
           )}
@@ -1411,7 +1477,7 @@ export default function CommerceTransactionsTab() {
         open={!!assignTarget}
         transaction={assignTarget}
         assignableFor={
-          assignTarget && isWebDesignTransaction(assignTarget) ? "sales_staff" : undefined
+          assignTarget && isWebDesignTransaction(assignTarget) ? "client_owner" : undefined
         }
         onClose={() => setAssignTarget(null)}
         onAssigned={(updated) => {

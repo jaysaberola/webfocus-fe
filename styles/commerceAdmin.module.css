@@ -2688,6 +2688,57 @@
   background: #f8fbff;
 }
 
+.rowNew td {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.rowNew .tableCellLink {
+  font-weight: 700;
+}
+
+.rowNew > td:nth-child(2) {
+  position: relative;
+  padding-left: 1.45rem;
+}
+
+.rowNew > td:nth-child(2)::before {
+  content: "";
+  position: absolute;
+  left: 0.55rem;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #16a34a;
+  transform: translateY(-50%);
+}
+
+.txGridCardNew {
+  font-weight: 700;
+}
+
+.txGridCardNew .txGridValue,
+.txGridCardNew .tableCellLink {
+  font-weight: 700;
+}
+
+.txGridCardNew .txGridCardTop .tableCellLink {
+  display: inline-flex;
+  align-items: center;
+}
+
+.newDealDot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.45rem;
+  border-radius: 999px;
+  background: #16a34a;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 .badgePaid,
 .badgePending,
 .badgeMuted,

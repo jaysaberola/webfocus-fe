@@ -202,7 +202,6 @@ export default function ClientOrderForm({
   const isEditing = Boolean(transaction);
   const [form, setForm] = useState<ClientOrderFormState>(emptyClientOrderForm());
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
-  const [salesStaffUsers, setSalesStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [clients, setClients] = useState<CustomerRow[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -218,7 +217,6 @@ export default function ClientOrderForm({
     setLoading(true);
     Promise.all([
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
-      fetchCommerceAssignableUsers({ for: "sales_staff" }).catch(() => [] as CommerceAssignableUser[]),
       fetchCommerceAssignableUsers({ for: "billing_in_charge" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
       getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
@@ -226,10 +224,9 @@ export default function ClientOrderForm({
         ? getCustomer(transaction.customer_id, { silent: true }).catch(() => null)
         : Promise.resolve(null),
     ])
-      .then(([clientOwners, salesStaff, assignable, clientRes, serviceRes, clientDetail]) => {
+      .then(([clientOwners, assignable, clientRes, serviceRes, clientDetail]) => {
         if (cancelled) return;
         const nextOwners = Array.isArray(clientOwners) ? clientOwners : [];
-        const nextSalesStaff = Array.isArray(salesStaff) ? salesStaff : [];
         const nextStaff = Array.isArray(assignable) ? assignable : [];
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
         const nextServices = Array.isArray(serviceRes?.data) ? serviceRes.data : [];
@@ -239,7 +236,6 @@ export default function ClientOrderForm({
             ? [detailClient, ...nextClients]
             : nextClients;
         setOwners(nextOwners);
-        setSalesStaffUsers(nextSalesStaff);
         setStaffUsers(nextStaff);
         setClients(mergedClients);
         setServices(nextServices);
@@ -340,8 +336,8 @@ export default function ClientOrderForm({
   };
 
   const ownerOptions = useMemo(() => {
-    let list = withCurrentAssignablePerson(isWebDesignDeal ? salesStaffUsers : owners, null);
-    if (!isWebDesignDeal && selectedClient?.owner_id) {
+    let list = withCurrentAssignablePerson(owners, null);
+    if (selectedClient?.owner_id) {
       list = withCurrentAssignablePerson(list, {
         id: Number(selectedClient.owner_id),
         name: selectedClient.owner?.name || selectedClient.owner_name,
@@ -373,7 +369,7 @@ export default function ClientOrderForm({
       list = withCurrentAssignablePerson(list, { id: Number(form.dealOwnerId) });
     }
     return list;
-  }, [owners, salesStaffUsers, isWebDesignDeal, selectedClient, transaction, form.dealOwnerId]);
+  }, [owners, selectedClient, transaction, form.dealOwnerId]);
 
   const billingOfficers = useMemo(() => {
     const officers = staffUsers.filter((user) => user.name || user.email);

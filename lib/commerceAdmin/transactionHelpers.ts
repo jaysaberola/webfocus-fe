@@ -183,6 +183,25 @@ export function isPaidStatus(status?: string | null) {
   return String(status ?? "").toLowerCase() === "paid";
 }
 
+const NEW_DEAL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function isNewDealRow(row: SalesTransaction, seenIds?: Iterable<number>) {
+  const id = Number(row.id);
+  if (id > 0 && seenIds) {
+    for (const seenId of seenIds) {
+      if (Number(seenId) === id) return false;
+    }
+  }
+  if (isPaidStatus(row.payment_status)) return false;
+
+  const status = String(row.order_status ?? "").toLowerCase();
+  const isOpenQueue = status === "new" || status === "pending" || status === "processing";
+  const created = Date.parse(String(row.created_at || row.transacted_at || row.issued_date || ""));
+  const isRecent = Number.isFinite(created) && Date.now() - created <= NEW_DEAL_WINDOW_MS;
+
+  return isOpenQueue && isRecent;
+}
+
 export function filterTransactions(rows: SalesTransaction[], filter: TxFilterKey) {
   if (filter === "all") return rows;
   if (filter === "paid") return rows.filter((row) => isPaidStatus(row.payment_status));

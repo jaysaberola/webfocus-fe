@@ -12,7 +12,7 @@ type Props = {
   open: boolean;
   transaction: SalesTransaction | null;
   restrictRoles?: string[];
-  assignableFor?: "sales_staff";
+  assignableFor?: "sales_staff" | "client_owner";
   onClose: () => void;
   onAssigned: (transaction: SalesTransaction) => void;
 };
@@ -96,11 +96,13 @@ export default function AssignTransactionModal({
             </h3>
             <p className={styles.panelSubtitle}>
               {transaction.transaction_no} ·{" "}
-              {assignableFor === "sales_staff"
-                ? "Choose Myrna Glorioso or Michelle Durian"
-                : restrictRoles?.length
-                  ? "Choose an active Sales Staff user"
-                  : "Choose an active staff user (customers excluded)"}
+              {assignableFor === "client_owner"
+                ? "Choose a Client Owner from the Customer Care list"
+                : assignableFor === "sales_staff"
+                  ? "Choose Myrna Glorioso or Michelle Durian"
+                  : restrictRoles?.length
+                    ? "Choose an active Sales Staff user"
+                    : "Choose an active staff user (customers excluded)"}
             </p>
           </div>
           <button type="button" className={styles.modalCloseBtn} onClick={onClose} aria-label="Close" disabled={saving}>
