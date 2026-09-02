@@ -3,6 +3,7 @@ import {
   parseDealMeta,
   SUBJECT_OPTIONS,
   subjectForProductName,
+  DOMAIN_TYPE_OPTIONS,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
@@ -283,15 +284,91 @@ function stripClientPrefixFromDealName(dealName?: string | null, clientName?: st
   return name;
 }
 
+const DOMAIN_TYPE_SUFFIXES: Array<{ label: (typeof DOMAIN_TYPE_OPTIONS)[number]; suffixes: string[] }> = [
+  { label: "Educational Domain", suffixes: [".edu.ph", ".edu", ".ac.ph"] },
+  { label: "Government Domain", suffixes: [".gov.ph", ".gov", ".mil.ph"] },
+  { label: "Country Level Domain", suffixes: [".com.ph", ".net.ph", ".org.ph", ".ph"] },
+  {
+    label: "Hybrid Top Level Domain",
+    suffixes: [
+      ".biz",
+      ".info",
+      ".mobi",
+      ".pro",
+      ".asia",
+      ".online",
+      ".store",
+      ".app",
+      ".xyz",
+      ".club",
+      ".site",
+      ".tech",
+      ".shop",
+      ".cloud",
+      ".website",
+      ".digital",
+      ".co",
+    ],
+  },
+  { label: "Top Level Domain", suffixes: [".com", ".net", ".org"] },
+];
+
+function normalizeDomainTypeLabel(value?: string | null): string | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const exact = DOMAIN_TYPE_OPTIONS.find((option) => option.toLowerCase() === text.toLowerCase());
+  if (exact) return exact;
+  if (/hybrid\s+top\s+level/i.test(text)) return "Hybrid Top Level Domain";
+  if (/top\s+level\s+domain/i.test(text)) return "Top Level Domain";
+  if (/country\s+level/i.test(text)) return "Country Level Domain";
+  if (/educat/i.test(text)) return "Educational Domain";
+  if (/government/i.test(text)) return "Government Domain";
+  return null;
+}
+
+function domainTypeFromHostname(value?: string | null): string | null {
+  const host =
+    formatDomain(value) ||
+    extractDomain(String(value ?? "")) ||
+    (looksLikeDomain(String(value ?? "").trim()) ? String(value).trim().toLowerCase() : null);
+  if (!host) return null;
+
+  const ranked = DOMAIN_TYPE_SUFFIXES.flatMap((rule) =>
+    rule.suffixes.map((suffix) => ({ label: rule.label, suffix })),
+  ).sort((a, b) => b.suffix.length - a.suffix.length);
+
+  for (const { label, suffix } of ranked) {
+    if (host === suffix.slice(1) || host.endsWith(suffix)) return label;
+  }
+
+  const tld = host.split(".").pop() || "";
+  if (tld.length === 2) return "Country Level Domain";
+  return "Top Level Domain";
+}
+
 function resolveDealName(params: {
   metaDealName?: string | null;
+  metaDomainType?: string | null;
+  metaProductName?: string | null;
   clientName?: string | null;
   itemName?: string | null;
+  domainName?: string | null;
 }) {
+  const labeled =
+    normalizeDomainTypeLabel(params.metaDealName) ||
+    normalizeDomainTypeLabel(params.metaDomainType) ||
+    normalizeDomainTypeLabel(params.metaProductName) ||
+    normalizeDomainTypeLabel(params.itemName);
+  if (labeled) return labeled;
+
   const fromMeta = stripClientPrefixFromDealName(params.metaDealName, params.clientName);
-  if (fromMeta) return fromMeta;
+  if (fromMeta && !looksLikeDomain(fromMeta)) return fromMeta;
+
   const product = String(params.itemName ?? "").trim();
-  return product || "—";
+  if (product && !looksLikeDomain(product)) return product;
+
+  const inferred = domainTypeFromHostname(fromMeta || product || params.domainName);
+  return inferred || product || "—";
 }
 
 export function transactionDealName(transaction: SalesTransaction) {
@@ -299,8 +376,11 @@ export function transactionDealName(transaction: SalesTransaction) {
   const itemName = String(transaction.items?.[0]?.name ?? "").trim();
   return resolveDealName({
     metaDealName: meta?.dealName,
+    metaDomainType: meta?.domainType,
+    metaProductName: meta?.productName,
     clientName: transaction.customer_name,
     itemName,
+    domainName: transactionDomainName(transaction),
   });
 }
 
@@ -648,8 +728,11 @@ function crmFields(params: {
     clientName: clientDisplayName(client),
     dealName: resolveDealName({
       metaDealName: meta?.dealName,
+      metaDomainType: meta?.domainType,
+      metaProductName: meta?.productName,
       clientName: clientDisplayName(client),
       itemName,
+      domainName: domain,
     }),
     planName: matchingPlanName(itemName, client, adminServices),
     stage,
