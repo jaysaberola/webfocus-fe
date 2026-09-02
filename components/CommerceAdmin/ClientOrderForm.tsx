@@ -30,12 +30,18 @@ import {
   type ClientOrderFormState,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientDisplayName, assignablePersonLabel, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
+import { isWebDesignPlan } from "@/lib/serviceCategory";
+import {
+  isWebDesignTransaction,
+  WEB_DESIGN_PENDING_QUOTATION_MARKER,
+} from "@/lib/commerceAdmin/webDesignPricing";
 import { readStoredCurrentUser } from "@/lib/currentUser";
 import { toast } from "@/lib/toast";
 import {
   fetchCommerceAssignableUsers,
   assignCommerceSalesTransaction,
   assignCommerceCustomerOwner,
+  fetchNextRotatingClientOwner,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
 import { getCustomers, getCustomer, updateCustomer, type CustomerRow } from "@/services/customerService";
@@ -181,6 +187,10 @@ function ImageUploadPick({
   );
 }
 
+function rotatingOwnerKind(dealName?: string, dealType?: string) {
+  return isWebDesignPlan(dealName, dealType) ? ("web_design" as const) : undefined;
+}
+
 export default function ClientOrderForm({
   defaultCustomerId = null,
   transaction = null,
@@ -192,6 +202,7 @@ export default function ClientOrderForm({
   const isEditing = Boolean(transaction);
   const [form, setForm] = useState<ClientOrderFormState>(emptyClientOrderForm());
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
+  const [salesStaffUsers, setSalesStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [clients, setClients] = useState<CustomerRow[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -207,6 +218,7 @@ export default function ClientOrderForm({
     setLoading(true);
     Promise.all([
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
+      fetchCommerceAssignableUsers({ for: "sales_staff" }).catch(() => [] as CommerceAssignableUser[]),
       fetchCommerceAssignableUsers({ for: "billing_in_charge" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
       getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
@@ -214,9 +226,10 @@ export default function ClientOrderForm({
         ? getCustomer(transaction.customer_id, { silent: true }).catch(() => null)
         : Promise.resolve(null),
     ])
-      .then(([clientOwners, assignable, clientRes, serviceRes, clientDetail]) => {
+      .then(([clientOwners, salesStaff, assignable, clientRes, serviceRes, clientDetail]) => {
         if (cancelled) return;
         const nextOwners = Array.isArray(clientOwners) ? clientOwners : [];
+        const nextSalesStaff = Array.isArray(salesStaff) ? salesStaff : [];
         const nextStaff = Array.isArray(assignable) ? assignable : [];
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
         const nextServices = Array.isArray(serviceRes?.data) ? serviceRes.data : [];
@@ -226,6 +239,7 @@ export default function ClientOrderForm({
             ? [detailClient, ...nextClients]
             : nextClients;
         setOwners(nextOwners);
+        setSalesStaffUsers(nextSalesStaff);
         setStaffUsers(nextStaff);
         setClients(mergedClients);
         setServices(nextServices);
@@ -255,7 +269,9 @@ export default function ClientOrderForm({
           );
           setForm({
             ...nextForm,
-            dealOwnerId: clientOwnerId,
+            dealOwnerId: transaction.client_owner_id
+              ? String(transaction.client_owner_id)
+              : clientOwnerId,
             clientId: transaction.customer_id ? String(transaction.customer_id) : nextForm.clientId,
             billingInCharge,
             contactName: nextForm.contactName || String(linkedClient?.contact_person ?? ""),
@@ -269,19 +285,32 @@ export default function ClientOrderForm({
         const defaultClient = defaultCustomerId
           ? nextClients.find((client) => Number(client.id) === Number(defaultCustomerId))
           : null;
+        const fallbackOwnerId = defaultClient?.owner_id
+          ? String(defaultClient.owner_id)
+          : defaultOwner
+            ? String(defaultOwner.id)
+            : "";
 
-        setForm(
-          emptyClientOrderForm({
-            dealOwnerId: defaultClient?.owner_id
-              ? String(defaultClient.owner_id)
-              : defaultOwner
-                ? String(defaultOwner.id)
-                : "",
-            clientId: defaultClient ? String(defaultClient.id) : "",
-            contactName: String(defaultClient?.contact_person ?? ""),
-            billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
-          }),
-        );
+        const applyCreateForm = (dealOwnerId: string) => {
+          if (cancelled) return;
+          setForm(
+            emptyClientOrderForm({
+              dealOwnerId,
+              clientId: defaultClient ? String(defaultClient.id) : "",
+              contactName: String(defaultClient?.contact_person ?? ""),
+              billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
+            }),
+          );
+        };
+
+        if (!defaultClient?.id) {
+          applyCreateForm(fallbackOwnerId);
+          return;
+        }
+
+        return fetchNextRotatingClientOwner(Number(defaultClient.id))
+          .then((rotating) => applyCreateForm(rotating?.id ? String(rotating.id) : fallbackOwnerId))
+          .catch(() => applyCreateForm(fallbackOwnerId));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -293,14 +322,39 @@ export default function ClientOrderForm({
   }, [defaultCustomerId, transaction]);
 
   const selectedClient = clients.find((client) => String(client.id) === form.clientId);
+  const isWebDesignDeal =
+    isWebDesignPlan(form.dealName, form.dealSubType || form.dealType) ||
+    Boolean(transaction && isWebDesignTransaction(transaction));
+
+  const applyRotatingOwner = (clientId: string, dealName: string, dealType?: string) => {
+    if (isEditing || !clientId) return;
+    const kind = rotatingOwnerKind(dealName, dealType);
+    void fetchNextRotatingClientOwner(Number(clientId), kind ? { kind } : undefined)
+      .then((rotating) => {
+        if (!rotating?.id) return;
+        setForm((current) =>
+          current.clientId === clientId ? { ...current, dealOwnerId: String(rotating.id) } : current,
+        );
+      })
+      .catch(() => undefined);
+  };
 
   const ownerOptions = useMemo(() => {
-    let list = withCurrentAssignablePerson(owners, null);
-    if (selectedClient?.owner_id) {
+    let list = withCurrentAssignablePerson(isWebDesignDeal ? salesStaffUsers : owners, null);
+    if (!isWebDesignDeal && selectedClient?.owner_id) {
       list = withCurrentAssignablePerson(list, {
         id: Number(selectedClient.owner_id),
         name: selectedClient.owner?.name || selectedClient.owner_name,
         email: selectedClient.owner?.email,
+      });
+    }
+    if (transaction?.client_owner) {
+      list = withCurrentAssignablePerson(list, {
+        id: Number(transaction.client_owner.id),
+        name:
+          `${transaction.client_owner.fname || ""} ${transaction.client_owner.lname || ""}`.trim() ||
+          transaction.client_owner.email,
+        email: transaction.client_owner.email,
       });
     }
     if (
@@ -319,7 +373,7 @@ export default function ClientOrderForm({
       list = withCurrentAssignablePerson(list, { id: Number(form.dealOwnerId) });
     }
     return list;
-  }, [owners, selectedClient, transaction, form.dealOwnerId]);
+  }, [owners, salesStaffUsers, isWebDesignDeal, selectedClient, transaction, form.dealOwnerId]);
 
   const billingOfficers = useMemo(() => {
     const officers = staffUsers.filter((user) => user.name || user.email);
@@ -360,9 +414,14 @@ export default function ClientOrderForm({
       ...current,
       clientId,
       contactName: String(client?.contact_person ?? ""),
-      dealOwnerId: client?.owner_id ? String(client.owner_id) : "",
+      dealOwnerId: isWebDesignDeal
+        ? current.dealOwnerId
+        : client?.owner_id
+          ? String(client.owner_id)
+          : "",
       billingInCharge: String(client?.billing_in_charge ?? "").trim(),
     }));
+    applyRotatingOwner(clientId, form.dealName, form.dealSubType || form.dealType);
   };
 
   const handleDealNameChange = (dealName: string) => {
@@ -376,6 +435,7 @@ export default function ClientOrderForm({
       productCategory: current.productCategory || subjectForProductName(dealName),
       domainType: current.domainType || domainType || "",
     }));
+    applyRotatingOwner(form.clientId, dealName, form.dealSubType || form.dealType);
   };
 
   const handleCategoryChange = (category: string) => {
@@ -437,6 +497,7 @@ export default function ClientOrderForm({
 
     setSubmitting(true);
     try {
+      const ownerId = Number(form.dealOwnerId);
       if (transaction) {
         await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
@@ -446,10 +507,10 @@ export default function ClientOrderForm({
           order_status: toApiOrderStatus(form.salesStatus) || transaction.order_status,
           notes: mergeDealMetaIntoNotes(transaction.notes, form),
           transacted_at: form.closingDate || transaction.transacted_at,
+          client_owner_id: ownerId || null,
         });
 
-        const ownerId = Number(form.dealOwnerId);
-        if (ownerId) {
+        if (ownerId && !isWebDesignDeal) {
           try {
             await assignCommerceCustomerOwner(clientId, ownerId);
           } catch {
@@ -461,6 +522,12 @@ export default function ClientOrderForm({
             } catch {
               // Deal is saved even if assignment is skipped.
             }
+          }
+        } else if (ownerId && isWebDesignDeal && ownerId !== Number(transaction.user_id || 0)) {
+          try {
+            await assignCommerceSalesTransaction(transaction.id, ownerId);
+          } catch {
+            // Deal is saved even if assignment is skipped.
           }
         }
         if (form.billingInCharge && clientEmail) {
@@ -487,19 +554,24 @@ export default function ClientOrderForm({
         customer_id: clientId,
         customer_name: clientName,
         customer_email: clientEmail,
+        client_owner_id: ownerId || undefined,
         subtotal: price,
         discount_total: 0,
         tax_total: 0,
         shipping_total: 0,
         grand_total: price,
-        payment_status: toApiPaymentStatus(form.paymentStatus),
-        order_status: toApiOrderStatus(form.salesStatus),
-        notes: buildDealNotes(form),
+        payment_status: toApiPaymentStatus(form.paymentStatus) || "pending",
+        order_status: toApiOrderStatus(form.salesStatus) || "pending",
+        notes: isWebDesignDeal
+          ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
+          : buildDealNotes(form),
         transacted_at: form.closingDate || undefined,
         items: [
           {
             name: form.dealName || form.productName,
-            item_type: form.dealSubType || form.dealType || "service",
+            item_type: isWebDesignDeal
+              ? "web_design"
+              : form.dealSubType || form.dealType || "service",
             price,
             quantity: 1,
             total_price: price,
@@ -508,8 +580,7 @@ export default function ClientOrderForm({
       });
 
       const transactionId = Number(created?.data?.id ?? created?.id);
-      const ownerId = Number(form.dealOwnerId);
-      if (ownerId) {
+      if (ownerId && !isWebDesignDeal) {
         try {
           await assignCommerceCustomerOwner(clientId, ownerId);
         } catch {
@@ -526,7 +597,7 @@ export default function ClientOrderForm({
           // Billing-in-Charge still displays from the client record.
         }
       }
-      if (transactionId && ownerId) {
+      if (transactionId && ownerId && !isWebDesignDeal) {
         try {
           await assignCommerceSalesTransaction(transactionId, ownerId);
         } catch {
@@ -587,7 +658,15 @@ export default function ClientOrderForm({
       <section className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>Deal Information</h4>
         <div className={styles.clientOrderGrid}>
-            <Field label="Client Owner" hint="Staff assigned to this deal" icon="fa-solid fa-user">
+            <Field
+              label="Client Owner"
+              hint={
+                isWebDesignDeal
+                  ? "New web design orders alternate between Myrna Glorioso and Michelle Durian"
+                  : "New orders alternate between Myrna Glorioso and Michelle Durian"
+              }
+              icon="fa-solid fa-user"
+            >
               <select
                 className={inputClass()}
                 value={form.dealOwnerId}

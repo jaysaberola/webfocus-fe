@@ -19,6 +19,8 @@ export function isWebDesignPlan(name?: string | null, itemType?: string | null):
     haystack.includes("design") ||
     haystack.includes("canvas") ||
     haystack.includes("web design") ||
+    haystack.includes("web development") ||
+    haystack.includes("web-dev") ||
     haystack.includes("web custom") ||
     haystack.includes("agency web") ||
     haystack.includes("figma")
@@ -33,7 +35,7 @@ export function isWebDesignPlan(name?: string | null, itemType?: string | null):
 
   if (
     normalizedName &&
-    /business starter|professional corporate|e-?commerce plus|starter launch|website template|web design/i.test(
+    /business starter|professional corporate|e-?commerce plus|starter launch|website template|web design|web development/i.test(
       String(name)
     )
   ) {
@@ -41,7 +43,7 @@ export function isWebDesignPlan(name?: string | null, itemType?: string | null):
   }
 
   const normalizedType = String(itemType ?? "").trim().toLowerCase();
-  return ["webdesign", "web_design", "design"].includes(normalizedType);
+  return ["webdesign", "web_design", "design", "web_development", "webdevelopment"].includes(normalizedType);
 }
 
 export function resolveServiceCategory(name?: string | null, itemType?: string | null): string {

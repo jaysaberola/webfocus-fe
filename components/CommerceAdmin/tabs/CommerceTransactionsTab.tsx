@@ -78,7 +78,7 @@ import {
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
 import { readStoredCurrentUser } from "@/lib/currentUser";
-import { isSalesRoleUser } from "@/lib/userRoles";
+import { canAssignSalesTransactions, isSalesRoleUser, isSalesStaffUser } from "@/lib/userRoles";
 import {
   deleteSalesTransaction,
   getSalesTransactions,
@@ -105,11 +105,32 @@ const TX_FILTER_FIELDS: TableFilterFieldDef[] = [
 ];
 
 function assignedUserLabel(row: SalesTransaction) {
-  if (row.user) {
-    const name = `${row.user.fname || ""} ${row.user.lname || ""}`.trim();
-    return name || row.user.email || null;
+  const staff =
+    row.user && Number(row.user.id) !== Number(row.customer_id)
+      ? row.user
+      : row.client_owner;
+  if (staff) {
+    const name = `${staff.fname || ""} ${staff.lname || ""}`.trim();
+    return name || staff.email || null;
   }
   return null;
+}
+
+function isAssignedSalesForRow(row: SalesTransaction, currentUser: unknown) {
+  const myId = Number((currentUser as { id?: number } | null)?.id);
+  if (!(myId > 0)) return false;
+  return (
+    Number(row.user_id || row.user?.id) === myId ||
+    Number(row.client_owner_id || row.client_owner?.id) === myId
+  );
+}
+
+function canManageWebDesignOrder(row: SalesTransaction, currentUser: unknown) {
+  if (isSalesRoleUser(currentUser) && !isSalesStaffUser(currentUser)) return true;
+  if (isAssignedSalesForRow(row, currentUser)) return true;
+  const assignedId = Number(row.user_id || row.user?.id || row.client_owner_id || row.client_owner?.id);
+  if (assignedId) return false;
+  return isSalesRoleUser(currentUser);
 }
 
 const emptyForm = {
@@ -166,7 +187,7 @@ export default function CommerceTransactionsTab() {
   const colVisRef = useRef<HTMLDivElement>(null);
   const neededShownRef = useRef(false);
   const currentUser = readStoredCurrentUser();
-  const salesRole = isSalesRoleUser(currentUser);
+  const canAssign = canAssignSalesTransactions(currentUser);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -309,13 +330,10 @@ export default function CommerceTransactionsTab() {
   }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
   const neededActions = useMemo(() => {
-    if (!salesRole) return [];
-    const myId = Number((currentUser as { id?: number } | null)?.id);
     return rows
       .filter((row) => {
         if (!isWebDesignTransaction(row) || !isPendingQuotationTransaction(row)) return false;
-        const assignedToMe = myId > 0 && Number(row.user_id || row.user?.id) === myId;
-        if (!assignedToMe) return false;
+        if (!canManageWebDesignOrder(row, currentUser)) return false;
         if (!isProposalSubmittedTransaction(row)) return true;
         return isProposalSignedTransaction(row);
       })
@@ -323,13 +341,13 @@ export default function CommerceTransactionsTab() {
         row,
         action: isProposalSignedTransaction(row) ? ("proceed" as const) : ("upload" as const),
       }));
-  }, [rows, salesRole, currentUser]);
+  }, [rows, currentUser]);
 
   useEffect(() => {
-    if (loading || !salesRole || neededShownRef.current || neededActions.length === 0) return;
+    if (loading || neededShownRef.current || neededActions.length === 0) return;
     neededShownRef.current = true;
     setNeededOpen(true);
-  }, [loading, salesRole, neededActions.length]);
+  }, [loading, neededActions.length]);
 
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
@@ -987,7 +1005,9 @@ export default function CommerceTransactionsTab() {
                     </div>
                     <div className={styles.txGridFooter}>
                       <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
-                      {salesRole && isPendingQuotationTransaction(row) && !isProposalSubmittedTransaction(row) ? (
+                      {canManageWebDesignOrder(row, currentUser) &&
+                      isPendingQuotationTransaction(row) &&
+                      !isProposalSubmittedTransaction(row) ? (
                         <button
                           type="button"
                           className={styles.primaryBtnSm}
@@ -995,13 +1015,25 @@ export default function CommerceTransactionsTab() {
                         >
                           Upload Proposal
                         </button>
-                      ) : salesRole && isProposalSignedTransaction(row) && isPendingQuotationTransaction(row) ? (
+                      ) : canManageWebDesignOrder(row, currentUser) &&
+                        isProposalSignedTransaction(row) &&
+                        isPendingQuotationTransaction(row) ? (
                         <button
                           type="button"
                           className={styles.primaryBtnSm}
                           onClick={() => void handleAction(row, "webdesign:proceed-payment")}
                         >
                           Proceed Payment
+                        </button>
+                      ) : canAssign &&
+                        isWebDesignTransaction(row) &&
+                        isPendingQuotationTransaction(row) ? (
+                        <button
+                          type="button"
+                          className={styles.primaryBtnSm}
+                          onClick={() => setAssignTarget(row)}
+                        >
+                          Assign Sales Staff
                         </button>
                       ) : isPendingQuotationTransaction(row) ? (
                         <span className={styles.badgePending}>Pending Quotation</span>
@@ -1378,10 +1410,8 @@ export default function CommerceTransactionsTab() {
       <AssignTransactionModal
         open={!!assignTarget}
         transaction={assignTarget}
-        restrictRoles={
-          assignTarget && isWebDesignTransaction(assignTarget)
-            ? ["sales_staff", "sales_admin"]
-            : undefined
+        assignableFor={
+          assignTarget && isWebDesignTransaction(assignTarget) ? "sales_staff" : undefined
         }
         onClose={() => setAssignTarget(null)}
         onAssigned={(updated) => {

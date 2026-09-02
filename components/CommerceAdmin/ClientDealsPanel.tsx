@@ -327,7 +327,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                       return (
                         <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
                           <LookupHoverActions
-                            label={clientOwnerName(client)}
+                            label={deal.clientOwner}
                             assigned={clientIsAssigned(client)}
                             editLabel="Edit Deal"
                             onEdit={() => openEditDeal(deal)}

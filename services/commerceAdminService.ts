@@ -232,7 +232,7 @@ export type CommerceAssignableUser = {
 };
 
 export async function fetchCommerceAssignableUsers(params?: {
-  for?: "client_owner" | "billing_in_charge";
+  for?: "client_owner" | "billing_in_charge" | "sales_staff";
 }) {
   const res = await axiosInstance.get("/commerce-admin/assignable-users", {
     params,
@@ -254,6 +254,16 @@ export async function assignCommerceCustomerOwner(customerId: number, ownerId: n
     owner_id: ownerId,
   });
   return res.data;
+}
+
+export async function fetchNextRotatingClientOwner(
+  customerId: number,
+  options?: { kind?: "web_design" },
+) {
+  const res = await axiosInstance.get(`/commerce-admin/customers/${customerId}/next-rotating-owner`, {
+    params: options?.kind ? { kind: options.kind } : undefined,
+  });
+  return (res.data?.data ?? null) as { id: number; name?: string | null; email?: string | null } | null;
 }
 
 export { getCustomers, getSalesTransactions };

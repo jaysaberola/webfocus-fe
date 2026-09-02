@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   transaction: SalesTransaction | null;
   restrictRoles?: string[];
+  assignableFor?: "sales_staff";
   onClose: () => void;
   onAssigned: (transaction: SalesTransaction) => void;
 };
@@ -20,6 +21,7 @@ export default function AssignTransactionModal({
   open,
   transaction,
   restrictRoles,
+  assignableFor,
   onClose,
   onAssigned,
 }: Props) {
@@ -36,14 +38,14 @@ export default function AssignTransactionModal({
     setSelectedUserId(transaction?.user_id ?? transaction?.user?.id ?? null);
     setLoading(true);
 
-    fetchCommerceAssignableUsers()
+    fetchCommerceAssignableUsers(assignableFor ? { for: assignableFor } : undefined)
       .then((rows) => setUsers(rows))
       .catch(() => {
         setUsers([]);
         toast.error("Could not load active users.");
       })
       .finally(() => setLoading(false));
-  }, [open, transaction]);
+  }, [open, transaction, assignableFor]);
 
   const filteredUsers = useMemo(() => {
     const allowed = (restrictRoles ?? []).map((role) => role.toLowerCase().replace(/[_-]+/g, " "));
@@ -94,9 +96,11 @@ export default function AssignTransactionModal({
             </h3>
             <p className={styles.panelSubtitle}>
               {transaction.transaction_no} ·{" "}
-              {restrictRoles?.length
-                ? "Choose an active Sales Staff user"
-                : "Choose an active staff user (customers excluded)"}
+              {assignableFor === "sales_staff"
+                ? "Choose Myrna Glorioso or Michelle Durian"
+                : restrictRoles?.length
+                  ? "Choose an active Sales Staff user"
+                  : "Choose an active staff user (customers excluded)"}
             </p>
           </div>
           <button type="button" className={styles.modalCloseBtn} onClick={onClose} aria-label="Close" disabled={saving}>

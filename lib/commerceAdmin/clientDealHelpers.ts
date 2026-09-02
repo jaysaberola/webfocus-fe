@@ -6,6 +6,7 @@ import {
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
+import { isWebDesignTransaction } from "@/lib/commerceAdmin/webDesignPricing";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import type { CustomerRow, CustomerServiceLine } from "@/services/customerService";
@@ -175,6 +176,17 @@ export function formatDealAmount(amount: number | null) {
 }
 
 export function transactionClientOwner(transaction: SalesTransaction) {
+  if (transaction.client_owner) {
+    return clientOwnerName({ owner: transaction.client_owner });
+  }
+  if (
+    isWebDesignTransaction(transaction) &&
+    transaction.user &&
+    Number(transaction.user.id) !== Number(transaction.customer_id)
+  ) {
+    const name = `${transaction.user.fname || ""} ${transaction.user.lname || ""}`.trim();
+    return name || transaction.user.email || "Unassigned";
+  }
   if (transaction.customer) return clientOwnerName(transaction.customer);
   return "Unassigned";
 }
@@ -632,7 +644,7 @@ function crmFields(params: {
       : amount;
 
   return {
-    clientOwner: clientOwnerName(client),
+    clientOwner: transaction ? transactionClientOwner(transaction) : clientOwnerName(client),
     clientName: clientDisplayName(client),
     dealName: resolveDealName({
       metaDealName: meta?.dealName,
@@ -672,7 +684,7 @@ function crmFields(params: {
       : formatDealDate(transaction?.due_date),
     collectionNote: metaText(meta?.collectionNote, collectionNoteFrom(transaction?.notes)),
     contractStatus: metaText(meta?.contractStatus),
-    dealOwner: clientOwnerName(client),
+    dealOwner: transaction ? transactionClientOwner(transaction) : clientOwnerName(client),
     status: metaText(meta?.dealType, dealType),
     amount,
   };
