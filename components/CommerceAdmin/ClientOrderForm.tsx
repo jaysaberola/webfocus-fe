@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, formatDealAmount, transactionDealName } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, formatDealAmount, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -30,7 +30,7 @@ import {
   type ClientOrderFormState,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientDisplayName, assignablePersonLabel, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
-import { isWebDesignPlan } from "@/lib/serviceCategory";
+import { isWebDesignPlan, looksLikeDomain } from "@/lib/serviceCategory";
 import {
   isWebDesignTransaction,
   WEB_DESIGN_PENDING_QUOTATION_MARKER,
@@ -263,8 +263,25 @@ export default function ClientOrderForm({
             billingFromClient || nextForm.billingInCharge,
             nextStaff,
           );
+          const resolvedDealName = transactionDealName(transaction);
+          const resolvedDomain = transactionDomainName(transaction);
           setForm({
             ...nextForm,
+            dealName:
+              resolvedDealName && resolvedDealName !== "—"
+                ? resolvedDealName
+                : nextForm.dealName,
+            domainName:
+              nextForm.domainName ||
+              (resolvedDomain && resolvedDomain !== "—" ? resolvedDomain : ""),
+            domainType:
+              nextForm.domainType ||
+              (DOMAIN_TYPE_OPTIONS.includes(resolvedDealName as (typeof DOMAIN_TYPE_OPTIONS)[number])
+                ? resolvedDealName
+                : ""),
+            productCategory:
+              nextForm.productCategory ||
+              (looksLikeDomain(nextForm.dealName) ? "Domain Registration" : nextForm.productCategory),
             dealOwnerId: transaction.client_owner_id
               ? String(transaction.client_owner_id)
               : clientOwnerId,
@@ -619,10 +636,13 @@ export default function ClientOrderForm({
 
   const headerTitle = useMemo(() => {
     if (!isEditing) return pageTitle || "Create Deal";
-    const dealName =
-      String(form.dealName || "").trim() ||
-      (transaction ? transactionDealName(transaction) : "") ||
-      "Deal Info";
+    const formName = String(form.dealName || "").trim();
+    const resolved = transaction ? transactionDealName(transaction) : "";
+    const dealName = looksLikeDomain(formName)
+      ? resolved && resolved !== "—"
+        ? resolved
+        : formName
+      : formName || resolved || "Deal Info";
     const fromForm = Number(form.expectedRevenue);
     const amount =
       Number.isFinite(fromForm) && String(form.expectedRevenue ?? "").trim() !== ""
