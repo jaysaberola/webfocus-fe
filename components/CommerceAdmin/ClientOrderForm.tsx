@@ -8,7 +8,10 @@ import {
   CLIENT_STATUS_OPTIONS,
   COLLECTION_NOTE_OPTIONS,
   CONTRACT_STATUS_OPTIONS,
+  deriveContractFields,
+  deriveInvoiceFields,
   DEAL_NAME_OPTIONS,
+  parseDealMeta,
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
   DOMAIN_REGISTRAR_OPTIONS,
@@ -57,6 +60,25 @@ type Props = {
   onBack: () => void;
   onSaved: (options?: { andNew?: boolean }) => void;
 };
+
+type AutoDateKey =
+  | "invoiceSentDate"
+  | "invoiceReceivedDate"
+  | "contractSentDate"
+  | "contractServiceStartDate"
+  | "contractServiceEndDate";
+
+function savedAutoDateKeys(notes?: string | null): AutoDateKey[] {
+  const meta = parseDealMeta(notes);
+  const keys: AutoDateKey[] = [
+    "invoiceSentDate",
+    "invoiceReceivedDate",
+    "contractSentDate",
+    "contractServiceStartDate",
+    "contractServiceEndDate",
+  ];
+  return keys.filter((key) => Boolean(String(meta?.[key] ?? "").trim()));
+}
 
 function withExtraOption(options: readonly string[], value?: string | null) {
   const text = String(value ?? "").trim();
@@ -167,26 +189,6 @@ function FilePick({
   );
 }
 
-function ImageUploadPick({
-  fileName,
-  onChange,
-}: {
-  fileName?: string;
-  onChange: (file: File | null) => void;
-  fileControl?: boolean;
-}) {
-  return (
-    <label className={styles.clientOrderFilePick} data-file-control="true">
-      <span className={styles.clientOrderUploadBtn}>{fileName || "Upload Image"}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-      />
-    </label>
-  );
-}
-
 function rotatingOwnerKind(dealName?: string, dealType?: string) {
   return isWebDesignPlan(dealName, dealType) ? ("web_design" as const) : undefined;
 }
@@ -207,9 +209,19 @@ export default function ClientOrderForm({
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [manualDateFields, setManualDateFields] = useState<Set<AutoDateKey>>(() => new Set());
 
   const setField = <K extends keyof ClientOrderFormState>(key: K, value: ClientOrderFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const setDateField = (key: AutoDateKey, value: string) => {
+    setManualDateFields((current) => {
+      const next = new Set(current);
+      next.add(key);
+      return next;
+    });
+    setField(key, value);
   };
 
   useEffect(() => {
@@ -241,6 +253,7 @@ export default function ClientOrderForm({
         setServices(nextServices);
 
         if (transaction) {
+          setManualDateFields(new Set(savedAutoDateKeys(transaction.notes)));
           const nextForm = clientOrderFormFromTransaction(transaction);
           const listedClient = mergedClients.find(
             (row) => Number(row.id) === Number(transaction.customer_id),
@@ -306,6 +319,7 @@ export default function ClientOrderForm({
 
         const applyCreateForm = (dealOwnerId: string) => {
           if (cancelled) return;
+          setManualDateFields(new Set());
           setForm(
             emptyClientOrderForm({
               dealOwnerId,
@@ -420,6 +434,86 @@ export default function ClientOrderForm({
       expectedRevenue: price != null ? String(price) : current.expectedRevenue || "0",
     }));
   }, [form.dealName, form.productName, services, isEditing]);
+
+  useEffect(() => {
+    const next = deriveInvoiceFields(form, transaction);
+    setForm((current) => {
+      const invoiceSentDate = manualDateFields.has("invoiceSentDate")
+        ? current.invoiceSentDate
+        : next.invoiceSentDate;
+      const invoiceReceivedDate = manualDateFields.has("invoiceReceivedDate")
+        ? current.invoiceReceivedDate
+        : next.invoiceReceivedDate;
+      const invoiceStatus = invoiceReceivedDate
+        ? "Received by Client"
+        : invoiceSentDate
+          ? "Sent to Client"
+          : "";
+      if (
+        current.invoiceStatus === invoiceStatus &&
+        current.invoiceSentDate === invoiceSentDate &&
+        current.invoiceReceivedDate === invoiceReceivedDate
+      ) {
+        return current;
+      }
+      return { ...current, invoiceStatus, invoiceSentDate, invoiceReceivedDate };
+    });
+  }, [
+    form.paymentStatus,
+    form.closingDate,
+    form.stage,
+    manualDateFields,
+    transaction,
+  ]);
+
+  useEffect(() => {
+    const next = deriveContractFields(form, transaction);
+    setForm((current) => {
+      const contractSentDate = manualDateFields.has("contractSentDate")
+        ? current.contractSentDate
+        : next.contractSentDate;
+      const contractServiceStartDate = manualDateFields.has("contractServiceStartDate")
+        ? current.contractServiceStartDate
+        : next.contractServiceStartDate;
+      const contractServiceEndDate = manualDateFields.has("contractServiceEndDate")
+        ? current.contractServiceEndDate
+        : next.contractServiceEndDate;
+      if (
+        current.contractStatus === next.contractStatus &&
+        current.contractSentDate === contractSentDate &&
+        current.contractServiceStartDate === contractServiceStartDate &&
+        current.contractServiceEndDate === contractServiceEndDate
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        contractStatus: next.contractStatus,
+        contractSentDate,
+        contractServiceStartDate,
+        contractServiceEndDate,
+      };
+    });
+  }, [
+    form.dealStatus,
+    form.salesStatus,
+    form.paymentStatus,
+    form.dealSubType,
+    form.stage,
+    form.contractFileName,
+    form.proposalConformeName,
+    form.cancellationDocumentName,
+    form.invoiceSentDate,
+    form.invoiceStatus,
+    form.closingDate,
+    form.paymentTerms,
+    form.domainSubscriptionStartDate,
+    form.domainSubscriptionEndDate,
+    form.domainRegistrationStartDate,
+    form.domainRegistrationExpirationDate,
+    manualDateFields,
+    transaction,
+  ]);
 
   const handleClientChange = (clientId: string) => {
     const client = clients.find((row) => String(row.id) === clientId);
@@ -621,6 +715,7 @@ export default function ClientOrderForm({
       toast.success("Client order created successfully.");
       onSaved({ andNew });
       if (andNew) {
+        setManualDateFields(new Set());
         setForm(blankDealForm());
         return;
       }
@@ -840,12 +935,12 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("closingDate", e.target.value)}
               />
             </Field>
-            <Field label="Invoice Status" hint="Invoice processing state">
-              <select
-                className={inputClass()}
-                value={form.invoiceStatus}
-                onChange={(e) => setField("invoiceStatus", e.target.value)}
-              >
+            <Field
+              label="Invoice Status"
+              hint="Automatically set when the invoice is issued or the client receives it"
+              icon="fa-solid fa-lock"
+            >
+              <select className={inputClass()} value={form.invoiceStatus} disabled>
                 <option value="">-None-</option>
                 {INVOICE_STATUS_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -869,12 +964,15 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Invoice Sent Date">
+            <Field
+              label="Invoice Sent Date"
+              hint="Auto-filled from the invoice issue date. You can change it if needed."
+            >
               <input
                 className={inputClass()}
                 type="date"
                 value={form.invoiceSentDate}
-                onChange={(e) => setField("invoiceSentDate", e.target.value)}
+                onChange={(e) => setDateField("invoiceSentDate", e.target.value)}
               />
             </Field>
             <Field
@@ -904,12 +1002,15 @@ export default function ClientOrderForm({
                 ) : null}
               </select>
             </Field>
-            <Field label="Invoice Received Date">
+            <Field
+              label="Invoice Received Date"
+              hint="Auto-filled when the invoice is received. You can change it if needed."
+            >
               <input
                 className={inputClass()}
                 type="date"
                 value={form.invoiceReceivedDate}
-                onChange={(e) => setField("invoiceReceivedDate", e.target.value)}
+                onChange={(e) => setDateField("invoiceReceivedDate", e.target.value)}
               />
             </Field>
             <Field label="Contact Name" hint="Billing or signing contact" icon="fa-solid fa-address-card">
@@ -1111,12 +1212,12 @@ export default function ClientOrderForm({
       <section className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>Contract And Proposal</h4>
         <div className={styles.clientOrderGrid}>
-          <Field label="Contract Status" hint="Current contract document status">
-            <select
-              className={inputClass()}
-              value={form.contractStatus}
-              onChange={(e) => setField("contractStatus", e.target.value)}
-            >
+          <Field
+            label="Contract Status"
+            hint="Automatically set from uploaded documents, invoice send, and deal status"
+            icon="fa-solid fa-lock"
+          >
+            <select className={inputClass()} value={form.contractStatus} disabled>
               <option value="">-None-</option>
               {withExtraOption(CONTRACT_STATUS_OPTIONS, form.contractStatus).map((option) => (
                 <option key={option} value={option}>
@@ -1132,27 +1233,15 @@ export default function ClientOrderForm({
               onChange={(file) => setField("proposalConformeName", file?.name || "")}
             />
           </Field>
-          <Field label="Contract Sent Date" hint="Date the contract was sent to the client">
+          <Field
+            label="Contract Sent Date"
+            hint="Auto-filled when the invoice is sent. You can change it if needed."
+          >
             <input
               className={inputClass()}
               type="date"
               value={form.contractSentDate}
-              onChange={(e) => setField("contractSentDate", e.target.value)}
-            />
-          </Field>
-          <Field label="Proof to Proceed JO" hint="Upload image proof to proceed with the job order">
-            <ImageUploadPick
-              fileControl
-              fileName={form.proofToProceedJoName}
-              onChange={(file) => setField("proofToProceedJoName", file?.name || "")}
-            />
-          </Field>
-          <Field label="Contract Service Start Date" hint="When contract service begins">
-            <input
-              className={inputClass()}
-              type="date"
-              value={form.contractServiceStartDate}
-              onChange={(e) => setField("contractServiceStartDate", e.target.value)}
+              onChange={(e) => setDateField("contractSentDate", e.target.value)}
             />
           </Field>
           <Field label="Contract" hint="Upload the signed contract">
@@ -1162,12 +1251,15 @@ export default function ClientOrderForm({
               onChange={(file) => setField("contractFileName", file?.name || "")}
             />
           </Field>
-          <Field label="Contract Service End Date" hint="When contract service ends">
+          <Field
+            label="Contract Service Start Date"
+            hint="Auto-filled from the product start date. You can change it if needed."
+          >
             <input
               className={inputClass()}
               type="date"
-              value={form.contractServiceEndDate}
-              onChange={(e) => setField("contractServiceEndDate", e.target.value)}
+              value={form.contractServiceStartDate}
+              onChange={(e) => setDateField("contractServiceStartDate", e.target.value)}
             />
           </Field>
           <Field label="Cancellation Document" hint="Upload a cancellation document if needed">
@@ -1177,13 +1269,16 @@ export default function ClientOrderForm({
               onChange={(file) => setField("cancellationDocumentName", file?.name || "")}
             />
           </Field>
-          <Field label="Requirement Status" hint="Automatically set from contract progress" icon="fa-solid fa-lock">
-            <select className={inputClass()} value={form.requirementStatus} disabled>
-              <option value="">-None-</option>
-              {form.requirementStatus ? (
-                <option value={form.requirementStatus}>{form.requirementStatus}</option>
-              ) : null}
-            </select>
+          <Field
+            label="Contract Service End Date"
+            hint="Auto-filled from payment terms or the product end date. You can change it if needed."
+          >
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.contractServiceEndDate}
+              onChange={(e) => setDateField("contractServiceEndDate", e.target.value)}
+            />
           </Field>
           <Field label="Total Estimated Cost" hint="Estimated cost for this contract">
             <span className={styles.clientCrmPesoPrefix}>₱</span>

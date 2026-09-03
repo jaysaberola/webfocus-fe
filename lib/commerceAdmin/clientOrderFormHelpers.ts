@@ -582,6 +582,153 @@ function toDateInput(value?: string | null) {
   return `${year}-${month}-${day}`;
 }
 
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function paymentTermMonths(terms?: string | null) {
+  const text = String(terms ?? "").toLowerCase();
+  if (!text) return null;
+  if (text.includes("quinquennial")) return 60;
+  if (text.includes("quadrennial")) return 48;
+  if (text.includes("triennial")) return 36;
+  if (text.includes("biennial")) return 24;
+  if (text.includes("semi-annual") || text.includes("semiannual")) return 6;
+  if (text.includes("annual")) return 12;
+  if (text.includes("quarter")) return 3;
+  if (text.includes("month")) return 1;
+  return null;
+}
+
+function addMonthsToDateInput(value: string, months: number) {
+  const text = toDateInput(value);
+  if (!text) return "";
+  const [year, month, day] = text.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year, month - 1, day);
+  date.setMonth(date.getMonth() + months);
+  return formatDateInput(date);
+}
+
+export function deriveContractFields(
+  form: Pick<
+    ClientOrderFormState,
+    | "dealStatus"
+    | "salesStatus"
+    | "paymentStatus"
+    | "dealSubType"
+    | "stage"
+    | "contractFileName"
+    | "proposalConformeName"
+    | "cancellationDocumentName"
+    | "invoiceSentDate"
+    | "invoiceStatus"
+    | "closingDate"
+    | "paymentTerms"
+    | "domainSubscriptionStartDate"
+    | "domainSubscriptionEndDate"
+    | "domainRegistrationStartDate"
+    | "domainRegistrationExpirationDate"
+  >,
+  transaction?: {
+    issued_date?: string | null;
+    transacted_at?: string | null;
+    due_date?: string | null;
+  } | null,
+) {
+  const cancelled =
+    /cancel/i.test(form.dealStatus) ||
+    /cancel/i.test(form.salesStatus) ||
+    /cancel/i.test(form.paymentStatus);
+  const hasContract = Boolean(form.contractFileName.trim());
+  const hasProposal = Boolean(form.proposalConformeName.trim());
+  const hasCancellation = Boolean(form.cancellationDocumentName.trim());
+  const invoiceSent =
+    Boolean(toDateInput(form.invoiceSentDate)) ||
+    /sent to client|received by client/i.test(form.invoiceStatus);
+  const isRenewal = /renewal/i.test(form.dealSubType);
+  const isCompleted = /completed/i.test(form.dealStatus) || form.stage === "Closed Won";
+
+  let contractStatus: (typeof CONTRACT_STATUS_OPTIONS)[number] = "No Contract";
+  if (cancelled || hasCancellation) contractStatus = "No Longer Required";
+  else if (isCompleted && hasContract) contractStatus = "Completed";
+  else if (hasContract) contractStatus = "Uploaded";
+  else if (hasProposal && invoiceSent) contractStatus = "Sent to client";
+  else if (hasProposal) contractStatus = "Draft";
+  else if (isRenewal) contractStatus = "Contract Not Updated";
+
+  const contractServiceStartDate =
+    toDateInput(form.domainSubscriptionStartDate) ||
+    toDateInput(form.domainRegistrationStartDate) ||
+    toDateInput(form.closingDate) ||
+    toDateInput(transaction?.issued_date) ||
+    toDateInput(transaction?.transacted_at);
+
+  const months = paymentTermMonths(form.paymentTerms);
+  const contractServiceEndDate =
+    toDateInput(form.domainSubscriptionEndDate) ||
+    toDateInput(form.domainRegistrationExpirationDate) ||
+    toDateInput(transaction?.due_date) ||
+    (months && contractServiceStartDate ? addMonthsToDateInput(contractServiceStartDate, months) : "");
+
+  const contractSentDate = invoiceSent
+    ? toDateInput(form.invoiceSentDate) || contractServiceStartDate
+    : "";
+
+  return {
+    contractStatus,
+    contractSentDate,
+    contractServiceStartDate,
+    contractServiceEndDate,
+  };
+}
+
+function isInvoiceReceivedPayment(status?: string | null) {
+  const text = String(status ?? "").toLowerCase();
+  if (!text || text.includes("cancel")) return false;
+  return (
+    text === "paid" ||
+    text.includes("partially paid") ||
+    text === "billed" ||
+    text.includes("for collection") ||
+    text === "overdue"
+  );
+}
+
+export function deriveInvoiceFields(
+  form: Pick<ClientOrderFormState, "paymentStatus" | "closingDate" | "stage">,
+  transaction?: {
+    issued_date?: string | null;
+    transacted_at?: string | null;
+    created_at?: string | null;
+    payment_status?: string | null;
+  } | null,
+) {
+  const pendingQuotation = /pending quotation/i.test(form.stage);
+  const invoiceSentDate = pendingQuotation
+    ? ""
+    : toDateInput(transaction?.issued_date) ||
+      toDateInput(transaction?.transacted_at) ||
+      toDateInput(form.closingDate) ||
+      toDateInput(transaction?.created_at);
+
+  const received = isInvoiceReceivedPayment(form.paymentStatus || transaction?.payment_status);
+  const invoiceReceivedDate = received && invoiceSentDate ? invoiceSentDate : "";
+
+  let invoiceStatus = "";
+  if (invoiceReceivedDate) invoiceStatus = "Received by Client";
+  else if (invoiceSentDate) invoiceStatus = "Sent to Client";
+
+  return {
+    invoiceStatus,
+    invoiceSentDate,
+    invoiceReceivedDate,
+  };
+}
+
 function matchOption(options: readonly string[], value?: string | null) {
   const text = String(value ?? "").trim();
   if (!text) return "";
@@ -597,6 +744,7 @@ export function clientOrderFormFromTransaction(transaction: {
   grand_total?: string | number | null;
   issued_date?: string | null;
   transacted_at?: string | null;
+  due_date?: string | null;
   items?: Array<{ name?: string | null }>;
 }): ClientOrderFormState {
   const meta = parseDealMeta(transaction.notes);
@@ -604,7 +752,7 @@ export function clientOrderFormFromTransaction(transaction: {
   const dealName = String(meta?.dealName ?? "").trim() || itemName;
   const revenue = String(meta?.expectedRevenue ?? transaction.grand_total ?? "").trim();
 
-  return emptyClientOrderForm({
+  const nextForm = emptyClientOrderForm({
     dealOwnerId: transaction.user_id ? String(transaction.user_id) : "",
     campaignSource: String(meta?.campaignSource ?? "").trim(),
     probability: String(meta?.probability ?? "").replace(/%/g, "").trim() || "10",
@@ -632,10 +780,6 @@ export function clientOrderFormFromTransaction(transaction: {
     invoiceReceivedDate: toDateInput(meta?.invoiceReceivedDate),
     paymentCommitmentDate: toDateInput(meta?.paymentCommitmentDate),
     collectionNote: matchOption(COLLECTION_NOTE_OPTIONS, meta?.collectionNote),
-    contractStatus: matchOption(CONTRACT_STATUS_OPTIONS, meta?.contractStatus),
-    contractSentDate: toDateInput(meta?.contractSentDate),
-    contractServiceStartDate: toDateInput(meta?.contractServiceStartDate),
-    contractServiceEndDate: toDateInput(meta?.contractServiceEndDate),
     requirementStatus: String(meta?.requirementStatus ?? "").trim(),
     totalContractValue: String(meta?.totalContractValue ?? "").trim(),
     proposalConformeName: String(meta?.proposalConformeName ?? "").trim(),
@@ -653,6 +797,25 @@ export function clientOrderFormFromTransaction(transaction: {
     domainRegistrationExpirationDate: toDateInput(meta?.domainRegistrationExpirationDate),
     domainRegistrationCost: String(meta?.domainRegistrationCost ?? "").trim(),
   });
+
+  const derivedInvoice = deriveInvoiceFields(nextForm, transaction);
+  const withInvoice = {
+    ...nextForm,
+    ...derivedInvoice,
+    invoiceSentDate: toDateInput(meta?.invoiceSentDate) || derivedInvoice.invoiceSentDate,
+    invoiceReceivedDate: toDateInput(meta?.invoiceReceivedDate) || derivedInvoice.invoiceReceivedDate,
+  };
+  const derivedContract = deriveContractFields(withInvoice, transaction);
+
+  return {
+    ...withInvoice,
+    ...derivedContract,
+    contractSentDate: toDateInput(meta?.contractSentDate) || derivedContract.contractSentDate,
+    contractServiceStartDate:
+      toDateInput(meta?.contractServiceStartDate) || derivedContract.contractServiceStartDate,
+    contractServiceEndDate:
+      toDateInput(meta?.contractServiceEndDate) || derivedContract.contractServiceEndDate,
+  };
 }
 
 function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
