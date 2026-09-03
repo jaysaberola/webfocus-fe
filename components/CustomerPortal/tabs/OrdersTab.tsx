@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
-import PortalModal from "@/components/CustomerPortal/PortalModal";
+import OrderInfoPanel from "@/components/CustomerPortal/OrderInfoPanel";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
@@ -9,12 +9,22 @@ import {
   PortalSelectAllHead,
   PortalSelectRowCell,
 } from "@/components/CustomerPortal/PortalSelectCells";
+import ConfirmModal from "@/components/UI/ConfirmModal";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
-import { joinPlanNames } from "@/lib/serviceCategory";
 import { formatPeso } from "@/lib/customerPortal/mockData";
-import { fetchPortalOrders } from "@/services/customerPortalService";
+import {
+  orderCanCancel,
+  orderDueDate,
+  orderPlanLabel,
+  orderServiceName,
+} from "@/lib/customerPortal/orderHelpers";
+import {
+  cancelPortalOrder,
+  fetchPortalOrders,
+  notifyPortalNotificationsUpdated,
+} from "@/services/customerPortalService";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 import {
   emptyDateRange,
@@ -35,10 +45,9 @@ import styles from "@/styles/customerPortal.module.css";
 function orderStatusClass(status: PortalOrder["status"]) {
   if (status === "Active Live") return styles.badgeGreen;
   if (status === "Provisioning") return styles.badgeBlue;
+  if (status === "Cancelled" || status === "Expired") return styles.badgeRed;
   return styles.badgeAmber;
 }
-
-type OrderDetailModalState = { open: false } | { open: true; order: PortalOrder };
 
 const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "status", label: "Status" },
@@ -100,14 +109,6 @@ const ORDER_SORT_DESC: Record<OrderColumnKey, OrderSortKey> = {
   status: "status-desc",
 };
 
-function orderDueDate(order: PortalOrder) {
-  return order.dueDate ?? order.expiredDate;
-}
-
-function orderPlanLabel(order: PortalOrder) {
-  return order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name));
-}
-
 function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
   const copy = [...rows];
   copy.sort((a, b) => {
@@ -120,7 +121,7 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
       return compareText(a.id, b.id, sortBy === "id-desc");
     }
     if (sortBy.startsWith("service")) {
-      return compareText(a.serviceName ?? a.items[0]?.name ?? "", b.serviceName ?? b.items[0]?.name ?? "", sortBy === "service-desc");
+      return compareText(orderServiceName(a), orderServiceName(b), sortBy === "service-desc");
     }
     if (sortBy.startsWith("plan")) {
       return compareText(orderPlanLabel(a), orderPlanLabel(b), sortBy === "plan-desc");
@@ -172,20 +173,28 @@ export default function OrdersTab() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
   const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
-  const [detailModal, setDetailModal] = useState<OrderDetailModalState>({ open: false });
+  const [viewingOrder, setViewingOrder] = useState<PortalOrder | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<PortalOrder | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
-  useEffect(() => {
-    fetchPortalOrders()
-      .then(setOrders)
-      .catch(() => {
-        toast.error("Failed to load orders.");
-        setOrders([]);
-      })
-      .finally(() => setLoading(false));
+  const loadOrders = useCallback(async () => {
+    try {
+      const rows = await fetchPortalOrders();
+      setOrders(rows);
+      return rows;
+    } catch {
+      toast.error("Failed to load orders.");
+      setOrders([]);
+      return [];
+    }
   }, []);
+
+  useEffect(() => {
+    loadOrders().finally(() => setLoading(false));
+  }, [loadOrders]);
 
   const getOrderFilterValue = useCallback((order: PortalOrder, fieldId: string) => {
     switch (fieldId) {
@@ -194,7 +203,7 @@ export default function OrdersTab() {
       case "gateway":
         return order.gateway;
       case "serviceName":
-        return order.serviceName ?? order.items[0]?.name ?? "";
+        return orderServiceName(order);
       case "plan":
         return orderPlanLabel(order);
       case "id":
@@ -212,7 +221,7 @@ export default function OrdersTab() {
 
       const item = order.items[0];
       return rowMatchesSearch(
-        [order.id, order.invoiceId, order.serviceName, item?.name, item?.detail, order.gateway, order.status],
+        [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, order.gateway, order.status],
         search,
       );
     });
@@ -277,7 +286,7 @@ export default function OrdersTab() {
         ],
         selectedOrders.map((order) => [
           order.id,
-          order.serviceName ?? order.items[0]?.name ?? "",
+          orderServiceName(order),
           orderPlanLabel(order),
           formatPeso(order.total),
           order.gateway,
@@ -289,6 +298,40 @@ export default function OrdersTab() {
       );
     } finally {
       setExporting(false);
+    }
+  };
+
+  const applyOrderUpdate = (updated: PortalOrder) => {
+    setOrders((rows) => rows.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+    setViewingOrder((current) => (current && current.id === updated.id ? { ...current, ...updated } : current));
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancelTarget || cancelling) return;
+    const recordId = cancelTarget.recordId;
+    if (!recordId) {
+      toast.error("This order cannot be cancelled from here.");
+      setCancelTarget(null);
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      const updated = await cancelPortalOrder(recordId);
+      if (updated) {
+        applyOrderUpdate(updated);
+      } else {
+        const rows = await loadOrders();
+        const next = rows.find((row) => row.id === cancelTarget.id);
+        if (next) applyOrderUpdate(next);
+      }
+      notifyPortalNotificationsUpdated();
+      toast.success(`Order ${cancelTarget.id} was cancelled.`);
+      setCancelTarget(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not cancel this order.");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -308,12 +351,50 @@ export default function OrdersTab() {
     }
 
     if (action === "details") {
-      setDetailModal({ open: true, order });
+      setViewingOrder(order);
+      return;
+    }
+
+    if (action === "cancel") {
+      if (!orderCanCancel(order)) {
+        toast.info("Paid or active orders cannot be cancelled here. Please contact support.");
+        return;
+      }
+      setCancelTarget(order);
     }
   };
 
   if (loading) {
     return <PortalTabLoader label="Loading orders..." />;
+  }
+
+  if (viewingOrder) {
+    return (
+      <div className={styles.tabStack}>
+        <OrderInfoPanel
+          order={viewingOrder}
+          onBack={() => setViewingOrder(null)}
+          onCancel={orderCanCancel(viewingOrder) ? () => setCancelTarget(viewingOrder) : undefined}
+          cancelling={cancelling && cancelTarget?.id === viewingOrder.id}
+        />
+        <ConfirmModal
+          show={Boolean(cancelTarget)}
+          title="Cancel this order?"
+          message={
+            cancelTarget
+              ? `Cancel order ${cancelTarget.id}? This cannot be undone.`
+              : undefined
+          }
+          confirmLabel="Yes, cancel order"
+          cancelLabel="Keep order"
+          danger
+          onConfirm={() => void handleCancelOrder()}
+          onCancel={() => {
+            if (!cancelling) setCancelTarget(null);
+          }}
+        />
+      </div>
+    );
   }
 
   return (
@@ -461,8 +542,6 @@ export default function OrdersTab() {
                   </tr>
                 ) : (
                   paginatedOrders.map((order) => {
-                    const item = order.items[0];
-
                     return (
                       <tr
                         key={order.id}
@@ -482,8 +561,16 @@ export default function OrdersTab() {
                             {order.id}
                           </button>
                         </td>
-                        <td className={styles.serviceNameBold}>{order.serviceName ?? item?.name}</td>
-                        <td>{order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name))}</td>
+                        <td className={styles.serviceNameBold}>
+                          <button
+                            type="button"
+                            className={styles.tableCellLink}
+                            onClick={() => handleOrderAction(order, "details")}
+                          >
+                            {orderServiceName(order)}
+                          </button>
+                        </td>
+                        <td>{orderPlanLabel(order)}</td>
                         <td className={styles.monoBold}>{formatPeso(order.total)}</td>
                         <td>{order.gateway}</td>
                         <td>{order.date}</td>
@@ -511,6 +598,7 @@ export default function OrdersTab() {
                             <option value="renew">Renew Subscription</option>
                             <option value="receipt">Download Receipt</option>
                             <option value="details">View Details</option>
+                            {orderCanCancel(order) ? <option value="cancel">Cancel Order</option> : null}
                           </select>
                         </td>
                       </tr>
@@ -550,84 +638,20 @@ export default function OrdersTab() {
         </TableFilterShell>
       </section>
 
-      <PortalModal
-        open={detailModal.open}
-        onClose={() => setDetailModal({ open: false })}
-        ariaLabelledBy="order-detail-title"
-      >
-        <div className={styles.billingModalHead}>
-          <div className={styles.billingModalHeadText}>
-            <h3 id="order-detail-title">Order Details</h3>
-            <p className={styles.panelSub}>
-              {detailModal.open ? detailModal.order.id : "Order summary"}
-            </p>
-          </div>
-          <button
-            type="button"
-            className={styles.billingModalClose}
-            aria-label="Close"
-            onClick={() => setDetailModal({ open: false })}
-          >
-            <i className="fa-solid fa-xmark" aria-hidden="true" />
-          </button>
-        </div>
-
-        {detailModal.open ? (
-          <div className={styles.billingModalBody}>
-            <div className={styles.billingModalDetails}>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Order #</span>
-                <span className={styles.billingModalDetailValueMono}>{detailModal.order.id}</span>
-              </div>
-              {detailModal.order.invoiceId ? (
-                <div className={styles.billingModalDetailRow}>
-                  <span className={styles.billingModalDetailLabel}>Invoice</span>
-                  <span className={styles.billingModalDetailValueMono}>{detailModal.order.invoiceId}</span>
-                </div>
-              ) : null}
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Service</span>
-                <span className={styles.billingModalDetailValue}>
-                  {detailModal.order.serviceName ?? detailModal.order.items[0]?.name}
-                </span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Plan</span>
-                <span className={styles.billingModalDetailValue}>
-                  {detailModal.order.plan ??
-                    joinPlanNames(detailModal.order.items.map((entry) => entry.detail ?? entry.name))}
-                </span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Amount</span>
-                <span className={styles.billingModalDetailValue}>{formatPeso(detailModal.order.total)}</span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Payment</span>
-                <span className={styles.billingModalDetailValue}>{detailModal.order.gateway}</span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Date Ordered</span>
-                <span className={styles.billingModalDetailValue}>{detailModal.order.date}</span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Due Date</span>
-                <span className={styles.billingModalDetailValue}>{orderDueDate(detailModal.order)}</span>
-              </div>
-              <div className={styles.billingModalDetailRow}>
-                <span className={styles.billingModalDetailLabel}>Status</span>
-                <span className={styles.billingModalDetailValue}>
-                  <span
-                    className={orderStatusClass(detailModal.order.status)}
-                  >
-                    {detailModal.order.status}
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </PortalModal>
+      <ConfirmModal
+        show={Boolean(cancelTarget)}
+        title="Cancel this order?"
+        message={
+          cancelTarget ? `Cancel order ${cancelTarget.id}? This cannot be undone.` : undefined
+        }
+        confirmLabel="Yes, cancel order"
+        cancelLabel="Keep order"
+        danger
+        onConfirm={() => void handleCancelOrder()}
+        onCancel={() => {
+          if (!cancelling) setCancelTarget(null);
+        }}
+      />
     </div>
   );
 }

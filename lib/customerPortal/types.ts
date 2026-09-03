@@ -31,16 +31,20 @@ export type PortalInvoice = {
 
 export type PortalOrder = {
   id: string;
+  recordId?: number;
   invoiceId?: string;
   serviceName?: string;
   plan?: string;
+  domain?: string | null;
   date: string;
   createdAt?: string | null;
   dueDate?: string;
   expiredDate: string;
   total: number;
-  status: "Active Live" | "Pending Request" | "Awaiting Approval" | "Provisioning" | "Expired";
+  status: "Active Live" | "Pending Request" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
+  paymentStatus?: string;
   gateway: string;
+  canCancel?: boolean;
   items: Array<{ name: string; detail: string; price: number }>;
 };
 
