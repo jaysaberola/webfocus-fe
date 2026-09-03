@@ -210,6 +210,22 @@ export const WEBDESIGN_PACKAGES: WebDesignPackage[] = [
   },
 ];
 
+export function subjectForPublicCatalogName(name?: string | null) {
+  const needle = String(name ?? "").trim().toLowerCase();
+  if (!needle) return "";
+  const hosting = HOSTING_PLANS.find((plan) => plan.name.toLowerCase() === needle);
+  if (hosting) {
+    if (hosting.type === "cloud") return "Cloud Hosting";
+    if (hosting.type === "shared") return "Web Hosting - Shared";
+    if (hosting.type === "dedicated") return "Dedicated Cloud Server";
+    if (hosting.type === "baremetal") return "Dedicated Bare Metal Server";
+  }
+  if (WEBDESIGN_PACKAGES.some((pkg) => pkg.name.toLowerCase() === needle)) {
+    return "Web Development";
+  }
+  return "";
+}
+
 export const TEMPLATE_GROUPS: TemplateGroup[] = [
   {
     title: "Business Starter Launch",

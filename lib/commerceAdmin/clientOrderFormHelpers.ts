@@ -1,3 +1,5 @@
+import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
+
 export const DEAL_STAGE_OPTIONS = [
   "Qualification",
   "Needs Analysis",
@@ -27,8 +29,16 @@ export const PRODUCT_STATUS_OPTIONS = [
 ] as const;
 export const DEAL_SUB_TYPE_OPTIONS = PRODUCT_STATUS_OPTIONS;
 
+const PUBLIC_HOSTING_NAMES = {
+  cloud: HOSTING_PLANS.filter((plan) => plan.type === "cloud").map((plan) => plan.name),
+  dedicated: HOSTING_PLANS.filter((plan) => plan.type === "dedicated").map((plan) => plan.name),
+  shared: HOSTING_PLANS.filter((plan) => plan.type === "shared").map((plan) => plan.name),
+  baremetal: HOSTING_PLANS.filter((plan) => plan.type === "baremetal").map((plan) => plan.name),
+};
+
 export const SUBJECT_OPTIONS = [
   "Add On",
+  "Cloud Hosting",
   "Dedicated Bare Metal Server",
   "Dedicated Cloud Server",
   "Document Management System",
@@ -63,11 +73,13 @@ export const PRODUCT_NAMES_BY_SUBJECT: Record<string, readonly string[]> = {
     "Add On - Wildcard SSL",
     "Add On - Others",
   ],
+  "Cloud Hosting": [...PUBLIC_HOSTING_NAMES.cloud],
   "Dedicated Bare Metal Server": [
     "Dedicated Bare Metal Custom",
     "Dedicated Bare Metal Enterprise",
     "Dedicated Bare Metal Professional",
     "Dedicated Bare Metal In-House",
+    ...PUBLIC_HOSTING_NAMES.baremetal,
   ],
   "Dedicated Cloud Server": [
     "Dedicated Cloud Business",
@@ -78,6 +90,7 @@ export const PRODUCT_NAMES_BY_SUBJECT: Record<string, readonly string[]> = {
     "Dedicated Cloud Premium",
     "Dedicated Cloud Professional",
     "Dedicated Cloud In-House",
+    ...PUBLIC_HOSTING_NAMES.dedicated,
   ],
   "Document Management System": ["Docukit", "FileHold", "FileCare"],
   "Domain Registration": [
@@ -117,6 +130,7 @@ export const PRODUCT_NAMES_BY_SUBJECT: Record<string, readonly string[]> = {
     "Web Development - Wordpress",
     "Web Development - Standard",
     "Web Development",
+    ...WEBDESIGN_PACKAGES.map((pkg) => pkg.name),
   ],
   "Web Hosting - Shared": [
     "Linux Cloud Business",
@@ -132,6 +146,7 @@ export const PRODUCT_NAMES_BY_SUBJECT: Record<string, readonly string[]> = {
     "Windows Cloud Starter",
     "Windows Cloud Custom",
     "Web Hosting - Default",
+    ...PUBLIC_HOSTING_NAMES.shared,
   ],
 };
 
@@ -210,11 +225,16 @@ export const DEAL_NAME_OPTIONS = [
   "Windows Cloud Standard",
   "Windows Cloud Starter",
   "Windows Cloud Custom",
+  ...PUBLIC_HOSTING_NAMES.shared,
+  ...PUBLIC_HOSTING_NAMES.cloud,
+  ...PUBLIC_HOSTING_NAMES.dedicated,
+  ...PUBLIC_HOSTING_NAMES.baremetal,
   "Web Development - Piecemeal",
   "Web Development - Customized",
   "Web Development - Wordpress",
   "Web Development - Standard",
   "Web Development",
+  ...WEBDESIGN_PACKAGES.map((pkg) => pkg.name),
   "Eset Endpoint Protection",
   "Eset Protect Advanced Cloud",
   "Doc Pedro - Basic Plan",

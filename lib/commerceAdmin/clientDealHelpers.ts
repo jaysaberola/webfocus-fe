@@ -7,6 +7,8 @@ import {
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
+import { isWebDesignPlan } from "@/lib/serviceCategory";
+import { subjectForPublicCatalogName } from "@/lib/servicesCatalog";
 import { isWebDesignTransaction } from "@/lib/commerceAdmin/webDesignPricing";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
@@ -257,8 +259,11 @@ export function orderAdminColumnValue(
       return metaText(meta?.dealType);
     case "productStatus":
       return metaText(meta?.dealSubType);
-    case "productCategory":
-      return metaText(meta?.productCategory, dealSubjectFromName(itemName));
+    case "productCategory": {
+      const fromItem = dealSubjectFromName(itemName);
+      const fromDeal = dealSubjectFromName(transactionDealName(transaction));
+      return metaText(meta?.productCategory, fromItem !== "—" ? fromItem : fromDeal);
+    }
     case "salesStatus":
       return metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status));
     case "statusTriggerDate":
@@ -631,6 +636,9 @@ export function dealSubjectFromName(name: string): string {
   const exactSubject = SUBJECT_OPTIONS.find((option) => option.toLowerCase() === hay);
   if (exactSubject) return exactSubject;
 
+  const fromPublicCatalog = subjectForPublicCatalogName(raw);
+  if (fromPublicCatalog) return fromPublicCatalog;
+
   const fromCatalog = subjectForProductName(raw);
   if (fromCatalog) return fromCatalog;
 
@@ -656,13 +664,14 @@ export function dealSubjectFromName(name: string): string {
     return "Add On";
   }
   if (hay.includes("bare metal")) return "Dedicated Bare Metal Server";
+  if (hay.includes("dedicated cloud")) return "Dedicated Cloud Server";
   if (
-    hay.includes("dedicated cloud") ||
     hay.includes("cloud micro") ||
-    hay.includes("micro server") ||
+    hay.includes("cloud business") ||
+    hay.includes("cloud node") ||
     (hay.includes("cloud") && hay.includes("server"))
   ) {
-    return "Dedicated Cloud Server";
+    return "Cloud Hosting";
   }
   if (
     (hay.includes("custom") && hay.includes("professional")) ||
@@ -690,15 +699,19 @@ export function dealSubjectFromName(name: string): string {
     return "Managed I.T. Services";
   }
   if (hay.includes("resell")) return "Resellership";
-  if (hay.includes("web development") || hay.includes("web dev") || hay.includes("web design")) {
+  if (
+    isWebDesignPlan(raw) ||
+    hay.includes("web development") ||
+    hay.includes("web dev") ||
+    hay.includes("web design")
+  ) {
     return "Web Development";
   }
   if (
     hay.includes("linux cloud") ||
     hay.includes("windows cloud") ||
     hay.includes("web hosting") ||
-    hay.includes("shared") ||
-    hay.includes("starter")
+    hay.includes("shared")
   ) {
     return "Web Hosting - Shared";
   }
