@@ -17,7 +17,9 @@ export interface SalesTransaction {
     id: number;
     fname?: string | null;
     lname?: string | null;
+    mname?: string | null;
     email?: string | null;
+    company?: string | null;
     owner_id?: number | null;
     billing_in_charge?: string | null;
     contact_person?: string | null;

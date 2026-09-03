@@ -192,6 +192,24 @@ export function transactionClientOwner(transaction: SalesTransaction) {
   return "Unassigned";
 }
 
+export function transactionClientName(transaction: SalesTransaction) {
+  const company = String(transaction.customer?.mname || transaction.customer?.company || "").trim();
+  if (company) return company;
+  const person = String(transaction.customer_name ?? "").trim();
+  return person || "—";
+}
+
+export function transactionPreferredClientOwner(transaction: SalesTransaction) {
+  const id = Number(transaction.client_owner_id || transaction.client_owner?.id || 0);
+  if (!id) return null;
+  const name = transactionClientOwner(transaction);
+  return {
+    id,
+    name: name === "Unassigned" ? undefined : name,
+    email: transaction.client_owner?.email ?? null,
+  };
+}
+
 export function transactionBillingInCharge(transaction: SalesTransaction) {
   if (transaction.customer) return clientBillingInCharge(transaction.customer);
   return "—";
@@ -228,7 +246,7 @@ export function orderAdminColumnValue(
     case "closingDate":
       return formatDealDate(meta?.closingDate || transaction.issued_date || transaction.transacted_at);
     case "clientName":
-      return dash(transaction.customer_name);
+      return transactionClientName(transaction);
     case "dealName":
       return transactionDealName(transaction);
     case "domainName":

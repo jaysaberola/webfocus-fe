@@ -17,7 +17,7 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
-import { orderAdminColumnValue } from "@/lib/commerceAdmin/clientDealHelpers";
+import { orderAdminColumnValue, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_KEYS,
@@ -196,6 +196,11 @@ export default function CommerceTransactionsTab() {
   const [view, setView] = useState<"list" | "create" | "client" | "deal">("list");
   const [createCustomerId, setCreateCustomerId] = useState<number | null>(null);
   const [clientInfo, setClientInfo] = useState<CustomerRow | null>(null);
+  const [clientOwnerFromDeal, setClientOwnerFromDeal] = useState<{
+    id: number;
+    name?: string | null;
+    email?: string | null;
+  } | null>(null);
   const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
@@ -456,6 +461,7 @@ export default function CommerceTransactionsTab() {
         toast.error("Unable to load client info.");
         return;
       }
+      setClientOwnerFromDeal(transactionPreferredClientOwner(row));
       setClientInfo(customer);
       setView("client");
     } catch {
@@ -756,15 +762,18 @@ export default function CommerceTransactionsTab() {
         <ClientCrmForm
           mode="edit"
           client={clientInfo}
+          preferredOwner={clientOwnerFromDeal}
           pageTitle="Client Info"
           pageSubtitle="Deals"
           onBack={() => {
             setView("list");
             setClientInfo(null);
+            setClientOwnerFromDeal(null);
           }}
           onSaved={() => {
             setView("list");
             setClientInfo(null);
+            setClientOwnerFromDeal(null);
             loadRows();
           }}
         />

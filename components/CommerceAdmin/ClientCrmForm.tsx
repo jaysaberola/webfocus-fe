@@ -42,12 +42,14 @@ import {
   assignablePersonLabel,
   resolveAssignableSelectValue,
   withCurrentAssignablePerson,
+  type AssignablePerson,
 } from "@/lib/commerceAdmin/clientHelpers";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
   mode: "create" | "edit";
   client?: CustomerRow | null;
+  preferredOwner?: AssignablePerson | null;
   pageTitle?: string;
   pageSubtitle?: string;
   onBack: () => void;
@@ -141,7 +143,7 @@ function FileField({
 }
 
 const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmForm(
-  { mode, client, pageTitle, pageSubtitle, onBack, onSaved, onSectionChange },
+  { mode, client, preferredOwner = null, pageTitle, pageSubtitle, onBack, onSaved, onSectionChange },
   ref,
 ) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
@@ -235,16 +237,23 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     setLoading(true);
     getCustomer(client.id, { silent: true })
       .then((detail) => {
-        const ownerId = Number(detail?.owner_id ?? client.owner_id ?? 0) || null;
+        const ownerId = Number(preferredOwner?.id ?? detail?.owner_id ?? client.owner_id ?? 0) || null;
         const ownerName =
-          String(detail?.owner?.name || detail?.owner_name || client.owner?.name || client.owner_name || "").trim() ||
-          String(detail?.owner?.email || client.owner?.email || "").trim();
+          String(
+            preferredOwner?.name ||
+              detail?.owner?.name ||
+              detail?.owner_name ||
+              client.owner?.name ||
+              client.owner_name ||
+              "",
+          ).trim() ||
+          String(preferredOwner?.email || detail?.owner?.email || client.owner?.email || "").trim();
         setCurrentOwner(
           ownerId
             ? {
                 id: ownerId,
                 name: ownerName,
-                email: detail?.owner?.email ?? client.owner?.email ?? null,
+                email: preferredOwner?.email ?? detail?.owner?.email ?? client.owner?.email ?? null,
               }
             : null,
         );
@@ -304,26 +313,27 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       })
       .catch(() => {
         toast.error("Failed to load client details.");
+        const ownerId = Number(preferredOwner?.id ?? client.owner_id ?? 0) || null;
         setForm({
           ...emptyClientCrmForm,
           company: client.company ?? client.name ?? "",
           email: client.email ?? "",
-          owner_id: Number(client.owner_id ?? 0) || null,
+          owner_id: ownerId,
           billing_in_charge: String(client.billing_in_charge || "").trim(),
         });
         setCurrentOwner(
-          client.owner_id
+          ownerId
             ? {
-                id: Number(client.owner_id),
-                name: client.owner?.name || client.owner_name,
-                email: client.owner?.email ?? null,
+                id: ownerId,
+                name: preferredOwner?.name || client.owner?.name || client.owner_name,
+                email: preferredOwner?.email ?? client.owner?.email ?? null,
               }
             : null,
         );
         setAudits([]);
       })
       .finally(() => setLoading(false));
-  }, [mode, client]);
+  }, [mode, client, preferredOwner]);
 
   const setField = <K extends keyof ClientCrmFormState>(key: K, value: ClientCrmFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
