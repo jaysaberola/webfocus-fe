@@ -110,6 +110,7 @@ export default function CommerceClientsTab(_props: Props) {
   const [editClient, setEditClient] = useState<CustomerRow | null>(null);
   const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [invoiceInfo, setInvoiceInfo] = useState<SalesTransaction | null>(null);
   const [detailClient, setDetailClient] = useState<CustomerRow | null>(null);
   const [detailMode, setDetailMode] = useState<"info" | "audit">("info");
   const [assignOwnerClient, setAssignOwnerClient] = useState<CustomerRow | null>(null);
@@ -282,6 +283,7 @@ export default function CommerceClientsTab(_props: Props) {
 
   const navigateToSection = useCallback((section: ClientRelatedSection) => {
     setCreatingInvoice(false);
+    setInvoiceInfo(null);
     setActiveSection(section);
     if (section === "orders") {
       scrollToClientSection(dealsRef.current);
@@ -299,6 +301,7 @@ export default function CommerceClientsTab(_props: Props) {
     setEditClient(null);
     setDealInfo(null);
     setCreatingInvoice(false);
+    setInvoiceInfo(null);
   };
 
   const handleExportExcel = async () => {
@@ -365,7 +368,7 @@ export default function CommerceClientsTab(_props: Props) {
     );
   }
 
-  if (creatingInvoice && editClient) {
+  if ((creatingInvoice || invoiceInfo) && editClient) {
     return (
       <div
         className={`${styles.clientEditShell}${relatedListVisible ? "" : ` ${styles.clientEditShellExpanded}`}`}
@@ -390,12 +393,22 @@ export default function CommerceClientsTab(_props: Props) {
           ) : null}
           <section className={styles.panel}>
             <ClientInvoiceForm
+              key={invoiceInfo ? `invoice-${invoiceInfo.id}` : "invoice-new"}
               client={editClient}
-              onBack={() => setCreatingInvoice(false)}
+              transaction={invoiceInfo}
+              onBack={() => {
+                setCreatingInvoice(false);
+                setInvoiceInfo(null);
+              }}
               onSaved={(opts) => {
                 loadRows();
-                if (opts?.andNew) return;
+                if (opts?.andNew) {
+                  setInvoiceInfo(null);
+                  setCreatingInvoice(true);
+                  return;
+                }
                 setCreatingInvoice(false);
+                setInvoiceInfo(null);
               }}
             />
           </section>
@@ -494,8 +507,14 @@ export default function CommerceClientsTab(_props: Props) {
                 client={editClient}
                 onEditClient={() => navigateToSection("info")}
                 onCreateInvoice={() => {
+                  setInvoiceInfo(null);
                   setActiveSection("invoices");
                   setCreatingInvoice(true);
+                }}
+                onEditInvoice={(transaction) => {
+                  setCreatingInvoice(false);
+                  setActiveSection("invoices");
+                  setInvoiceInfo(transaction);
                 }}
               />
             </section>

@@ -14,6 +14,7 @@ import {
 import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
 import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
+import { type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 const INVOICE_PAGE_SIZE = 10;
@@ -22,21 +23,23 @@ type Props = {
   client: CustomerRow;
   onEditClient?: () => void;
   onCreateInvoice?: () => void;
+  onEditInvoice?: (transaction: SalesTransaction) => void;
 };
 
-export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvoice }: Props) {
+export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvoice, onEditInvoice }: Props) {
   const [rows, setRows] = useState<ClientInvoiceRow[]>([]);
+  const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
-    "commerceAdmin:columnVisibility:clientInvoices",
+    "commerceAdmin:columnVisibility:clientInvoices:v2",
     DEFAULT_INVOICE_COLUMNS,
   );
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const invoiceColumnLabel = useCallback((key: InvoiceColumnKey) => INVOICE_COLUMN_LABELS[key], []);
   const { containerRef, layoutFor, startResize } = useResizableColumns<InvoiceColumnKey>(
-    "commerceAdmin:invoiceColumnWidths",
+    "commerceAdmin:invoiceColumnWidths:v2",
     invoiceColumnLabel,
   );
 
@@ -59,10 +62,14 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
           owner_id: detail?.owner_id ?? client.owner_id,
           contact_person: detail?.contact_person ?? client.contact_person,
         };
+        setTransactions(transactions);
         setRows(buildClientInvoiceRows(enriched, transactions));
       })
       .catch(() => {
-        if (!cancelled) setRows(buildClientInvoiceRows(client, []));
+        if (!cancelled) {
+          setTransactions([]);
+          setRows(buildClientInvoiceRows(client, []));
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -180,7 +187,12 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
             ) : (
               paginatedRows.map((invoice) => (
                 <tr key={invoice.id}>
-                  {visibleColumns.map((column) => renderInvoiceCell(invoice, column, onEditClient))}
+                  {visibleColumns.map((column) =>
+                    renderInvoiceCell(invoice, column, onEditClient, () => {
+                      const transaction = transactions.find((row) => row.id === invoice.transactionId);
+                      if (transaction) onEditInvoice?.(transaction);
+                    }),
+                  )}
                 </tr>
               ))
             )}
@@ -231,6 +243,7 @@ function renderInvoiceCell(
   invoice: ClientInvoiceRow,
   column: InvoiceColumnKey,
   onEditClient?: () => void,
+  onEditInvoice?: () => void,
 ) {
   if (column === "clientName") {
     return (
@@ -242,10 +255,20 @@ function renderInvoiceCell(
     );
   }
 
-  if (column === "productCategory") {
+  if (column === "subject") {
     return (
       <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
-        {invoice.productCategory}
+        <button type="button" className={styles.tableCellLink} onClick={() => onEditInvoice?.()}>
+          {invoice.subject}
+        </button>
+      </td>
+    );
+  }
+
+  if (column === "grandTotal") {
+    return (
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.dealsAmount}`}>
+        {invoiceCellValue(invoice, column)}
       </td>
     );
   }

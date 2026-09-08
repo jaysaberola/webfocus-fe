@@ -5,17 +5,20 @@ import { SUBJECT_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
   buildInvoiceNotes,
   emptyClientInvoiceForm,
+  hasClientBillingAddress,
   INVOICE_CURRENCY_OPTIONS,
   INVOICE_FORM_STATUS_OPTIONS,
   invoiceAddressFromClient,
   invoiceApiOrderStatus,
   invoiceApiPaymentStatus,
+  invoiceFormFromTransaction,
   invoiceItemsForApi,
   invoiceTotals,
   validateClientInvoiceForm,
   type ClientInvoiceFormState,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
 import { clientDisplayName } from "@/lib/commerceAdmin/clientHelpers";
+import { formatDealAmount } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   citiesForProvince,
   findPlaceByCity,
@@ -35,12 +38,13 @@ import {
   fetchCommerceAssignableUsers,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
-import { getCustomers, type CustomerRow } from "@/services/customerService";
-import { createSalesTransaction } from "@/services/salesTransactionService";
+import { getCustomer, getCustomers, type CustomerRow } from "@/services/customerService";
+import { createSalesTransaction, updateSalesTransaction, type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
   client: CustomerRow;
+  transaction?: SalesTransaction | null;
   onBack: () => void;
   onSaved: (options?: { andNew?: boolean }) => void;
 };
@@ -110,8 +114,11 @@ function inputClass(required?: boolean) {
     .join(" ");
 }
 
-export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
-  const [form, setForm] = useState<ClientInvoiceFormState>(emptyClientInvoiceForm(client));
+export default function ClientInvoiceForm({ client, transaction, onBack, onSaved }: Props) {
+  const isEditing = Boolean(transaction?.id);
+  const [form, setForm] = useState<ClientInvoiceFormState>(
+    transaction ? invoiceFormFromTransaction(transaction, client) : emptyClientInvoiceForm(client),
+  );
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
   const [clients, setClients] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,17 +147,49 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    const customerId = Number(transaction?.customer_id || client.id);
     Promise.all([
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
+      customerId
+        ? getCustomer(customerId, { silent: true }).catch(() => null)
+        : Promise.resolve(null),
     ])
-      .then(([nextOwners, clientRes]) => {
+      .then(([nextOwners, clientRes, detail]) => {
         if (cancelled) return;
         const ownerList = Array.isArray(nextOwners) ? nextOwners : [];
-        const clientList = Array.isArray(clientRes?.data) ? clientRes.data : [];
+        let clientList = Array.isArray(clientRes?.data) ? clientRes.data : [];
+        const detailedClient: CustomerRow = {
+          ...client,
+          ...(detail ?? {}),
+          id: detail?.id ?? client.id,
+        };
+        if (detailedClient.id) {
+          const matchIndex = clientList.findIndex((row) => Number(row.id) === Number(detailedClient.id));
+          if (matchIndex >= 0) {
+            clientList = clientList.map((row, index) =>
+              index === matchIndex ? { ...row, ...detailedClient } : row,
+            );
+          } else {
+            clientList = [detailedClient, ...clientList];
+          }
+        }
         setOwners(ownerList);
         setClients(clientList);
-        setForm(blankInvoiceForm(ownerList, clientList));
+        const defaultClient =
+          clientList.find((row) => Number(row.id) === Number(customerId || client.id)) ?? detailedClient;
+        const currentUser = readStoredCurrentUser();
+        const defaultOwner =
+          ownerList.find((owner) => String(owner.id) === String(defaultClient.owner_id || client.owner_id)) ??
+          ownerList.find((owner) => owner.id === currentUser?.id) ??
+          ownerList[0];
+        setForm(
+          transaction
+            ? invoiceFormFromTransaction(transaction, defaultClient)
+            : emptyClientInvoiceForm(defaultClient, {
+                invoiceOwnerId: defaultOwner ? String(defaultOwner.id) : "",
+              }),
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -159,20 +198,41 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening for this client
-  }, [client.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening for this client or invoice
+  }, [client.id, transaction?.id]);
 
   const handleClientChange = (clientId: string) => {
-    const selected = clients.find((row) => String(row.id) === clientId);
-    setForm((current) => ({
-      ...current,
-      clientId,
-      contactName: String(selected?.contact_person ?? ""),
-      currency: String(selected?.currency || current.currency || "PHP").trim() || "PHP",
-      exchangeRate: String(selected?.exchange_rate ?? current.exchangeRate ?? "1").trim() || "1",
-      ...invoiceAddressFromClient(selected ?? null),
-      invoiceOwnerId: selected?.owner_id ? String(selected.owner_id) : current.invoiceOwnerId,
-    }));
+    const applyClient = (selected?: CustomerRow | null) => {
+      setForm((current) => ({
+        ...current,
+        clientId,
+        contactName: String(selected?.contact_person ?? ""),
+        currency: String(selected?.currency || current.currency || "PHP").trim() || "PHP",
+        exchangeRate: String(selected?.exchange_rate ?? current.exchangeRate ?? "1").trim() || "1",
+        ...invoiceAddressFromClient(selected ?? null),
+        invoiceOwnerId: selected?.owner_id ? String(selected.owner_id) : current.invoiceOwnerId,
+      }));
+    };
+
+    const listed = clients.find((row) => String(row.id) === clientId);
+    applyClient(listed ?? null);
+
+    if (listed && hasClientBillingAddress(listed)) return;
+    const selectedId = Number(clientId);
+    if (!selectedId) return;
+
+    void getCustomer(selectedId, { silent: true })
+      .then((detail) => {
+        if (!detail) return;
+        const merged: CustomerRow = { ...(listed ?? {}), ...detail, id: detail.id ?? selectedId };
+        setClients((current) =>
+          current.map((row) => (Number(row.id) === Number(merged.id) ? { ...row, ...merged } : row)),
+        );
+        applyClient(merged);
+      })
+      .catch(() => {
+        // Keep the listed client if the detail request fails.
+      });
   };
 
   const applyPlace = (
@@ -274,7 +334,7 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
 
     setSubmitting(true);
     try {
-      const created = await createSalesTransaction({
+      const payload = {
         customer_id: clientId,
         customer_name: clientName,
         customer_email: clientEmail,
@@ -288,9 +348,12 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
         notes: buildInvoiceNotes(form),
         transacted_at: form.invoiceDate || undefined,
         items: namedItems,
-      });
+      };
+      const saved = isEditing && transaction
+        ? await updateSalesTransaction(transaction.id, payload)
+        : await createSalesTransaction(payload);
 
-      const transactionId = Number(created?.data?.id ?? created?.id);
+      const transactionId = Number(saved?.data?.id ?? saved?.id ?? transaction?.id);
       const ownerId = Number(form.invoiceOwnerId);
       if (transactionId && ownerId) {
         try {
@@ -300,20 +363,25 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
         }
       }
 
-      toast.success("Invoice created successfully.");
+      toast.success(isEditing ? "Invoice updated successfully." : "Invoice created successfully.");
       onSaved({ andNew });
       if (andNew) {
         setForm(blankInvoiceForm());
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to create invoice.");
+      toast.error(err?.response?.data?.message || (isEditing ? "Failed to update invoice." : "Failed to create invoice."));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const invoiceTotalsPreview = invoiceTotals(form.items, form.adjustment);
+  const headerTitle = isEditing
+    ? `${form.subject.trim() || "Invoice"} - ${formatDealAmount(invoiceTotalsPreview.grandTotal)}`
+    : "Create Invoice";
+
   if (loading) {
-    return <p className={styles.emptyState}>Loading invoice form...</p>;
+    return <p className={styles.emptyState}>{isEditing ? "Loading invoice..." : "Loading invoice form..."}</p>;
   }
 
   return (
@@ -330,7 +398,7 @@ export default function ClientInvoiceForm({ client, onBack, onSaved }: Props) {
             <i className="fa-solid fa-arrow-left" aria-hidden="true" /> Back
           </button>
           <div>
-            <h3 className={styles.panelTitle}>Create Invoice</h3>
+            <h3 className={styles.panelTitle}>{headerTitle}</h3>
             <p className={styles.panelSubtitle}>Invoices</p>
           </div>
         </div>

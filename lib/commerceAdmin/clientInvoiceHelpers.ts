@@ -1,6 +1,7 @@
 import {
   dealSubjectFromName,
   fetchCustomerDealTransactions,
+  formatDealAmount,
   formatDealDate,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { parseDealMeta, toApiOrderStatus, toApiPaymentStatus } from "@/lib/commerceAdmin/clientOrderFormHelpers";
@@ -63,17 +64,46 @@ function todayInput() {
   return `${year}-${month}-${day}`;
 }
 
+function invoiceDateInput(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeFormLineItem(item: Partial<InvoiceLineItem>, fallbackId: string): InvoiceLineItem {
+  return {
+    id: String(item.id || fallbackId),
+    productName: String(item.productName ?? ""),
+    description: String(item.description ?? ""),
+    listPrice: String(item.listPrice ?? ""),
+    quantity: String(item.quantity ?? "1"),
+    discount: String(item.discount ?? "0"),
+    tax: String(item.tax ?? "0"),
+  };
+}
+
 export function invoiceAddressFromClient(client?: CustomerRow | null) {
-  const province = String(client?.address_province ?? "");
+  const province = String(client?.address_province ?? "").trim();
   const storedRegion = String(client?.address_region ?? "").trim();
   return {
-    billingStreet: String(client?.address_street ?? ""),
-    billingCity: String(client?.address_city ?? ""),
+    billingStreet: String(client?.address_street ?? "").trim(),
+    billingCity: String(client?.address_city ?? "").trim(),
     billingState: province,
     billingRegion: storedRegion || regionForProvince(province) || "",
-    billingCode: String(client?.address_zip ?? ""),
+    billingCode: String(client?.address_zip ?? "").trim(),
     billingCountry: String(client?.address_country || "Philippines").trim() || "Philippines",
   };
+}
+
+export function hasClientBillingAddress(client?: CustomerRow | null) {
+  const address = invoiceAddressFromClient(client);
+  return Boolean(address.billingStreet || address.billingCity || address.billingState || address.billingCode);
 }
 
 export function emptyClientInvoiceForm(
@@ -226,7 +256,7 @@ export type ClientInvoiceRow = {
   id: string;
   transactionId: number;
   invoiceOwner: string;
-  productCategory: string;
+  subject: string;
   invoiceDate: string;
   dueDate: string;
   clientName: string;
@@ -241,19 +271,25 @@ export type ClientInvoiceRow = {
   billingState: string;
   billingCode: string;
   billingCountry: string;
+  billingInCharge: string;
+  wsiInvoiceNumber: string;
+  grandTotal: number;
 };
 
 export type InvoiceColumnKey =
-  | "productCategory"
   | "clientName"
-  | "invoiceOwner"
+  | "billingInCharge"
+  | "subject"
   | "invoiceDate"
   | "dueDate"
+  | "collectionDate"
+  | "wsiInvoiceNumber"
+  | "officialReceipt"
+  | "status"
+  | "grandTotal"
+  | "invoiceOwner"
   | "contactName"
   | "currency"
-  | "status"
-  | "collectionDate"
-  | "officialReceipt"
   | "exchangeRate"
   | "billingStreet"
   | "billingCity"
@@ -262,16 +298,19 @@ export type InvoiceColumnKey =
   | "billingCountry";
 
 export const INVOICE_COLUMN_LABELS: Record<InvoiceColumnKey, string> = {
-  productCategory: "Product Category",
   clientName: "Client Name",
-  invoiceOwner: "Invoice Owner",
+  billingInCharge: "Billing-in-Charge",
+  subject: "Product Category",
   invoiceDate: "Invoice Date",
   dueDate: "Due Date",
+  collectionDate: "Collection Date",
+  wsiInvoiceNumber: "WSI Invoice Number",
+  officialReceipt: "Official Receipt",
+  status: "Status",
+  grandTotal: "Grand Total",
+  invoiceOwner: "Invoice Owner",
   contactName: "Contact Name",
   currency: "Currency",
-  status: "Status",
-  collectionDate: "Collection Date",
-  officialReceipt: "Official Receipt",
   exchangeRate: "Exchange Rate",
   billingStreet: "Billing Street",
   billingCity: "Billing City",
@@ -281,16 +320,19 @@ export const INVOICE_COLUMN_LABELS: Record<InvoiceColumnKey, string> = {
 };
 
 export const DEFAULT_INVOICE_COLUMNS: Record<InvoiceColumnKey, boolean> = {
-  productCategory: true,
   clientName: true,
+  billingInCharge: true,
+  subject: true,
+  invoiceDate: true,
+  dueDate: true,
+  collectionDate: true,
+  wsiInvoiceNumber: true,
+  officialReceipt: true,
+  status: true,
+  grandTotal: true,
   invoiceOwner: false,
-  invoiceDate: false,
-  dueDate: false,
   contactName: false,
   currency: false,
-  status: false,
-  collectionDate: false,
-  officialReceipt: false,
   exchangeRate: false,
   billingStreet: false,
   billingCity: false,
@@ -300,16 +342,19 @@ export const DEFAULT_INVOICE_COLUMNS: Record<InvoiceColumnKey, boolean> = {
 };
 
 export const INVOICE_COLUMN_VISIBILITY_KEYS: InvoiceColumnKey[] = [
-  "productCategory",
   "clientName",
-  "invoiceOwner",
+  "billingInCharge",
+  "subject",
   "invoiceDate",
   "dueDate",
+  "collectionDate",
+  "wsiInvoiceNumber",
+  "officialReceipt",
+  "status",
+  "grandTotal",
+  "invoiceOwner",
   "contactName",
   "currency",
-  "status",
-  "collectionDate",
-  "officialReceipt",
   "exchangeRate",
   "billingStreet",
   "billingCity",
@@ -343,8 +388,76 @@ function invoiceStatus(transaction: SalesTransaction, metaStatus?: string | null
   return label && label !== "—" ? label : "Unpaid";
 }
 
+export function invoiceFormFromTransaction(
+  transaction: SalesTransaction,
+  client: CustomerRow,
+): ClientInvoiceFormState {
+  const invoiceMeta = parseInvoiceMeta(transaction.notes);
+  const meta = parseDealMeta(transaction.notes);
+  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  const metaItems = Array.isArray(invoiceMeta?.items)
+    ? invoiceMeta.items
+        .filter((item) => String(item?.productName ?? "").trim())
+        .map((item, index) => normalizeFormLineItem(item, `inv-item-${transaction.id}-${index}`))
+    : [];
+  const transactionItems = (transaction.items ?? []).map((item, index) =>
+    normalizeFormLineItem(
+      {
+        id: String(item.id ?? `inv-item-${transaction.id}-${index}`),
+        productName: String(item.name ?? "").trim(),
+        listPrice: String(item.price ?? ""),
+        quantity: String(item.quantity ?? "1"),
+        discount: index === 0 ? String(transaction.discount_total ?? "0") : "0",
+        tax: index === 0 ? String(transaction.tax_total ?? "0") : "0",
+      },
+      `inv-item-${transaction.id}-${index}`,
+    ),
+  );
+  const items = metaItems.length ? metaItems : transactionItems;
+  const clientAddress = invoiceAddressFromClient(client);
+  const savedAddress = Boolean(
+    String(invoiceMeta?.billingStreet ?? "").trim() ||
+      String(invoiceMeta?.billingCity ?? "").trim() ||
+      String(invoiceMeta?.billingState ?? "").trim() ||
+      String(invoiceMeta?.billingCode ?? "").trim(),
+  );
+
+  return emptyClientInvoiceForm(client, {
+    invoiceOwnerId: String(transaction.user_id || transaction.client_owner_id || client.owner_id || ""),
+    subject: String(
+      invoiceMeta?.subject || meta?.productCategory || dealSubjectFromName(itemName) || "",
+    ).trim(),
+    invoiceDate: invoiceDateInput(
+      invoiceMeta?.invoiceDate || meta?.invoiceSentDate || transaction.issued_date || transaction.transacted_at,
+    ),
+    dueDate: invoiceDateInput(invoiceMeta?.dueDate || meta?.paymentCommitmentDate || transaction.due_date),
+    clientId: String(transaction.customer_id || client.id || ""),
+    contactName: String(invoiceMeta?.contactName || meta?.contactName || client.contact_person || ""),
+    currency: String(invoiceMeta?.currency || client.currency || "PHP").trim() || "PHP",
+    status: invoiceStatus(transaction, invoiceMeta?.status || meta?.invoiceStatus),
+    collectionDate: invoiceDateInput(invoiceMeta?.collectionDate || meta?.invoiceReceivedDate),
+    officialReceipt: invoiceDateInput(invoiceMeta?.officialReceipt),
+    exchangeRate: String(invoiceMeta?.exchangeRate || client.exchange_rate || "1").trim() || "1",
+    billingStreet: savedAddress ? String(invoiceMeta?.billingStreet ?? "").trim() : clientAddress.billingStreet,
+    billingCity: savedAddress ? String(invoiceMeta?.billingCity ?? "").trim() : clientAddress.billingCity,
+    billingState: savedAddress ? String(invoiceMeta?.billingState ?? "").trim() : clientAddress.billingState,
+    billingRegion: savedAddress
+      ? String(invoiceMeta?.billingRegion ?? "").trim() || regionForProvince(String(invoiceMeta?.billingState ?? ""))
+      : clientAddress.billingRegion,
+    billingCode: savedAddress ? String(invoiceMeta?.billingCode ?? "").trim() : clientAddress.billingCode,
+    billingCountry: savedAddress
+      ? String(invoiceMeta?.billingCountry || clientAddress.billingCountry).trim() || "Philippines"
+      : clientAddress.billingCountry,
+    items: items.length ? items : [emptyInvoiceLineItem()],
+    adjustment: String(invoiceMeta?.adjustment ?? transaction.shipping_total ?? ""),
+  });
+}
+
 export function invoiceCellValue(invoice: ClientInvoiceRow, column: InvoiceColumnKey) {
-  return invoice[column] || "—";
+  if (column === "grandTotal") return formatDealAmount(invoice.grandTotal);
+  const value = invoice[column];
+  if (typeof value === "number") return formatDealAmount(value);
+  return value || "—";
 }
 
 export function buildClientInvoiceRows(
@@ -373,12 +486,13 @@ export function buildClientInvoiceRows(
       const meta = parseDealMeta(transaction.notes);
       const itemName = String(transaction.items?.[0]?.name ?? transaction.transaction_no ?? "").trim();
       const invoiceOwner = assignedStaffName(transaction) || owner;
+      const transactionNo = String(transaction.transaction_no ?? "").trim();
 
       return {
         id: String(transaction.id),
         transactionId: transaction.id,
         invoiceOwner: invoiceOwner || "Unassigned",
-        productCategory: dash(
+        subject: dash(
           invoiceMeta?.subject || meta?.productCategory,
           dealSubjectFromName(itemName),
         ),
@@ -404,6 +518,11 @@ export function buildClientInvoiceRows(
         billingState: dash(invoiceMeta?.billingState, billingState),
         billingCode: dash(invoiceMeta?.billingCode, billingCode),
         billingCountry: dash(invoiceMeta?.billingCountry, billingCountry),
+        billingInCharge: dash(
+          meta?.billingInCharge || client.billing_in_charge || transaction.customer?.billing_in_charge,
+        ),
+        wsiInvoiceNumber: dash(transactionNo ? `INV-${transactionNo}` : ""),
+        grandTotal: Number(transaction.grand_total) || 0,
       };
     });
 }
