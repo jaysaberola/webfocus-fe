@@ -27,7 +27,7 @@ function ManageUsers() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
   const [sortBy, setSortBy] = useState<string>("updated_at");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showInactiveOnly, setShowInactiveOnly] = useState<boolean>(false);

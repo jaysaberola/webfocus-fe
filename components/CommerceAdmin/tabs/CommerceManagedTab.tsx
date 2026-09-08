@@ -39,8 +39,8 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 type ManagedSubTab = "services" | "discounts";
 
-const GRID_PAGE_SIZE = 6;
-const LIST_PAGE_SIZE = 8;
+const GRID_PAGE_SIZE = 10;
+const LIST_PAGE_SIZE = 10;
 
 const SERVICE_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "name", label: "Service Name", mode: "contains" },

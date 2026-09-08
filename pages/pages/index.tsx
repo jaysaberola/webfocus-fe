@@ -46,7 +46,7 @@ export default function ManagePages() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
   const [showDeleted, setShowDeleted] = useState(false);
   const [sortBy, setSortBy] = useState<string>('modified');
   const [sortOrder, setSortOrder] = useState<string>('desc');

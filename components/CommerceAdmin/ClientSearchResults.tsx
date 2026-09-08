@@ -11,7 +11,7 @@ import type { CustomerRow } from "@/services/customerService";
 import type { SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
-const SECTION_PAGE_SIZE = 5;
+const SECTION_PAGE_SIZE = 10;
 
 type Props = {
   search: string;

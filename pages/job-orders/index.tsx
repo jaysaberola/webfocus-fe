@@ -27,7 +27,7 @@ function ManageJobOrders() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
   const [detailOrder, setDetailOrder] = useState<JobOrder | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<JobOrder | null>(null);

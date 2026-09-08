@@ -30,7 +30,7 @@ function ManageCoupons() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [perPage, setPerPage] = useState(5);
+  const [perPage, setPerPage] = useState(10);
   const [modalMode, setModalMode] = useState<"create" | "edit" | "view" | null>(null);
   const [selected, setSelected] = useState<Coupon | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Coupon | null>(null);

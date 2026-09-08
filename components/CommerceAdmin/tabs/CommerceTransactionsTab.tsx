@@ -92,7 +92,7 @@ import {
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import styles from "@/styles/commerceAdmin.module.css";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 const SEEN_DEALS_KEY = "commerceAdmin:seenDealIds";
 
 function readSeenDealIds(): number[] {

@@ -27,7 +27,7 @@ function ManageCustomers() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(() => listCache?.currentPage ?? 1);
   const [totalPages, setTotalPages] = useState(() => listCache?.totalPages ?? 1);
-  const [perPage, setPerPage] = useState(() => listCache?.perPage ?? 5);
+  const [perPage, setPerPage] = useState(() => listCache?.perPage ?? 10);
   const [sortBy, setSortBy] = useState<string>("updated_at");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [showInactiveOnly, setShowInactiveOnly] = useState<boolean>(false);

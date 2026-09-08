@@ -110,7 +110,7 @@ export function CmsModuleSortHeader({
   );
 }
 
-export const DEFAULT_CMS_TABLE_PAGE_SIZE = 5;
+export const DEFAULT_CMS_TABLE_PAGE_SIZE = 10;
 
 export const cmsModuleTableProps = {
   wrapperClassName: "cms-table-wrap",

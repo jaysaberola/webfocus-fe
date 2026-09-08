@@ -50,7 +50,7 @@ import ApprovalReviewModal from "@/components/CommerceAdmin/modals/ApprovalRevie
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 const APPROVAL_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "kind", label: "Queue Type" },
