@@ -65,6 +65,33 @@ const isTextPreview = (name: string) =>
 type ViewMode = 'grid' | 'list';
 type SortKey  = 'name' | 'size' | 'date';
 
+const VIEW_STORAGE_KEY = 'cms-file-manager:view';
+
+function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (mode: ViewMode) => void }) {
+  return (
+    <div className="btn-group cms-file-manager__view-toggle" role="group" aria-label="View mode">
+      <button
+        type="button"
+        className={`btn btn-sm ${value === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
+        aria-pressed={value === 'grid'}
+        onClick={() => onChange('grid')}
+      >
+        <i className="fa-solid fa-grip me-1" aria-hidden="true" />
+        Grid
+      </button>
+      <button
+        type="button"
+        className={`btn btn-sm ${value === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
+        aria-pressed={value === 'list'}
+        onClick={() => onChange('list')}
+      >
+        <i className="fa-solid fa-list me-1" aria-hidden="true" />
+        List
+      </button>
+    </div>
+  );
+}
+
 // ── Portal Modal ────────────────────────────────────────────────
 function PortalModal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   const [mounted, setMounted] = useState(false);
@@ -223,6 +250,24 @@ export default function FileManagerPage() {
 
   useEffect(() => { fetchContent(''); }, [fetchContent]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (saved === 'grid' || saved === 'list') setViewMode(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const changeView = (mode: ViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, mode);
+    } catch {
+      /* ignore */
+    }
+  };
+
   const navigate = (path: string) => {
     setCurrentPath(path);
     setBreadcrumbs(path ? path.split('/').filter(Boolean) : []);
@@ -368,26 +413,6 @@ export default function FileManagerPage() {
       title="Manage Files"
       description="Browse, upload, and organize files in your storage."
       icon="fa-solid fa-folder-open"
-      actions={(
-        <div className="btn-group cms-file-manager__view-toggle" role="group" aria-label="View mode">
-          <button
-            type="button"
-            className={`btn btn-sm ${viewMode === 'grid' ? 'btn-primary' : 'btn-outline-secondary'}`}
-            onClick={() => setViewMode('grid')}
-          >
-            <i className="fa-solid fa-grip me-1" aria-hidden="true" />
-            Grid
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline-secondary'}`}
-            onClick={() => setViewMode('list')}
-          >
-            <i className="fa-solid fa-list me-1" aria-hidden="true" />
-            List
-          </button>
-        </div>
-      )}
       stats={[
         { label: 'Items', value: sorted.length },
         { label: 'Folders', value: folderCount, tone: 'accent' },
@@ -424,6 +449,8 @@ export default function FileManagerPage() {
 
         <div className="vr d-none d-md-block" />
 
+        <ViewToggle value={viewMode} onChange={changeView} />
+
         <select
           className="form-select form-select-sm cms-file-manager__sort"
           value={sortKey}
@@ -447,15 +474,18 @@ export default function FileManagerPage() {
 
         {singleSelectedFile && !singleSelectedFile.isDirectory && (
           <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
-            onClick={() => handlePreview(singleSelectedFile)}>
-            Preview
+            onClick={() => handlePreview(singleSelectedFile)}
+            title="Preview">
+            <i className="fa-solid fa-eye" aria-hidden="true" />
           </button>
         )}
 
         {selectedDownloadableFiles.length > 0 && (
           <button type="button" className="btn btn-sm btn-outline-secondary cms-module__toolbar-btn"
-            onClick={handleDownloadSelected}>
-            Download ({selectedDownloadableFiles.length})
+            onClick={handleDownloadSelected}
+            title={`Download (${selectedDownloadableFiles.length})`}>
+            <i className="fa-solid fa-download me-1" aria-hidden="true" />
+            {selectedDownloadableFiles.length > 1 ? selectedDownloadableFiles.length : null}
           </button>
         )}
 
@@ -541,24 +571,23 @@ export default function FileManagerPage() {
 
         /* Grid view */
         ) : viewMode === 'grid' ? (
-          <div className="cms-file-manager__grid row g-3">
+          <div className="cms-file-manager__grid">
             {sorted.map((file) => (
-              <div key={file.path} className="col-6 col-sm-4 col-md-3 col-xl-2">
-                <div
-                  className={`card h-100 text-center position-relative fm-card ${selected.has(file.path) ? 'border-primary' : 'border'}`}
-                  style={{
-                    cursor: 'pointer',
-                    background: selected.has(file.path) ? '#eff6ff' : '#fff',
-                    transition: 'all 0.12s',
-                  }}
-                  onClick={(e) => file.isDirectory ? navigate(file.path) : toggleSelect(file.path, e)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setContextMenu({ x: e.clientX, y: e.clientY, file });
-                  }}
-                >
+              <div
+                key={file.path}
+                className={`text-center position-relative fm-card ${selected.has(file.path) ? 'is-selected' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  background: selected.has(file.path) ? '#eff6ff' : '#fff',
+                }}
+                onClick={(e) => file.isDirectory ? navigate(file.path) : toggleSelect(file.path, e)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, file });
+                }}
+              >
                   {/* Checkbox */}
-                  <div className="position-absolute top-0 start-0 p-2"
+                  <div className="position-absolute top-0 start-0 cms-file-manager__check"
                     onClick={(e) => toggleSelect(file.path, e)}>
                     <input
                       type="checkbox"
@@ -571,64 +600,71 @@ export default function FileManagerPage() {
                   {/* Rename btn — visible on hover via CSS */}
                   <button
                     type="button"
-                    className="btn btn-sm btn-light position-absolute top-0 end-0 m-1 px-1 py-0 fm-rename-btn"
-                    style={{ fontSize: 12, lineHeight: '1.8' }}
+                    className="btn btn-sm btn-light position-absolute top-0 end-0 fm-rename-btn"
                     onClick={(e) => { e.stopPropagation(); setRenaming(file); setRenameValue(file.name); }}>
                     ✎
                   </button>
 
-                  <div className="card-body d-flex flex-column align-items-center justify-content-center gap-2 p-3 pt-4">
-                    {/* Image thumbnail or emoji icon */}
-                    {!file.isDirectory && isImage(file.name) ? (
-                      <div
-                        style={{ width: 60, height: 60, borderRadius: 8, overflow: 'hidden', border: '1px solid #dee2e6', cursor: 'zoom-in' }}
-                        onClick={(e) => { e.stopPropagation(); setPreview(file); }}>
-                        <img
-                          src={getFileUrl(file)}
-                          alt={file.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: 38 }}>{file.isDirectory ? '📁' : getFileIcon(file.name)}</span>
-                    )}
-
-                    <div>
-                      <p className="mb-0 small fw-medium text-truncate" style={{ maxWidth: 110 }} title={file.name}>
-                        {file.name}
-                      </p>
-                      {!file.isDirectory && (
-                        <p className="mb-0 text-muted" style={{ fontSize: 11 }}>{formatSize(file.size)}</p>
+                  <div className="cms-file-manager__card-body">
+                    <div className="cms-file-manager__preview">
+                      {!file.isDirectory && isImage(file.name) ? (
+                        <div
+                          className="cms-file-manager__thumb"
+                          onClick={(e) => { e.stopPropagation(); setPreview(file); }}>
+                          <img
+                            src={getFileUrl(file)}
+                            alt={file.name}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        </div>
+                      ) : (
+                        <span className="cms-file-manager__emoji">{file.isDirectory ? '📁' : getFileIcon(file.name)}</span>
                       )}
                     </div>
-                    {!file.isDirectory && (
-                      <div className="d-flex gap-1 justify-content-center flex-wrap" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-secondary py-0 px-2"
-                          onClick={() => handlePreview(file)}
-                        >
-                          Preview
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-secondary py-0 px-2"
-                          onClick={() => handleDownload(file)}
-                        >
-                          Download
-                        </button>
-                      </div>
-                    )}
+
+                    <div className="cms-file-manager__meta">
+                      <p className="cms-file-manager__name" title={file.name}>
+                        {file.name}
+                      </p>
+                      <p className="mb-0 cms-file-manager__size">
+                        {file.isDirectory ? '\u00a0' : formatSize(file.size)}
+                      </p>
+                    </div>
+                    <div
+                      className={`cms-file-manager__file-actions${file.isDirectory ? ' cms-file-manager__file-actions--spacer' : ''}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {!file.isDirectory && (
+                        <>
+                          <button
+                            type="button"
+                            className="cms-file-manager__icon-btn"
+                            onClick={() => handlePreview(file)}
+                            title="Preview"
+                            aria-label="Preview"
+                          >
+                            <i className="fa-solid fa-eye" aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            className="cms-file-manager__icon-btn"
+                            onClick={() => handleDownload(file)}
+                            title="Download"
+                            aria-label="Download"
+                          >
+                            <i className="fa-solid fa-download" aria-hidden="true" />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
               </div>
             ))}
           </div>
 
         /* List view */
         ) : (
-          <div className="cms-table-wrap">
+          <div className="cms-table-wrap cms-file-manager__list">
             <table className="dt-enhanced-table mb-0">
                 <thead>
                   <tr>
@@ -670,16 +706,24 @@ export default function FileManagerPage() {
                           {!file.isDirectory && (
                             <button
                               type="button"
-                              className="btn btn-sm btn-outline-secondary py-0 px-2"
+                              className="cms-file-manager__icon-btn"
                               onClick={(e) => { e.stopPropagation(); handlePreview(file); }}
-                              title="Preview">Preview</button>
+                              title="Preview"
+                              aria-label="Preview"
+                            >
+                              <i className="fa-solid fa-eye" aria-hidden="true" />
+                            </button>
                           )}
                           {!file.isDirectory && (
                             <button
                               type="button"
-                              className="btn btn-sm btn-outline-secondary py-0 px-2"
+                              className="cms-file-manager__icon-btn"
                               onClick={(e) => { e.stopPropagation(); handleDownload(file); }}
-                              title="Download">Download</button>
+                              title="Download"
+                              aria-label="Download"
+                            >
+                              <i className="fa-solid fa-download" aria-hidden="true" />
+                            </button>
                           )}
                           <button
                             type="button"

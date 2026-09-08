@@ -406,8 +406,8 @@
 }
 
 .cms-file-manager__content {
-  min-height: 420px;
-  padding: 16px;
+  min-height: 320px;
+  padding: 12px;
   border: 2.5px solid transparent;
   border-radius: var(--cm-radius);
   background: #fff;
@@ -420,19 +420,187 @@
   background: rgba(13, 110, 253, 0.03);
 }
 
+.cms-file-manager__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 12px;
+  justify-content: stretch;
+  align-items: start;
+}
+
 .cms-file-manager__grid .fm-card {
+  width: 100%;
+  min-width: 0;
+  height: 168px;
+  margin: 0;
+  padding: 0;
+  background: #fff;
   border: 1px solid var(--cm-border);
-  border-radius: 14px;
-  box-shadow: var(--cm-shadow);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  transform: none;
+}
+
+.cms-file-manager__grid .fm-card.is-selected {
+  border-color: #2563eb;
+  background: #eff6ff;
 }
 
 .cms-file-manager__grid .fm-card:hover {
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
+  transform: none;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+}
+
+.cms-file-manager__card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  gap: 0.3rem;
+  padding: 1.55rem 0.55rem 0.5rem;
+  box-sizing: border-box;
+}
+
+.cms-file-manager__check {
+  padding: 0.35rem;
+}
+
+.cms-file-manager__check .form-check-input {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin: 0;
+}
+
+.cms-file-manager__grid .fm-rename-btn {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: 0.25rem;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 0.3rem;
+}
+
+.cms-file-manager__preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.cms-file-manager__thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #dee2e6;
+  cursor: zoom-in;
+  flex-shrink: 0;
+}
+
+.cms-file-manager__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cms-file-manager__emoji {
+  font-size: 1.85rem;
+  line-height: 1;
+}
+
+.cms-file-manager__meta {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cms-file-manager__name {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.cms-file-manager__size {
+  min-height: 1em;
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.cms-file-manager__file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+  height: 1.55rem;
+  margin-top: auto;
+}
+
+.cms-file-manager__file-actions--spacer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cms-file-manager__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.4rem;
+  background: #fff;
+  color: #334155;
+  font-size: 0.68rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.cms-file-manager__icon-btn:hover,
+.cms-file-manager__icon-btn:focus-visible {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  outline: none;
+}
+
+.cms-file-manager__view-toggle {
+  flex-shrink: 0;
 }
 
 .cms-file-manager__view-toggle .btn {
   min-height: 38px;
+  padding: 0 12px;
   border-radius: 10px;
+  font-weight: 600;
+}
+
+.cms-file-manager__list {
+  overflow: auto;
+}
+
+.cms-file-manager__list table {
+  width: 100%;
+}
+
+.cms-file-manager__list tbody tr:hover {
+  background: #f8fafc;
 }
 
 .cms-access-matrix__module-row td {
