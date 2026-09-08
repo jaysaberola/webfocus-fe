@@ -4,6 +4,7 @@ import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesConten
 import { activateCmsPageAnimations, cleanupPublicPageScripts } from "@/lib/publicPageScripts";
 import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
+import { initHomePortfolioModal } from "@/lib/initHomePortfolioModal";
 import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
 import { useEffect, useLayoutEffect, useRef } from "react";
 
@@ -129,6 +130,7 @@ export default function PublicPageView({ pageData, htmlContent }: PublicPageView
     };
 
     run();
+    const stopPortfolioFix = initHomePortfolioModal();
 
     const observer = new MutationObserver((mutations) => {
       const shouldReinit = mutations.some((mutation) => {
@@ -149,6 +151,7 @@ export default function PublicPageView({ pageData, htmlContent }: PublicPageView
 
     return () => {
       observer.disconnect();
+      stopPortfolioFix();
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };

@@ -1126,3 +1126,23 @@ export function installCanvasInteractionGuards(
     },
   };
 }
+
+/** Keep home portfolio cards as image tiles, not GrapesJS form buttons labeled "Send". */
+export function registerHomePortfolioComponents(editor: any) {
+  try {
+    editor.DomComponents.addType("wsi-portfolio-zoom", {
+      isComponent: (el: HTMLElement) => Boolean(el?.classList?.contains("wsi-portfolio-zoom")),
+      model: {
+        defaults: {
+          tagName: "button",
+          droppable: true,
+          editable: false,
+          stylable: true,
+          void: false,
+        },
+      },
+    });
+  } catch {
+    // Keep native parsing if the type cannot be registered.
+  }
+}

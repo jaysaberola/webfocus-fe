@@ -5,6 +5,7 @@ import api from '@/lib/axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CmsModuleShell from '@/components/Modules/CmsModuleShell';
+import { resolveStorageAssetUrl } from '@/lib/storageAssets';
 
 const DISK = 'public' as const;
 
@@ -283,8 +284,8 @@ export default function FileManagerPage() {
   });
 
   const getFileUrl = (file: FMFile) => {
-    const encodedPath = file.path.split('/').map(encodeURIComponent).join('/');
-    return `${process.env.NEXT_PUBLIC_API_URL}/storage/${encodedPath}`;
+    const encodedPath = file.path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+    return resolveStorageAssetUrl(encodedPath) ?? '';
   };
 
   const selectedFiles = files.filter((file) => selected.has(file.path));
@@ -606,17 +607,24 @@ export default function FileManagerPage() {
                   </button>
 
                   <div className="cms-file-manager__card-body">
-                    <div className="cms-file-manager__preview">
+                    <div
+                      className={`cms-file-manager__preview${
+                        !file.isDirectory && isImage(file.name) ? ' cms-file-manager__preview--image' : ''
+                      }`}
+                    >
                       {!file.isDirectory && isImage(file.name) ? (
-                        <div
+                        <button
+                          type="button"
                           className="cms-file-manager__thumb"
-                          onClick={(e) => { e.stopPropagation(); setPreview(file); }}>
+                          onClick={(e) => { e.stopPropagation(); setPreview(file); }}
+                          title="Preview"
+                        >
                           <img
                             src={getFileUrl(file)}
                             alt={file.name}
                             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                           />
-                        </div>
+                        </button>
                       ) : (
                         <span className="cms-file-manager__emoji">{file.isDirectory ? '📁' : getFileIcon(file.name)}</span>
                       )}
@@ -692,8 +700,17 @@ export default function FileManagerPage() {
                         />
                       </td>
                       <td>
-                        <div className="d-flex align-items-center gap-2">
-                          <span style={{ fontSize: 18 }}>{file.isDirectory ? '📁' : getFileIcon(file.name)}</span>
+                        <div className="d-flex align-items-center gap-2 cms-file-manager__list-name">
+                          {!file.isDirectory && isImage(file.name) ? (
+                            <img
+                              className="cms-file-manager__list-thumb"
+                              src={getFileUrl(file)}
+                              alt=""
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="cms-file-manager__list-emoji">{file.isDirectory ? '📁' : getFileIcon(file.name)}</span>
+                          )}
                           <span className={`fw-medium ${file.isDirectory ? 'text-primary' : 'text-dark'}`}>
                             {file.name}
                           </span>

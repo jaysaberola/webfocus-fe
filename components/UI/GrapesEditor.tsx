@@ -20,6 +20,7 @@ import {
   registerStudioEditorFeatures,
   unlockCanvasPageScroll,
   ensureComponentAnimationTrait,
+  registerHomePortfolioComponents,
 } from "./grapesStudioFeatures";
 import {
   activateStudioTextFormatting,
@@ -1329,6 +1330,7 @@ export default function GrapesEditor({
     registerAdvancedCmsBlocks(editor);
     registerDesignedStudioBlocks(editor);
     registerCmsButtonType(editor);
+    registerHomePortfolioComponents(editor);
     enhanceFoundationBlocks(editor);
 
     const blockSearchRef = blockSearchQueryRef;

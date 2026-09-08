@@ -133,7 +133,7 @@ export const cmsStudioCanvasCss = `
     color: #0f172a;
   }
 
-  button,
+  button:not(.wsi-portfolio-zoom):not(.wsi-slider-btn):not(.wsi-portfolio-modal-prev):not(.wsi-portfolio-modal-next):not(.wsi-portfolio-modal-close),
   input[type="submit"],
   input[type="button"] {
     display: inline-flex;
@@ -150,6 +150,35 @@ export const cmsStudioCanvasCss = `
     line-height: 1.2;
     white-space: nowrap;
     cursor: pointer;
+  }
+
+  .wsi-portfolio-zoom {
+    position: relative !important;
+    display: block !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #f1f5f9 !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    font-weight: 400 !important;
+    line-height: 0 !important;
+    white-space: normal !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    cursor: zoom-in !important;
+    aspect-ratio: 16 / 10;
+  }
+
+  .wsi-portfolio-zoom img {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    object-fit: cover !important;
+    object-position: top center !important;
   }
 
   form {

@@ -22,6 +22,13 @@ body {
   flex-direction: column;
 }
 
+html,
+body,
+#__next {
+  width: 100%;
+  max-width: 100%;
+}
+
 .public-site-shell {
   flex: 1 1 auto;
   width: 100%;
@@ -29,6 +36,17 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: clip;
+}
+
+.public-site-main,
+.public-site-main > .container-fluid,
+.public-page-content,
+.wsi-home-cms,
+.public-site-footer-host,
+.public-site-footer-host .wsi-footer,
+#wsi-site-footer.wsi-footer {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 :root {
@@ -159,11 +177,223 @@ body {
   margin-bottom: 0 !important;
 }
 
-/* Home portfolio modal: keep hidden unless opened (prevents leak on route change) */
+/* Portfolio preview must overlay the viewport, not sit under the footer. */
+.wsi-portfolio-modal {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  z-index: 2147483000 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.72);
+  box-sizing: border-box;
+}
+
 .wsi-portfolio-modal:not(.is-open):not(.is-closing) {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+.wsi-portfolio-modal.is-open,
+.wsi-portfolio-modal.is-closing {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+.wsi-portfolio-modal.is-open {
+  opacity: 1 !important;
+}
+
+.wsi-portfolio-modal-panel {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: max-content !important;
+  max-width: min(960px, calc(100vw - 2.5rem)) !important;
+  max-height: min(90vh, 920px) !important;
+  overflow: hidden !important;
+  background: #fff !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.35);
+}
+
+.wsi-portfolio-modal-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.75rem !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0.85rem 1rem !important;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.wsi-portfolio-modal-title {
+  margin: 0 !important;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.wsi-portfolio-modal-close {
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+}
+
+.wsi-portfolio-modal-body {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  background: #0f172a !important;
+}
+
+.wsi-portfolio-modal.is-open .wsi-portfolio-modal-body img,
+.wsi-portfolio-modal-body img {
+  display: block !important;
+  width: auto !important;
+  max-width: min(960px, calc(100vw - 2.5rem)) !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 auto !important;
+  object-fit: unset !important;
+}
+
+.wsi-portfolio-modal-footer {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 0.65rem 1rem !important;
+  flex-shrink: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 0.75rem 1rem !important;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.wsi-portfolio-modal-footer .wsi-portfolio-modal-nav {
+  display: none !important;
+}
+
+.wsi-portfolio-modal-prev,
+.wsi-portfolio-modal-next {
+  position: absolute !important;
+  top: 50% !important;
+  z-index: 8 !important;
+  width: 2.85rem !important;
+  height: 2.85rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  background: rgba(255, 255, 255, 0.96) !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.28) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transform: translateY(-50%) !important;
+}
+
+.wsi-portfolio-modal-prev {
+  left: 14px !important;
+}
+
+.wsi-portfolio-modal-next {
+  right: 14px !important;
+}
+
+.wsi-portfolio-modal-prev:hover,
+.wsi-portfolio-modal-next:hover {
+  background: #ffffff !important;
+  color: #1d4ed8 !important;
+}
+
+.wsi-portfolio-modal-prev svg,
+.wsi-portfolio-modal-next svg {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+}
+
+.wsi-portfolio-modal-counter {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.public-page-content .wsi-portfolio-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+
+.public-page-content .wsi-portfolio-card {
+  flex: none !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-page-content .wsi-portfolio-body {
+  flex: 1 1 auto;
+}
+
+.public-page-content .wsi-portfolio-zoom {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: #f1f5f9 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  overflow: hidden !important;
+  aspect-ratio: 16 / 10;
+}
+
+.public-page-content .wsi-portfolio-zoom img {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: top center !important;
+}
+
+@media (max-width: 991px) {
+  .public-page-content .wsi-portfolio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .public-page-content .wsi-portfolio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Contact Us page form controls */
