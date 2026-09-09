@@ -11,12 +11,15 @@ import {
 import BillingPaymentModal from "@/components/CustomerPortal/BillingPaymentModal";
 import BillingPaymentProofListModal from "@/components/CustomerPortal/BillingPaymentProofListModal";
 import BillingPaymentProofModal from "@/components/CustomerPortal/BillingPaymentProofModal";
+import ConfirmModal from "@/components/UI/ConfirmModal";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
+import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
   addPortalFunds,
+  deletePortalInvoices,
   deletePortalPaymentProof,
   fetchPortalBilling,
   notifyPortalNotificationsUpdated,
@@ -219,6 +222,8 @@ export default function BillingTab() {
   const [signedFile, setSignedFile] = useState<File | null>(null);
   const [uploadingSigned, setUploadingSigned] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<InvoiceSortKey>("issued-desc");
   const PAGE_SIZE = 10;
@@ -281,6 +286,14 @@ export default function BillingTab() {
     const ids = new Set(selection.selectedIds);
     return filteredInvoices.filter((inv) => ids.has(String(inv.id)));
   }, [filteredInvoices, selection.selectedIds]);
+
+  const deletableInvoices = useMemo(
+    () =>
+      selectedInvoices.filter(
+        (inv) => inv.canDelete !== false && inv.status !== "Paid" && inv.status !== "Awaiting Approval",
+      ),
+    [selectedInvoices],
+  );
 
   const rangeStart = filteredInvoices.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * PAGE_SIZE, filteredInvoices.length);
@@ -471,6 +484,46 @@ export default function BillingTab() {
     }
   };
 
+  const handleDeleteSelected = () => {
+    if (selectedInvoices.length === 0 || deleting) return;
+    if (deletableInvoices.length === 0) {
+      toast.warning("Paid or approved invoices cannot be deleted.");
+      return;
+    }
+    setDeleteOpen(true);
+  };
+
+  const confirmDeleteSelected = async () => {
+    if (deletableInvoices.length === 0 || deleting) return;
+    setDeleting(true);
+    try {
+      const result = await deletePortalInvoices(deletableInvoices.map((inv) => inv.id));
+      const deleted = result.data?.deleted ?? [];
+      const skipped = result.data?.skipped ?? [];
+      releaseCartQuotationsForTransactionNos(
+        deleted
+          .map((id) => id.replace(/^INV-/i, ""))
+          .concat(deletableInvoices.map((inv) => inv.transactionNo ?? inv.id.replace(/^INV-/i, ""))),
+      );
+      selection.clearSelection();
+      setDeleteOpen(false);
+      notifyPortalNotificationsUpdated();
+      await loadBilling({ dateFrom: dateRange.from || undefined, dateTo: dateRange.to || undefined });
+      if (deleted.length > 0) {
+        toast.success(deleted.length === 1 ? "Invoice deleted." : `${deleted.length} invoices deleted.`);
+      }
+      if (skipped.length > 0) {
+        toast.warning(
+          skipped.length === 1 ? skipped[0].reason : `${skipped.length} invoices could not be deleted.`,
+        );
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not delete the selected invoices.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handlePaymentSubmit = async (paymentMethod: string, amount?: number) => {
     try {
       setSubmitting(true);
@@ -622,7 +675,9 @@ export default function BillingTab() {
             selectedCount={selection.selectedCount}
             entityLabel="invoice"
             exporting={exporting}
+            deleting={deleting}
             onExport={handleExportSelected}
+            onDelete={handleDeleteSelected}
             onClear={selection.clearSelection}
           />
         ) : null}
@@ -950,6 +1005,27 @@ export default function BillingTab() {
           </button>
         </div>
       </PortalModal>
+
+      <ConfirmModal
+        show={deleteOpen}
+        title={deletableInvoices.length === 1 ? "Delete this invoice?" : "Delete selected invoices?"}
+        message={
+          deletableInvoices.length === 1
+            ? `Delete ${deletableInvoices[0]?.id}? This cannot be undone.`
+            : selectedInvoices.length === deletableInvoices.length
+              ? `Delete ${deletableInvoices.length} selected invoices? This cannot be undone.`
+              : `Delete ${deletableInvoices.length} of ${selectedInvoices.length} selected invoices? Paid or approved invoices will be kept.`
+        }
+        confirmLabel={deleting ? "Deleting..." : "Yes, delete"}
+        cancelLabel="Keep invoices"
+        danger
+        onConfirm={() => {
+          if (!deleting) void confirmDeleteSelected();
+        }}
+        onCancel={() => {
+          if (!deleting) setDeleteOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -27,6 +27,8 @@ export type PortalInvoice = {
   proposalFileName?: string | null;
   proposalUrl?: string | null;
   actionsDisabled?: boolean;
+  recordId?: number;
+  canDelete?: boolean;
 };
 
 export type PortalOrder = {

@@ -120,6 +120,19 @@ export async function createPortalTicket(payload: {
   return res.data?.data;
 }
 
+export async function deletePortalInvoices(invoiceIds: string[]) {
+  const res = await axiosInstance.post("/customer/portal/billing/delete", {
+    invoice_ids: invoiceIds,
+  });
+  return res.data as {
+    message: string;
+    data?: {
+      deleted: string[];
+      skipped: Array<{ invoiceId: string; reason: string }>;
+    };
+  };
+}
+
 export async function payPortalInvoice(payload: {
   invoiceId: string;
   paymentMethod: string;

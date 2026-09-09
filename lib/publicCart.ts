@@ -112,6 +112,26 @@ export function applyQuotationTransactionNumbers(
   return next;
 }
 
+/** After a pending quotation invoice is deleted, allow that cart item to be submitted again. */
+export function releaseCartQuotationsForTransactionNos(transactionNos: Array<string | null | undefined>) {
+  const allowed = new Set(
+    transactionNos
+      .map((value) => String(value || "").replace(/^INV-/i, "").trim())
+      .filter(Boolean),
+  );
+  if (!allowed.size || typeof window === "undefined") return;
+
+  const current = readPublicCart();
+  let changed = false;
+  const next = current.map((item) => {
+    const orderNo = String(item.quotationTransactionNo || "").replace(/^INV-/i, "").trim();
+    if (!orderNo || !allowed.has(orderNo)) return item;
+    changed = true;
+    return { ...item, quotationTransactionNo: null };
+  });
+  if (changed) writePublicCart(next);
+}
+
 export function cartUnsubmittedQuotationItems(items: PublicCartItem[]) {
   return cartHeldQuotationItems(items).filter((item) => !isQuotationSubmittedCartItem(item));
 }
