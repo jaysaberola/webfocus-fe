@@ -10,13 +10,14 @@ import {
   restorePublicCartFromCheckoutBackup,
 } from "@/lib/publicCart";
 import { fetchPortalBilling } from "@/services/customerPortalService";
+import { confirmPaynamicsPayment } from "@/services/salesTransactionService";
 import { toast } from "@/lib/toast";
 
 function notifyPaidCartCleared() {
   toast.success("Payment received. Paid items were removed from your cart.");
 }
 
-async function confirmPaidCheckoutFromServer() {
+async function confirmPaidCheckoutFromServer(options?: { confirmGateway?: boolean }) {
   const session = readPublicCartCheckoutSession();
   if (!session || session.settled === "paid" || session.settled === "abandoned") {
     return false;
@@ -26,6 +27,18 @@ async function confirmPaidCheckoutFromServer() {
   }
 
   try {
+    if (options?.confirmGateway && session.requestId) {
+      try {
+        const confirmed = await confirmPaynamicsPayment(session.requestId);
+        if (isPaidCheckoutStatus(confirmed?.status)) {
+          finalizePaidPublicCartCheckout();
+          return true;
+        }
+      } catch {
+        // Fall through to billing so a late IPN can still clear the cart.
+      }
+    }
+
     const billing = await fetchPortalBilling();
     const paidInvoice = (billing.invoices ?? []).find((invoice) =>
       checkoutSessionMatchesPaidInvoice({
@@ -73,7 +86,7 @@ export default function PaynamicsReturnHandler() {
         toast.error("Payment was not completed. Your cart items are still saved.");
       }
     } else {
-      void confirmPaidCheckoutFromServer().then((paid) => {
+      void confirmPaidCheckoutFromServer({ confirmGateway: true }).then((paid) => {
         if (paid) notifyPaidCartCleared();
       });
     }

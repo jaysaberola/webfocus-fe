@@ -119,6 +119,18 @@ export const checkoutWithPaynamics = async (
   return res.data;
 };
 
+export const confirmPaynamicsPayment = async (requestId: string) => {
+  const res = await axiosInstance.post("/public/paynamics/confirm", {
+    request_id: requestId,
+  });
+
+  return res.data as {
+    message: string;
+    request_id: string;
+    status: string;
+  };
+};
+
 export const updateSalesTransaction = async (
   id: number,
   payload: SalesTransactionPayload
