@@ -1,6 +1,7 @@
 import { axiosInstance } from "@/services/axios";
 import { readStoredAuthToken, storeAuthToken, clearStoredAuthToken } from "@/lib/authToken";
 import { storeCurrentUser } from "@/lib/currentUser";
+import { bindPublicCartToCustomer } from "@/lib/publicCart";
 import { isCustomerUser } from "@/lib/userRoles";
 
 const CUSTOMER_KEY = "cms4.publicCustomer.v1";
@@ -43,6 +44,7 @@ export const storeCustomer = (customer: PublicCustomer | null, options?: { notif
   if (typeof window === "undefined") return;
   if (!customer) localStorage.removeItem(CUSTOMER_KEY);
   else localStorage.setItem(CUSTOMER_KEY, JSON.stringify(customer));
+  bindPublicCartToCustomer(customer?.id ?? null);
   if (options?.notify !== false) {
     window.dispatchEvent(new Event("public-customer-updated"));
   }

@@ -25,10 +25,126 @@ export type PublicCartItem = {
   clientNotes?: string;
 };
 
-const CART_KEY = "cms4.publicCart.v1";
+const CART_KEY_BASE = "cms4.publicCart.v1";
 /** Full cart snapshot while Paynamics checkout is in progress (survives browser Back). */
-const CHECKOUT_BACKUP_KEY = "cms4.publicCart.checkoutBackup.v1";
-const CHECKOUT_SESSION_KEY = "cms4.publicCart.checkoutSession.v1";
+const CHECKOUT_BACKUP_KEY_BASE = "cms4.publicCart.checkoutBackup.v1";
+const CHECKOUT_SESSION_KEY_BASE = "cms4.publicCart.checkoutSession.v1";
+/** Same storage key as publicCustomerService — read directly to avoid circular imports. */
+const CUSTOMER_STORAGE_KEY = "cms4.publicCustomer.v1";
+
+/** Active account for cart reads/writes. `undefined` = resolve from localStorage. */
+let activeCartCustomerId: number | null | undefined = undefined;
+
+function resolveCartCustomerId(): number | null {
+  if (activeCartCustomerId !== undefined) return activeCartCustomerId;
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    const id = Number(parsed?.id);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+function storageKey(base: string, customerId: number | null = resolveCartCustomerId()) {
+  return customerId ? `${base}.customer.${customerId}` : base;
+}
+
+function cartStorageKey(customerId?: number | null) {
+  return storageKey(CART_KEY_BASE, customerId === undefined ? resolveCartCustomerId() : customerId);
+}
+
+function checkoutBackupStorageKey(customerId?: number | null) {
+  return storageKey(
+    CHECKOUT_BACKUP_KEY_BASE,
+    customerId === undefined ? resolveCartCustomerId() : customerId,
+  );
+}
+
+function checkoutSessionStorageKey(customerId?: number | null) {
+  return storageKey(
+    CHECKOUT_SESSION_KEY_BASE,
+    customerId === undefined ? resolveCartCustomerId() : customerId,
+  );
+}
+
+function readStoredCartJson(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One-time: move legacy shared cart into this customer's bucket so older browsers
+ * don't lose items — and so the next account cannot inherit that shared cart.
+ */
+function migrateLegacySharedCartIntoCustomer(customerId: number) {
+  if (typeof window === "undefined" || !(customerId > 0)) return;
+  const scopedKey = cartStorageKey(customerId);
+  const scopedRaw = readStoredCartJson(scopedKey);
+  if (scopedRaw && scopedRaw !== "[]") return;
+
+  const legacyRaw = readStoredCartJson(CART_KEY_BASE);
+  if (!legacyRaw || legacyRaw === "[]") return;
+
+  try {
+    localStorage.setItem(scopedKey, legacyRaw);
+    localStorage.removeItem(CART_KEY_BASE);
+  } catch {
+    // ignore
+  }
+
+  // Also move legacy checkout artifacts if present.
+  try {
+    const legacyBackup =
+      sessionStorage.getItem(CHECKOUT_BACKUP_KEY_BASE) ||
+      localStorage.getItem(CHECKOUT_BACKUP_KEY_BASE);
+    if (legacyBackup) {
+      const scopedBackup = checkoutBackupStorageKey(customerId);
+      sessionStorage.setItem(scopedBackup, legacyBackup);
+      localStorage.setItem(scopedBackup, legacyBackup);
+      sessionStorage.removeItem(CHECKOUT_BACKUP_KEY_BASE);
+      localStorage.removeItem(CHECKOUT_BACKUP_KEY_BASE);
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const legacySession =
+      sessionStorage.getItem(CHECKOUT_SESSION_KEY_BASE) ||
+      localStorage.getItem(CHECKOUT_SESSION_KEY_BASE);
+    if (legacySession) {
+      const scopedSession = checkoutSessionStorageKey(customerId);
+      sessionStorage.setItem(scopedSession, legacySession);
+      localStorage.setItem(scopedSession, legacySession);
+      sessionStorage.removeItem(CHECKOUT_SESSION_KEY_BASE);
+      localStorage.removeItem(CHECKOUT_SESSION_KEY_BASE);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Bind the live cart to a customer account (or guest when null).
+ * Switching accounts loads that account's own cart — never another user's.
+ */
+export function bindPublicCartToCustomer(customerId: number | null | undefined) {
+  const nextId =
+    customerId != null && Number(customerId) > 0 ? Number(customerId) : null;
+  activeCartCustomerId = nextId;
+  if (nextId) {
+    migrateLegacySharedCartIntoCustomer(nextId);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("public-cart-updated"));
+  }
+}
 
 export type PublicCartCheckoutSession = {
   transactionId?: number | null;
@@ -190,8 +306,9 @@ function normalizeCartItem(item: PublicCartItem): PublicCartItem {
 
 export const readPublicCart = (): PublicCartItem[] => {
   if (typeof window === "undefined") return [];
+  const key = cartStorageKey();
   try {
-    const parsed = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    const parsed = JSON.parse(localStorage.getItem(key) || "[]");
     if (!Array.isArray(parsed)) return [];
     const normalized = parsed.map((item) => normalizeCartItem(item as PublicCartItem));
     // Persist upgraded quote flags so UI stays consistent across refreshes.
@@ -199,7 +316,7 @@ export const readPublicCart = (): PublicCartItem[] => {
       const raw = JSON.stringify(parsed);
       const next = JSON.stringify(normalized);
       if (raw !== next) {
-        localStorage.setItem(CART_KEY, next);
+        localStorage.setItem(key, next);
       }
     } catch {
       // ignore storage write errors
@@ -213,13 +330,14 @@ export const readPublicCart = (): PublicCartItem[] => {
 function persistCheckoutBackup(items: PublicCartItem[]) {
   if (typeof window === "undefined") return;
   const payload = JSON.stringify(items.map(normalizeCartItem));
+  const key = checkoutBackupStorageKey();
   try {
-    sessionStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+    sessionStorage.setItem(key, payload);
   } catch {
     // ignore
   }
   try {
-    localStorage.setItem(CHECKOUT_BACKUP_KEY, payload);
+    localStorage.setItem(key, payload);
   } catch {
     // ignore
   }
@@ -238,7 +356,7 @@ export const writePublicCart = (
 ) => {
   if (typeof window === "undefined") return;
   const normalized = items.map(normalizeCartItem);
-  localStorage.setItem(CART_KEY, JSON.stringify(normalized));
+  localStorage.setItem(cartStorageKey(), JSON.stringify(normalized));
   if (options?.syncCheckoutBackup !== false) {
     syncCheckoutBackupWithCart(normalized);
   }
@@ -330,10 +448,9 @@ export function cartHeldQuotationItems(items: PublicCartItem[]) {
 
 function readCheckoutBackup(): PublicCartItem[] | null {
   if (typeof window === "undefined") return null;
+  const key = checkoutBackupStorageKey();
   try {
-    const raw =
-      sessionStorage.getItem(CHECKOUT_BACKUP_KEY) ||
-      localStorage.getItem(CHECKOUT_BACKUP_KEY);
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
@@ -345,10 +462,9 @@ function readCheckoutBackup(): PublicCartItem[] | null {
 
 function readCheckoutSession(): PublicCartCheckoutSession | null {
   if (typeof window === "undefined") return null;
+  const key = checkoutSessionStorageKey();
   try {
-    const raw =
-      sessionStorage.getItem(CHECKOUT_SESSION_KEY) ||
-      localStorage.getItem(CHECKOUT_SESSION_KEY);
+    const raw = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PublicCartCheckoutSession;
     if (!parsed || typeof parsed !== "object") return null;
@@ -361,13 +477,14 @@ function readCheckoutSession(): PublicCartCheckoutSession | null {
 function persistCheckoutSession(session: PublicCartCheckoutSession) {
   if (typeof window === "undefined") return;
   const payload = JSON.stringify(session);
+  const key = checkoutSessionStorageKey();
   try {
-    sessionStorage.setItem(CHECKOUT_SESSION_KEY, payload);
+    sessionStorage.setItem(key, payload);
   } catch {
     // ignore
   }
   try {
-    localStorage.setItem(CHECKOUT_SESSION_KEY, payload);
+    localStorage.setItem(key, payload);
   } catch {
     // ignore
   }
@@ -379,13 +496,14 @@ export function readPublicCartCheckoutSession() {
 
 export function clearPublicCartCheckoutSession() {
   if (typeof window === "undefined") return;
+  const key = checkoutSessionStorageKey();
   try {
-    sessionStorage.removeItem(CHECKOUT_SESSION_KEY);
+    sessionStorage.removeItem(key);
   } catch {
     // ignore
   }
   try {
-    localStorage.removeItem(CHECKOUT_SESSION_KEY);
+    localStorage.removeItem(key);
   } catch {
     // ignore
   }
@@ -454,13 +572,14 @@ export function restorePublicCartFromCheckoutBackup(): PublicCartItem[] | null {
 
 export function clearPublicCartCheckoutBackup() {
   if (typeof window === "undefined") return;
+  const key = checkoutBackupStorageKey();
   try {
-    sessionStorage.removeItem(CHECKOUT_BACKUP_KEY);
+    sessionStorage.removeItem(key);
   } catch {
     // ignore
   }
   try {
-    localStorage.removeItem(CHECKOUT_BACKUP_KEY);
+    localStorage.removeItem(key);
   } catch {
     // ignore
   }
