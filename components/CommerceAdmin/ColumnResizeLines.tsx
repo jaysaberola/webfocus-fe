@@ -21,6 +21,7 @@ export default function ColumnResizeLines<K extends string>({
     <div className={styles.colResizeLines}>
       {columns.map((column) => {
         offset += widthOf(column);
+        if (String(column).startsWith("__")) return null;
         return (
           <span
             key={column}

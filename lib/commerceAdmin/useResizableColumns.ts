@@ -69,7 +69,9 @@ export function useResizableColumns<K extends string>(
 
   const rawWidthOf = useCallback(
     (key: K) => {
-      if (isFixedColumn(key)) return widths[key] ?? FIXED_COL_WIDTH;
+      if (isFixedColumn(key)) {
+        return widths[key] ?? preferredWidths?.[key] ?? FIXED_COL_WIDTH;
+      }
       return widths[key] ?? preferredWidths?.[key] ?? defaultColumnWidth(labelFor(key));
     },
     [labelFor, preferredWidths, widths],
