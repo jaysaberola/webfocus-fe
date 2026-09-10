@@ -256,5 +256,10 @@ export function formatPeso(amount: number) {
 }
 
 export function customerDisplayName(fname?: string | null, lname?: string | null) {
-  return [fname, lname].filter(Boolean).join(" ") || "Client";
+  const first = String(fname || "").trim();
+  const last = String(lname || "").trim();
+  // Signup used to store a placeholder last name; never show it as part of the name.
+  const placeholderLast = /^(customer|user)$/i.test(last);
+  const parts = [first, placeholderLast ? "" : last].filter(Boolean);
+  return parts.join(" ") || "Client";
 }

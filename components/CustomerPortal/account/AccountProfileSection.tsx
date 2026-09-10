@@ -44,8 +44,8 @@ type ProfileForm = {
 
 function splitRepresentativeName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return { fname: "Customer", lname: "User" };
-  if (parts.length === 1) return { fname: parts[0], lname: "User" };
+  if (!parts.length) return { fname: "", lname: "" };
+  if (parts.length === 1) return { fname: parts[0], lname: "" };
   return { fname: parts[0], lname: parts.slice(1).join(" ") };
 }
 

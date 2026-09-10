@@ -37,7 +37,7 @@ function CustomerSignupPage() {
       setLoading(true);
       await customerSignup({
         fname: form.username.trim(),
-        lname: "Customer",
+        lname: "",
         email: form.email.trim(),
         mobile: form.mobile.trim() || undefined,
         password: form.password,
