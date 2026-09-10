@@ -854,13 +854,17 @@ export default function BillingTab() {
                               <>
                                 {inv.proposalSubmitted ? (
                                   <option value="download-proposal">Download Proposal Quotation</option>
-                                ) : null}
+                                ) : (
+                                  <option value="" disabled>
+                                    Waiting for Sales proposal
+                                  </option>
+                                )}
                                 {inv.proposalSubmitted && !inv.proposalSigned ? (
                                   <option value="upload-signed">Upload Signed Proposal (v2)</option>
                                 ) : null}
                                 {inv.proposalSigned ? (
                                   <option value="download-proposal" disabled>
-                                    Signed proposal submitted
+                                    Signed proposal submitted — waiting for payment request
                                   </option>
                                 ) : null}
                               </>

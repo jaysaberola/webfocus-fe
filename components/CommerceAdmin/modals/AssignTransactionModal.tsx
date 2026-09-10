@@ -99,7 +99,7 @@ export default function AssignTransactionModal({
               {assignableFor === "client_owner"
                 ? "Choose a Client Owner from the Customer Care list"
                 : assignableFor === "sales_staff"
-                  ? "Choose Myrna Glorioso or Michelle Durian"
+                  ? "Choose an active Sales Staff for this web design order"
                   : restrictRoles?.length
                     ? "Choose an active Sales Staff user"
                     : "Choose an active staff user (customers excluded)"}

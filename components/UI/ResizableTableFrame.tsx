@@ -17,8 +17,6 @@ type Props = {
   columns: string[];
   labels?: Record<string, string>;
   selectColumn?: boolean;
-  /** Keep the table inside its card; resize steals width from the next column instead of overflowing. */
-  lockToContainer?: boolean;
   className?: string;
   children: ReactElement;
 };
@@ -28,7 +26,6 @@ export default function ResizableTableFrame({
   columns,
   labels = {},
   selectColumn = false,
-  lockToContainer = false,
   className,
   children,
 }: Props) {
@@ -37,9 +34,7 @@ export default function ResizableTableFrame({
     (key: string) => (key === SELECT_KEY ? "Select" : labels[key] || key),
     [labels],
   );
-  const { containerRef, layoutFor, startResize } = useResizableColumns(storageKey, labelFor, {
-    lockToContainer,
-  });
+  const { containerRef, layoutFor, startResize } = useResizableColumns(storageKey, labelFor);
   const layout = layoutFor(keys);
   const table = Children.only(children);
 
@@ -53,7 +48,7 @@ export default function ResizableTableFrame({
     <div
       ref={containerRef}
       className={[styles.wrap, className].filter(Boolean).join(" ")}
-      style={{ overflowX: lockToContainer || !layout.overflowing ? "hidden" : "auto" }}
+      style={{ overflowX: layout.overflowing ? "auto" : "hidden" }}
     >
       <div className={styles.inner} style={{ width: layout.innerWidth }}>
         {cloneElement(tableElement, {
@@ -73,7 +68,7 @@ export default function ResizableTableFrame({
         <div className={styles.lines}>
           {keys.map((key) => {
             offset += layout.widthOf(key);
-            if (key.startsWith("__") || key === "select") return null;
+            if (key.startsWith("__")) return null;
             return (
               <span
                 key={key}

@@ -389,10 +389,15 @@ export default function CommerceTransactionsTab() {
         if (!isProposalSubmittedTransaction(row)) return true;
         return isProposalSignedTransaction(row);
       })
-      .map((row) => ({
-        row,
-        action: isProposalSignedTransaction(row) ? ("proceed" as const) : ("upload" as const),
-      }));
+      .map((row) => {
+        if (!isProposalSubmittedTransaction(row)) {
+          return { row, action: "upload" as const };
+        }
+        if (Number(row.grand_total || 0) <= 0) {
+          return { row, action: "set-price" as const };
+        }
+        return { row, action: "proceed" as const };
+      });
   }, [rows, currentUser]);
 
   useEffect(() => {
@@ -556,6 +561,11 @@ export default function CommerceTransactionsTab() {
     else if (action === "webdesign:set-price") setWebDesignPriceTarget(row);
     else if (action === "webdesign:upload-proposal") setProposalTarget(row);
     else if (action === "webdesign:proceed-payment") {
+      if (Number(row.grand_total || 0) <= 0) {
+        setWebDesignPriceTarget(row);
+        toast.info("Set the package price first, then click Proceed Payment.");
+        return;
+      }
       try {
         await proceedWebDesignPayment(row.id);
         toast.success(`Payment requested for ${row.transaction_no}. The client was notified to upload proof of payment.`);
@@ -1083,45 +1093,103 @@ export default function CommerceTransactionsTab() {
                     </div>
                     <div className={styles.txGridFooter}>
                       <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
-                      {canManageWebDesignOrder(row, currentUser) &&
-                      isPendingQuotationTransaction(row) &&
-                      !isProposalSubmittedTransaction(row) ? (
-                        <button
-                          type="button"
-                          className={styles.primaryBtnSm}
-                          onClick={() => setProposalTarget(row)}
-                        >
-                          Upload Proposal
-                        </button>
-                      ) : canManageWebDesignOrder(row, currentUser) &&
-                        isProposalSignedTransaction(row) &&
-                        isPendingQuotationTransaction(row) ? (
-                        <button
-                          type="button"
-                          className={styles.primaryBtnSm}
-                          onClick={() => void handleAction(row, "webdesign:proceed-payment")}
-                        >
-                          Proceed Payment
-                        </button>
-                      ) : canAssign &&
-                        isWebDesignTransaction(row) &&
-                        isPendingQuotationTransaction(row) ? (
-                        <button
-                          type="button"
-                          className={styles.primaryBtnSm}
-                          onClick={() => setAssignTarget(row)}
-                        >
-                          Assign Sales Staff
-                        </button>
-                      ) : isPendingQuotationTransaction(row) ? (
-                        <span className={styles.badgePending}>Pending Quotation</span>
-                      ) : !isPaidStatus(row.payment_status) ? (
-                        <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
-                          Mark Paid
-                        </button>
-                      ) : (
-                        <span className={styles.statusActive}>Verified</span>
-                      )}
+                      {(() => {
+                        const canManage = canManageWebDesignOrder(row, currentUser);
+                        const pending = isPendingQuotationTransaction(row);
+                        const webDesign = isWebDesignTransaction(row);
+                        const proposalSubmitted = isProposalSubmittedTransaction(row);
+                        const proposalSigned = isProposalSignedTransaction(row);
+                        const priced = Number(row.grand_total || 0) > 0;
+
+                        if (canManage && pending && !proposalSubmitted) {
+                          return (
+                            <div className={styles.txGridFooterActions}>
+                              {!priced ? (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtnSm}
+                                  onClick={() => void handleAction(row, "webdesign:set-price")}
+                                >
+                                  Set Price
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={styles.primaryBtnSm}
+                                onClick={() => setProposalTarget(row)}
+                              >
+                                Upload Proposal
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        if (canManage && pending && proposalSubmitted && !proposalSigned) {
+                          return (
+                            <div className={styles.txGridFooterActions}>
+                              {!priced ? (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtnSm}
+                                  onClick={() => void handleAction(row, "webdesign:set-price")}
+                                >
+                                  Set Price
+                                </button>
+                              ) : null}
+                              <span className={styles.badgePending}>Awaiting Client Signature</span>
+                            </div>
+                          );
+                        }
+
+                        if (canManage && pending && proposalSigned) {
+                          return (
+                            <div className={styles.txGridFooterActions}>
+                              {!priced ? (
+                                <button
+                                  type="button"
+                                  className={styles.secondaryBtnSm}
+                                  onClick={() => void handleAction(row, "webdesign:set-price")}
+                                >
+                                  Set Price
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={styles.primaryBtnSm}
+                                onClick={() => void handleAction(row, "webdesign:proceed-payment")}
+                              >
+                                Proceed Payment
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        if (canAssign && webDesign && pending && !canManage) {
+                          return (
+                            <button
+                              type="button"
+                              className={styles.primaryBtnSm}
+                              onClick={() => setAssignTarget(row)}
+                            >
+                              Assign Sales Staff
+                            </button>
+                          );
+                        }
+
+                        if (pending) {
+                          return <span className={styles.badgePending}>Pending Quotation</span>;
+                        }
+
+                        if (!isPaidStatus(row.payment_status)) {
+                          return (
+                            <button type="button" className={styles.primaryBtnSm} onClick={() => void markPaid(row)}>
+                              Mark Paid
+                            </button>
+                          );
+                        }
+
+                        return <span className={styles.statusActive}>Verified</span>;
+                      })()}
                     </div>
                   </article>
                   );
@@ -1258,7 +1326,9 @@ export default function CommerceTransactionsTab() {
                       <td>
                         {item.action === "upload"
                           ? "Upload Proposal Quotation"
-                          : "Proceed Payment — signed proposal received"}
+                          : item.action === "set-price"
+                            ? "Set package price before Proceed Payment"
+                            : "Proceed Payment — signed proposal received"}
                       </td>
                       <td>
                         <button
@@ -1267,10 +1337,18 @@ export default function CommerceTransactionsTab() {
                           onClick={() => {
                             setNeededOpen(false);
                             if (item.action === "upload") setProposalTarget(item.row);
-                            else void handleAction(item.row, "webdesign:proceed-payment");
+                            else if (item.action === "set-price") {
+                              void handleAction(item.row, "webdesign:set-price");
+                            } else {
+                              void handleAction(item.row, "webdesign:proceed-payment");
+                            }
                           }}
                         >
-                          {item.action === "upload" ? "Upload" : "Proceed"}
+                          {item.action === "upload"
+                            ? "Upload"
+                            : item.action === "set-price"
+                              ? "Set Price"
+                              : "Proceed"}
                         </button>
                       </td>
                     </tr>
@@ -1490,7 +1568,7 @@ export default function CommerceTransactionsTab() {
         open={!!assignTarget}
         transaction={assignTarget}
         assignableFor={
-          assignTarget && isWebDesignTransaction(assignTarget) ? "client_owner" : undefined
+          assignTarget && isWebDesignTransaction(assignTarget) ? "sales_staff" : undefined
         }
         onClose={() => setAssignTarget(null)}
         onAssigned={(updated) => {

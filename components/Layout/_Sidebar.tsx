@@ -1,10 +1,8 @@
 import Link from "next/link";
-import { useRouter } from "next/router";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getCurrentUserCached, initialsForUser, readStoredCurrentUser, resolveAvatarUrl, subscribeCurrentUserUpdated, userPermissionsLoaded } from "@/lib/currentUser";
 import { canAccessCommercePortal, CMS_NAV_ITEMS, COMMERCE_PORTAL_ITEM, filterCmsNavItems } from "@/lib/navPermissions";
-import { prefetchCommerceAdmin } from "@/lib/commerceAdmin/prefetchCommerceAdmin";
 import { getRoleDisplayLabel } from "@/lib/userRoles";
 import type { User } from "@/services/accountService";
 type SidebarProps = {
@@ -16,7 +14,6 @@ type SidebarProps = {
 
 export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
   const [currentUser, setCurrentUser] = useState<User | null>(() => readStoredCurrentUser());
   const [userLoaded, setUserLoaded] = useState(() => readStoredCurrentUser() != null);
@@ -76,11 +73,6 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
     }
     return sections;
   }, [currentUser]);
-
-  useEffect(() => {
-    if (!canAccessCommercePortal(currentUser)) return;
-    prefetchCommerceAdmin(router);
-  }, [currentUser, router]);
 
   const roleLabel = useMemo(() => getRoleDisplayLabel(currentUser), [currentUser]);
 
@@ -144,11 +136,11 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
       </div>
 
       <div className="sb-viewsite">
-        <a href="/public/home" target="_blank" rel="noopener noreferrer">
+        <Link href="/public/home" target="_blank" rel="noopener noreferrer">
           <span className="sb-viewsite-dot" />
           View Website
           <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: 10, opacity: 0.7 }} />
-        </a>
+        </Link>
       </div>
 
       <nav className="sb-nav">
@@ -164,29 +156,6 @@ export default function Sidebar({ isOpen, isMobile, onClose, width }: SidebarPro
               const highlightParent = parentActive || childActive || isExpanded;
 
               if (!hasChildren) {
-                if (item.openInNewTab) {
-                  return (
-                    <a
-                      key={item.href}
-                      href={item.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={handleSingleNavClick(item)}
-                      onMouseEnter={() => prefetchCommerceAdmin(router)}
-                      onFocus={() => prefetchCommerceAdmin(router)}
-                      data-cms-tour={`nav${item.href}`}
-                      className={`sb-single-link${isPathActive(item.href) ? " sb-active" : ""}`}
-                    >
-                      <i className={`${item.icon} sb-nav-icon`} />
-                      <span className="sb-nav-label">{item.label}</span>
-                      <i
-                        className="fa-solid fa-arrow-up-right-from-square"
-                        style={{ fontSize: 10, opacity: 0.7, marginLeft: "auto" }}
-                      />
-                    </a>
-                  );
-                }
-
                 return (
                   <Link
                     key={item.href}
