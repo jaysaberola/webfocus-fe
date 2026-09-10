@@ -6,6 +6,7 @@ import {
   cartCount,
   formatCartItemPrice,
   formatCartSubtotalLabel,
+  isPendingQuotationCartItem,
   PublicCartItem,
   readPublicCart,
   removePublicCartItem,
@@ -17,6 +18,43 @@ import {
 import { canUsePublicCart, getStaffCartBlockReason } from "@/lib/publicCartAccess";
 import { usePublicCartDrawer } from "./PublicCartDrawerContext";
 import styles from "@/styles/publicCartDrawer.module.css";
+
+function cartItemTitle(item: PublicCartItem) {
+  const meta = resolveWebDesignCartMeta(item);
+  if (meta?.templateLabel) return `${meta.templateLabel} · ${item.name}`;
+  return item.name;
+}
+
+function cartItemMetaLines(item: PublicCartItem) {
+  const meta = resolveWebDesignCartMeta(item);
+  const lines: string[] = [];
+
+  if (meta) {
+    if (meta.packageName && meta.packageName !== item.name) {
+      lines.push(meta.packageName);
+    } else if (item.category) {
+      const label = cartCategoryLabel(item.category);
+      if (label && label.toLowerCase() !== "design") {
+        lines.push(label);
+      } else {
+        lines.push("Agency Web Design");
+      }
+    } else {
+      lines.push("Agency Web Design");
+    }
+    if (meta.templateLabel) lines.push(`Template: ${meta.templateLabel}`);
+    const extras = webDesignAdditionalServicesLabel(meta);
+    if (extras) lines.push(`Add-ons: ${extras}`);
+    return lines;
+  }
+
+  if (item.category) {
+    const label = cartCategoryLabel(item.category);
+    if (label) lines.push(label);
+  }
+  if (item.qty > 1) lines.push(`Qty: ${item.qty}`);
+  return lines;
+}
 
 export default function PublicCartDrawer() {
   const router = useRouter();
@@ -84,7 +122,14 @@ export default function PublicCartDrawer() {
       <button type="button" className={styles.backdrop} aria-label="Close cart" onClick={closeDrawer} />
       <aside className={styles.drawer} role="dialog" aria-modal="true" aria-label="Shopping cart">
         <div className={styles.header}>
-          <h2 className={styles.title}>Cart</h2>
+          <div>
+            <h2 className={styles.title}>Cart</h2>
+            {itemCount > 0 ? (
+              <p className={styles.subtitle}>
+                {itemCount} item{itemCount === 1 ? "" : "s"}
+              </p>
+            ) : null}
+          </div>
           <button type="button" className={styles.closeBtn} aria-label="Close cart" onClick={closeDrawer}>
             <i className="fa-solid fa-xmark" aria-hidden="true" />
           </button>
@@ -92,37 +137,53 @@ export default function PublicCartDrawer() {
 
         <div className={styles.body}>
           {items.length === 0 ? (
-            <p className={styles.emptyState}>Your shopping cart is currently empty.</p>
+            <div className={styles.emptyWrap}>
+              <span className={styles.emptyIcon} aria-hidden="true">
+                <i className="fa-solid fa-bag-shopping" />
+              </span>
+              <p className={styles.emptyState}>Your shopping cart is currently empty.</p>
+              <p className={styles.emptyHint}>Browse services to add packages to your cart.</p>
+            </div>
           ) : (
             <div className={styles.itemList}>
               {items.map((item) => {
-                const meta = resolveWebDesignCartMeta(item);
-                const extras = webDesignAdditionalServicesLabel(meta);
+                const pending = isPendingQuotationCartItem(item);
+                const metaLines = cartItemMetaLines(item);
                 return (
-                <article key={item.key} className={styles.itemCard}>
-                  <div className={styles.itemMain}>
-                    <span className={styles.itemBadge}>{cartCategoryLabel(item.category)}</span>
-                    <div className={styles.itemTopRow}>
-                      <h3 className={styles.itemName}>
-                        {meta?.templateLabel ? `${meta.templateLabel} · ${item.name}` : item.name}
-                      </h3>
-                      <span className={styles.itemPrice}>{formatCartItemPrice(item)}</span>
+                  <article key={item.key} className={styles.itemCard}>
+                    <div className={styles.itemHead}>
+                      <span className={styles.itemBadge}>{cartCategoryLabel(item.category)}</span>
+                      <button
+                        type="button"
+                        className={styles.removeBtn}
+                        aria-label={`Remove ${item.name} from cart`}
+                        onClick={() => removeItem(item.key)}
+                      >
+                        <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                      </button>
                     </div>
-                    {extras ? (
-                      <p className={styles.itemDetail}>Add-ons: {extras}</p>
-                    ) : item.detail ? (
-                      <p className={styles.itemDetail}>{item.detail}</p>
+
+                    <h3 className={styles.itemName}>{cartItemTitle(item)}</h3>
+
+                    <div className={styles.itemMetaRow}>
+                      <span
+                        className={pending ? styles.pricePending : styles.priceValue}
+                      >
+                        {formatCartItemPrice(item)}
+                      </span>
+                      {!pending && item.qty > 1 ? (
+                        <span className={styles.qtyChip}>Qty {item.qty}</span>
+                      ) : null}
+                    </div>
+
+                    {metaLines.length > 0 ? (
+                      <ul className={styles.metaList}>
+                        {metaLines.map((line) => (
+                          <li key={line}>{line}</li>
+                        ))}
+                      </ul>
                     ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    className={styles.removeBtn}
-                    aria-label={`Remove ${item.name} from cart`}
-                    onClick={() => removeItem(item.key)}
-                  >
-                    <i className="fa-regular fa-trash-can" aria-hidden="true" />
-                  </button>
-                </article>
+                  </article>
                 );
               })}
             </div>
@@ -131,14 +192,12 @@ export default function PublicCartDrawer() {
 
         <div className={styles.footer}>
           <div className={styles.summaryRow}>
-            <span>{itemCount} item{itemCount === 1 ? "" : "s"}</span>
-            <span>
-              Subtotal <strong>{formatCartSubtotalLabel(items)}</strong>
-            </span>
+            <span className={styles.summaryLabel}>Subtotal</span>
+            <strong className={styles.summaryValue}>{formatCartSubtotalLabel(items)}</strong>
           </div>
 
           {staffBlockReason && items.length > 0 ? (
-            <p className={styles.emptyState}>{staffBlockReason}</p>
+            <p className={styles.staffNotice}>{staffBlockReason}</p>
           ) : null}
 
           {staffBlockReason ? (
@@ -158,15 +217,9 @@ export default function PublicCartDrawer() {
             </Link>
           )}
 
-          <Link
-            href={browseHref}
-            className={styles.browseBtn}
-            onClick={closeDrawer}
-          >
+          <Link href={browseHref} className={styles.browseBtn} onClick={closeDrawer}>
             Keep Browsing
           </Link>
-
-          
         </div>
       </aside>
     </div>
