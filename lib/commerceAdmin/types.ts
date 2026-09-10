@@ -3,6 +3,7 @@ export type CommerceAdminTab =
   | "clients"
   | "orders"
   | "approvals"
+  | "billing"
   | "managed"
   | "contracts"
   | "notifications"

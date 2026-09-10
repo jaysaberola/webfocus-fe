@@ -5,7 +5,6 @@ import { canAccessCommerceTab } from "@/lib/navPermissions";
 import { scheduleIdleTask } from "@/lib/publicAuthState";
 import type { User } from "@/services/accountService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
-import AdminPortalNav from "./AdminPortalNav";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -48,31 +47,27 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
   }, []);
 
   return (
-    <>
-      <AdminPortalNav active="commerce" />
-
-      <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
-        {visibleTabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          const showBadge = "badge" in tab && tab.badge && pendingApprovals > 0;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              className={isActive ? styles.moduleTabBtnActive : styles.moduleTabBtn}
-              onClick={() => onTabChange(tab.id as CommerceAdminTab)}
-            >
-              <i className={tab.icon} aria-hidden="true" />
-              {tab.label}
-              {showBadge ? (
-                <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
-                  {pendingApprovals > 9 ? "9+" : pendingApprovals}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </nav>
-    </>
+    <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
+      {visibleTabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        const showBadge = "badge" in tab && tab.badge && pendingApprovals > 0;
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            className={isActive ? styles.moduleTabBtnActive : styles.moduleTabBtn}
+            onClick={() => onTabChange(tab.id as CommerceAdminTab)}
+          >
+            <i className={tab.icon} aria-hidden="true" />
+            {tab.label}
+            {showBadge ? (
+              <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
+                {pendingApprovals > 9 ? "9+" : pendingApprovals}
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </nav>
   );
 }

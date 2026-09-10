@@ -107,24 +107,30 @@ export function hasClientBillingAddress(client?: CustomerRow | null) {
 }
 
 export function emptyClientInvoiceForm(
-  client?: CustomerRow | null,
+  _client?: CustomerRow | null,
   overrides?: Partial<ClientInvoiceFormState>,
 ): ClientInvoiceFormState {
+  // New invoices stay blank for the user to fill — only Invoice Date is automatic.
   return {
-    invoiceOwnerId: client?.owner_id ? String(client.owner_id) : "",
+    invoiceOwnerId: "",
     subject: "",
     invoiceDate: todayInput(),
     dueDate: "",
-    clientId: client?.id ? String(client.id) : "",
-    contactName: String(client?.contact_person ?? ""),
-    currency: String(client?.currency || "PHP").trim() || "PHP",
-    status: "Approved",
+    clientId: "",
+    contactName: "",
+    currency: "PHP",
+    status: "",
     collectionDate: "",
     officialReceipt: "",
-    exchangeRate: String(client?.exchange_rate ?? "1").trim() || "1",
+    exchangeRate: "1",
     items: [emptyInvoiceLineItem()],
     adjustment: "",
-    ...invoiceAddressFromClient(client),
+    billingStreet: "",
+    billingCity: "",
+    billingState: "",
+    billingRegion: "",
+    billingCode: "",
+    billingCountry: "Philippines",
     ...overrides,
   };
 }
@@ -525,6 +531,61 @@ export function buildClientInvoiceRows(
         grandTotal: Number(transaction.grand_total) || 0,
       };
     });
+}
+
+export function customerRowFromTransaction(transaction: SalesTransaction): CustomerRow {
+  const customer = transaction.customer;
+  const id = Number(customer?.id ?? transaction.customer_id ?? 0);
+  const company = String(customer?.mname || customer?.company || "").trim();
+  const personName = [customer?.fname, customer?.lname]
+    .map((part) => String(part ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
+  const fallbackName = String(transaction.customer_name ?? "")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
+  const ownerName = customer?.owner
+    ? [customer.owner.fname, customer.owner.lname].filter(Boolean).join(" ").trim() ||
+      String(customer.owner.name ?? "").trim()
+    : "";
+
+  return {
+    id,
+    name: company || personName || fallbackName || "—",
+    email: String(customer?.email || transaction.customer_email || ""),
+    role: "customer",
+    status: "Active",
+    company: company || undefined,
+    contact_person: customer?.contact_person ?? (personName || fallbackName || undefined),
+    billing_in_charge: customer?.billing_in_charge ?? undefined,
+    owner_id: customer?.owner_id ?? undefined,
+    owner: customer?.owner
+      ? {
+          id: customer.owner.id,
+          name: ownerName || customer.owner.email || null,
+          email: customer.owner.email ?? null,
+        }
+      : null,
+    owner_name: ownerName || null,
+  };
+}
+
+export function buildGlobalInvoiceRows(transactions: SalesTransaction[]): ClientInvoiceRow[] {
+  const invoiceTagged = transactions.filter((transaction) => hasInvoiceMeta(transaction.notes));
+  const source = invoiceTagged.length > 0 ? invoiceTagged : transactions;
+
+  const sorted = [...source].sort((a, b) => {
+    const byDate =
+      new Date(b.issued_date ?? b.transacted_at ?? b.created_at ?? 0).getTime() -
+      new Date(a.issued_date ?? a.transacted_at ?? a.created_at ?? 0).getTime();
+    return byDate !== 0 ? byDate : Number(b.id) - Number(a.id);
+  });
+
+  return sorted.flatMap((transaction) =>
+    buildClientInvoiceRows(customerRowFromTransaction(transaction), [transaction]),
+  );
 }
 
 export { fetchCustomerDealTransactions };

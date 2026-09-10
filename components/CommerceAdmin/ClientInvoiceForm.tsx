@@ -31,7 +31,6 @@ import {
   regionForProvince,
   streetsForPlace,
 } from "@/lib/commerceAdmin/phAddressCatalog";
-import { readStoredCurrentUser } from "@/lib/currentUser";
 import { toast } from "@/lib/toast";
 import {
   assignCommerceSalesTransaction,
@@ -129,25 +128,14 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
   };
 
   const blankInvoiceForm = (
-    nextOwners = owners,
-    nextClients = clients,
-  ): ClientInvoiceFormState => {
-    const currentUser = readStoredCurrentUser();
-    const defaultOwner =
-      nextOwners.find((owner) => String(owner.id) === String(client.owner_id)) ??
-      nextOwners.find((owner) => owner.id === currentUser?.id) ??
-      nextOwners[0];
-    const defaultClient =
-      nextClients.find((row) => Number(row.id) === Number(client.id)) ?? client;
-    return emptyClientInvoiceForm(defaultClient, {
-      invoiceOwnerId: defaultOwner ? String(defaultOwner.id) : "",
-    });
-  };
+    _nextOwners = owners,
+    _nextClients = clients,
+  ): ClientInvoiceFormState => emptyClientInvoiceForm();
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const customerId = Number(transaction?.customer_id || client.id);
+    const customerId = Number(transaction?.customer_id || (Number(client.id) > 0 ? client.id : 0));
     Promise.all([
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
@@ -159,12 +147,16 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
         if (cancelled) return;
         const ownerList = Array.isArray(nextOwners) ? nextOwners : [];
         let clientList = Array.isArray(clientRes?.data) ? clientRes.data : [];
-        const detailedClient: CustomerRow = {
-          ...client,
-          ...(detail ?? {}),
-          id: detail?.id ?? client.id,
-        };
-        if (detailedClient.id) {
+        const detailedClient: CustomerRow | null = detail
+          ? {
+              ...client,
+              ...detail,
+              id: detail.id ?? client.id,
+            }
+          : Number(client.id) > 0
+            ? client
+            : null;
+        if (detailedClient?.id) {
           const matchIndex = clientList.findIndex((row) => Number(row.id) === Number(detailedClient.id));
           if (matchIndex >= 0) {
             clientList = clientList.map((row, index) =>
@@ -177,18 +169,11 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
         setOwners(ownerList);
         setClients(clientList);
         const defaultClient =
-          clientList.find((row) => Number(row.id) === Number(customerId || client.id)) ?? detailedClient;
-        const currentUser = readStoredCurrentUser();
-        const defaultOwner =
-          ownerList.find((owner) => String(owner.id) === String(defaultClient.owner_id || client.owner_id)) ??
-          ownerList.find((owner) => owner.id === currentUser?.id) ??
-          ownerList[0];
+          clientList.find((row) => Number(row.id) === Number(customerId)) ?? detailedClient;
         setForm(
           transaction
-            ? invoiceFormFromTransaction(transaction, defaultClient)
-            : emptyClientInvoiceForm(defaultClient, {
-                invoiceOwnerId: defaultOwner ? String(defaultOwner.id) : "",
-              }),
+            ? invoiceFormFromTransaction(transaction, defaultClient ?? client)
+            : emptyClientInvoiceForm(),
         );
       })
       .finally(() => {
@@ -447,6 +432,7 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
               value={form.status}
               onChange={(e) => setField("status", e.target.value)}
             >
+              <option value="">-None-</option>
               {withExtraOption(INVOICE_FORM_STATUS_OPTIONS, form.status).map((option) => (
                 <option key={option} value={option}>
                   {option}

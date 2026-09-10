@@ -36,20 +36,26 @@ export function defaultColumnWidth(label: string) {
 export function useResizableColumns<K extends string>(
   storageKey: string,
   labelFor: (key: K) => string,
-  options?: { lockToContainer?: boolean },
+  options?: {
+    lockToContainer?: boolean;
+    preferredWidths?: Partial<Record<K, number>>;
+    defaultOverflow?: boolean;
+  },
 ) {
   const lockToContainer = options?.lockToContainer ?? false;
+  const preferredWidths = options?.preferredWidths;
+  const defaultOverflow = options?.defaultOverflow ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [allowOverflow, setAllowOverflow] = useState(false);
+  const [allowOverflow, setAllowOverflow] = useState(defaultOverflow);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const widthsRef = useRef(widths);
   widthsRef.current = widths;
 
   useLayoutEffect(() => {
     setWidths(readStoredWidths(storageKey));
-    setAllowOverflow(false);
-  }, [storageKey]);
+    setAllowOverflow(defaultOverflow);
+  }, [defaultOverflow, storageKey]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -64,9 +70,9 @@ export function useResizableColumns<K extends string>(
   const rawWidthOf = useCallback(
     (key: K) => {
       if (isFixedColumn(key)) return widths[key] ?? FIXED_COL_WIDTH;
-      return widths[key] ?? defaultColumnWidth(labelFor(key));
+      return widths[key] ?? preferredWidths?.[key] ?? defaultColumnWidth(labelFor(key));
     },
-    [labelFor, widths],
+    [labelFor, preferredWidths, widths],
   );
 
   const layoutFor = useCallback(
