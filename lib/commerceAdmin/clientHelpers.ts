@@ -112,7 +112,9 @@ export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
 };
 
 export function clientDisplayName(client: CustomerRow) {
-  return String(client.company || client.name || "").trim() || "—";
+  const raw = String(client.company || client.name || "").trim();
+  const cleaned = raw.replace(/\s+(Customer|User)$/i, "").trim();
+  return cleaned || "—";
 }
 
 export function clientOrdersCount(client: CustomerRow) {
@@ -408,7 +410,9 @@ export function clientTypeLabel(client: CustomerRow) {
 }
 
 export function clientContactPerson(client: CustomerRow) {
-  return String(client.contact_person ?? "").trim() || "—";
+  const raw = String(client.contact_person ?? "").trim();
+  const cleaned = raw.replace(/\s+(Customer|User)$/i, "").trim();
+  return cleaned || "—";
 }
 
 function matchesNeedle(haystack: string, needle: string) {

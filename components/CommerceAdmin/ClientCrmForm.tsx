@@ -10,6 +10,7 @@ import {
   validateClientCrmForm,
   type ClientCrmFormState,
 } from "@/lib/commerceAdmin/clientFormHelpers";
+import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import {
   fetchCommerceAssignableUsers,
   type CommerceAssignableUser,
@@ -260,7 +261,9 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         setForm({
           ...emptyClientCrmForm,
           owner_id: ownerId,
-          company: detail?.company ?? client.company ?? client.name ?? "",
+          company: String(detail?.company ?? client.company ?? client.name ?? "")
+            .replace(/\s+(Customer|User)$/i, "")
+            .trim(),
           industry: detail?.industry ?? "",
           tax_classification: detail?.tax_classification ?? "",
           tin_number: detail?.tin_number ?? "",
@@ -270,8 +273,10 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           client_classification: detail?.client_classification ?? "",
           client_type: detail?.client_type ?? "",
           contact_person:
-            detail?.contact_person ||
-            [detail?.fname, detail?.lname].filter(Boolean).join(" ") ||
+            String(detail?.contact_person || "")
+              .replace(/\s+(Customer|User)$/i, "")
+              .trim() ||
+            customerDisplayName(detail?.fname, detail?.lname) ||
             "",
           mobile: parseMobileDigits(detail?.mobile),
           phone: detail?.phone ?? "",
