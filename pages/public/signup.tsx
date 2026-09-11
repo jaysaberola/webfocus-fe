@@ -22,6 +22,7 @@ function CustomerSignupPage() {
   const [form, setForm] = useState({
     email: "",
     username: "",
+    clientName: "",
     password: "",
     password_confirmation: "",
     mobile: "",
@@ -35,11 +36,13 @@ function CustomerSignupPage() {
     event.preventDefault();
     try {
       setLoading(true);
+      const company = form.clientName.trim();
       await customerSignup({
         fname: form.username.trim(),
         lname: "",
         email: form.email.trim(),
         mobile: form.mobile.trim() || undefined,
+        company: company || undefined,
         password: form.password,
         password_confirmation: form.password_confirmation || form.password,
       });
@@ -108,6 +111,13 @@ function CustomerSignupPage() {
               onChange={(value) => setForm({ ...form, username: value })}
               required
               autoComplete="username"
+            />
+            <FloatingField
+              id="signup-client-name"
+              label="Client name"
+              value={form.clientName}
+              onChange={(value) => setForm({ ...form, clientName: value })}
+              autoComplete="organization"
             />
             <FloatingField
               id="signup-password"

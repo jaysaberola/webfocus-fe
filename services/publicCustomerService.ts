@@ -64,6 +64,7 @@ export const customerSignup = async (payload: {
   lname: string;
   email: string;
   mobile?: string;
+  company?: string;
   password: string;
   password_confirmation: string;
 }) => {

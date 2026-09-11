@@ -112,7 +112,8 @@ export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
 };
 
 export function clientDisplayName(client: CustomerRow) {
-  const raw = String(client.company || client.name || "").trim();
+  // Client Name is company (mname) only — never fall back to username/person name.
+  const raw = String(client.company || "").trim();
   const cleaned = raw.replace(/\s+(Customer|User)$/i, "").trim();
   return cleaned || "—";
 }
