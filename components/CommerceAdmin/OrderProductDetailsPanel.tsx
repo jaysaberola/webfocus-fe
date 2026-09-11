@@ -44,7 +44,7 @@ export default function OrderProductDetailsPanel({ order, embedded = false, onCl
           <thead>
             <tr>
               <th>S.NO</th>
-              <th>Product Name</th>
+              <th>Deal Name</th>
               <th>Start Date</th>
               <th>End Date</th>
               <th className={styles.dealsAmount}>List Price(₱)</th>

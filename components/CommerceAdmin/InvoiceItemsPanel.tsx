@@ -3,9 +3,12 @@ import {
   formatInvoiceAmount,
   invoiceLineAmount,
   invoiceLineTotal,
+  invoiceMoney,
   invoiceTotals,
   type InvoiceLineItem,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
+import { DEAL_NAME_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -14,6 +17,22 @@ type Props = {
   onItemsChange: (items: InvoiceLineItem[]) => void;
   onAdjustmentChange: (value: string) => void;
 };
+
+function withExtraOption(options: readonly string[], value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text || options.some((option) => option === text)) return options;
+  return [text, ...options];
+}
+
+function catalogPriceForDealName(dealName: string) {
+  const needle = dealName.trim().toLowerCase();
+  if (!needle) return null;
+  const hosting = HOSTING_PLANS.find((plan) => plan.name.toLowerCase() === needle);
+  if (hosting) return hosting.price;
+  const design = WEBDESIGN_PACKAGES.find((pkg) => pkg.name.toLowerCase() === needle);
+  if (design) return design.price;
+  return null;
+}
 
 export default function InvoiceItemsPanel({
   items,
@@ -25,6 +44,20 @@ export default function InvoiceItemsPanel({
 
   const updateItem = (id: string, patch: Partial<InvoiceLineItem>) => {
     onItemsChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const handleDealNameChange = (id: string, dealName: string) => {
+    const current = items.find((item) => item.id === id);
+    if (!current) return;
+
+    const catalogPrice = catalogPriceForDealName(dealName);
+    const currentPrice = invoiceMoney(current.listPrice);
+    const shouldFillPrice = catalogPrice != null && (currentPrice === 0 || !String(current.listPrice).trim());
+
+    updateItem(id, {
+      productName: dealName,
+      ...(shouldFillPrice ? { listPrice: formatInvoiceAmount(catalogPrice) } : {}),
+    });
   };
 
   const removeItem = (id: string) => {
@@ -45,7 +78,7 @@ export default function InvoiceItemsPanel({
             <tr>
               <th className={styles.invoiceItemsActionHead} aria-label="Remove" />
               <th>S.NO</th>
-              <th>Product Name</th>
+              <th>Deal Name</th>
               <th>List Price(₱)</th>
               <th>Quantity</th>
               <th>Amount(₱)</th>
@@ -71,12 +104,25 @@ export default function InvoiceItemsPanel({
                 <td className={styles.invoiceItemsSno}>{index + 1}</td>
                 <td>
                   <div className={styles.invoiceItemsProduct}>
-                    <input
-                      className={`${styles.clientCrmInput} ${styles.clientCrmInputRequired}`}
-                      value={item.productName}
-                      onChange={(event) => updateItem(item.id, { productName: event.target.value })}
-                      required
-                    />
+                    <div className={styles.invoiceItemsDealSelect}>
+                      <select
+                        className={`${styles.clientCrmInput} ${styles.clientCrmInputRequired}`}
+                        value={item.productName}
+                        onChange={(event) => handleDealNameChange(item.id, event.target.value)}
+                        required
+                        aria-label="Deal name"
+                      >
+                        <option value="">-None-</option>
+                        {withExtraOption(DEAL_NAME_OPTIONS, item.productName).map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                      <span className={styles.invoiceItemsDealChevron} aria-hidden="true">
+                        <i className="fa-solid fa-chevron-down" />
+                      </span>
+                    </div>
                     <textarea
                       className={styles.invoiceItemsDescription}
                       value={item.description}

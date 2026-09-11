@@ -4323,6 +4323,35 @@ select.clientCrmInput {
   min-width: 16rem;
 }
 
+.invoiceItemsDealSelect {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.invoiceItemsDealSelect select.clientCrmInput {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.invoiceItemsDealSelect select.clientCrmInput::-ms-expand {
+  display: none;
+}
+
+.invoiceItemsDealChevron {
+  position: absolute;
+  top: 50%;
+  right: 0.7rem;
+  transform: translateY(-50%);
+  color: var(--ca-slate-500);
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
 .invoiceItemsDescription {
   width: 100%;
   min-height: 4.5rem;
