@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FlatItem } from "./types";
@@ -26,6 +27,7 @@ export default function SortableItem({
   const [label, setLabel] = useState(item.label);
   const [target, setTarget] = useState(item.target ?? "");
   const [openInNewTab, setOpenInNewTab] = useState(!!item.openInNewTab);
+  const isUrl = item.type === "url";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -33,14 +35,29 @@ export default function SortableItem({
     marginLeft: item.depth * INDENT,
   };
 
-  /* ================= UPDATE ITEM ================= */
+  useEffect(() => {
+    if (!open) return;
+    setLabel(item.label);
+    setTarget(item.target ?? "");
+    setOpenInNewTab(!!item.openInNewTab);
+  }, [open, item.label, item.target, item.openInNewTab]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   const saveChanges = () => {
     const updated = flatItems.map((i) =>
       i.id === item.id
         ? {
             ...i,
             label,
-            ...(item.type === "url" ? { target, openInNewTab } : {}),
+            ...(isUrl ? { target, openInNewTab } : {}),
           }
         : i
     );
@@ -49,76 +66,51 @@ export default function SortableItem({
     setOpen(false);
   };
 
-  return (
-    <div ref={setNodeRef} style={style} className="mb-2">
-      <div className="border rounded bg-light p-2 d-flex justify-content-between align-items-center">
-        {/* Drag handle */}
-        <div
-          {...attributes}
-          {...listeners}
-          style={{ cursor: "grab" }}
-        >
-          ☰
-        </div>
-
-        <div className="flex-grow-1 ms-2">
-          <div className="fw-semibold">{item.label}</div>
-
-          {item.target && (
-            <div className="text-muted small">
-              {item.target}
-              {item.openInNewTab ? " • Opens in new tab" : ""}
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="btn-group btn-group-sm">
-          <button
-            className="btn btn-outline-primary"
-            onClick={() => setOpen(true)}
-          >
-            Edit
-          </button>
-          <button
-            className="btn btn-outline-danger"
-            onClick={() => onRemove(item.id)}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* ================= MODAL ================= */}
-      {open && (
-        <div className="modal d-block" tabIndex={-1}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">
-                  Edit {item.type === "page" ? "Page" : "URL"}
+  const modal =
+    open && typeof document !== "undefined"
+      ? createPortal(
+          <div className="cms-menu-item-overlay" role="presentation" onClick={() => setOpen(false)}>
+            <div
+              className="cms-menu-item-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={`menu-item-edit-title-${item.id}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="cms-menu-item-modal__header">
+                <h5 id={`menu-item-edit-title-${item.id}`}>
+                  Edit {isUrl ? "Custom URL" : "Menu Item"}
                 </h5>
                 <button
+                  type="button"
                   className="btn-close"
+                  aria-label="Close"
                   onClick={() => setOpen(false)}
                 />
               </div>
 
-              <div className="modal-body">
+              <div className="cms-menu-item-modal__body">
                 <div className="mb-3">
-                  <label className="form-label">Label</label>
+                  <label className="form-label" htmlFor={`menu-item-label-${item.id}`}>
+                    Label
+                  </label>
                   <input
+                    id={`menu-item-label-${item.id}`}
                     className="form-control"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
+                    autoFocus
                   />
                 </div>
 
-                {item.type === "url" && (
+                {isUrl ? (
                   <>
                     <div className="mb-3">
-                      <label className="form-label">Target URL</label>
+                      <label className="form-label" htmlFor={`menu-item-url-${item.id}`}>
+                        Target URL
+                      </label>
                       <input
+                        id={`menu-item-url-${item.id}`}
                         className="form-control"
                         value={target}
                         onChange={(e) => setTarget(e.target.value)}
@@ -141,28 +133,57 @@ export default function SortableItem({
                       </label>
                     </div>
                   </>
-                )}
+                ) : item.target ? (
+                  <p className="text-muted small mb-0">Link: {item.target}</p>
+                ) : null}
               </div>
 
-              <div className="modal-footer">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setOpen(false)}
-                >
+              <div className="cms-menu-item-modal__footer">
+                <button type="button" className="btn btn-outline-secondary" onClick={() => setOpen(false)}>
                   Cancel
                 </button>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={saveChanges}
-                  disabled={!label.trim()}
+                  disabled={!label.trim() || (isUrl && !target.trim())}
                 >
                   Save
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <div ref={setNodeRef} style={style} className="mb-2">
+      <div className="border rounded bg-light p-2 d-flex justify-content-between align-items-center">
+        <div {...attributes} {...listeners} style={{ cursor: "grab" }} aria-label="Drag to reorder">
+          ☰
         </div>
-      )}
+
+        <div className="flex-grow-1 ms-2">
+          <div className="fw-semibold">{item.label}</div>
+          {item.target ? (
+            <div className="text-muted small">
+              {item.target}
+              {item.openInNewTab ? " • Opens in new tab" : ""}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="btn-group btn-group-sm">
+          <button type="button" className="btn btn-outline-primary" onClick={() => setOpen(true)}>
+            Edit
+          </button>
+          <button type="button" className="btn btn-outline-danger" onClick={() => onRemove(item.id)}>
+            ✕
+          </button>
+        </div>
+      </div>
+      {modal}
     </div>
   );
 }

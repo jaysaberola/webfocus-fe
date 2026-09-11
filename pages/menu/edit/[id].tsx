@@ -171,10 +171,6 @@ function EditMenu() {
           Cancel
         </button>
       </div>
-
-      <pre className="mt-4 bg-dark text-white p-3">
-        {JSON.stringify(tree, null, 2)}
-      </pre>
     </div>
   );
 }

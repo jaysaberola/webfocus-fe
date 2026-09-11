@@ -24,12 +24,12 @@ export const serializeMenuTree = (items: MenuItem[]): any[] =>
     const nextItem: any = {
       id: item.id,
       label: item.label,
-      type: item.type,
+      type: item.type === "url" ? "url" : "page",
       target: item.target,
       children: serializeMenuTree(item.children || []),
     };
 
-    if (item.type === "url") {
+    if (nextItem.type === "url") {
       nextItem.openInNewTab = openInNewTab;
       nextItem.open_in_new_tab = openInNewTab;
       nextItem.newTab = openInNewTab;
@@ -51,13 +51,13 @@ export const flattenTree = (
     {
       id: item.id,
       label: item.label,
-      type: item.type,
+      type: item.type === "url" ? "url" : "page",
       target: item.target,
       openInNewTab: readOpenInNewTab(item),
       depth,
       parentId,
     },
-    ...flattenTree(item.children, depth + 1, item.id),
+    ...flattenTree(item.children || [], depth + 1, item.id),
   ]);
 
 export const buildTree = (flat: FlatItem[]): MenuItem[] => {
@@ -68,7 +68,7 @@ export const buildTree = (flat: FlatItem[]): MenuItem[] => {
     map.set(i.id, {
       id: i.id,
       label: i.label,
-      type: i.type,
+      type: i.type === "url" ? "url" : "page",
       target: i.target,
       openInNewTab: readOpenInNewTab(i),
       children: [],
