@@ -27,7 +27,7 @@ import {
 import { hasCheckoutAgreementAccepted, markCheckoutAgreementAccepted } from "@/lib/checkoutAgreement";
 import { canUsePublicCart, getAddToCartBlockReason, PUBLIC_CART_CLIENT_ONLY_MESSAGE } from "@/lib/publicCartAccess";
 import { readStoredAuthToken } from "@/lib/authToken";
-import { fetchCurrentCustomer, getStoredCustomer, PublicCustomer } from "@/services/publicCustomerService";
+import { fetchCurrentCustomer, getStoredCustomer, publicCustomerLabel, PublicCustomer } from "@/services/publicCustomerService";
 import { createSalesTransaction } from "@/services/salesTransactionService";
 import { WEB_DESIGN_PENDING_QUOTATION_MARKER } from "@/lib/commerceAdmin/webDesignPricing";
 import { toast } from "@/lib/toast";
@@ -183,7 +183,7 @@ export default function PublicCartCheckoutPage() {
       setPlacingOrder(true);
       const result = await createSalesTransaction({
         customer_id: activeCustomer.id,
-        customer_name: `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+        customer_name: publicCustomerLabel(activeCustomer),
         customer_email: activeCustomer.email,
         subtotal,
         discount_total: 0,

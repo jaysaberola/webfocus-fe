@@ -17,7 +17,7 @@
   border: 1px solid #dbeafe;
   border-radius: 1rem;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .header {
@@ -75,6 +75,7 @@
   flex-direction: column;
   gap: 0.9rem;
   padding: 1.2rem 1.35rem 1.35rem;
+  overflow: visible;
 }
 
 .row {
@@ -90,6 +91,8 @@
   color: #334155;
   font-size: 0.8125rem;
   font-weight: 600;
+  position: relative;
+  z-index: 1;
 }
 
 .requiredMark {

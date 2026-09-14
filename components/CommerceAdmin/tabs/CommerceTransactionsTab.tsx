@@ -1377,7 +1377,10 @@ export default function CommerceTransactionsTab() {
                   label="Deal Name"
                   value={orderAdminColumnValue(selected, "dealName", { assigned: assignedUserLabel(selected) })}
                 />
-                <DetailField label="Client Name" value={selected.customer_name} />
+                <DetailField
+                  label="Client Name"
+                  value={orderAdminColumnValue(selected, "clientName", { assigned: assignedUserLabel(selected) })}
+                />
                 <DetailField
                   label="Domain Name"
                   value={orderAdminColumnValue(selected, "domainName", { assigned: assignedUserLabel(selected) })}

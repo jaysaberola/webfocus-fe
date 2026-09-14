@@ -46,6 +46,7 @@ import { readStoredAuthToken } from "@/lib/authToken";
 import {
   fetchCurrentCustomer,
   getStoredCustomer,
+  publicCustomerLabel,
   PublicCustomer,
 } from "@/services/publicCustomerService";
 import {
@@ -108,7 +109,7 @@ async function submitPendingQuotationItem(
 ) {
   const result = await createSalesTransaction({
     customer_id: customer.id,
-    customer_name: `${customer.fname ?? ""} ${customer.lname ?? ""}`.trim(),
+    customer_name: publicCustomerLabel(customer),
     customer_email: customer.email,
     subtotal: 0,
     discount_total: 0,
@@ -409,8 +410,7 @@ export default function PublicCartCheckoutPage() {
 
       const result = await checkoutWithPaynamics({
         customer_id: activeCustomer.id,
-        customer_name:
-          `${activeCustomer.fname ?? ""} ${activeCustomer.lname ?? ""}`.trim(),
+        customer_name: publicCustomerLabel(activeCustomer),
         customer_email: activeCustomer.email,
         subtotal,
         discount_total: 0,

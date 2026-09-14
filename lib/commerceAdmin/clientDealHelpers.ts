@@ -195,9 +195,14 @@ export function transactionClientOwner(transaction: SalesTransaction) {
 }
 
 export function transactionClientName(transaction: SalesTransaction) {
-  const company = String(transaction.customer?.mname || transaction.customer?.company || "").trim();
+  const company = String(transaction.customer?.mname || transaction.customer?.company || "")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
   if (company) return company;
-  const person = String(transaction.customer_name ?? "").trim();
+  const person = String(transaction.customer_name ?? "")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
+  if (/^(customer|user)$/i.test(person)) return "—";
   return person || "—";
 }
 

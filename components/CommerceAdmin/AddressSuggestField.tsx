@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import styles from "@/styles/commerceAdmin.module.css";
 
 export type AddressSuggestOption = {
@@ -12,14 +12,16 @@ export type AddressSuggestOption = {
 };
 
 type Props = {
-  label: string;
+  label: ReactNode;
   value: string;
   options: AddressSuggestOption[];
   placeholder?: string;
   autoComplete?: string;
+  name?: string;
   required?: boolean;
   className?: string;
   inputClassName?: string;
+  preventBrowserFill?: boolean;
   onChange: (value: string) => void;
   onSelect?: (value: string, option: AddressSuggestOption) => void;
   maxVisible?: number;
@@ -33,9 +35,11 @@ export default function AddressSuggestField({
   options,
   placeholder,
   autoComplete = "off",
+  name,
   required,
   className,
   inputClassName,
+  preventBrowserFill = false,
   onChange,
   onSelect,
   maxVisible = DEFAULT_MAX_VISIBLE,
@@ -43,6 +47,7 @@ export default function AddressSuggestField({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [autofillUnlocked, setAutofillUnlocked] = useState(!preventBrowserFill);
 
   const filtered = useMemo(() => {
     const needle = value.trim().toLowerCase();
@@ -82,14 +87,19 @@ export default function AddressSuggestField({
       <div className={styles.addressSuggestWrap} ref={wrapRef}>
         <input
           className={inputClassName || styles.clientCrmInput}
+          name={name}
           value={value}
-          autoComplete={autoComplete}
+          autoComplete={preventBrowserFill ? "off" : autoComplete}
+          readOnly={preventBrowserFill && !autofillUnlocked}
           required={required}
           placeholder={placeholder}
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            if (preventBrowserFill) setAutofillUnlocked(true);
+            setOpen(true);
+          }}
           onChange={(event) => {
             onChange(event.target.value);
             setOpen(true);

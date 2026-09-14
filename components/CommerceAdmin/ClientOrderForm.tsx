@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, formatDealAmount, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -412,12 +412,13 @@ export default function ClientOrderForm({
 
   const productDeal = useMemo(() => {
     if (!transaction) return null;
+    const fallbackName = transactionClientName(transaction);
     const client =
       selectedClient ??
       clients.find((row) => Number(row.id) === Number(transaction.customer_id)) ??
       ({
         id: Number(transaction.customer_id ?? 0),
-        company: transaction.customer_name ?? "",
+        company: fallbackName === "—" ? "" : fallbackName,
         email: transaction.customer_email ?? "",
       } as CustomerRow);
     const rows = buildClientDealRows(client, [transaction], services);
@@ -997,7 +998,9 @@ export default function ClientOrderForm({
                 {transaction?.customer_id &&
                 !clients.some((client) => Number(client.id) === Number(transaction.customer_id)) ? (
                   <option value={String(transaction.customer_id)}>
-                    {transaction.customer_name || `Client #${transaction.customer_id}`}
+                    {transactionClientName(transaction) === "—"
+                      ? `Client #${transaction.customer_id}`
+                      : transactionClientName(transaction)}
                   </option>
                 ) : null}
               </select>

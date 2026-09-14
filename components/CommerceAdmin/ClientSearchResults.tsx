@@ -197,7 +197,11 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
         subject: dealSubjectFromName(String(firstName ?? "")),
         invoiceDate: formatShortDate(transaction.issued_date ?? transaction.transacted_at),
         status: invoiceStatus(transaction),
-        clientName: client ? clientDisplayName(client) : String(transaction.customer_name ?? "—"),
+        clientName: client
+          ? clientDisplayName(client)
+          : String(transaction.customer_name ?? "")
+              .replace(/\s+(Customer|User)$/i, "")
+              .trim() || "—",
         owner: staffName(transaction) || (client ? clientOwnerName(client) : "—"),
         grandTotal: Number(transaction.grand_total) || 0,
         contactName: String(client?.contact_person ?? "").trim() || "—",

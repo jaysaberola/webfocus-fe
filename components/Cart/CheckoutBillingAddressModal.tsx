@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import {
   billingAddressFromCustomer,
   CHECKOUT_BILLING_FIELD_LABELS,
@@ -7,6 +8,17 @@ import {
   type CheckoutBillingAddress,
 } from "@/lib/checkoutBillingAddress";
 import {
+  citiesForProvince,
+  findPlaceByCity,
+  findPlaceByStreet,
+  findPlaceByZip,
+  PH_ADDRESS_PLACES,
+  PH_PROVINCES,
+  regionForProvince,
+  streetsForPlace,
+} from "@/lib/commerceAdmin/phAddressCatalog";
+import {
+  isPlaceholderLastName,
   updateCustomerProfile,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
@@ -48,16 +60,83 @@ export default function CheckoutBillingAddressModal({
     };
   }, [open, onClose, saving]);
 
+  const applyPlace = (
+    place: { street?: string; city: string; province: string; zip: string } | null,
+    includeStreet = false,
+  ) => {
+    if (!place) return;
+    setForm((current) => ({
+      ...current,
+      ...(includeStreet && place.street ? { address_street: place.street } : {}),
+      address_city: place.city,
+      address_province: place.province,
+      address_zip: place.zip,
+    }));
+  };
+
+  const streetOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return streetsForPlace(form.address_city, form.address_province)
+      .filter((place) => {
+        const key = `${place.street}|${place.city}|${place.zip}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.street || "",
+        label: `${place.street} — ${place.city}, ${place.province}`,
+        street: place.street,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+      }));
+  }, [form.address_city, form.address_province]);
+
+  const cityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return citiesForProvince(form.address_province)
+      .filter((place) => {
+        const key = `${place.city}|${place.province}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((place) => ({
+        value: place.city,
+        label: `${place.city} — ${place.province}`,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+      }));
+  }, [form.address_province]);
+
+  const provinceOptions = useMemo(
+    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
+    [],
+  );
+
+  const zipOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return PH_ADDRESS_PLACES.filter((place) => {
+      if (seen.has(place.zip)) return false;
+      seen.add(place.zip);
+      return true;
+    }).map((place) => ({
+      value: place.zip,
+      label: `${place.zip} — ${place.city}, ${place.province}`,
+      city: place.city,
+      province: place.province,
+      zip: place.zip,
+    }));
+  }, []);
+
   const canSubmit = useMemo(
     () => isCheckoutBillingAddressComplete(form) && !saving && Boolean(customer),
     [form, saving, customer]
   );
 
   if (!open) return null;
-
-  const updateField = (key: keyof CheckoutBillingAddress, value: string) => {
-    setForm((current) => ({ ...current, [key]: value }));
-  };
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -86,8 +165,8 @@ export default function CheckoutBillingAddressModal({
     try {
       setSaving(true);
       const updated = await updateCustomerProfile({
-        fname: customer.fname || "Customer",
-        lname: customer.lname || "User",
+        fname: customer.fname || "",
+        lname: isPlaceholderLastName(customer.lname) ? "" : customer.lname || "",
         mobile: customer.mobile,
         birth_date: customer.birth_date,
         address_street: trimmed.address_street,
@@ -97,7 +176,10 @@ export default function CheckoutBillingAddressModal({
         address_zip: trimmed.address_zip,
       });
       toast.success("Billing address saved. Continuing to payment...");
-      onSaved(updated);
+      onSaved({
+        ...updated,
+        address_region: regionForProvince(trimmed.address_province) || updated.address_region,
+      });
     } catch (err: any) {
       toast.error(
         err?.response?.data?.message || "Failed to save billing address. Please try again."
@@ -121,8 +203,8 @@ export default function CheckoutBillingAddressModal({
             <p className={styles.eyebrow}>Paynamics Checkout</p>
             <h2 id="checkout-billing-title">Complete billing address</h2>
             <p className={styles.subtitle}>
-              First-time payments require your street, city, province, and ZIP before opening
-              the Paynamics portal.
+              Pick your Philippine city, province, and ZIP from the list so Paynamics can verify
+              your billing location.
             </p>
           </div>
           <button
@@ -136,71 +218,95 @@ export default function CheckoutBillingAddressModal({
           </button>
         </header>
 
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <label className={styles.field}>
-            <span>
-              Street address <span className={styles.requiredMark} aria-hidden="true">*</span>
-            </span>
-            <input
-              className={styles.input}
-              value={form.address_street}
-              maxLength={CHECKOUT_BILLING_MAX.address_street}
-              onChange={(e) => updateField("address_street", e.target.value)}
-              placeholder="e.g. 26th St, BGC"
-              autoFocus
-              required
-              aria-required="true"
-            />
-          </label>
+        <form className={styles.form} onSubmit={handleSubmit} autoComplete="off" noValidate>
+          <AddressSuggestField
+            label="Street address *"
+            value={form.address_street}
+            options={streetOptions}
+            placeholder="Start typing a street or barangay"
+            name="checkout-street"
+            preventBrowserFill
+            required
+            maxVisible={400}
+            className={styles.field}
+            inputClassName={styles.input}
+            onChange={(value) => setForm((current) => ({ ...current, address_street: value }))}
+            onSelect={(_value, option) =>
+              applyPlace(
+                option.city
+                  ? {
+                      street: option.street || option.value,
+                      city: option.city,
+                      province: option.province || "",
+                      zip: option.zip || "",
+                    }
+                  : findPlaceByStreet(option.value, form.address_city, form.address_province),
+                true,
+              )
+            }
+          />
 
           <div className={styles.row}>
-            <label className={styles.field}>
-              <span>
-                City <span className={styles.requiredMark} aria-hidden="true">*</span>
-              </span>
-              <input
-                className={styles.input}
-                value={form.address_city}
-                maxLength={CHECKOUT_BILLING_MAX.address_city}
-                onChange={(e) => updateField("address_city", e.target.value)}
-                placeholder="e.g. Taguig City"
-                required
-                aria-required="true"
-              />
-            </label>
-            <label className={styles.field}>
-              <span>
-                Province / Region <span className={styles.requiredMark} aria-hidden="true">*</span>
-              </span>
-              <input
-                className={styles.input}
-                value={form.address_province}
-                maxLength={CHECKOUT_BILLING_MAX.address_province}
-                onChange={(e) => updateField("address_province", e.target.value)}
-                placeholder="e.g. Metro Manila"
-                required
-                aria-required="true"
-              />
-            </label>
+            <AddressSuggestField
+              label="City *"
+              value={form.address_city}
+              options={cityOptions}
+              placeholder="Start typing a city"
+              name="checkout-city"
+              preventBrowserFill
+              required
+              maxVisible={400}
+              className={styles.field}
+              inputClassName={styles.input}
+              onChange={(value) => setForm((current) => ({ ...current, address_city: value }))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.address_province,
+                        zip: option.zip || form.address_zip,
+                      }
+                    : findPlaceByCity(value, form.address_province),
+                )
+              }
+            />
+            <AddressSuggestField
+              label="Province *"
+              value={form.address_province}
+              options={provinceOptions}
+              placeholder="Start typing a province"
+              name="checkout-province"
+              preventBrowserFill
+              required
+              className={styles.field}
+              inputClassName={styles.input}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  address_province: value,
+                }))
+              }
+            />
           </div>
 
-          <label className={styles.field}>
-            <span>
-              ZIP / Postal code <span className={styles.requiredMark} aria-hidden="true">*</span>
-            </span>
-            <input
-              className={styles.input}
-              value={form.address_zip}
-              maxLength={CHECKOUT_BILLING_MAX.address_zip}
-              onChange={(e) => updateField("address_zip", e.target.value)}
-              placeholder="e.g. 1634"
-              required
-              aria-required="true"
-            />
-          </label>
+          <AddressSuggestField
+            label="ZIP / Postal code *"
+            value={form.address_zip}
+            options={zipOptions}
+            placeholder="Start typing a ZIP"
+            name="checkout-zip"
+            preventBrowserFill
+            required
+            className={styles.field}
+            inputClassName={styles.input}
+            onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
+            onSelect={(value) => applyPlace(findPlaceByZip(value))}
+          />
 
           <p className={styles.helperHint}>
-            Fill in all required fields (*) to enable Save &amp; Continue.
+            Type a city like Quezon City or Taguig, then choose it from the list. Province and ZIP
+            fill in automatically.
           </p>
 
           <div className={styles.actions}>

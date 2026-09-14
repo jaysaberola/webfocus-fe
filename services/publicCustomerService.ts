@@ -30,6 +30,21 @@ export type PublicCustomer = {
   roles?: string[];
 };
 
+export function isPlaceholderLastName(value?: string | null) {
+  return /^(customer|user)$/i.test(String(value ?? "").trim());
+}
+
+export function publicCustomerLabel(
+  customer: Pick<PublicCustomer, "fname" | "lname" | "mname">,
+) {
+  const company = String(customer.mname || "")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
+  if (company) return company;
+  const last = isPlaceholderLastName(customer.lname) ? "" : String(customer.lname || "").trim();
+  return `${String(customer.fname || "").trim()} ${last}`.replace(/\s+(Customer|User)$/i, "").trim();
+}
+
 export const getStoredCustomer = (): PublicCustomer | null => {
   if (typeof window === "undefined") return null;
   try {
@@ -195,8 +210,8 @@ export const updateCustomerProfile = async (payload: {
 
 export const uploadCustomerAvatar = async (file: File, customer: PublicCustomer) => {
   return updateCustomerProfile({
-    fname: customer.fname || "Customer",
-    lname: customer.lname || "User",
+    fname: customer.fname || "",
+    lname: isPlaceholderLastName(customer.lname) ? "" : customer.lname || "",
     mobile: customer.mobile,
     birth_date: customer.birth_date,
     address_street: customer.address_street,
