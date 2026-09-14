@@ -1,3 +1,4 @@
+import { findPlaceByCity } from "@/lib/commerceAdmin/phAddressCatalog";
 import type { PublicCustomer } from "@/services/publicCustomerService";
 
 export type CheckoutBillingAddress = {
@@ -64,11 +65,19 @@ export function isCheckoutBillingValidationError(errors: unknown): boolean {
 export function billingAddressFromCustomer(
   customer: PublicCustomer | null | undefined
 ): CheckoutBillingAddress {
-  return {
+  const raw: CheckoutBillingAddress = {
     address_street: String(customer?.address_street || "").trim(),
     address_city: billingCityFromCustomer(customer),
     address_province: String(customer?.address_province || "").trim(),
     address_zip: String(customer?.address_zip || "").trim(),
+  };
+  const place = findPlaceByCity(raw.address_city, raw.address_province);
+  if (!place) return raw;
+  return {
+    ...raw,
+    address_city: place.city,
+    address_province: place.province,
+    address_zip: raw.address_zip || place.zip,
   };
 }
 

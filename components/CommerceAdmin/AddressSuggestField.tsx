@@ -46,25 +46,35 @@ export default function AddressSuggestField({
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const [typedQuery, setTypedQuery] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [autofillUnlocked, setAutofillUnlocked] = useState(!preventBrowserFill);
 
+  const selectedValue = value.trim().toLowerCase();
   const filtered = useMemo(() => {
-    const needle = value.trim().toLowerCase();
-    const next = needle
-      ? options.filter(
-          (option) =>
-            option.label.toLowerCase().includes(needle) ||
-            option.value.toLowerCase().includes(needle)
-        )
-      : options;
+    const needle = (typedQuery ?? "").trim().toLowerCase();
+    const next = (
+      needle
+        ? options.filter(
+            (option) =>
+              option.label.toLowerCase().includes(needle) ||
+              option.value.toLowerCase().includes(needle)
+          )
+        : options
+    ).slice();
+    const selectedIndex = next.findIndex((option) => option.value.trim().toLowerCase() === selectedValue);
+    if (selectedIndex > 0) {
+      const [selected] = next.splice(selectedIndex, 1);
+      next.unshift(selected);
+    }
     return next.slice(0, maxVisible);
-  }, [options, value, maxVisible]);
+  }, [options, typedQuery, maxVisible, selectedValue]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
         setOpen(false);
+        setTypedQuery(null);
       }
     };
     window.addEventListener("mousedown", onPointerDown);
@@ -72,19 +82,33 @@ export default function AddressSuggestField({
   }, []);
 
   useEffect(() => {
-    setActiveIndex(0);
-  }, [filtered]);
+    const selectedIndex = filtered.findIndex(
+      (option) => option.value.trim().toLowerCase() === selectedValue
+    );
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [filtered, selectedValue]);
 
   const pick = (option: AddressSuggestOption) => {
     onChange(option.value);
     onSelect?.(option.value, option);
+    setTypedQuery(null);
     setOpen(false);
   };
 
+  const openList = () => {
+    if (preventBrowserFill) setAutofillUnlocked(true);
+    setTypedQuery(null);
+    setOpen(true);
+  };
+
   return (
-    <label className={className || styles.clientCrmField}>
+    <label className={className || styles.clientCrmField} data-open={open ? "true" : "false"}>
       <span>{label}</span>
-      <div className={styles.addressSuggestWrap} ref={wrapRef}>
+      <div
+        className={`${styles.addressSuggestWrap}${open ? ` ${styles.addressSuggestWrapOpen}` : ""}`}
+        ref={wrapRef}
+        data-open={open ? "true" : "false"}
+      >
         <input
           className={inputClassName || styles.clientCrmInput}
           name={name}
@@ -96,21 +120,20 @@ export default function AddressSuggestField({
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
-          onFocus={() => {
-            if (preventBrowserFill) setAutofillUnlocked(true);
-            setOpen(true);
-          }}
+          onFocus={openList}
           onChange={(event) => {
+            setTypedQuery(event.target.value);
             onChange(event.target.value);
             setOpen(true);
           }}
           onKeyDown={(event) => {
             if (!open && (event.key === "ArrowDown" || event.key === "Enter")) {
-              setOpen(true);
+              openList();
               return;
             }
             if (event.key === "Escape") {
               setOpen(false);
+              setTypedQuery(null);
               return;
             }
             if (event.key === "ArrowDown") {
@@ -135,33 +158,46 @@ export default function AddressSuggestField({
           tabIndex={-1}
           aria-label={open ? "Hide address suggestions" : "Show address suggestions"}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => {
+            if (open) {
+              setOpen(false);
+              setTypedQuery(null);
+              return;
+            }
+            openList();
+          }}
         >
           <i className={open ? "fa-solid fa-chevron-up" : "fa-solid fa-chevron-down"} aria-hidden="true" />
         </button>
         {open ? (
           <ul className={styles.addressSuggestList} role="listbox">
             {filtered.length === 0 ? (
-              <li className={styles.addressSuggestEmpty}>No Philippine matches</li>
+              <li className={styles.addressSuggestEmpty}>No matching addresses</li>
             ) : (
-              filtered.map((option, index) => (
-                <li key={`${option.value}-${option.label}`}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    className={
-                      index === activeIndex
-                        ? styles.addressSuggestOptionActive
-                        : styles.addressSuggestOption
-                    }
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => pick(option)}
-                  >
-                    {option.label}
-                  </button>
-                </li>
-              ))
+              filtered.map((option, index) => {
+                const selected = option.value.trim().toLowerCase() === selectedValue;
+                return (
+                  <li key={`${option.value}-${option.label}`}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selected || index === activeIndex}
+                      className={
+                        selected
+                          ? styles.addressSuggestOptionSelected
+                          : index === activeIndex
+                            ? styles.addressSuggestOptionActive
+                            : styles.addressSuggestOption
+                      }
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => pick(option)}
+                    >
+                      <span>{option.label}</span>
+                      {selected ? <i className="fa-solid fa-check" aria-hidden="true" /> : null}
+                    </button>
+                  </li>
+                );
+              })
             )}
           </ul>
         ) : null}

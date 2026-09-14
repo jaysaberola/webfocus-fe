@@ -8,14 +8,14 @@ import {
   type CheckoutBillingAddress,
 } from "@/lib/checkoutBillingAddress";
 import {
-  citiesForProvince,
-  findPlaceByCity,
-  findPlaceByStreet,
-  findPlaceByZip,
-  PH_ADDRESS_PLACES,
-  PH_PROVINCES,
-  regionForProvince,
-  streetsForPlace,
+    citiesForProvince,
+    findPlaceByCity,
+    findPlaceByStreet,
+    findPlaceByZip,
+    PH_PROVINCES,
+    regionForProvince,
+    streetsForPlace,
+    zipsForPlace,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import {
   isPlaceholderLastName,
@@ -111,25 +111,30 @@ export default function CheckoutBillingAddressModal({
       }));
   }, [form.address_province]);
 
-  const provinceOptions = useMemo(
-    () => PH_PROVINCES.map((province) => ({ value: province, label: province })),
-    [],
-  );
-
   const zipOptions = useMemo(() => {
     const seen = new Set<string>();
-    return PH_ADDRESS_PLACES.filter((place) => {
-      if (seen.has(place.zip)) return false;
-      seen.add(place.zip);
-      return true;
-    }).map((place) => ({
-      value: place.zip,
-      label: `${place.zip} — ${place.city}, ${place.province}`,
-      city: place.city,
-      province: place.province,
-      zip: place.zip,
-    }));
-  }, []);
+    return zipsForPlace(form.address_city, form.address_province)
+      .filter((place) => {
+        if (!place.zip || seen.has(place.zip)) return false;
+        seen.add(place.zip);
+        return true;
+      })
+      .map((place) => ({
+        value: place.zip,
+        label: `${place.zip} — ${place.city}, ${place.province}`,
+        city: place.city,
+        province: place.province,
+        zip: place.zip,
+      }));
+  }, [form.address_city, form.address_province]);
+
+  const provinceOptions = useMemo(() => {
+    const current = form.address_province.trim();
+    const values = current && !PH_PROVINCES.includes(current)
+      ? [current, ...PH_PROVINCES]
+      : PH_PROVINCES;
+    return values.map((province) => ({ value: province, label: province }));
+  }, [form.address_province]);
 
   const canSubmit = useMemo(
     () => isCheckoutBillingAddressComplete(form) && !saving && Boolean(customer),
@@ -203,8 +208,8 @@ export default function CheckoutBillingAddressModal({
             <p className={styles.eyebrow}>Paynamics Checkout</p>
             <h2 id="checkout-billing-title">Complete billing address</h2>
             <p className={styles.subtitle}>
-              Pick your Philippine city, province, and ZIP from the list so Paynamics can verify
-              your billing location.
+              Choose a street, city, province, and ZIP from the Philippine list. Opening a filled
+              field still shows the matching options.
             </p>
           </div>
           <button
@@ -223,7 +228,7 @@ export default function CheckoutBillingAddressModal({
             label="Street address *"
             value={form.address_street}
             options={streetOptions}
-            placeholder="Start typing a street or barangay"
+            placeholder="Choose a street or barangay"
             name="checkout-street"
             preventBrowserFill
             required
@@ -251,7 +256,7 @@ export default function CheckoutBillingAddressModal({
               label="City *"
               value={form.address_city}
               options={cityOptions}
-              placeholder="Start typing a city"
+              placeholder="Choose a city"
               name="checkout-city"
               preventBrowserFill
               required
@@ -275,7 +280,7 @@ export default function CheckoutBillingAddressModal({
               label="Province *"
               value={form.address_province}
               options={provinceOptions}
-              placeholder="Start typing a province"
+              placeholder="Choose a province"
               name="checkout-province"
               preventBrowserFill
               required
@@ -294,19 +299,29 @@ export default function CheckoutBillingAddressModal({
             label="ZIP / Postal code *"
             value={form.address_zip}
             options={zipOptions}
-            placeholder="Start typing a ZIP"
+            placeholder={form.address_city ? `ZIP codes for ${form.address_city}` : "Choose a ZIP"}
             name="checkout-zip"
             preventBrowserFill
             required
             className={styles.field}
             inputClassName={styles.input}
             onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
-            onSelect={(value) => applyPlace(findPlaceByZip(value))}
+            onSelect={(value, option) =>
+              applyPlace(
+                option.city
+                  ? {
+                      city: option.city,
+                      province: option.province || form.address_province,
+                      zip: option.zip || value,
+                    }
+                  : findPlaceByZip(value),
+              )
+            }
           />
 
           <p className={styles.helperHint}>
-            Type a city like Quezon City or Taguig, then choose it from the list. Province and ZIP
-            fill in automatically.
+            Click a filled field to see its list. Choosing a city fills province and ZIP
+            automatically.
           </p>
 
           <div className={styles.actions}>

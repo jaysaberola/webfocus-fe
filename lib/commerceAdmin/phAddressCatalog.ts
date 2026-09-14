@@ -101,6 +101,30 @@ function normalize(value: string) {
     .trim();
 }
 
+const PROVINCE_ALIASES: Record<string, string> = {
+  ncr: "metro manila",
+  "national capital region": "metro manila",
+  manila: "metro manila",
+  "ncr first district": "metro manila",
+  "ncr second district": "metro manila",
+  "ncr third district": "metro manila",
+  "ncr fourth district": "metro manila",
+  "ncr 1st district": "metro manila",
+  "ncr 2nd district": "metro manila",
+  "ncr 3rd district": "metro manila",
+  "ncr 4th district": "metro manila",
+};
+
+function canonicalProvince(province: string) {
+  const needle = normalize(province);
+  return PROVINCE_ALIASES[needle] || needle;
+}
+
+function sameProvince(left?: string, right?: string) {
+  if (!left || !right) return !left && !right;
+  return canonicalProvince(left) === canonicalProvince(right);
+}
+
 function streetKey(city: string, province: string) {
   return `${normalize(city)}|${normalize(province)}`;
 }
@@ -110,21 +134,27 @@ const CITY_BY_KEY = new Map(
 );
 
 export function findPlaceByCity(city: string, province?: string): PhAddressPlace | null {
+  const raw = String(city || "").trim();
   const needle = normalize(city);
   if (!needle) return null;
-  const provinceNeedle = province ? normalize(province) : "";
-  const matches = PH_ADDRESS_CITIES.filter((place) => normalize(place.city) === needle);
-  if (!matches.length) {
-    return (
-      PH_ADDRESS_CITIES.find(
-        (place) => normalize(place.city).includes(needle) || needle.includes(normalize(place.city))
-      ) ?? null
-    );
-  }
-  if (provinceNeedle) {
-    return matches.find((place) => normalize(place.province) === provinceNeedle) ?? matches[0];
-  }
-  return matches[0];
+
+  const scored = PH_ADDRESS_CITIES
+    .map((place) => {
+      const cityKey = normalize(place.city);
+      if (cityKey !== needle && !cityKey.includes(needle) && !needle.includes(cityKey)) {
+        return null;
+      }
+      let score = 0;
+      if (place.city.toLowerCase() === raw.toLowerCase()) score += 100;
+      if (cityKey === needle) score += 50;
+      if (province && sameProvince(place.province, province)) score += 40;
+      if (place.zip) score += 1;
+      return { place, score };
+    })
+    .filter((row): row is { place: PhAddressPlace; score: number } => Boolean(row))
+    .sort((left, right) => right.score - left.score);
+
+  return scored[0]?.place ?? null;
 }
 
 export function findPlaceByZip(zip: string): PhAddressPlace | null {
@@ -148,9 +178,9 @@ export function findPlaceByStreet(street: string, city?: string, province?: stri
   );
 }
 
-export function streetsForPlace(city?: string, province?: string): PhAddressPlace[] {
+function collectStreets(city?: string, province?: string): PhAddressPlace[] {
   const cityNeedle = normalize(city || "");
-  const provinceNeedle = normalize(province || "");
+  const provinceNeedle = province ? canonicalProvince(province) : "";
   const rows: PhAddressPlace[] = [];
 
   for (const [key, barangays] of Object.entries(DATA.streets)) {
@@ -158,7 +188,7 @@ export function streetsForPlace(city?: string, province?: string): PhAddressPlac
     if (cityNeedle && cityKey !== cityNeedle && !cityKey.includes(cityNeedle) && !cityNeedle.includes(cityKey)) {
       continue;
     }
-    if (provinceNeedle && provinceKey !== provinceNeedle) continue;
+    if (provinceNeedle && canonicalProvince(provinceKey) !== provinceNeedle) continue;
 
     const cityRow = CITY_BY_KEY.get(key);
     const displayCity = cityRow?.city || titleFromKey(cityKey);
@@ -179,21 +209,45 @@ export function streetsForPlace(city?: string, province?: string): PhAddressPlac
   return rows;
 }
 
+export function streetsForPlace(city?: string, province?: string): PhAddressPlace[] {
+  const rows = collectStreets(city, province);
+  if (rows.length || !province) return rows;
+  return collectStreets(city, "");
+}
+
+export function zipsForPlace(city?: string, province?: string): PhAddressPlace[] {
+  const cityNeedle = normalize(city || "");
+  const scoped = PH_ADDRESS_CITIES.filter((place) => {
+    if (!place.zip) return false;
+    if (cityNeedle) {
+      const placeCity = normalize(place.city);
+      if (placeCity !== cityNeedle && !placeCity.includes(cityNeedle) && !cityNeedle.includes(placeCity)) {
+        return false;
+      }
+    }
+    if (province && !sameProvince(place.province, province)) return false;
+    return true;
+  });
+  if (scoped.length) return scoped;
+  return PH_ADDRESS_CITIES.filter((place) => Boolean(place.zip));
+}
+
 function titleFromKey(value: string) {
   return value.replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 export function citiesForProvince(province: string) {
-  const needle = normalize(province);
+  const needle = canonicalProvince(province);
   if (!needle) return PH_ADDRESS_CITIES;
-  return PH_ADDRESS_CITIES.filter((place) => normalize(place.province) === needle);
+  const matches = PH_ADDRESS_CITIES.filter((place) => canonicalProvince(place.province) === needle);
+  return matches.length ? matches : PH_ADDRESS_CITIES;
 }
 
 export function regionForProvince(province: string) {
-  const needle = normalize(province);
+  const needle = canonicalProvince(province);
   if (!needle) return "";
   for (const [region, provinces] of Object.entries(REGION_PROVINCES)) {
-    if (provinces.some((item) => normalize(item) === needle)) return region;
+    if (provinces.some((item) => canonicalProvince(item) === needle)) return region;
   }
   return "";
 }
