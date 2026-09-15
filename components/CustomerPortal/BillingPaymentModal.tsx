@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
-import { PAYNAMICS_PAYMENT_METHODS } from "@/lib/checkoutPaymentMethods";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -30,21 +28,19 @@ export default function BillingPaymentModal({
   onClose,
   onSubmit,
 }: BillingPaymentModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState(PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc");
   const [fundAmount, setFundAmount] = useState(FUND_PRESETS[1]);
 
   useEffect(() => {
     if (!open) return;
-    setPaymentMethod(PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc");
     setFundAmount(FUND_PRESETS[1]);
   }, [open, mode, invoiceId]);
 
   const handleSubmit = () => {
     if (mode === "add-funds") {
-      onSubmit(paymentMethod, fundAmount);
+      onSubmit("paynamics", fundAmount);
       return;
     }
-    onSubmit(paymentMethod);
+    onSubmit("paynamics");
   };
 
   return (
@@ -56,8 +52,8 @@ export default function BillingPaymentModal({
           </h3>
           <p className={styles.panelSub}>
             {mode === "add-funds"
-              ? "Choose an amount and payment method. You will be redirected to Paynamics to complete payment."
-              : "Choose a payment method to pay your pending invoice through Paynamics."}
+              ? "Choose an amount. You will be redirected to Paynamics to choose how to pay."
+              : "You will be redirected to Paynamics to choose how to pay this invoice."}
           </p>
         </div>
         <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
@@ -115,8 +111,6 @@ export default function BillingPaymentModal({
             </label>
           </div>
         )}
-
-        <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
       </div>
 
       <div className={styles.billingModalActions}>

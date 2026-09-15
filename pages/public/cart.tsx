@@ -5,17 +5,11 @@ import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
-import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   customerNeedsCheckoutBillingAddress,
   isCheckoutBillingValidationError,
 } from "@/lib/checkoutBillingAddress";
-import {
-  formatPaynamicsPaymentMethod,
-  getPaynamicsPaymentLabel,
-  PAYNAMICS_PAYMENT_METHODS,
-} from "@/lib/checkoutPaymentMethods";
 import { pendingInvoicesForCart } from "@/lib/pendingCartInvoices";
 import {
   cartCount,
@@ -198,9 +192,6 @@ export default function PublicCartCheckoutPage() {
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [quoteNotes, setQuoteNotes] = useState<Record<string, string>>({});
-  const [paymentMethod, setPaymentMethod] = useState(
-    PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc",
-  );
   const [pendingInvoices, setPendingInvoices] = useState<PortalInvoice[]>([]);
 
   const refreshAuth = () => {
@@ -464,7 +455,7 @@ export default function PublicCartCheckoutPage() {
         })),
         notes: [
           "Customer checkout order",
-          `Payment method: ${formatPaynamicsPaymentMethod(paymentMethod)} (${getPaynamicsPaymentLabel(paymentMethod)})`,
+          "Payment method: Paynamics",
           "Payment gateway: Paynamics hosted portal",
           checkoutItems.length > 1
             ? `Combined invoice: ${checkoutItems.length} priced services paid in one transaction.`
@@ -799,18 +790,28 @@ export default function PublicCartCheckoutPage() {
               ) : null}
 
               {pendingCheckoutInvoice ? (
-                <div className={styles.pendingPayNotice}>
-                  <p>
-                    You already have a pending Paynamics payment for{" "}
-                    <strong>
-                      {pendingCheckoutInvoice.serviceName || "this order"}
-                    </strong>{" "}
-                    ({pendingCheckoutInvoice.id}). Finish that payment instead of
-                    creating a new invoice.
-                  </p>
-                  <Link href="/public/dashboard?tab=billing" className={styles.pendingPayLink}>
-                    View pending invoice
-                  </Link>
+                <div className={styles.pendingPayNotice} role="status">
+                  <span className={styles.pendingPayIcon} aria-hidden="true">
+                    <i className="fa-solid fa-clock" />
+                  </span>
+                  <div className={styles.pendingPayCopy}>
+                    <p className={styles.pendingPayTitle}>Pending payment</p>
+                    <p className={styles.pendingPayMeta}>
+                      {pendingCheckoutInvoice.serviceName || "This order"}
+                      <span className={styles.pendingPayInvoice}>
+                        {pendingCheckoutInvoice.id}
+                      </span>
+                    </p>
+                    <p className={styles.pendingPayText}>
+                      Finish this Paynamics payment instead of creating a new invoice.
+                    </p>
+                    <Link
+                      href="/public/dashboard?tab=billing"
+                      className={styles.pendingPayLink}
+                    >
+                      View invoice
+                    </Link>
+                  </div>
                 </div>
               ) : null}
 
@@ -893,10 +894,6 @@ export default function PublicCartCheckoutPage() {
                 </div>
               ) : null}
 
-              {paymentStepActive && !quotationOnly ? (
-                <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
-              ) : null}
-
               {paymentStepActive ? (
                 <button
                   type="button"
@@ -955,8 +952,7 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
-                  Payment details are entered securely on the Paynamics
-                  portal.
+                  Choose your payment option on the secure Paynamics page.
                 </p>
               ) : null}
             </div>

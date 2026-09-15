@@ -257,31 +257,100 @@
 }
 
 .pendingPayNotice {
-  margin: 0.85rem 0 0;
-  padding: 0.75rem 0.8rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0.15rem 0 0.95rem;
+  padding: 0.85rem 0.9rem;
   border: 1px solid #fde68a;
-  border-radius: 0.65rem;
+  border-radius: 0.85rem;
   background: #fffbeb;
-  color: #92400e;
+}
+
+.pendingPayIcon {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 0.75rem;
+}
+
+.pendingPayCopy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.pendingPayTitle {
+  margin: 0;
+  color: #92400e;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pendingPayMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: #78350f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.pendingPayInvoice {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+.pendingPayText {
+  margin: 0;
+  color: #b45309;
+  font-size: 0.75rem;
+  font-weight: 500;
   line-height: 1.45;
 }
 
-.pendingPayNotice p {
-  margin: 0;
-}
-
-.pendingPayNotice strong {
-  color: #78350f;
-}
-
 .pendingPayLink {
-  display: inline-block;
-  margin-top: 0.4rem;
-  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 0.25rem;
+  min-height: 1.85rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #fdba74;
+  color: #c2410c;
+  font-size: 0.6875rem;
   font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
+}
+
+.pendingPayLink:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #9a3412;
 }
 
 .removeIconBtn {

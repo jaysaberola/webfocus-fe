@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
-import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   cartCount,
@@ -19,11 +18,6 @@ import {
   readPublicCart,
   removePublicCartItem,
 } from "@/lib/publicCart";
-import {
-  formatPaynamicsPaymentMethod,
-  getPaynamicsPaymentLabel,
-  PAYNAMICS_PAYMENT_METHODS,
-} from "@/lib/checkoutPaymentMethods";
 import { hasCheckoutAgreementAccepted, markCheckoutAgreementAccepted } from "@/lib/checkoutAgreement";
 import { canUsePublicCart, getAddToCartBlockReason, PUBLIC_CART_CLIENT_ONLY_MESSAGE } from "@/lib/publicCartAccess";
 import { readStoredAuthToken } from "@/lib/authToken";
@@ -61,7 +55,6 @@ export default function PublicCartCheckoutPage() {
   const [signInOpen, setSignInOpen] = useState(false);
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState(PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customer, setCustomer] = useState<PublicCustomer | null>(null);
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -147,10 +140,6 @@ export default function PublicCartCheckoutPage() {
       setAgreementOpen(true);
       return;
     }
-    if (!quotationOnly && !paymentMethod) {
-      toast.warning("Select a payment method to continue.");
-      return;
-    }
 
     if (!canUsePublicCart()) {
       toast.info(getAddToCartBlockReason() ?? PUBLIC_CART_CLIENT_ONLY_MESSAGE);
@@ -164,12 +153,8 @@ export default function PublicCartCheckoutPage() {
       return;
     }
 
-    const paymentLabel = quotationOnly
-      ? "Pending Quotation"
-      : getPaynamicsPaymentLabel(paymentMethod);
-    const paymentGateway = quotationOnly
-      ? "Pending Quotation"
-      : formatPaynamicsPaymentMethod(paymentMethod);
+    const paymentLabel = quotationOnly ? "Pending Quotation" : "Paynamics";
+    const paymentGateway = quotationOnly ? "Pending Quotation" : "Paynamics";
     const itemSummary = items
       .map((item) => {
         const priceLabel = isPendingQuotationCartItem(item)
@@ -409,10 +394,6 @@ export default function PublicCartCheckoutPage() {
                 </div>
               ) : null}
 
-              {paymentStepActive && !quotationOnly ? (
-                <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
-              ) : null}
-
               {paymentStepActive ? (
                 <button
                   type="button"
@@ -446,7 +427,8 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
-                  Selected: {getPaynamicsPaymentLabel(paymentMethod)} via Paynamics.
+                  Choose your payment option on the secure Paynamics page.
+                </p>
                 </p>
               ) : null}
             </div>
