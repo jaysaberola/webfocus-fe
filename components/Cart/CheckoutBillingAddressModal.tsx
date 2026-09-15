@@ -39,11 +39,17 @@ export default function CheckoutBillingAddressModal({
   onSaved,
 }: Props) {
   const [form, setForm] = useState<CheckoutBillingAddress>(billingAddressFromCustomer(customer));
+  const [barangay, setBarangay] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setForm(billingAddressFromCustomer(customer));
+    const next = billingAddressFromCustomer(customer);
+    setForm(next);
+    const match = streetsForPlace(next.address_city, next.address_province).find(
+      (place) => place.street && place.street.toLowerCase() === next.address_street.toLowerCase(),
+    );
+    setBarangay(match?.street || "");
   }, [open, customer]);
 
   useEffect(() => {
@@ -70,7 +76,7 @@ export default function CheckoutBillingAddressModal({
       ...(includeStreet && place.street ? { address_street: place.street } : {}),
       address_city: place.city,
       address_province: place.province,
-      address_zip: place.zip,
+      address_zip: place.zip || current.address_zip,
     }));
   };
 
@@ -112,8 +118,8 @@ export default function CheckoutBillingAddressModal({
   }, [form.address_province]);
 
   const zipOptions = useMemo(
-    () => zipSuggestOptions(form.address_city, form.address_province, form.address_street),
-    [form.address_city, form.address_province, form.address_street],
+    () => zipSuggestOptions(form.address_city, form.address_province, barangay),
+    [form.address_city, form.address_province, barangay],
   );
 
   const provinceOptions = useMemo(() => {
@@ -212,32 +218,58 @@ export default function CheckoutBillingAddressModal({
         </header>
 
         <form className={styles.form} onSubmit={handleSubmit} autoComplete="off" noValidate>
-          <AddressSuggestField
-            label="Street address *"
-            value={form.address_street}
-            options={streetOptions}
-            placeholder="Choose a street or barangay"
-            name="checkout-street"
-            preventBrowserFill
-            required
-            maxVisible={400}
-            className={styles.field}
-            inputClassName={styles.input}
-            onChange={(value) => setForm((current) => ({ ...current, address_street: value }))}
-            onSelect={(_value, option) =>
-              applyPlace(
-                option.city
-                  ? {
-                      street: option.street || option.value,
-                      city: option.city,
-                      province: option.province || "",
-                      zip: option.zip || "",
-                    }
-                  : findPlaceByStreet(option.value, form.address_city, form.address_province),
-                true,
-              )
-            }
-          />
+          <div className={styles.row}>
+            <label className={styles.field}>
+              <span>Street address *</span>
+              <input
+                className={styles.textbox}
+                name="checkout-street"
+                value={form.address_street}
+                autoComplete="off"
+                required
+                placeholder="House no., building, street"
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, address_street: event.target.value }))
+                }
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Barangay</span>
+              <select
+                className={styles.select}
+                name="checkout-barangay"
+                value={barangay}
+                disabled={streetOptions.length === 0}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setBarangay(value);
+                  const option = streetOptions.find((item) => item.value === value);
+                  if (!option) return;
+                  applyPlace(
+                    option.city
+                      ? {
+                          street: option.street || option.value,
+                          city: option.city,
+                          province: option.province || "",
+                          zip: option.zip || "",
+                        }
+                      : findPlaceByStreet(option.value, form.address_city, form.address_province),
+                    !form.address_street.trim(),
+                  );
+                }}
+              >
+                <option value="">
+                  {streetOptions.length === 0 ? "Choose a city first" : "Choose a barangay"}
+                </option>
+                {streetOptions.map((option) => (
+                  <option key={`${option.value}|${option.zip}`} value={option.value}>
+                    {option.street || option.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
 
           <div className={styles.row}>
             <AddressSuggestField
@@ -251,8 +283,12 @@ export default function CheckoutBillingAddressModal({
               maxVisible={400}
               className={styles.field}
               inputClassName={styles.input}
-              onChange={(value) => setForm((current) => ({ ...current, address_city: value }))}
-              onSelect={(value, option) =>
+              onChange={(value) => {
+                setBarangay("");
+                setForm((current) => ({ ...current, address_city: value }));
+              }}
+              onSelect={(value, option) => {
+                setBarangay("");
                 applyPlace(
                   option.city
                     ? {
@@ -261,8 +297,8 @@ export default function CheckoutBillingAddressModal({
                         zip: option.zip || form.address_zip,
                       }
                     : findPlaceByCity(value, form.address_province),
-                )
-              }
+                );
+              }}
             />
             <AddressSuggestField
               label="Province *"
@@ -274,12 +310,13 @@ export default function CheckoutBillingAddressModal({
               required
               className={styles.field}
               inputClassName={styles.input}
-              onChange={(value) =>
+              onChange={(value) => {
+                setBarangay("");
                 setForm((current) => ({
                   ...current,
                   address_province: value,
-                }))
-              }
+                }));
+              }}
             />
           </div>
 
@@ -309,7 +346,7 @@ export default function CheckoutBillingAddressModal({
           />
 
           <p className={styles.helperHint}>
-            Click a filled field to see its list. Choosing a city fills province and ZIP
+            Type your street in the textbox, then use the barangay dropdown so ZIP can fill
             automatically.
           </p>
 
