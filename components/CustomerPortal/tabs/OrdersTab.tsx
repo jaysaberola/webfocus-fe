@@ -17,6 +17,7 @@ import { formatPeso } from "@/lib/customerPortal/mockData";
 import {
   orderCanCancel,
   orderDueDate,
+  orderPaymentMethodLabel,
   orderPlanLabel,
   orderServiceName,
 } from "@/lib/customerPortal/orderHelpers";
@@ -130,7 +131,7 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
       return sortBy === "amount-desc" ? b.total - a.total : a.total - b.total;
     }
     if (sortBy.startsWith("gateway")) {
-      return compareText(a.gateway, b.gateway, sortBy === "gateway-desc");
+      return compareText(orderPaymentMethodLabel(a), orderPaymentMethodLabel(b), sortBy === "gateway-desc");
     }
     if (sortBy.startsWith("date")) {
       const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
@@ -201,7 +202,7 @@ export default function OrdersTab() {
       case "status":
         return order.status;
       case "gateway":
-        return order.gateway;
+        return orderPaymentMethodLabel(order);
       case "serviceName":
         return orderServiceName(order);
       case "plan":
@@ -221,7 +222,7 @@ export default function OrdersTab() {
 
       const item = order.items[0];
       return rowMatchesSearch(
-        [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, order.gateway, order.status],
+        [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, orderPaymentMethodLabel(order), order.status],
         search,
       );
     });
@@ -289,7 +290,7 @@ export default function OrdersTab() {
           orderServiceName(order),
           orderPlanLabel(order),
           formatPeso(order.total),
-          order.gateway,
+          orderPaymentMethodLabel(order),
           order.date,
           orderDueDate(order),
           order.status,
@@ -572,7 +573,7 @@ export default function OrdersTab() {
                         </td>
                         <td>{orderPlanLabel(order)}</td>
                         <td className={styles.monoBold}>{formatPeso(order.total)}</td>
-                        <td>{order.gateway}</td>
+                        <td>{orderPaymentMethodLabel(order)}</td>
                         <td>{order.date}</td>
                         <td>{orderDueDate(order)}</td>
                         <td>

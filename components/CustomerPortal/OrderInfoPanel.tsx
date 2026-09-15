@@ -2,6 +2,7 @@ import { formatPeso } from "@/lib/customerPortal/mockData";
 import {
   orderCanCancel,
   orderDueDate,
+  orderPaymentMethodLabel,
   orderPlanLabel,
   orderServiceName,
 } from "@/lib/customerPortal/orderHelpers";
@@ -78,7 +79,7 @@ export default function OrderInfoPanel({
           <ReadField label="Plan" value={plan || "—"} />
           {order.domain ? <ReadField label="Domain Name" value={order.domain} /> : null}
           <ReadField label="Amount" value={formatPeso(order.total)} />
-          <ReadField label="Payment Method" value={order.gateway || "—"} />
+          <ReadField label="Payment Method" value={orderPaymentMethodLabel(order)} />
           <ReadField label="Payment Status" value={order.paymentStatus || "—"} />
           <ReadField label="Date Ordered" value={order.date || "—"} />
           <ReadField label="Due Date" value={orderDueDate(order) || "—"} />

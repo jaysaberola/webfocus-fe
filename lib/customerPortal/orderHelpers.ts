@@ -22,3 +22,11 @@ export function orderCanCancel(order: PortalOrder) {
   if (typeof order.canCancel === "boolean") return order.canCancel;
   return order.status === "Pending Request" || order.status === "Awaiting Approval";
 }
+
+export function orderPaymentMethodLabel(order: PortalOrder) {
+  const raw = String(order.gateway || "").trim();
+  if (!raw) return "—";
+  if (/paynamics\s*ipg/i.test(raw) || /^paynamics$/i.test(raw)) return "Paynamics";
+  if (/paynamics/i.test(raw) && /hosted|portal|gateway/i.test(raw)) return "Paynamics";
+  return raw;
+}

@@ -428,6 +428,7 @@ export default function PublicCartCheckoutPage() {
         })),
         notes: [
           "Customer checkout order",
+          "Payment method: Paynamics",
           "Payment gateway: Paynamics hosted portal",
           checkoutItems.length > 1
             ? `Combined invoice: ${checkoutItems.length} priced services paid in one transaction.`
