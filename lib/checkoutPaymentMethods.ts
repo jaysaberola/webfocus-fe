@@ -5,35 +5,144 @@ export type PaynamicsPaymentMethod = {
   icon: string;
 };
 
-export const PAYNAMICS_PAYMENT_METHODS: PaynamicsPaymentMethod[] = [
+export type PaynamicsPaymentGroup = {
+  id: string;
+  label: string;
+  methods: PaynamicsPaymentMethod[];
+};
+
+export const PAYNAMICS_PAYMENT_GROUPS: PaynamicsPaymentGroup[] = [
   {
-    id: "cc",
+    id: "card",
     label: "Credit / Debit Card",
-    description: "Visa, Mastercard, and other major cards via Paynamics IPG.",
-    icon: "fa-regular fa-credit-card",
+    methods: [
+      {
+        id: "cc",
+        label: "Credit / Debit Card",
+        description: "Use your Visa or Mastercard to pay.",
+        icon: "fa-regular fa-credit-card",
+      },
+    ],
   },
   {
-    id: "gc",
-    label: "GCash",
-    description: "Pay using your GCash wallet through Paynamics.",
-    icon: "fa-solid fa-wallet",
+    id: "installment",
+    label: "Installment (Non-Credit Card)",
+    methods: [
+      {
+        id: "billease",
+        label: "Billease",
+        description: "Pay in installments through Billease.",
+        icon: "fa-solid fa-calendar",
+      },
+    ],
   },
   {
-    id: "bn",
+    id: "ewallet",
+    label: "E-Wallet",
+    methods: [
+      {
+        id: "gcash",
+        label: "GCash",
+        description: "Pay using your GCash wallet.",
+        icon: "fa-solid fa-wallet",
+      },
+      {
+        id: "maya",
+        label: "Maya",
+        description: "Pay using your Maya wallet.",
+        icon: "fa-solid fa-wallet",
+      },
+      {
+        id: "coinsph",
+        label: "coins.ph",
+        description: "Pay using your coins.ph wallet.",
+        icon: "fa-solid fa-wallet",
+      },
+      {
+        id: "grabpay",
+        label: "GrabPay",
+        description: "Pay using your GrabPay wallet.",
+        icon: "fa-solid fa-wallet",
+      },
+    ],
+  },
+  {
+    id: "bank",
     label: "Online Bank Transfer",
-    description: "BancNet online banking via Paynamics.",
-    icon: "fa-solid fa-building-columns",
+    methods: [
+      {
+        id: "bpi",
+        label: "BPI",
+        description: "Pay through BPI online banking.",
+        icon: "fa-solid fa-building-columns",
+      },
+      {
+        id: "bdo",
+        label: "BDO",
+        description: "Pay through BDO via Brankas.",
+        icon: "fa-solid fa-building-columns",
+      },
+      {
+        id: "qrph",
+        label: "QRPh",
+        description: "Pay through QR Ph.",
+        icon: "fa-solid fa-qrcode",
+      },
+      {
+        id: "unionbank",
+        label: "UnionBank",
+        description: "Pay through UnionBank online banking.",
+        icon: "fa-solid fa-building-columns",
+      },
+      {
+        id: "landbank",
+        label: "Landbank",
+        description: "Pay through Landbank via Brankas.",
+        icon: "fa-solid fa-building-columns",
+      },
+    ],
   },
   {
-    id: "ecpay",
-    label: "Over-the-Counter",
-    description: "ECPay and partner outlets via Paynamics.",
-    icon: "fa-solid fa-store",
+    id: "bills",
+    label: "Online Bills Payment",
+    methods: [
+      {
+        id: "robinsonsbank",
+        label: "Robinsons Bank",
+        description: "Pay through Robinsons Bank bills payment.",
+        icon: "fa-solid fa-receipt",
+      },
+    ],
   },
 ];
 
+export const PAYNAMICS_PAYMENT_METHODS: PaynamicsPaymentMethod[] =
+  PAYNAMICS_PAYMENT_GROUPS.flatMap((group) => group.methods);
+
+export const PAYNAMICS_PROVIDER_LABELS: Record<string, string> = {
+  cc: "Credit / Debit Card",
+  installment: "Installment (Non-Credit Card)",
+  billease: "Billease",
+  ewallet: "E-Wallet",
+  gc: "GCash",
+  gcash: "GCash",
+  maya: "Maya",
+  paymaya: "Maya",
+  coinsph: "coins.ph",
+  grabpay: "GrabPay",
+  bn: "Online Bank Transfer",
+  bpi: "BPI",
+  bdo: "BDO",
+  qrph: "QRPh",
+  unionbank: "UnionBank",
+  landbank: "Landbank",
+  ecpay: "Online Bills Payment",
+  robinsonsbank: "Robinsons Bank",
+};
+
 export function getPaynamicsPaymentLabel(methodId: string) {
-  return PAYNAMICS_PAYMENT_METHODS.find((method) => method.id === methodId)?.label ?? methodId;
+  const id = methodId.trim().toLowerCase().replace(/^paynamics[-_]/, "");
+  return PAYNAMICS_PROVIDER_LABELS[id] ?? methodId;
 }
 
 export function formatPaynamicsPaymentMethod(methodId: string) {

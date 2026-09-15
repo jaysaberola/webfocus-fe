@@ -5,11 +5,17 @@ import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
+import CheckoutPaymentMethods from "@/components/Cart/CheckoutPaymentMethods";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import {
   customerNeedsCheckoutBillingAddress,
   isCheckoutBillingValidationError,
 } from "@/lib/checkoutBillingAddress";
+import {
+  formatPaynamicsPaymentMethod,
+  getPaynamicsPaymentLabel,
+  PAYNAMICS_PAYMENT_METHODS,
+} from "@/lib/checkoutPaymentMethods";
 import {
   cartCount,
   cartHasMixedCheckout,
@@ -189,6 +195,9 @@ export default function PublicCartCheckoutPage() {
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [quoteNotes, setQuoteNotes] = useState<Record<string, string>>({});
+  const [paymentMethod, setPaymentMethod] = useState(
+    PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc",
+  );
 
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
@@ -428,7 +437,7 @@ export default function PublicCartCheckoutPage() {
         })),
         notes: [
           "Customer checkout order",
-          "Payment method: Paynamics",
+          `Payment method: ${formatPaynamicsPaymentMethod(paymentMethod)} (${getPaynamicsPaymentLabel(paymentMethod)})`,
           "Payment gateway: Paynamics hosted portal",
           checkoutItems.length > 1
             ? `Combined invoice: ${checkoutItems.length} priced services paid in one transaction.`
@@ -824,6 +833,10 @@ export default function PublicCartCheckoutPage() {
                       : "Read policy and contract agreement"}
                   </button>
                 </div>
+              ) : null}
+
+              {paymentStepActive && !quotationOnly ? (
+                <CheckoutPaymentMethods value={paymentMethod} onChange={setPaymentMethod} />
               ) : null}
 
               {paymentStepActive ? (

@@ -1,5 +1,5 @@
 import {
-  PAYNAMICS_PAYMENT_METHODS,
+  PAYNAMICS_PAYMENT_GROUPS,
   type PaynamicsPaymentMethod,
 } from "@/lib/checkoutPaymentMethods";
 import styles from "@/styles/publicCartCheckout.module.css";
@@ -14,20 +14,28 @@ export default function CheckoutPaymentMethods({ value, onChange }: CheckoutPaym
     <div className={styles.paymentBlock}>
       <div className={styles.paymentBlockHead}>
         <p className={styles.paymentBlockTitle}>Payment Method</p>
-        <span className={styles.paymentGatewayBadge}>Paynamics IPG</span>
+        <span className={styles.paymentGatewayBadge}>Paynamics</span>
       </div>
       <p className={styles.paymentBlockHint}>
-        Choose how you want to pay. You will be redirected to Paynamics to complete payment securely.
+        Choose a Paynamics option. You can still confirm the provider on the Paynamics page.
       </p>
       <div className={styles.paymentMethodList} role="radiogroup" aria-label="Payment method">
-        {PAYNAMICS_PAYMENT_METHODS.map((method) => (
-          <PaymentMethodOption
-            key={method.id}
-            method={method}
-            checked={value === method.id}
-            onSelect={() => onChange(method.id)}
-          />
-        ))}
+        {PAYNAMICS_PAYMENT_GROUPS.map((group) => {
+          const hideGroupTitle = group.methods.length === 1 && group.methods[0].label === group.label;
+          return (
+            <div key={group.id} className={styles.paymentMethodGroup}>
+              {hideGroupTitle ? null : <p className={styles.paymentMethodGroupTitle}>{group.label}</p>}
+              {group.methods.map((method) => (
+                <PaymentMethodOption
+                  key={method.id}
+                  method={method}
+                  checked={value === method.id}
+                  onSelect={() => onChange(method.id)}
+                />
+              ))}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

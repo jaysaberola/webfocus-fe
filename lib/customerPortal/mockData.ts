@@ -91,7 +91,7 @@ export const PORTAL_ORDERS: PortalOrder[] = [
     expiredDate: "2027-06-20",
     total: 2800,
     status: "Active Live",
-    gateway: "Paynamics IPG",
+    gateway: "Paynamics - Credit / Debit Card",
     items: [{ name: "Secure Domain", detail: "Wildcard SSL & .ph Registration", price: 2800 }],
   },
   {

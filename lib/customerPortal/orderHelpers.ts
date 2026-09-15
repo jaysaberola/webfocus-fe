@@ -1,3 +1,4 @@
+import { getPaynamicsPaymentLabel } from "@/lib/checkoutPaymentMethods";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 
@@ -26,7 +27,18 @@ export function orderCanCancel(order: PortalOrder) {
 export function orderPaymentMethodLabel(order: PortalOrder) {
   const raw = String(order.gateway || "").trim();
   if (!raw) return "—";
+
+  const idMatch = raw.match(/paynamics[-_ ]([a-z0-9]+)/i);
+  if (idMatch?.[1]) {
+    const specific = getPaynamicsPaymentLabel(idMatch[1]);
+    if (specific && specific.toLowerCase() !== idMatch[1].toLowerCase()) {
+      return `Paynamics - ${specific}`;
+    }
+  }
+
   if (/paynamics\s*ipg/i.test(raw) || /^paynamics$/i.test(raw)) return "Paynamics";
-  if (/paynamics/i.test(raw) && /hosted|portal|gateway/i.test(raw)) return "Paynamics";
+  if (/paynamics/i.test(raw) && /hosted|portal|gateway/i.test(raw) && !/\(.*\)| - /.test(raw)) {
+    return "Paynamics";
+  }
   return raw;
 }

@@ -446,7 +446,7 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
-                  Selected: {getPaynamicsPaymentLabel(paymentMethod)} via Paynamics IPG.
+                  Selected: {getPaynamicsPaymentLabel(paymentMethod)} via Paynamics.
                 </p>
               ) : null}
             </div>
