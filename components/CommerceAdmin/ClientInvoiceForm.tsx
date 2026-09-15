@@ -24,12 +24,12 @@ import {
   findPlaceByCity,
   findPlaceByStreet,
   findPlaceByZip,
-  PH_ADDRESS_PLACES,
   PH_COUNTRIES,
   PH_REGIONS,
   provincesForRegion,
   regionForProvince,
   streetsForPlace,
+  zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { toast } from "@/lib/toast";
 import {
@@ -283,17 +283,10 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
     [form.billingRegion],
   );
 
-  const zipOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return PH_ADDRESS_PLACES.filter((place) => {
-      if (seen.has(place.zip)) return false;
-      seen.add(place.zip);
-      return true;
-    }).map((place) => ({
-      value: place.zip,
-      label: `${place.zip} — ${place.city}, ${place.province}`,
-    }));
-  }, []);
+  const zipOptions = useMemo(
+    () => zipSuggestOptions(form.billingCity, form.billingState, form.billingStreet),
+    [form.billingCity, form.billingState, form.billingStreet],
+  );
 
   const countryOptions = useMemo(
     () => PH_COUNTRIES.map((country) => ({ value: country, label: country })),
@@ -614,13 +607,25 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
               }
             />
             <AddressSuggestField
-              label="Code"
+              label="ZIP Code"
               value={form.billingCode}
               options={zipOptions}
               autoComplete="postal-code"
-              placeholder="ZIP / postal code"
+              placeholder="Enter ZIP code"
+              filterMode="code"
               onChange={(value) => setField("billingCode", value)}
-              onSelect={(value) => applyPlace(findPlaceByZip(value))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.billingState,
+                        zip: option.zip || value,
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByZip(value, form.billingCity, form.billingState),
+                )
+              }
             />
           </div>
         </div>

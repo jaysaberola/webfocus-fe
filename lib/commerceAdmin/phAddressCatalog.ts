@@ -3,14 +3,17 @@ import catalog from "./phAddressPlaces.json";
 export type PhAddressPlace = {
   street?: string;
   city: string;
+  region?: string;
   province: string;
   zip: string;
   country: string;
 };
 
+type StreetEntry = string | { street?: string; zip?: string };
+
 type AddressCatalog = {
   cities: PhAddressPlace[];
-  streets: Record<string, string[]>;
+  streets: Record<string, StreetEntry[]>;
 };
 
 const PH = "Philippines";
@@ -30,64 +33,22 @@ export const PH_CITIES = uniqueSorted(PH_ADDRESS_CITIES.map((place) => place.cit
 
 export const PH_ZIPS = uniqueSorted(PH_ADDRESS_CITIES.map((place) => place.zip));
 
-export const PH_REGIONS = [
-  "NCR — National Capital Region",
-  "CAR — Cordillera Administrative Region",
-  "Region I — Ilocos",
-  "Region II — Cagayan Valley",
-  "Region III — Central Luzon",
-  "Region IV-A — CALABARZON",
-  "Region IV-B — MIMAROPA",
-  "Region V — Bicol",
-  "Region VI — Western Visayas",
-  "Region VII — Central Visayas",
-  "Region VIII — Eastern Visayas",
-  "Region IX — Zamboanga Peninsula",
-  "Region X — Northern Mindanao",
-  "Region XI — Davao",
-  "Region XII — SOCCSKSARGEN",
-  "Region XIII — Caraga",
-  "BARMM — Bangsamoro",
-];
+export const PH_REGIONS = uniqueSorted(PH_ADDRESS_CITIES.map((place) => String(place.region || "")));
 
-const REGION_PROVINCES: Record<string, string[]> = {
-  "NCR — National Capital Region": ["Metro Manila", "Taguig - Pateros"],
-  "CAR — Cordillera Administrative Region": ["Abra", "Apayao", "Benguet", "Ifugao", "Kalinga", "Mountain Province"],
-  "Region I — Ilocos": ["Ilocos Norte", "Ilocos Sur", "La Union", "Pangasinan"],
-  "Region II — Cagayan Valley": ["Batanes", "Cagayan", "Isabela", "Nueva Vizcaya", "Quirino"],
-  "Region III — Central Luzon": ["Aurora", "Bataan", "Bulacan", "Nueva Ecija", "Pampanga", "Tarlac", "Zambales"],
-  "Region IV-A — CALABARZON": ["Batangas", "Cavite", "Laguna", "Quezon", "Rizal"],
-  "Region IV-B — MIMAROPA": ["Marinduque", "Occidental Mindoro", "Oriental Mindoro", "Palawan", "Romblon"],
-  "Region V — Bicol": ["Albay", "Camarines Norte", "Camarines Sur", "Catanduanes", "Masbate", "Sorsogon"],
-  "Region VI — Western Visayas": ["Aklan", "Antique", "Capiz", "Guimaras", "Iloilo", "Negros Occidental"],
-  "Region VII — Central Visayas": ["Bohol", "Cebu", "Negros Oriental", "Siquijor"],
-  "Region VIII — Eastern Visayas": [
-    "Biliran",
-    "Eastern Samar",
-    "Leyte",
-    "Northern Samar",
-    "Samar (Western Samar)",
-    "Southern Leyte",
-  ],
-  "Region IX — Zamboanga Peninsula": ["Zamboanga Del Norte", "Zamboanga Del Sur", "Zamboanga Sibugay"],
-  "Region X — Northern Mindanao": ["Bukidnon", "Camiguin", "Lanao Del Norte", "Misamis Occidental", "Misamis Oriental"],
-  "Region XI — Davao": [
-    "Compostela Valley",
-    "Davao (Davao Del Norte)",
-    "Davao Del Sur",
-    "Davao Occidental",
-    "Davao Oriental",
-  ],
-  "Region XII — SOCCSKSARGEN": ["Cotabato (North Cot.)", "Sarangani", "South Cotabato", "Sultan Kudarat"],
-  "Region XIII — Caraga": [
-    "Agusan Del Norte",
-    "Agusan Del Sur",
-    "Dinagat Islands",
-    "Surigao Del Norte",
-    "Surigao Del Sur",
-  ],
-  "BARMM — Bangsamoro": ["Basilan", "Lanao Del Sur", "Maguindanao", "Sulu", "Tawi-Tawi"],
-};
+const REGION_PROVINCES: Record<string, string[]> = PH_ADDRESS_CITIES.reduce(
+  (groups, place) => {
+    const region = String(place.region || "").trim();
+    const province = String(place.province || "").trim();
+    if (!region || !province) return groups;
+    const list = groups[region] || [];
+    if (!list.includes(province)) list.push(province);
+    groups[region] = list;
+    return groups;
+  },
+  {} as Record<string, string[]>,
+);
+
+Object.values(REGION_PROVINCES).forEach((list) => list.sort((a, b) => a.localeCompare(b)));
 
 function normalize(value: string) {
   return String(value || "")
@@ -105,6 +66,8 @@ const PROVINCE_ALIASES: Record<string, string> = {
   ncr: "metro manila",
   "national capital region": "metro manila",
   manila: "metro manila",
+  "metro manila": "metro manila",
+  "ncr manila": "metro manila",
   "ncr first district": "metro manila",
   "ncr second district": "metro manila",
   "ncr third district": "metro manila",
@@ -113,6 +76,7 @@ const PROVINCE_ALIASES: Record<string, string> = {
   "ncr 2nd district": "metro manila",
   "ncr 3rd district": "metro manila",
   "ncr 4th district": "metro manila",
+  "taguig pateros": "metro manila",
 };
 
 function canonicalProvince(province: string) {
@@ -157,10 +121,23 @@ export function findPlaceByCity(city: string, province?: string): PhAddressPlace
   return scored[0]?.place ?? null;
 }
 
-export function findPlaceByZip(zip: string): PhAddressPlace | null {
+export function findPlaceByZip(zip: string, city?: string, province?: string): PhAddressPlace | null {
   const needle = zip.trim();
   if (!needle) return null;
-  return PH_ADDRESS_CITIES.find((place) => place.zip === needle) ?? null;
+  const matches = PH_ADDRESS_CITIES.filter((place) => place.zip === needle);
+  if (!matches.length) return null;
+  if (city || province) {
+    const scored = matches
+      .map((place) => {
+        let score = 0;
+        if (city && normalize(place.city) === normalize(city)) score += 50;
+        if (province && sameProvince(place.province, province)) score += 40;
+        return { place, score };
+      })
+      .sort((left, right) => right.score - left.score);
+    return scored[0]?.place ?? matches[0];
+  }
+  return matches[0];
 }
 
 export function findPlaceByStreet(street: string, city?: string, province?: string): PhAddressPlace | null {
@@ -193,12 +170,16 @@ function collectStreets(city?: string, province?: string): PhAddressPlace[] {
     const cityRow = CITY_BY_KEY.get(key);
     const displayCity = cityRow?.city || titleFromKey(cityKey);
     const displayProvince = cityRow?.province || titleFromKey(provinceKey);
-    const zip = cityRow?.zip || "";
+    const region = cityRow?.region || "";
 
-    for (const street of barangays) {
+    for (const item of barangays || []) {
+      const street = typeof item === "string" ? item : String(item?.street || "");
+      if (!street) continue;
+      const zip = typeof item === "string" ? cityRow?.zip || "" : String(item?.zip || cityRow?.zip || "");
       rows.push({
         street,
         city: displayCity,
+        region,
         province: displayProvince,
         zip,
         country: PH,
@@ -209,27 +190,59 @@ function collectStreets(city?: string, province?: string): PhAddressPlace[] {
   return rows;
 }
 
+export function resolveStreetZip(street?: string, city?: string, province?: string, fallbackZip?: string) {
+  const place = findPlaceByStreet(String(street || ""), city, province);
+  if (place?.zip) return place.zip;
+  return String(fallbackZip || "").trim();
+}
+
 export function streetsForPlace(city?: string, province?: string): PhAddressPlace[] {
   const rows = collectStreets(city, province);
   if (rows.length || !province) return rows;
   return collectStreets(city, "");
 }
 
-export function zipsForPlace(city?: string, province?: string): PhAddressPlace[] {
-  const cityNeedle = normalize(city || "");
-  const scoped = PH_ADDRESS_CITIES.filter((place) => {
-    if (!place.zip) return false;
-    if (cityNeedle) {
-      const placeCity = normalize(place.city);
-      if (placeCity !== cityNeedle && !placeCity.includes(cityNeedle) && !cityNeedle.includes(placeCity)) {
-        return false;
-      }
-    }
-    if (province && !sameProvince(place.province, province)) return false;
+export function zipsForPlace(city?: string, province?: string, street?: string): PhAddressPlace[] {
+  const streetRows = streetsForPlace(city, province).filter((place) => Boolean(place.zip));
+  const streetNeedle = normalize(street || "");
+  const preferred = streetNeedle
+    ? streetRows.filter((place) => normalize(place.street || "") === streetNeedle)
+    : [];
+  const list = preferred.length ? preferred : streetRows;
+  const seen = new Set<string>();
+  return list.filter((place) => {
+    const key = `${place.zip}|${place.street}|${place.city}|${place.province}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
-  if (scoped.length) return scoped;
-  return PH_ADDRESS_CITIES.filter((place) => Boolean(place.zip));
+}
+
+export function zipSuggestOptions(city?: string, province?: string, street?: string) {
+  const rows = zipsForPlace(city, province, street);
+  const uniqueByZip = new Map<string, PhAddressPlace[]>();
+  for (const place of rows) {
+    const list = uniqueByZip.get(place.zip) || [];
+    list.push(place);
+    uniqueByZip.set(place.zip, list);
+  }
+  return [...uniqueByZip.entries()].map(([zip, places]) => {
+    const place = places[0];
+    const area =
+      places.length === 1 && place.street
+        ? `${place.street}, ${place.city}`
+        : place.city;
+    return {
+      value: zip,
+      label: `${zip} — ${area}`,
+      street: places.length === 1 ? place.street : undefined,
+      city: place.city,
+      region: place.region,
+      province: place.province,
+      zip,
+      country: place.country,
+    };
+  });
 }
 
 function titleFromKey(value: string) {
@@ -246,6 +259,8 @@ export function citiesForProvince(province: string) {
 export function regionForProvince(province: string) {
   const needle = canonicalProvince(province);
   if (!needle) return "";
+  const match = PH_ADDRESS_CITIES.find((place) => canonicalProvince(place.province) === needle);
+  if (match?.region) return match.region;
   for (const [region, provinces] of Object.entries(REGION_PROVINCES)) {
     if (provinces.some((item) => canonicalProvince(item) === needle)) return region;
   }
@@ -261,8 +276,8 @@ export function provincesForRegion(region: string) {
 }
 
 export function isKnownProvince(province: string) {
-  const needle = normalize(province);
-  return PH_PROVINCES.some((item) => normalize(item) === needle);
+  const needle = canonicalProvince(province);
+  return PH_PROVINCES.some((item) => canonicalProvince(item) === needle);
 }
 
 export function isKnownCity(city: string) {

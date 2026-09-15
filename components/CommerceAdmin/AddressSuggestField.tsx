@@ -25,6 +25,7 @@ type Props = {
   onChange: (value: string) => void;
   onSelect?: (value: string, option: AddressSuggestOption) => void;
   maxVisible?: number;
+  filterMode?: "text" | "code";
 };
 
 const DEFAULT_MAX_VISIBLE = 80;
@@ -43,6 +44,7 @@ export default function AddressSuggestField({
   onChange,
   onSelect,
   maxVisible = DEFAULT_MAX_VISIBLE,
+  filterMode = "text",
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -52,23 +54,30 @@ export default function AddressSuggestField({
 
   const selectedValue = value.trim().toLowerCase();
   const filtered = useMemo(() => {
-    const needle = (typedQuery ?? "").trim().toLowerCase();
-    const next = (
-      needle
-        ? options.filter(
-            (option) =>
-              option.label.toLowerCase().includes(needle) ||
-              option.value.toLowerCase().includes(needle)
-          )
-        : options
-    ).slice();
+    const rawNeedle = (typedQuery ?? (filterMode === "code" ? value : "")).trim().toLowerCase();
+    const codeNeedle = rawNeedle.replace(/\D/g, "");
+    const next = options
+      .filter((option) => {
+        if (filterMode === "code") {
+          const zip = String(option.value || option.zip || "").replace(/\D/g, "");
+          if (!zip) return false;
+          if (!codeNeedle) return true;
+          return codeNeedle.length >= 4 ? zip === codeNeedle : zip.startsWith(codeNeedle);
+        }
+        if (!rawNeedle) return true;
+        return (
+          option.label.toLowerCase().includes(rawNeedle) ||
+          option.value.toLowerCase().includes(rawNeedle)
+        );
+      })
+      .slice();
     const selectedIndex = next.findIndex((option) => option.value.trim().toLowerCase() === selectedValue);
     if (selectedIndex > 0) {
       const [selected] = next.splice(selectedIndex, 1);
       next.unshift(selected);
     }
     return next.slice(0, maxVisible);
-  }, [options, typedQuery, maxVisible, selectedValue]);
+  }, [options, typedQuery, value, filterMode, maxVisible, selectedValue]);
 
   useEffect(() => {
     const onPointerDown = (event: MouseEvent) => {
@@ -114,6 +123,7 @@ export default function AddressSuggestField({
           name={name}
           value={value}
           autoComplete={preventBrowserFill ? "off" : autoComplete}
+          inputMode={filterMode === "code" ? "numeric" : undefined}
           readOnly={preventBrowserFill && !autofillUnlocked}
           required={required}
           placeholder={placeholder}
@@ -122,8 +132,10 @@ export default function AddressSuggestField({
           aria-autocomplete="list"
           onFocus={openList}
           onChange={(event) => {
-            setTypedQuery(event.target.value);
-            onChange(event.target.value);
+            const next =
+              filterMode === "code" ? event.target.value.replace(/\D/g, "").slice(0, 12) : event.target.value;
+            setTypedQuery(next);
+            onChange(next);
             setOpen(true);
           }}
           onKeyDown={(event) => {

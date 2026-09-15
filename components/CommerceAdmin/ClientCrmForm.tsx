@@ -30,12 +30,13 @@ import {
   findPlaceByCity,
   findPlaceByStreet,
   findPlaceByZip,
-  PH_ADDRESS_PLACES,
   PH_COUNTRIES,
   PH_REGIONS,
   provincesForRegion,
   regionForProvince,
+  resolveStreetZip,
   streetsForPlace,
+  zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
@@ -290,13 +291,23 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           address_city: detail?.address_city ?? "",
           address_province: detail?.address_province ?? "",
           address_region: detail?.address_region || regionForProvince(detail?.address_province ?? ""),
-          address_zip: detail?.address_zip ?? "",
+          address_zip: resolveStreetZip(
+            detail?.address_street,
+            detail?.address_city,
+            detail?.address_province,
+            detail?.address_zip,
+          ),
           address_country: detail?.address_country || "Philippines",
           shipping_street: detail?.shipping_street ?? "",
           shipping_city: detail?.shipping_city ?? "",
           shipping_province: detail?.shipping_province ?? "",
           shipping_region: detail?.shipping_region || regionForProvince(detail?.shipping_province ?? ""),
-          shipping_zip: detail?.shipping_zip ?? "",
+          shipping_zip: resolveStreetZip(
+            detail?.shipping_street,
+            detail?.shipping_city,
+            detail?.shipping_province,
+            detail?.shipping_zip,
+          ),
           shipping_country: detail?.shipping_country || "Philippines",
         });
         setExistingFiles({
@@ -387,6 +398,34 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     }));
   };
 
+  useEffect(() => {
+    const billingZip = resolveStreetZip(
+      form.address_street,
+      form.address_city,
+      form.address_province,
+      form.address_zip,
+    );
+    const shippingZip = resolveStreetZip(
+      form.shipping_street,
+      form.shipping_city,
+      form.shipping_province,
+      form.shipping_zip,
+    );
+    if (billingZip === form.address_zip && shippingZip === form.shipping_zip) return;
+    setForm((current) => ({
+      ...current,
+      address_zip: billingZip || current.address_zip,
+      shipping_zip: shippingZip || current.shipping_zip,
+    }));
+  }, [
+    form.address_street,
+    form.address_city,
+    form.address_province,
+    form.shipping_street,
+    form.shipping_city,
+    form.shipping_province,
+  ]);
+
   const billingStreetOptions = useMemo(() => {
     const seen = new Set<string>();
     return streetsForPlace(form.address_city, form.address_province)
@@ -472,17 +511,15 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     [form.shipping_region]
   );
 
-  const zipOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return PH_ADDRESS_PLACES.filter((place) => {
-      if (seen.has(place.zip)) return false;
-      seen.add(place.zip);
-      return true;
-    }).map((place) => ({
-      value: place.zip,
-      label: `${place.zip} — ${place.city}, ${place.province}`,
-    }));
-  }, []);
+  const billingZipOptions = useMemo(
+    () => zipSuggestOptions(form.address_city, form.address_province, form.address_street),
+    [form.address_city, form.address_province, form.address_street],
+  );
+
+  const shippingZipOptions = useMemo(
+    () => zipSuggestOptions(form.shipping_city, form.shipping_province, form.shipping_street),
+    [form.shipping_city, form.shipping_province, form.shipping_street],
+  );
 
   const countryOptions = useMemo(
     () => PH_COUNTRIES.map((country) => ({ value: country, label: country })),
@@ -961,13 +998,26 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               }
             />
             <AddressSuggestField
-              label="Code"
+              label="ZIP Code"
               value={form.address_zip}
-              options={zipOptions}
+              options={billingZipOptions}
               autoComplete="postal-code"
-              placeholder="ZIP / postal code"
+              placeholder="Enter ZIP code"
+              filterMode="code"
               onChange={(value) => setField("address_zip", value)}
-              onSelect={(value) => applyPlace("billing", findPlaceByZip(value))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  "billing",
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.address_province,
+                        zip: option.zip || value,
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByZip(value, form.address_city, form.address_province),
+                )
+              }
             />
           </div>
           <div className={styles.clientCrmCol}>
@@ -1044,13 +1094,26 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               }
             />
             <AddressSuggestField
-              label="Code"
+              label="ZIP Code"
               value={form.shipping_zip}
-              options={zipOptions}
+              options={shippingZipOptions}
               autoComplete="shipping postal-code"
-              placeholder="ZIP / postal code"
+              placeholder="Enter ZIP code"
+              filterMode="code"
               onChange={(value) => setField("shipping_zip", value)}
-              onSelect={(value) => applyPlace("shipping", findPlaceByZip(value))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  "shipping",
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.shipping_province,
+                        zip: option.zip || value,
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByZip(value, form.shipping_city, form.shipping_province),
+                )
+              }
             />
           </div>
         </div>

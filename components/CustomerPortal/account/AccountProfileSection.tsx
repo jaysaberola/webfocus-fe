@@ -16,7 +16,6 @@ import {
 import { toast } from "@/lib/toast";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import {
-  PH_ADDRESS_PLACES,
   PH_COUNTRIES,
   PH_REGIONS,
   citiesForProvince,
@@ -26,6 +25,7 @@ import {
   provincesForRegion,
   regionForProvince,
   streetsForPlace,
+  zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -207,17 +207,10 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     [form.address_region],
   );
 
-  const zipOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return PH_ADDRESS_PLACES.filter((place) => {
-      if (seen.has(place.zip)) return false;
-      seen.add(place.zip);
-      return true;
-    }).map((place) => ({
-      value: place.zip,
-      label: `${place.zip} — ${place.city}, ${place.province}`,
-    }));
-  }, []);
+  const zipOptions = useMemo(
+    () => zipSuggestOptions(form.address_city, form.address_province, form.address_street),
+    [form.address_city, form.address_province, form.address_street],
+  );
 
   const countryOptions = useMemo(
     () => PH_COUNTRIES.map((country) => ({ value: country, label: country })),
@@ -500,15 +493,27 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
               }
             />
             <AddressSuggestField
-              label="Code"
+              label="ZIP Code"
               value={form.address_zip}
               options={zipOptions}
               autoComplete="postal-code"
-              placeholder="ZIP / postal code"
+              placeholder="Enter ZIP code"
+              filterMode="code"
               className={styles.accountAddressField}
               inputClassName={styles.cpControl}
               onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
-              onSelect={(value) => applyPlace(findPlaceByZip(value))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.address_province,
+                        zip: option.zip || value,
+                        country: option.country || "Philippines",
+                      }
+                    : findPlaceByZip(value, form.address_city, form.address_province),
+                )
+              }
             />
           </div>
         </div>

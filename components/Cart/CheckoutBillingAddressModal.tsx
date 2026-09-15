@@ -15,7 +15,7 @@ import {
     PH_PROVINCES,
     regionForProvince,
     streetsForPlace,
-    zipsForPlace,
+    zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import {
   isPlaceholderLastName,
@@ -111,22 +111,10 @@ export default function CheckoutBillingAddressModal({
       }));
   }, [form.address_province]);
 
-  const zipOptions = useMemo(() => {
-    const seen = new Set<string>();
-    return zipsForPlace(form.address_city, form.address_province)
-      .filter((place) => {
-        if (!place.zip || seen.has(place.zip)) return false;
-        seen.add(place.zip);
-        return true;
-      })
-      .map((place) => ({
-        value: place.zip,
-        label: `${place.zip} — ${place.city}, ${place.province}`,
-        city: place.city,
-        province: place.province,
-        zip: place.zip,
-      }));
-  }, [form.address_city, form.address_province]);
+  const zipOptions = useMemo(
+    () => zipSuggestOptions(form.address_city, form.address_province, form.address_street),
+    [form.address_city, form.address_province, form.address_street],
+  );
 
   const provinceOptions = useMemo(() => {
     const current = form.address_province.trim();
@@ -296,13 +284,14 @@ export default function CheckoutBillingAddressModal({
           </div>
 
           <AddressSuggestField
-            label="ZIP / Postal code *"
+            label="ZIP Code *"
             value={form.address_zip}
             options={zipOptions}
-            placeholder={form.address_city ? `ZIP codes for ${form.address_city}` : "Choose a ZIP"}
+            placeholder="Enter ZIP code"
             name="checkout-zip"
             preventBrowserFill
             required
+            filterMode="code"
             className={styles.field}
             inputClassName={styles.input}
             onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
@@ -314,7 +303,7 @@ export default function CheckoutBillingAddressModal({
                       province: option.province || form.address_province,
                       zip: option.zip || value,
                     }
-                  : findPlaceByZip(value),
+                  : findPlaceByZip(value, form.address_city, form.address_province),
               )
             }
           />
