@@ -16,6 +16,7 @@ import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFil
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
+import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
   addPortalFunds,
@@ -129,7 +130,11 @@ function invoiceServiceLabel(inv: PortalInvoice) {
 }
 
 function invoicePlanLabel(inv: PortalInvoice) {
-  return String(inv.plan ?? inv.subscription ?? "");
+  return customerPlanLabelFromParts({
+    serviceName: inv.serviceName,
+    plan: inv.plan ?? inv.subscription,
+    items: inv.items,
+  });
 }
 
 function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
@@ -382,7 +387,7 @@ export default function BillingTab() {
     setProofModal({
       open: true,
       invoiceId: inv.id,
-      invoiceLabel: `${inv.id} (${inv.plan ?? inv.subscription})`,
+      invoiceLabel: `${inv.id} (${invoicePlanLabel(inv)})`,
     });
   };
 
@@ -390,7 +395,7 @@ export default function BillingTab() {
     setProofListModal({
       open: true,
       invoiceId: inv.id,
-      invoiceLabel: `${inv.id} (${inv.plan ?? inv.subscription})`,
+      invoiceLabel: `${inv.id} (${invoicePlanLabel(inv)})`,
     });
   };
 
@@ -398,7 +403,7 @@ export default function BillingTab() {
     if (action === "pay") {
       openInvoicePayment({
         invoiceId: inv.id,
-        title: inv.plan ?? inv.subscription,
+        title: invoicePlanLabel(inv),
         amount: inv.amount,
         canPay: inv.canPay,
         submitLabel: reminder?.invoiceId === inv.id ? reminder.buttonLabel : "Pay Now",
@@ -426,7 +431,7 @@ export default function BillingTab() {
       setSignedModal({
         open: true,
         invoiceId: inv.id,
-        invoiceLabel: `${inv.id} (${inv.plan ?? inv.subscription})`,
+        invoiceLabel: `${inv.id} (${invoicePlanLabel(inv)})`,
       });
       return;
     }
@@ -471,7 +476,7 @@ export default function BillingTab() {
         selectedInvoices.map((inv) => [
           inv.id,
           inv.serviceName ?? inv.items ?? "",
-          inv.plan ?? inv.subscription ?? "",
+          invoicePlanLabel(inv),
           inv.date,
           inv.due,
           formatPeso(inv.amount),
@@ -822,7 +827,7 @@ export default function BillingTab() {
                           </button>
                         </td>
                         <td className={styles.serviceNameBold}>{inv.serviceName ?? inv.items}</td>
-                        <td>{inv.plan ?? inv.subscription}</td>
+                        <td>{invoicePlanLabel(inv)}</td>
                         <td>{inv.date}</td>
                         <td>{inv.due}</td>
                         <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>

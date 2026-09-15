@@ -1,4 +1,4 @@
-import { joinPlanNames } from "@/lib/serviceCategory";
+import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 
 export function orderDueDate(order: PortalOrder) {
@@ -6,7 +6,11 @@ export function orderDueDate(order: PortalOrder) {
 }
 
 export function orderPlanLabel(order: PortalOrder) {
-  return order.plan ?? joinPlanNames(order.items.map((entry) => entry.detail ?? entry.name));
+  return customerPlanLabelFromParts({
+    serviceName: order.serviceName,
+    plan: order.plan,
+    items: order.items,
+  });
 }
 
 export function orderServiceName(order: PortalOrder) {
