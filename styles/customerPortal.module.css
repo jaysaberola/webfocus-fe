@@ -2493,6 +2493,52 @@
   box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
+.proofUploadZoneScanning {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.proofUploadZoneInvalid {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.proofUploadZoneInvalid:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #fee2e2;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.proofUploadZoneInvalid .proofUploadIcon {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.proofUploadZoneScanning .proofUploadIcon {
+  color: #2563eb;
+  border-color: #bfdbfe;
+}
+
+.proofScanOk,
+.proofScanErr,
+.proofScanInfo {
+  margin: 0.45rem 0 0;
+  font-size: var(--cp-text-xs, 0.75rem);
+  line-height: 1.4;
+}
+
+.proofScanOk {
+  color: #15803d;
+}
+
+.proofScanErr {
+  color: #b91c1c;
+}
+
+.proofScanInfo {
+  color: #1d4ed8;
+}
+
 .proofUploadIcon {
   display: inline-flex;
   align-items: center;

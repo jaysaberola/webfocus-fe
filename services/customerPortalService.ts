@@ -152,15 +152,33 @@ export async function addPortalFunds(payload: { amount: number; paymentMethod: s
   return res.data;
 }
 
+export async function scanPortalPaymentProof(payload: {
+  invoiceId: string;
+  receipt: File;
+  scannedText?: string;
+}) {
+  const formData = new FormData();
+  formData.append("invoice_id", payload.invoiceId);
+  formData.append("receipt", payload.receipt);
+  if (payload.scannedText) formData.append("scanned_text", payload.scannedText);
+
+  const res = await axiosInstance.post("/customer/portal/billing/payment-proofs/scan", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return res.data;
+}
+
 export async function uploadPortalPaymentProof(payload: {
   invoiceId: string;
   notes?: string;
   receipt: File;
+  scannedText?: string;
 }) {
   const formData = new FormData();
   formData.append("invoice_id", payload.invoiceId);
   if (payload.notes) formData.append("notes", payload.notes);
   formData.append("receipt", payload.receipt);
+  if (payload.scannedText) formData.append("scanned_text", payload.scannedText);
 
   const res = await axiosInstance.post("/customer/portal/billing/payment-proofs", formData, {
     headers: { "Content-Type": "multipart/form-data" },

@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["grapesjs-preset-webpage", "grapesjs-blocks-basic", "grapesjs-plugin-forms"],
   },
-  serverExternalPackages: ["pptxgenjs", "grapesjs"],
+  serverExternalPackages: ["pptxgenjs", "grapesjs", "tesseract.js"],
 	devIndicators: false,
   async redirects() {
     return [

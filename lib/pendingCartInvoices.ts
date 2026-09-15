@@ -2,14 +2,14 @@ import { resolveServiceCategory } from "@/lib/serviceCategory";
 import type { PortalInvoice } from "@/lib/customerPortal/types";
 import type { PublicCartItem } from "@/lib/publicCart";
 
-const PENDING_INVOICE_STATUSES = new Set(["Pending Payment", "Payment Due", "Overdue"]);
+const PENDING_CHECKOUT_STATUSES = new Set(["Pending Payment"]);
 
 export function cartItemServiceName(item: PublicCartItem) {
   return resolveServiceCategory(item.name, item.category);
 }
 
 export function isUnpaidInvoice(invoice: PortalInvoice) {
-  return PENDING_INVOICE_STATUSES.has(invoice.status) && !invoice.pendingQuotation;
+  return PENDING_CHECKOUT_STATUSES.has(invoice.status) && !invoice.pendingQuotation;
 }
 
 export function invoiceMatchesCartItem(invoice: PortalInvoice, item: PublicCartItem) {

@@ -562,13 +562,19 @@ export default function BillingTab() {
     }
   };
 
-  const handleUploadProof = async (payload: { invoiceId: string; notes: string; file: File }) => {
+  const handleUploadProof = async (payload: {
+    invoiceId: string;
+    notes: string;
+    file: File;
+    scannedText?: string;
+  }) => {
     try {
       setUploadingProof(true);
       const result = await uploadPortalPaymentProof({
         invoiceId: payload.invoiceId,
         notes: payload.notes || undefined,
         receipt: payload.file,
+        scannedText: payload.scannedText,
       });
       toast.success(result?.message || "Payment proof uploaded.");
       setProofModal({ open: false });
