@@ -122,7 +122,7 @@ export default function CheckoutBillingAddressModal({
       })
       .map((place) => ({
         value: place.street || "",
-        label: `${place.street} — ${place.city}, ${place.province}`,
+        label: place.street || "",
         street: place.street,
         city: place.city,
         province: place.province,
@@ -141,7 +141,7 @@ export default function CheckoutBillingAddressModal({
       })
       .map((place) => ({
         value: place.city,
-        label: `${place.city} — ${place.province}`,
+        label: place.city,
         city: place.city,
         province: place.province,
         zip: place.zip,
@@ -368,35 +368,37 @@ export default function CheckoutBillingAddressModal({
             />
           </div>
 
-          <AddressSuggestField
-            label={
-              <>
-                ZIP Code <span className={styles.requiredMark}>*</span>
-              </>
-            }
-            value={form.address_zip}
-            options={zipOptions}
-            placeholder="Enter ZIP code"
-            name="checkout-zip"
-            preventBrowserFill
-            required
-            filterMode="code"
-            className={styles.field}
-            inputClassName={styles.input}
-            wrapClassName={styles.suggestWrap}
-            onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
-            onSelect={(value, option) =>
-              applyPlace(
-                option.city
-                  ? {
-                      city: option.city,
-                      province: option.province || form.address_province,
-                      zip: option.zip || value,
-                    }
-                  : findPlaceByZip(value, form.address_city, form.address_province),
-              )
-            }
-          />
+          <div className={styles.row}>
+            <AddressSuggestField
+              label={
+                <>
+                  ZIP Code <span className={styles.requiredMark}>*</span>
+                </>
+              }
+              value={form.address_zip}
+              options={zipOptions}
+              placeholder="Enter ZIP code"
+              name="checkout-zip"
+              preventBrowserFill
+              required
+              filterMode="code"
+              className={styles.field}
+              inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
+              onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
+              onSelect={(value, option) =>
+                applyPlace(
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.address_province,
+                        zip: option.zip || value,
+                      }
+                    : findPlaceByZip(value, form.address_city, form.address_province),
+                )
+              }
+            />
+          </div>
 
           <p className={styles.helperHint}>
             Choose a barangay first so ZIP can fill automatically, then type the house or street

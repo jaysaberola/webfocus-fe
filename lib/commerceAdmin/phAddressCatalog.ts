@@ -228,13 +228,9 @@ export function zipSuggestOptions(city?: string, province?: string, street?: str
   }
   return [...uniqueByZip.entries()].map(([zip, places]) => {
     const place = places[0];
-    const area =
-      places.length === 1 && place.street
-        ? `${place.street}, ${place.city}`
-        : place.city;
     return {
       value: zip,
-      label: `${zip} — ${area}`,
+      label: zip,
       street: places.length === 1 ? place.street : undefined,
       city: place.city,
       region: place.region,

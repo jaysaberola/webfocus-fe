@@ -173,7 +173,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       })
       .map((place) => ({
         value: place.street || "",
-        label: `${place.street} — ${place.city}, ${place.province} (${place.zip})`,
+        label: place.street || "",
         street: place.street,
         city: place.city,
         province: place.province,
@@ -193,7 +193,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       })
       .map((place) => ({
         value: place.city,
-        label: `${place.city} — ${place.province} (${place.zip})`,
+        label: place.city,
       }));
   }, [form.address_province]);
 
