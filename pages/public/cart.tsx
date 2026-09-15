@@ -11,7 +11,10 @@ import {
   customerNeedsCheckoutBillingAddress,
   isCheckoutBillingValidationError,
 } from "@/lib/checkoutBillingAddress";
-import { pendingInvoicesForCart } from "@/lib/pendingCartInvoices";
+import {
+  invoiceFromCheckoutConflict,
+  pendingInvoicesForCart,
+} from "@/lib/pendingCartInvoices";
 import {
   cartCount,
   cartHasMixedCheckout,
@@ -194,6 +197,7 @@ export default function PublicCartCheckoutPage() {
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [quoteNotes, setQuoteNotes] = useState<Record<string, string>>({});
   const [pendingInvoices, setPendingInvoices] = useState<PortalInvoice[]>([]);
+  const [blockedPendingInvoiceId, setBlockedPendingInvoiceId] = useState<string | null>(null);
   const [receiptTipOpen, setReceiptTipOpen] = useState(false);
   const [receiptTipAccepted, setReceiptTipAccepted] = useState(false);
 
@@ -277,7 +281,10 @@ export default function PublicCartCheckoutPage() {
   const checkoutBlockedByAgreement =
     isLoggedIn && !agreementAccepted && !emptyState;
   const pendingCartInvoices = pendingInvoicesForCart(pendingInvoices, payableItems);
-  const pendingCheckoutInvoice = pendingCartInvoices[0] ?? null;
+  const pendingCheckoutInvoice =
+    invoiceFromCheckoutConflict(pendingInvoices, blockedPendingInvoiceId) ??
+    pendingCartInvoices[0] ??
+    null;
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -530,6 +537,12 @@ export default function PublicCartCheckoutPage() {
             err?.response?.data?.message ||
             "You already have a pending Paynamics payment for this order."
         );
+        const conflictInvoiceId = String(
+          err?.response?.data?.data?.invoice_id ||
+            err?.response?.data?.data?.transaction_no ||
+            "",
+        ).trim();
+        if (conflictInvoiceId) setBlockedPendingInvoiceId(conflictInvoiceId);
         toast.info(pendingMessage);
         fetchPortalBilling()
           .then((billing) => setPendingInvoices(billing.invoices ?? []))
