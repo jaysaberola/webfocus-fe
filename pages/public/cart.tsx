@@ -11,7 +11,7 @@ import {
   customerNeedsCheckoutBillingAddress,
   isCheckoutBillingValidationError,
 } from "@/lib/checkoutBillingAddress";
-import { invoiceMatchesCartItem, pendingInvoicesForCart } from "@/lib/pendingCartInvoices";
+import { pendingInvoicesForCart } from "@/lib/pendingCartInvoices";
 import {
   cartCount,
   cartHasMixedCheckout,
@@ -651,9 +651,6 @@ export default function PublicCartCheckoutPage() {
                 const renewalYear =
                   new Date().getFullYear() + Math.ceil(months / 12);
                 const isWebDesign = isPendingQuotationCartItem(item);
-                const pendingInvoice = pendingCartInvoices.find((invoice) =>
-                  invoiceMatchesCartItem(invoice, item),
-                );
 
                 return (
                   <article key={item.key} className={styles.itemCard}>
@@ -748,41 +745,6 @@ export default function PublicCartCheckoutPage() {
                             Renews {months} months from purchase. Next renewal
                             around {renewalYear}.
                           </p>
-                          {pendingInvoice ? (
-                            <div className={styles.itemPendingPay} role="status">
-                              <p className={styles.itemPendingPayTitle}>Pending payment</p>
-                              <p className={styles.itemPendingPayMeta}>
-                                {pendingInvoice.serviceName || item.name}
-                                <span className={styles.pendingPayInvoice}>
-                                  {pendingInvoice.id}
-                                </span>
-                              </p>
-                              <p className={styles.itemPendingPayText}>
-                                Finish this Paynamics payment instead of creating a new invoice.
-                              </p>
-                              <div className={styles.pendingPayActions}>
-                                <Link
-                                  href="/public/dashboard?tab=billing"
-                                  className={styles.pendingPayLink}
-                                >
-                                  View invoice
-                                </Link>
-                                <button
-                                  type="button"
-                                  className={styles.pendingPayLink}
-                                  onClick={
-                                    paymentStepActive
-                                      ? () => {
-                                          void handleProceedToPaynamics();
-                                        }
-                                      : handleReadyForCheckout
-                                  }
-                                >
-                                  Ready for Checkout
-                                </button>
-                              </div>
-                            </div>
-                          ) : null}
                         </>
                       )}
                     </div>
