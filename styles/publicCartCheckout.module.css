@@ -362,6 +362,11 @@
   color: #9a3412;
 }
 
+.pendingPayLink:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .removeIconBtn {
   position: relative;
   z-index: 2;

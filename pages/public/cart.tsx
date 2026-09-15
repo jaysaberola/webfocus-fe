@@ -56,6 +56,7 @@ import {
 } from "@/services/publicCustomerService";
 import {
   checkoutWithPaynamics,
+  continuePaynamicsCheckout,
   createSalesTransaction,
 } from "@/services/salesTransactionService";
 import { WEB_DESIGN_PENDING_QUOTATION_MARKER } from "@/lib/commerceAdmin/webDesignPricing";
@@ -319,6 +320,92 @@ export default function PublicCartCheckoutPage() {
     }
     if (!agreementAccepted) {
       setAgreementOpen(true);
+    }
+  };
+
+  const handleContinuePendingPayment = async (
+    customerOverride?: PublicCustomer,
+    invoiceId = pendingCheckoutInvoice?.id,
+  ) => {
+    if (!invoiceId) return;
+
+    if (!isLoggedIn) {
+      setSignInOpen(true);
+      return;
+    }
+
+    let activeCustomer = customerOverride ?? customer ?? getStoredCustomer();
+    if (!activeCustomer) {
+      setSignInOpen(true);
+      return;
+    }
+
+    try {
+      const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+      activeCustomer = {
+        ...activeCustomer,
+        ...fresh,
+        address_street: fresh.address_street || activeCustomer.address_street,
+        address_city: fresh.address_city || activeCustomer.address_city,
+        address_municipality:
+          fresh.address_municipality || activeCustomer.address_municipality,
+        address_province: fresh.address_province || activeCustomer.address_province,
+        address_zip: fresh.address_zip || activeCustomer.address_zip,
+      };
+      setCustomer(activeCustomer);
+    } catch {
+      // Keep local customer if refresh fails.
+    }
+
+    if (customerNeedsCheckoutBillingAddress(activeCustomer)) {
+      setBillingOpen(true);
+      toast.info("Add your billing address to continue to Paynamics.");
+      return;
+    }
+
+    setPlacingOrder(true);
+    try {
+      const result = await continuePaynamicsCheckout(invoiceId);
+      const redirectUrl = result?.paynamics?.redirect_url;
+      if (!redirectUrl) {
+        throw new Error("Paynamics did not return a payment portal URL.");
+      }
+
+      beginPublicCartCheckout({
+        items,
+        payableKeys: payableItems.map((item) => item.key),
+        transactionId: result?.data?.id ?? pendingCheckoutInvoice?.recordId ?? null,
+        transactionNo: result?.data?.transaction_no ?? pendingCheckoutInvoice?.transactionNo ?? null,
+        requestId: result?.paynamics?.request_id ?? null,
+      });
+      toast.success(
+        `Opening Paynamics for ${pendingCheckoutInvoice?.id || invoiceId}...`
+      );
+      window.location.assign(redirectUrl);
+    } catch (err: any) {
+      const validationErrors = err?.response?.data?.errors;
+      const firstValidationError = validationErrors
+        ? Object.values(validationErrors).flat().find(Boolean)
+        : null;
+
+      if (isCheckoutBillingValidationError(validationErrors)) {
+        setBillingOpen(true);
+        toast.error(
+          "Complete your billing address (street, city, province, and ZIP) to continue checkout."
+        );
+        return;
+      }
+
+      toast.error(
+        String(
+          firstValidationError ||
+            err?.response?.data?.message ||
+            err?.message ||
+            "Failed to open the Paynamics payment portal."
+        )
+      );
+    } finally {
+      setPlacingOrder(false);
     }
   };
 
@@ -590,9 +677,17 @@ export default function PublicCartCheckoutPage() {
         );
         return;
       }
-      void handleProceedToPaynamics(merged);
+      if (pendingCheckoutInvoice) {
+        void handleContinuePendingPayment(merged);
+      } else {
+        void handleProceedToPaynamics(merged);
+      }
     } catch {
-      void handleProceedToPaynamics(updated);
+      if (pendingCheckoutInvoice) {
+        void handleContinuePendingPayment(updated);
+      } else {
+        void handleProceedToPaynamics(updated);
+      }
     }
   };
 
@@ -839,15 +934,12 @@ export default function PublicCartCheckoutPage() {
                       <button
                         type="button"
                         className={styles.pendingPayLink}
-                        onClick={
-                          paymentStepActive
-                            ? () => {
-                                void handleProceedToPaynamics();
-                              }
-                            : handleReadyForCheckout
-                        }
+                        disabled={placingOrder}
+                        onClick={() => {
+                          void handleContinuePendingPayment();
+                        }}
                       >
-                        Ready for Checkout
+                        {placingOrder ? "Opening Paynamics..." : "Ready for Checkout"}
                       </button>
                     </div>
                   </div>
@@ -939,6 +1031,10 @@ export default function PublicCartCheckoutPage() {
                   className={styles.checkoutBtn}
                   disabled={placingOrder}
                   onClick={() => {
+                    if (pendingCheckoutInvoice) {
+                      void handleContinuePendingPayment();
+                      return;
+                    }
                     void handleProceedToPaynamics();
                   }}
                 >

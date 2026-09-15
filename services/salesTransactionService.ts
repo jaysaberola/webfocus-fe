@@ -122,6 +122,16 @@ export const checkoutWithPaynamics = async (
   return res.data;
 };
 
+export const continuePaynamicsCheckout = async (
+  invoiceId: string
+): Promise<PaynamicsCheckoutResponse> => {
+  const res = await axiosInstance.post("/public/paynamics/continue", {
+    invoice_id: invoiceId,
+  });
+
+  return res.data;
+};
+
 export const confirmPaynamicsPayment = async (requestId: string) => {
   const res = await axiosInstance.post("/public/paynamics/confirm", {
     request_id: requestId,

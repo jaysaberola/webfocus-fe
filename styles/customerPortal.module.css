@@ -652,15 +652,22 @@
   background: #ffffff;
   border: 1px solid #fdba74;
   color: #c2410c;
+  font-family: inherit;
   font-size: 0.6875rem;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .pendingPayLink:hover {
   background: #fff7ed;
   border-color: #fb923c;
   color: #9a3412;
+}
+
+.pendingPayLink:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .proofPopupDialog {

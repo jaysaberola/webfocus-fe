@@ -28,6 +28,7 @@ import {
   fetchPortalOrders,
   notifyPortalNotificationsUpdated,
 } from "@/services/customerPortalService";
+import { continuePaynamicsCheckout } from "@/services/salesTransactionService";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 import {
   emptyDateRange,
@@ -191,6 +192,7 @@ export default function OrdersTab() {
   const [cancelTarget, setCancelTarget] = useState<PortalOrder | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -356,9 +358,33 @@ export default function OrdersTab() {
     [orders],
   );
 
+  const continuePendingPayment = async (order: PortalOrder) => {
+    const invoiceId = String(order.invoiceId || order.id || "").trim();
+    if (!invoiceId || checkingOut) return;
+
+    setCheckingOut(true);
+    try {
+      const result = await continuePaynamicsCheckout(invoiceId);
+      const redirectUrl = result?.paynamics?.redirect_url;
+      if (!redirectUrl) {
+        throw new Error("Paynamics did not return a payment portal URL.");
+      }
+      toast.success(`Opening Paynamics for ${invoiceId}...`);
+      window.location.assign(redirectUrl);
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to open the Paynamics payment portal."
+      );
+    } finally {
+      setCheckingOut(false);
+    }
+  };
+
   const handleOrderAction = (order: PortalOrder, action: string) => {
     if (action === "checkout") {
-      window.location.assign("/public/cart");
+      void continuePendingPayment(order);
       return;
     }
 
@@ -400,7 +426,13 @@ export default function OrdersTab() {
         <OrderInfoPanel
           order={viewingOrder}
           onBack={() => setViewingOrder(null)}
-          onCheckout={orderCanCheckout(viewingOrder) ? () => handleOrderAction(viewingOrder, "checkout") : undefined}
+          onCheckout={
+            orderCanCheckout(viewingOrder)
+              ? () => {
+                  void continuePendingPayment(viewingOrder);
+                }
+              : undefined
+          }
           onCancel={orderCanCancel(viewingOrder) ? () => setCancelTarget(viewingOrder) : undefined}
           cancelling={cancelling && cancelTarget?.id === viewingOrder.id}
         />
@@ -459,9 +491,17 @@ export default function OrdersTab() {
                 <Link href="/public/dashboard?tab=billing" className={styles.pendingPayLink}>
                   View invoice
                 </Link>
-                <Link href="/public/cart" className={styles.pendingPayLink}>
-                  Ready for Checkout
-                </Link>
+                <button
+                  type="button"
+                  className={styles.pendingPayLink}
+                  disabled={checkingOut}
+                  onClick={() => {
+                    const first = pendingCheckoutOrders[0];
+                    if (first) void continuePendingPayment(first);
+                  }}
+                >
+                  {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
+                </button>
               </div>
             </div>
           </div>
