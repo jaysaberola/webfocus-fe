@@ -234,7 +234,12 @@ export default function BillingTab() {
   const PAGE_SIZE = 10;
 
   const payableInvoices = useMemo(
-    () => invoices.filter((inv) => inv.status !== "Paid"),
+    () =>
+      invoices.filter(
+        (inv) =>
+          inv.status !== "Cancelled" &&
+          !inv.pendingQuotation
+      ),
     [invoices]
   );
 
@@ -812,6 +817,9 @@ export default function BillingTab() {
                 ) : (
                   paginatedInvoices.map((inv) => {
                     const invoiceProofs = proofsByInvoice.get(inv.id) ?? [];
+                    const hasVerifiedProof = invoiceProofs.some(
+                      (proof) => proof.status === "Verified & Credited"
+                    );
 
                     return (
                       <tr
@@ -891,11 +899,13 @@ export default function BillingTab() {
                                     <option value="pay" disabled={!inv.canPay}>
                                       {inv.canPay ? "Pay Now" : "Pay Now (not due yet)"}
                                     </option>
-                                    <option value="proof">Submit Payment Proof</option>
+                                    {!hasVerifiedProof ? (
+                                      <option value="proof">Submit Payment Proof</option>
+                                    ) : null}
                                   </>
-                                ) : (
+                                ) : !hasVerifiedProof ? (
                                   <option value="proof">Submit Payment Proof</option>
-                                )}
+                                ) : null}
                               </>
                             )}
                             <option value="orders">View Orders</option>

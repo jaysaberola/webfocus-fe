@@ -14,7 +14,7 @@ export type PortalInvoice = {
   createdAt?: string | null;
   due: string;
   amount: number;
-  status: "Paid" | "Pending Payment" | "Pending Quotation" | "Awaiting Approval" | "Payment Due" | "Overdue";
+  status: "Paid" | "Pending Payment" | "Pending Quotation" | "Awaiting Approval" | "Payment Due" | "Overdue" | "Cancelled";
   canPay?: boolean;
   daysUntilDue?: number | null;
   serviceName?: string;

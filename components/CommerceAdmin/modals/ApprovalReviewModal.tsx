@@ -85,6 +85,12 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
           <DetailField label="Submitted" value={approvalIssuedDate(row)} />
           <DetailField label="Status" value={row.status || "Pending Review"} />
           {!isProfileChange ? (
+            <DetailField
+              label="Invoice"
+              value={row.alreadyPaid || row.invoiceStatus === "Paid" ? "Paid via Paynamics" : row.invoiceStatus || "Unpaid"}
+            />
+          ) : null}
+          {!isProfileChange ? (
             <DetailField label="Amount" value={formatCommerceMoney(Number(row.amount ?? 0))} />
           ) : null}
           <DetailField label="Summary" value={row.summary || row.plan} wide />
@@ -184,7 +190,7 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
             disabled={busy}
             onClick={() => onApprove(row)}
           >
-            {isProfileChange ? "Approve Profile Change" : "Approve Payment"}
+            {isProfileChange ? "Approve Profile Change" : row.alreadyPaid ? "Confirm Receipt" : "Approve Payment"}
           </button>
         </div>
       </div>

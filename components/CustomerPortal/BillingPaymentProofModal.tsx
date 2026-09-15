@@ -169,7 +169,9 @@ export default function BillingPaymentProofModal({
         <div className={styles.billingModalHeadText}>
           <h3 id="billing-proof-title">Submit Payment Proof</h3>
           <p className={styles.panelSub}>
-            Upload a Paynamics payment success receipt. We scan it before it can be submitted.
+            {selectedInvoice?.status === "Paid"
+              ? "This invoice is already paid in Paynamics. Upload the Payment Success screenshot so billing can confirm your receipt."
+              : "Upload a Paynamics Payment Success receipt. We scan it before it can be submitted."}
           </p>
         </div>
         <button type="button" className={styles.billingModalClose} aria-label="Close" onClick={onClose}>
@@ -222,7 +224,7 @@ export default function BillingPaymentProofModal({
               </div>
             </div>
           ) : (
-            <p className={styles.proofEmptyState}>No unpaid invoices available for payment proof.</p>
+            <p className={styles.proofEmptyState}>No invoices available for payment proof.</p>
           )}
 
           <div className={styles.proofField}>

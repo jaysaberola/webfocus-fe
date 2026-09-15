@@ -69,6 +69,8 @@ export type CommercePaymentProofRow = {
   plan?: string;
   issuedDate?: string;
   expiredDate?: string;
+  alreadyPaid?: boolean;
+  invoiceStatus?: string | null;
 };
 
 export type CommerceTicketAdminRow = {
