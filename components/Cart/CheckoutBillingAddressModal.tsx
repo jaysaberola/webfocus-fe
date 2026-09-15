@@ -242,7 +242,7 @@ export default function CheckoutBillingAddressModal({
             <p className={styles.eyebrow}>Paynamics Checkout</p>
             <h2 id="checkout-billing-title">Complete billing address</h2>
             <p className={styles.subtitle}>
-              Choose a barangay, street, city, province, and ZIP from the Philippine list. Opening a
+              Choose a province, city, barangay, street, and ZIP from the Philippine list. Opening a
               filled field still shows the matching options.
             </p>
           </div>
@@ -258,6 +258,65 @@ export default function CheckoutBillingAddressModal({
         </header>
 
         <form className={styles.form} onSubmit={handleSubmit} autoComplete="off" noValidate>
+          <div className={styles.row}>
+            <AddressSuggestField
+              label={
+                <>
+                  Province <span className={styles.requiredMark}>*</span>
+                </>
+              }
+              value={form.address_province}
+              options={provinceOptions}
+              placeholder="Choose a province"
+              name="checkout-province"
+              preventBrowserFill
+              required
+              className={styles.field}
+              inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
+              onChange={(value) => {
+                setBarangay("");
+                setForm((current) => ({
+                  ...current,
+                  address_province: value,
+                }));
+              }}
+            />
+            <AddressSuggestField
+              label={
+                <>
+                  City <span className={styles.requiredMark}>*</span>
+                </>
+              }
+              value={form.address_city}
+              options={cityOptions}
+              placeholder="Choose a city"
+              name="checkout-city"
+              preventBrowserFill
+              required
+              maxVisible={400}
+              className={styles.field}
+              inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
+              onChange={(value) => {
+                setBarangay("");
+                setForm((current) => ({ ...current, address_city: value }));
+              }}
+              onSelect={(value, option) => {
+                setBarangay("");
+                applyPlace(
+                  option.city
+                    ? {
+                        city: option.city,
+                        province: option.province || form.address_province,
+                        zip: option.zip || form.address_zip,
+                      }
+                    : findPlaceByCity(value, form.address_province),
+                );
+              }}
+            />
+          </div>
+
           <div className={styles.row}>
             <AddressSuggestField
               label={
@@ -313,65 +372,6 @@ export default function CheckoutBillingAddressModal({
             <AddressSuggestField
               label={
                 <>
-                  City <span className={styles.requiredMark}>*</span>
-                </>
-              }
-              value={form.address_city}
-              options={cityOptions}
-              placeholder="Choose a city"
-              name="checkout-city"
-              preventBrowserFill
-              required
-              maxVisible={400}
-              className={styles.field}
-              inputClassName={styles.input}
-              wrapClassName={styles.suggestWrap}
-              onChange={(value) => {
-                setBarangay("");
-                setForm((current) => ({ ...current, address_city: value }));
-              }}
-              onSelect={(value, option) => {
-                setBarangay("");
-                applyPlace(
-                  option.city
-                    ? {
-                        city: option.city,
-                        province: option.province || form.address_province,
-                        zip: option.zip || form.address_zip,
-                      }
-                    : findPlaceByCity(value, form.address_province),
-                );
-              }}
-            />
-            <AddressSuggestField
-              label={
-                <>
-                  Province <span className={styles.requiredMark}>*</span>
-                </>
-              }
-              value={form.address_province}
-              options={provinceOptions}
-              placeholder="Choose a province"
-              name="checkout-province"
-              preventBrowserFill
-              required
-              className={styles.field}
-              inputClassName={styles.input}
-              wrapClassName={styles.suggestWrap}
-              onChange={(value) => {
-                setBarangay("");
-                setForm((current) => ({
-                  ...current,
-                  address_province: value,
-                }));
-              }}
-            />
-          </div>
-
-          <div className={styles.row}>
-            <AddressSuggestField
-              label={
-                <>
                   ZIP Code <span className={styles.requiredMark}>*</span>
                 </>
               }
@@ -401,8 +401,8 @@ export default function CheckoutBillingAddressModal({
           </div>
 
           <p className={styles.helperHint}>
-            Choose a barangay first so ZIP can fill automatically, then type the house or street
-            line.
+            Choose province, then city, then barangay so ZIP can fill automatically. Type the house
+            or street line last.
           </p>
 
           <div className={styles.actions}>
