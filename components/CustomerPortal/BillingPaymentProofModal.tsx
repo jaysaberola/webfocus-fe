@@ -85,7 +85,7 @@ export default function BillingPaymentProofModal({
           return;
         }
 
-        if (first.code === "unreadable") {
+        if (first.code === "unreadable" || first.code === "request_id_mismatch") {
           const ocrText = await ocrReceiptFile(file);
           if (cancelled || seq !== scanSeq.current) return;
 
