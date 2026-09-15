@@ -562,6 +562,107 @@
   background: #dbeafe;
 }
 
+.pendingPayNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0 0 1.1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #fde68a;
+  border-radius: 0.9rem;
+  background: #fffbeb;
+}
+
+.pendingPayIcon {
+  flex-shrink: 0;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+}
+
+.pendingPayCopy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.pendingPayTitle {
+  margin: 0;
+  color: #92400e;
+  font-size: var(--cp-text-sm);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pendingPayMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  color: #b45309;
+  font-size: var(--cp-text-xs);
+  font-weight: 600;
+}
+
+.pendingPayInvoice {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.pendingPayText {
+  margin: 0;
+  color: #b45309;
+  font-size: var(--cp-text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.pendingPayActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pendingPayLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin-top: 0.2rem;
+  min-height: 1.85rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #fdba74;
+  color: #c2410c;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pendingPayLink:hover {
+  background: #fff7ed;
+  border-color: #fb923c;
+  color: #9a3412;
+}
+
 .proofPopupDialog {
   width: min(100%, 440px);
 }

@@ -45,11 +45,12 @@ export type PortalOrder = {
   dueDate?: string;
   expiredDate: string;
   total: number;
-  status: "Active Live" | "Pending Request" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
+  status: "Active Live" | "Pending Request" | "Pending Payment" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
   paymentStatus?: string;
   gateway: string;
   paymentDate?: string | null;
   paymentMode?: string | null;
+  canCheckout?: boolean;
   canCancel?: boolean;
   items: Array<{ name: string; detail: string; price: number }>;
 };

@@ -16,6 +16,7 @@ import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import {
   orderCanCancel,
+  orderCanCheckout,
   orderDueDate,
   orderPaymentDate,
   orderPaymentMethodLabel,
@@ -350,7 +351,17 @@ export default function OrdersTab() {
     }
   };
 
+  const pendingCheckoutOrders = useMemo(
+    () => orders.filter(orderCanCheckout),
+    [orders],
+  );
+
   const handleOrderAction = (order: PortalOrder, action: string) => {
+    if (action === "checkout") {
+      window.location.assign("/public/cart");
+      return;
+    }
+
     if (action === "renew") {
       window.location.assign("/public/dashboard?tab=billing");
       return;
@@ -389,6 +400,7 @@ export default function OrdersTab() {
         <OrderInfoPanel
           order={viewingOrder}
           onBack={() => setViewingOrder(null)}
+          onCheckout={orderCanCheckout(viewingOrder) ? () => handleOrderAction(viewingOrder, "checkout") : undefined}
           onCancel={orderCanCancel(viewingOrder) ? () => setCancelTarget(viewingOrder) : undefined}
           cancelling={cancelling && cancelTarget?.id === viewingOrder.id}
         />
@@ -424,6 +436,36 @@ export default function OrdersTab() {
             Order New
           </Link>
         </div>
+
+        {pendingCheckoutOrders.length > 0 ? (
+          <div className={styles.pendingPayNotice} role="status">
+            <span className={styles.pendingPayIcon} aria-hidden="true">
+              <i className="fa-solid fa-clock" />
+            </span>
+            <div className={styles.pendingPayCopy}>
+              <p className={styles.pendingPayTitle}>
+                {pendingCheckoutOrders.length === 1 ? "Pending payment" : "Pending payments"}
+              </p>
+              {pendingCheckoutOrders.map((order) => (
+                <p key={order.id} className={styles.pendingPayMeta}>
+                  {orderServiceName(order)}
+                  <span className={styles.pendingPayInvoice}>{order.invoiceId || order.id}</span>
+                </p>
+              ))}
+              <p className={styles.pendingPayText}>
+                Finish this Paynamics payment instead of creating a new invoice.
+              </p>
+              <div className={styles.pendingPayActions}>
+                <Link href="/public/dashboard?tab=billing" className={styles.pendingPayLink}>
+                  View invoice
+                </Link>
+                <Link href="/public/cart" className={styles.pendingPayLink}>
+                  Ready for Checkout
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {hasSelection ? (
           <PortalBulkSelectionBar
@@ -618,6 +660,9 @@ export default function OrdersTab() {
                             <option value="" disabled hidden>
                               Actions...
                             </option>
+                            {orderCanCheckout(order) ? (
+                              <option value="checkout">Ready for Checkout</option>
+                            ) : null}
                             <option value="renew">Renew Subscription</option>
                             <option value="receipt">Download Receipt</option>
                             <option value="details">View Details</option>

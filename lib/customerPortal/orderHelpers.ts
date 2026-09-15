@@ -21,7 +21,16 @@ export function orderServiceName(order: PortalOrder) {
 export function orderCanCancel(order: PortalOrder) {
   if (order.status === "Cancelled") return false;
   if (typeof order.canCancel === "boolean") return order.canCancel;
-  return order.status === "Pending Request" || order.status === "Awaiting Approval";
+  return (
+    order.status === "Pending Request" ||
+    order.status === "Pending Payment" ||
+    order.status === "Awaiting Approval"
+  );
+}
+
+export function orderCanCheckout(order: PortalOrder) {
+  if (typeof order.canCheckout === "boolean") return order.canCheckout;
+  return order.status === "Pending Payment" && order.total > 0;
 }
 
 export function orderPaymentDate(order: PortalOrder) {

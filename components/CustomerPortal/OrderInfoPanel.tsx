@@ -1,6 +1,7 @@
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import {
   orderCanCancel,
+  orderCanCheckout,
   orderDueDate,
   orderPaymentDate,
   orderPaymentMethodLabel,
@@ -29,6 +30,7 @@ function ReadField({ label, value }: { label: string; value: string }) {
 type OrderInfoPanelProps = {
   order: PortalOrder;
   onBack: () => void;
+  onCheckout?: () => void;
   onCancel?: () => void;
   cancelling?: boolean;
 };
@@ -36,11 +38,13 @@ type OrderInfoPanelProps = {
 export default function OrderInfoPanel({
   order,
   onBack,
+  onCheckout,
   onCancel,
   cancelling = false,
 }: OrderInfoPanelProps) {
   const serviceName = orderServiceName(order);
   const plan = orderPlanLabel(order);
+  const canCheckout = orderCanCheckout(order) && Boolean(onCheckout);
   const canCancel = orderCanCancel(order) && Boolean(onCancel);
 
   return (
@@ -57,16 +61,23 @@ export default function OrderInfoPanel({
             <p className={styles.panelSub}>Orders</p>
           </div>
         </div>
-        {canCancel ? (
+        {canCheckout || canCancel ? (
           <div className={styles.orderInfoActions}>
-            <button
-              type="button"
-              className={`${styles.secondaryBtnSm} ${styles.dangerBtnSm}`}
-              onClick={onCancel}
-              disabled={cancelling}
-            >
-              {cancelling ? "Cancelling..." : "Cancel Order"}
-            </button>
+            {canCheckout ? (
+              <button type="button" className={styles.primaryBtnSm} onClick={onCheckout}>
+                Ready for Checkout
+              </button>
+            ) : null}
+            {canCancel ? (
+              <button
+                type="button"
+                className={`${styles.secondaryBtnSm} ${styles.dangerBtnSm}`}
+                onClick={onCancel}
+                disabled={cancelling}
+              >
+                {cancelling ? "Cancelling..." : "Cancel Order"}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
