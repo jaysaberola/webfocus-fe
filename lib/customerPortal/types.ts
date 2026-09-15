@@ -108,7 +108,7 @@ export type PortalServiceStatus = {
 
 export type PortalOverviewAlert = {
   id: string;
-  tone: "provisioning" | "payment";
+  tone: "provisioning" | "payment" | "billing";
   title: string;
   message: string;
   actionLabel: string;

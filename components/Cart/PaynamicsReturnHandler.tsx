@@ -9,12 +9,15 @@ import {
   readPublicCartCheckoutSession,
   restorePublicCartFromCheckoutBackup,
 } from "@/lib/publicCart";
-import { fetchPortalBilling } from "@/services/customerPortalService";
+import { markPaynamicsProofNeeded } from "@/lib/paynamicsProofPrompt";
+import { fetchPortalBilling, notifyPortalNotificationsUpdated } from "@/services/customerPortalService";
 import { confirmPaynamicsPayment } from "@/services/salesTransactionService";
 import { toast } from "@/lib/toast";
 
 function notifyPaidCartCleared() {
-  toast.success("Payment received. Paid items were removed from your cart.");
+  toast.success(
+    "Payment received. Screenshot or download the Paynamics Payment Success page, then upload it in Billing as proof of payment."
+  );
 }
 
 async function confirmPaidCheckoutFromServer(options?: { confirmGateway?: boolean }) {
@@ -77,7 +80,11 @@ export default function PaynamicsReturnHandler() {
 
     if (isPaidCheckoutStatus(status)) {
       finalizePaidPublicCartCheckout();
+      markPaynamicsProofNeeded({
+        requestId: String(router.query.request_id || "").trim() || null,
+      });
       notifyPaidCartCleared();
+      notifyPortalNotificationsUpdated();
     } else if (isAbandonedCheckoutStatus(status)) {
       abandonPublicCartCheckout();
       if (status === "cancelled" || status === "canceled") {
@@ -86,13 +93,22 @@ export default function PaynamicsReturnHandler() {
         toast.error("Payment was not completed. Your cart items are still saved.");
       }
     } else {
-      void confirmPaidCheckoutFromServer({ confirmGateway: true }).then((paid) => {
-        if (paid) notifyPaidCartCleared();
-      });
+    void confirmPaidCheckoutFromServer({ confirmGateway: true }).then((paid) => {
+      if (paid) {
+        markPaynamicsProofNeeded({
+          requestId: String(router.query.request_id || "").trim() || null,
+        });
+        notifyPaidCartCleared();
+        notifyPortalNotificationsUpdated();
+      }
+    });
     }
 
     const nextQuery = { ...router.query };
     delete nextQuery.paynamics;
+    if (isPaidCheckoutStatus(status)) {
+      nextQuery.submit_proof = "1";
+    }
     void router.replace(
       { pathname: router.pathname, query: nextQuery },
       undefined,
@@ -107,7 +123,11 @@ export default function PaynamicsReturnHandler() {
     if (!session || session.settled === "abandoned") return;
     confirmedRef.current = true;
     void confirmPaidCheckoutFromServer().then((paid) => {
-      if (paid) notifyPaidCartCleared();
+      if (paid) {
+        markPaynamicsProofNeeded();
+        notifyPaidCartCleared();
+        notifyPortalNotificationsUpdated();
+      }
     });
   }, [router.isReady, router.query.paynamics]);
 

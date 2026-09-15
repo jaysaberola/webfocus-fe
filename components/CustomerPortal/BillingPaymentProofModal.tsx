@@ -180,6 +180,10 @@ export default function BillingPaymentProofModal({
       </div>
 
       <div className={styles.billingModalBody}>
+        <ol className={styles.proofNeedSteps}>
+          <li>Screenshot or download the Paynamics Payment Success page.</li>
+          <li>Upload that file below. We scan it before it can be submitted.</li>
+        </ol>
         <div className={styles.proofFormPanel}>
           {showInvoicePicker ? (
             <label className={styles.proofField}>

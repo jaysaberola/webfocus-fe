@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
+import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -29,13 +30,15 @@ export default function BillingPaymentModal({
   onSubmit,
 }: BillingPaymentModalProps) {
   const [fundAmount, setFundAmount] = useState(FUND_PRESETS[1]);
+  const [receiptTipOpen, setReceiptTipOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setFundAmount(FUND_PRESETS[1]);
+    setReceiptTipOpen(false);
   }, [open, mode, invoiceId]);
 
-  const handleSubmit = () => {
+  const startPayment = () => {
     if (mode === "add-funds") {
       onSubmit("paynamics", fundAmount);
       return;
@@ -43,7 +46,12 @@ export default function BillingPaymentModal({
     onSubmit("paynamics");
   };
 
+  const handleSubmit = () => {
+    setReceiptTipOpen(true);
+  };
+
   return (
+    <>
     <PortalModal open={open} onClose={onClose} ariaLabelledBy="billing-payment-title">
       <div className={styles.billingModalHead}>
         <div className={styles.billingModalHeadText}>
@@ -62,6 +70,10 @@ export default function BillingPaymentModal({
       </div>
 
       <div className={styles.billingModalBody}>
+        <p className={styles.proofNeedHint}>
+          After you pay, screenshot or download the Paynamics <strong>Payment Success</strong> page. You must upload
+          that receipt in Billing as proof of payment.
+        </p>
         {mode === "invoice" ? (
           <div className={styles.billingModalSummary}>
             {title ? (
@@ -123,5 +135,16 @@ export default function BillingPaymentModal({
         </button>
       </div>
     </PortalModal>
+    <PaynamicsReceiptPromptModal
+      open={open && receiptTipOpen}
+      mode="before-pay"
+      invoiceId={invoiceId}
+      onUpload={() => {
+        setReceiptTipOpen(false);
+        startPayment();
+      }}
+      onLater={() => setReceiptTipOpen(false)}
+    />
+    </>
   );
 }

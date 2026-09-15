@@ -5,6 +5,7 @@ import styles from "@/styles/customerPortal.module.css";
 const TONE_CLASS: Record<PortalOverviewAlert["tone"], string> = {
   provisioning: styles.alertProvisioning,
   payment: styles.alertPayment,
+  billing: styles.alertPayment,
 };
 
 type OverviewAlertsPanelProps = {
@@ -14,6 +15,7 @@ type OverviewAlertsPanelProps = {
 function consolidateAlerts(alerts: PortalOverviewAlert[]): PortalOverviewAlert[] {
   const provisioning = alerts.filter((alert) => alert.tone === "provisioning");
   const payment = alerts.filter((alert) => alert.tone === "payment");
+  const billing = alerts.filter((alert) => alert.tone === "billing");
   const consolidated: PortalOverviewAlert[] = [];
 
   if (provisioning.length > 0) {
@@ -52,6 +54,8 @@ function consolidateAlerts(alerts: PortalOverviewAlert[]): PortalOverviewAlert[]
       icon: "card",
     });
   }
+
+  billing.forEach((alert) => consolidated.push(alert));
 
   return consolidated;
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
+import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import {
   cartCount,
   cartIsQuotationOnly,
@@ -61,6 +62,8 @@ export default function PublicCartCheckoutPage() {
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoCode, setPromoCode] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
+  const [receiptTipOpen, setReceiptTipOpen] = useState(false);
+  const [receiptTipAccepted, setReceiptTipAccepted] = useState(false);
 
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
@@ -130,7 +133,7 @@ export default function PublicCartCheckoutPage() {
     markCheckoutAgreementAccepted(items);
   };
 
-  const handleProceedToPaynamics = async () => {
+  const handleProceedToPaynamics = async (options?: { receiptAck?: boolean }) => {
     if (!items.length) return;
     if (!isLoggedIn) {
       setSignInOpen(true);
@@ -138,6 +141,11 @@ export default function PublicCartCheckoutPage() {
     }
     if (!agreementAccepted) {
       setAgreementOpen(true);
+      return;
+    }
+
+    if (!quotationOnly && !receiptTipAccepted && !options?.receiptAck) {
+      setReceiptTipOpen(true);
       return;
     }
 
@@ -427,8 +435,7 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
-                  Choose your payment option on the secure Paynamics page.
-                </p>
+                  Choose how to pay on Paynamics. Screenshot or download the Payment Success page, then upload it in Billing as proof of payment.
                 </p>
               ) : null}
             </div>
@@ -455,6 +462,17 @@ export default function PublicCartCheckoutPage() {
         items={items}
         onClose={() => setAgreementOpen(false)}
         onAccept={handleAgreementContinueToPayment}
+      />
+
+      <PaynamicsReceiptPromptModal
+        open={receiptTipOpen}
+        mode="before-pay"
+        onUpload={() => {
+          setReceiptTipAccepted(true);
+          setReceiptTipOpen(false);
+          void handleProceedToPaynamics({ receiptAck: true });
+        }}
+        onLater={() => setReceiptTipOpen(false)}
       />
     </div>
   );

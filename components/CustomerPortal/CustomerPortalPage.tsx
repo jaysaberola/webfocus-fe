@@ -11,6 +11,7 @@ import ContractTab from "./tabs/ContractTab";
 import NotificationsTab from "./tabs/NotificationsTab";
 import HelpTab from "./tabs/HelpTab";
 import AccountTab from "./tabs/AccountTab";
+import PaynamicsProofReminderHost from "./PaynamicsProofReminderHost";
 import PortalTabLoader from "./PortalTabLoader";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -43,10 +44,14 @@ export default function CustomerPortalPage() {
 
   const unreadCount = usePortalUnreadCount(Boolean(customer));
 
-  const switchTab = (tab: CustomerPortalTab) => {
-    if (tab === activeTab) return;
+  const switchTab = (tab: CustomerPortalTab, extraQuery?: Record<string, string>) => {
+    if (tab === activeTab && !extraQuery) return;
     setActiveTab(tab);
-    router.replace({ pathname: "/public/dashboard", query: tab === "overview" ? {} : { tab } }, undefined, {
+    const query =
+      tab === "overview" && !extraQuery
+        ? {}
+        : { ...(tab === "overview" ? {} : { tab }), ...extraQuery };
+    router.replace({ pathname: "/public/dashboard", query }, undefined, {
       shallow: true,
     });
   };
@@ -86,6 +91,14 @@ export default function CustomerPortalPage() {
           <AccountTab customer={customer} onCustomerUpdate={setCustomer} />
         )}
       </div>
+
+      {activeTab !== "billing" ? (
+        <PaynamicsProofReminderHost
+          onUpload={(invoice) => {
+            switchTab("billing", { upload_now: "1", invoice: invoice.id });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

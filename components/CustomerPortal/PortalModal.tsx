@@ -8,6 +8,7 @@ type PortalModalProps = {
   ariaLabelledBy?: string;
   children: ReactNode;
   dialogClassName?: string;
+  closeOnOverlay?: boolean;
 };
 
 export default function PortalModal({
@@ -16,6 +17,7 @@ export default function PortalModal({
   ariaLabelledBy,
   children,
   dialogClassName,
+  closeOnOverlay = true,
 }: PortalModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -56,7 +58,7 @@ export default function PortalModal({
     <div
       className={`${styles.customerPortal} ${styles.billingModalOverlay}`}
       role="presentation"
-      onClick={onClose}
+      onClick={closeOnOverlay ? onClose : undefined}
     >
       <div
         className={dialogClass}

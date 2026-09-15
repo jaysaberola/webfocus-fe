@@ -6,6 +6,7 @@ import { CustomerSignInModal } from "@/components/Auth/CustomerSignInModal";
 import CheckoutAgreementModal from "@/components/Cart/CheckoutAgreementModal";
 import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
+import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import {
   customerNeedsCheckoutBillingAddress,
   isCheckoutBillingValidationError,
@@ -193,6 +194,8 @@ export default function PublicCartCheckoutPage() {
   const [appliedPromo, setAppliedPromo] = useState<string | null>(null);
   const [quoteNotes, setQuoteNotes] = useState<Record<string, string>>({});
   const [pendingInvoices, setPendingInvoices] = useState<PortalInvoice[]>([]);
+  const [receiptTipOpen, setReceiptTipOpen] = useState(false);
+  const [receiptTipAccepted, setReceiptTipAccepted] = useState(false);
 
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
@@ -318,7 +321,10 @@ export default function PublicCartCheckoutPage() {
     markCheckoutAgreementAccepted(items);
   };
 
-  const handleProceedToPaynamics = async (customerOverride?: PublicCustomer) => {
+  const handleProceedToPaynamics = async (
+    customerOverride?: PublicCustomer,
+    options?: { receiptAck?: boolean }
+  ) => {
     if (!items.length) return;
 
     if (!isLoggedIn) {
@@ -328,6 +334,11 @@ export default function PublicCartCheckoutPage() {
 
     if (!agreementAccepted) {
       setAgreementOpen(true);
+      return;
+    }
+
+    if (!quotationOnly && !receiptTipAccepted && !options?.receiptAck) {
+      setReceiptTipOpen(true);
       return;
     }
 
@@ -952,7 +963,7 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>
-                  Choose your payment option on the secure Paynamics page.
+                  Choose how to pay on Paynamics. Screenshot or download the Payment Success page, then upload it in Billing as proof of payment.
                 </p>
               ) : null}
             </div>
@@ -987,6 +998,17 @@ export default function PublicCartCheckoutPage() {
         customer={customer}
         onClose={() => setBillingOpen(false)}
         onSaved={handleBillingAddressSaved}
+      />
+
+      <PaynamicsReceiptPromptModal
+        open={receiptTipOpen}
+        mode="before-pay"
+        onUpload={() => {
+          setReceiptTipAccepted(true);
+          setReceiptTipOpen(false);
+          void handleProceedToPaynamics(undefined, { receiptAck: true });
+        }}
+        onLater={() => setReceiptTipOpen(false)}
       />
     </div>
   );

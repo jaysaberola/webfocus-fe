@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
@@ -11,11 +12,19 @@ import {
 import BillingPaymentModal from "@/components/CustomerPortal/BillingPaymentModal";
 import BillingPaymentProofListModal from "@/components/CustomerPortal/BillingPaymentProofListModal";
 import BillingPaymentProofModal from "@/components/CustomerPortal/BillingPaymentProofModal";
+import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
+import {
+  clearPaynamicsProofPrompt,
+  consumeOpenProofUpload,
+  dismissPaynamicsProofPrompt,
+  isFreshPaynamicsProofPrompt,
+  isPaynamicsProofPromptDismissed,
+} from "@/lib/paynamicsProofPrompt";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
@@ -201,6 +210,7 @@ function invoiceStatusClass(status: PortalInvoice["status"]) {
 }
 
 export default function BillingTab() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
   const [paymentProofs, setPaymentProofs] = useState<PortalPaymentProof[]>([]);
   const [reminder, setReminder] = useState<{
@@ -222,6 +232,7 @@ export default function BillingTab() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [paymentModal, setPaymentModal] = useState<PaymentModalState>({ open: false });
   const [proofModal, setProofModal] = useState<ProofModalState>({ open: false });
+  const [proofPromptOpen, setProofPromptOpen] = useState(false);
   const [proofListModal, setProofListModal] = useState<ProofListModalState>({ open: false });
   const [signedModal, setSignedModal] = useState<SignedModalState>({ open: false });
   const [signedFile, setSignedFile] = useState<File | null>(null);
@@ -252,6 +263,17 @@ export default function BillingTab() {
     });
     return map;
   }, [paymentProofs]);
+
+  const invoicesNeedingProof = useMemo(
+    () =>
+      invoices.filter((inv) => {
+        if (inv.status !== "Paid") return false;
+        return (proofsByInvoice.get(inv.id) ?? []).length === 0;
+      }),
+    [invoices, proofsByInvoice]
+  );
+
+  const proofNeededInvoice = invoicesNeedingProof[0] ?? null;
 
   const getInvoiceFilterValue = useCallback((inv: PortalInvoice, fieldId: string) => {
     switch (fieldId) {
@@ -395,6 +417,40 @@ export default function BillingTab() {
       invoiceLabel: `${inv.id} (${invoicePlanLabel(inv)})`,
     });
   };
+
+  useEffect(() => {
+    if (loading || proofModal.open) return;
+
+    const fromQuery = String(router.query.upload_now || "") === "1";
+    const fromSession =
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem("webfocus.paynamicsProofPrompt.openUpload") === "1";
+    if (!fromQuery && !fromSession) return;
+
+    const requestedId = String(router.query.invoice || "");
+    const target =
+      invoicesNeedingProof.find((inv) => inv.id === requestedId) ?? proofNeededInvoice;
+    if (!target) return;
+
+    consumeOpenProofUpload();
+    openProofModal(target);
+
+    if (fromQuery) {
+      const nextQuery = { ...router.query };
+      delete nextQuery.upload_now;
+      delete nextQuery.invoice;
+      void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, { shallow: true });
+    }
+  }, [loading, proofModal.open, proofNeededInvoice, invoicesNeedingProof, router]);
+
+  useEffect(() => {
+    if (loading || proofModal.open || !proofNeededInvoice) {
+      if (!proofNeededInvoice) setProofPromptOpen(false);
+      return;
+    }
+    if (isPaynamicsProofPromptDismissed() && !isFreshPaynamicsProofPrompt()) return;
+    setProofPromptOpen(true);
+  }, [loading, proofModal.open, proofNeededInvoice]);
 
   const openProofListModal = (inv: PortalInvoice) => {
     setProofListModal({
@@ -583,6 +639,8 @@ export default function BillingTab() {
       });
       toast.success(result?.message || "Payment proof uploaded.");
       setProofModal({ open: false });
+      setProofPromptOpen(false);
+      clearPaynamicsProofPrompt();
       notifyPortalNotificationsUpdated();
       await loadBilling({ dateFrom: dateRange.from || undefined, dateTo: dateRange.to || undefined });
     } catch (err: any) {
@@ -645,7 +703,7 @@ export default function BillingTab() {
           <div>
             <h2 className={styles.panelTitle}>Billing Invoices &amp; Receipts</h2>
             <p className={styles.panelSub}>
-              Secure payment processing via GCash, Maya, and Corporate Bank Wire.
+              After Paynamics payment, screenshot or download the Payment Success page and upload it as proof of payment.
             </p>
           </div>
           <button
@@ -656,6 +714,37 @@ export default function BillingTab() {
             Add Funds
           </button>
         </div>
+
+        {invoicesNeedingProof.length > 0 ? (
+          <div className={styles.proofNeededBanner}>
+            <div className={styles.proofNeededIcon} aria-hidden="true">
+              <i className="fa-solid fa-camera" />
+            </div>
+            <div>
+              <h3 className={styles.proofNeededTitle}>Upload your Paynamics receipt</h3>
+              <p className={styles.proofNeededText}>
+                {invoicesNeedingProof.length === 1 ? (
+                  <>
+                    Invoice <span className={styles.monoBlue}>{proofNeededInvoice?.id}</span> is already paid.
+                    Screenshot or download the Paynamics Payment Success page, then submit it as proof of payment.
+                  </>
+                ) : (
+                  <>
+                    You have {invoicesNeedingProof.length} paid invoices waiting for a Paynamics Payment Success
+                    screenshot. Upload the receipt so billing can confirm your payment.
+                  </>
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.primaryBtnSm}
+              onClick={() => proofNeededInvoice && openProofModal(proofNeededInvoice)}
+            >
+              Upload Receipt
+            </button>
+          </div>
+        ) : null}
 
         {reminder ? (
           <div className={styles.reminderBanner}>
@@ -846,7 +935,18 @@ export default function BillingTab() {
                         <td>{inv.due}</td>
                         <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>
                         <td>
-                          <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>
+                          <div className={styles.statusWithHint}>
+                            <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>
+                            {inv.status === "Paid" && invoiceProofs.length === 0 ? (
+                              <button
+                                type="button"
+                                className={styles.proofNeededChip}
+                                onClick={() => openProofModal(inv)}
+                              >
+                                Upload receipt
+                              </button>
+                            ) : null}
+                          </div>
                         </td>
                         <td className={styles.billingActionsCell}>
                           <select
@@ -947,6 +1047,19 @@ export default function BillingTab() {
           </div>
         </TableFilterShell>
       </section>
+
+      <PaynamicsReceiptPromptModal
+        open={proofPromptOpen && !proofModal.open}
+        invoiceId={proofNeededInvoice?.id}
+        onUpload={() => {
+          setProofPromptOpen(false);
+          if (proofNeededInvoice) openProofModal(proofNeededInvoice);
+        }}
+        onLater={() => {
+          setProofPromptOpen(false);
+          dismissPaynamicsProofPrompt();
+        }}
+      />
 
       <BillingPaymentModal
         open={paymentModal.open}
