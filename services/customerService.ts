@@ -76,6 +76,9 @@ export type CustomerServiceLine = {
 };
 
 export type CustomerRow = UserRow & {
+  fname?: string | null;
+  lname?: string | null;
+  mname?: string | null;
   active_services_count?: number;
   orders_count?: number;
   company?: string;

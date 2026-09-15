@@ -111,11 +111,34 @@ export const DEFAULT_CLIENT_COLUMNS: Record<ClientColumnKey, boolean> = {
   classification: false,
 };
 
+function cleanClientLabel(value?: string | number | null) {
+  const raw = String(value ?? "").trim();
+  if (!raw || raw === "—") return "";
+  return raw.replace(/\s+(Customer|User)$/i, "").trim();
+}
+
 export function clientDisplayName(client: CustomerRow) {
-  // Client Name is company (mname) only — never fall back to username/person name.
-  const raw = String(client.company || "").trim();
-  const cleaned = raw.replace(/\s+(Customer|User)$/i, "").trim();
-  return cleaned || "—";
+  const company = cleanClientLabel(client.company);
+  if (company) return company;
+
+  const contact = cleanClientLabel(client.contact_person);
+  if (contact) return contact;
+
+  const representative = cleanClientLabel(client.representative);
+  if (representative) return representative;
+
+  const person = cleanClientLabel(
+    [client.fname, client.lname].filter(Boolean).join(" "),
+  );
+  if (person) return person;
+
+  const named = cleanClientLabel(client.name);
+  if (named) return named;
+
+  const email = cleanClientLabel(client.email);
+  if (email) return email;
+
+  return client.id ? `Client #${client.id}` : "Unnamed client";
 }
 
 export function clientOrdersCount(client: CustomerRow) {
