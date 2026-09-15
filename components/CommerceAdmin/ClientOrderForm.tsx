@@ -20,6 +20,7 @@ import {
   INVOICE_STATUS_OPTIONS,
   mergeDealMetaIntoNotes,
   PAYMENT_METHOD_OPTIONS,
+  PAYMENT_MODE_OPTIONS,
   PAYMENT_STATUS_OPTIONS,
   PAYMENT_TERMS_OPTIONS,
   PRODUCT_STATUS_OPTIONS,
@@ -922,6 +923,33 @@ export default function ClientOrderForm({
               >
                 <option value="">-None-</option>
                 {withExtraOption(PAYMENT_STATUS_OPTIONS, form.paymentStatus).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Payment Date" hint="Date the related payment was received">
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.paymentDate}
+                onChange={(e) => setField("paymentDate", e.target.value)}
+                readOnly={Boolean(transaction?.payment_date)}
+              />
+            </Field>
+            <Field
+              label="Payment Mode"
+              hint="Actual mode used on the related payment"
+            >
+              <select
+                className={inputClass()}
+                value={form.paymentMode}
+                onChange={(e) => setField("paymentMode", e.target.value)}
+                disabled={Boolean(transaction?.payment_mode)}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(PAYMENT_MODE_OPTIONS, form.paymentMode).map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>

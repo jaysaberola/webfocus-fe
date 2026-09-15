@@ -1,7 +1,7 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import InvoiceItemsPanel from "@/components/CommerceAdmin/InvoiceItemsPanel";
-import { SUBJECT_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { PAYMENT_MODE_OPTIONS, SUBJECT_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
   buildInvoiceNotes,
   emptyClientInvoiceForm,
@@ -465,6 +465,30 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
               value={form.officialReceipt}
               onChange={(e) => setField("officialReceipt", e.target.value)}
             />
+          </Field>
+          <Field label="Payment Date">
+            <input
+              className={inputClass()}
+              type="date"
+              value={form.paymentDate}
+              onChange={(e) => setField("paymentDate", e.target.value)}
+              readOnly={Boolean(transaction?.payment_date)}
+            />
+          </Field>
+          <Field label="Payment Mode">
+            <select
+              className={inputClass()}
+              value={form.paymentMode}
+              onChange={(e) => setField("paymentMode", e.target.value)}
+              disabled={Boolean(transaction?.payment_mode)}
+            >
+              <option value="">-None-</option>
+              {withExtraOption(PAYMENT_MODE_OPTIONS, form.paymentMode).map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Due Date">
             <input

@@ -89,7 +89,7 @@ type SignedModalState =
       invoiceLabel?: string;
     };
 
-type InvoiceColumnKey = "id" | "service" | "plan" | "issued" | "due" | "amount" | "status";
+type InvoiceColumnKey = "id" | "service" | "plan" | "issued" | "due" | "amount" | "paymentDate" | "paymentMode" | "status";
 type InvoiceSortKey =
   | "id-asc"
   | "id-desc"
@@ -103,11 +103,16 @@ type InvoiceSortKey =
   | "due-desc"
   | "amount-asc"
   | "amount-desc"
+  | "paymentDate-asc"
+  | "paymentDate-desc"
+  | "paymentMode-asc"
+  | "paymentMode-desc"
   | "status-asc"
   | "status-desc";
 
 const INVOICE_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "status", label: "Status" },
+  { id: "paymentMode", label: "Payment Mode" },
   { id: "serviceName", label: "Service Name" },
   { id: "plan", label: "Plan" },
   { id: "id", label: "Invoice ID", mode: "contains" },
@@ -121,6 +126,8 @@ const INVOICE_SORT_ASC: Record<InvoiceColumnKey, InvoiceSortKey> = {
   issued: "issued-asc",
   due: "due-asc",
   amount: "amount-asc",
+  paymentDate: "paymentDate-asc",
+  paymentMode: "paymentMode-asc",
   status: "status-asc",
 };
 
@@ -131,11 +138,21 @@ const INVOICE_SORT_DESC: Record<InvoiceColumnKey, InvoiceSortKey> = {
   issued: "issued-desc",
   due: "due-desc",
   amount: "amount-desc",
+  paymentDate: "paymentDate-desc",
+  paymentMode: "paymentMode-desc",
   status: "status-desc",
 };
 
 function invoiceServiceLabel(inv: PortalInvoice) {
   return String(inv.serviceName ?? inv.items ?? "");
+}
+
+function invoicePaymentDate(inv: PortalInvoice) {
+  return String(inv.paymentDate || "").trim() || "—";
+}
+
+function invoicePaymentMode(inv: PortalInvoice) {
+  return String(inv.paymentMode || "").trim() || "—";
 }
 
 function invoicePlanLabel(inv: PortalInvoice) {
@@ -182,6 +199,14 @@ function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
       const right = Date.parse(String(b.createdAt || b.date || "")) || 0;
       if (left !== right) return sortBy === "amount-desc" ? right - left : left - right;
       return String(b.id).localeCompare(String(a.id));
+    }
+    if (sortBy.startsWith("paymentDate")) {
+      const left = Date.parse(String(a.paymentDate || "")) || 0;
+      const right = Date.parse(String(b.paymentDate || "")) || 0;
+      return sortBy === "paymentDate-desc" ? right - left : left - right;
+    }
+    if (sortBy.startsWith("paymentMode")) {
+      return compareText(invoicePaymentMode(a), invoicePaymentMode(b), sortBy === "paymentMode-desc");
     }
     if (sortBy.startsWith("status")) return compareText(a.status, b.status, sortBy === "status-desc");
     return 0;
@@ -287,6 +312,8 @@ export default function BillingTab() {
         return inv.id;
       case "transactionNo":
         return inv.transactionNo ?? "";
+      case "paymentMode":
+        return invoicePaymentMode(inv);
       default:
         return "";
     }
@@ -296,7 +323,7 @@ export default function BillingTab() {
     let rows = invoices.filter((inv) => {
       if (!rowMatchesDateRange(inv.date, dateRange)) return false;
       return rowMatchesSearch(
-        [inv.id, inv.serviceName, inv.items, inv.plan, inv.subscription, inv.status, inv.transactionNo],
+        [inv.id, inv.serviceName, inv.items, inv.plan, inv.subscription, inv.status, inv.transactionNo, invoicePaymentDate(inv), invoicePaymentMode(inv)],
         search,
       );
     });
@@ -533,7 +560,7 @@ export default function BillingTab() {
     setExporting(true);
     try {
       exportRowsToExcel(
-        ["Invoice ID", "Service Name", "Plan", "Issued", "Due Date", "Amount", "Status"],
+        ["Invoice ID", "Service Name", "Plan", "Issued", "Due Date", "Amount", "Payment Date", "Payment Mode", "Status"],
         selectedInvoices.map((inv) => [
           inv.id,
           inv.serviceName ?? inv.items ?? "",
@@ -541,6 +568,8 @@ export default function BillingTab() {
           inv.date,
           inv.due,
           formatPeso(inv.amount),
+          invoicePaymentDate(inv),
+          invoicePaymentMode(inv),
           inv.status,
         ]),
         "my-billing",
@@ -830,7 +859,7 @@ export default function BillingTab() {
         >
           <ResizableTableFrame
             storageKey="customerPortal:billing"
-            columns={["id", "service", "plan", "issued", "due", "amount", "status", "actions"]}
+            columns={["id", "service", "plan", "issued", "due", "amount", "paymentDate", "paymentMode", "status", "actions"]}
             labels={{
               id: "Invoice ID",
               service: "Service Name",
@@ -838,6 +867,8 @@ export default function BillingTab() {
               issued: "Issued",
               due: "Due Date",
               amount: "Amount",
+              paymentDate: "Payment Date",
+              paymentMode: "Payment Mode",
               status: "Status",
               actions: "Actions",
             }}
@@ -890,6 +921,18 @@ export default function BillingTab() {
                     onClick={() => setSortBy((current) => toggleInvoiceSort(current, "amount"))}
                   />
                   <PortalSortableTableHead
+                    label="Payment Date"
+                    active={invoiceSortDirection(sortBy, "paymentDate") !== null}
+                    direction={invoiceSortDirection(sortBy, "paymentDate") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "paymentDate"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Payment Mode"
+                    active={invoiceSortDirection(sortBy, "paymentMode") !== null}
+                    direction={invoiceSortDirection(sortBy, "paymentMode") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleInvoiceSort(current, "paymentMode"))}
+                  />
+                  <PortalSortableTableHead
                     label="Status"
                     active={invoiceSortDirection(sortBy, "status") !== null}
                     direction={invoiceSortDirection(sortBy, "status") ?? "asc"}
@@ -901,7 +944,7 @@ export default function BillingTab() {
               <tbody>
                 {paginatedInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>No invoices found for the selected filters.</td>
+                    <td colSpan={11}>No invoices found for the selected filters.</td>
                   </tr>
                 ) : (
                   paginatedInvoices.map((inv) => {
@@ -934,6 +977,8 @@ export default function BillingTab() {
                         <td>{inv.date}</td>
                         <td>{inv.due}</td>
                         <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>
+                        <td>{invoicePaymentDate(inv)}</td>
+                        <td>{invoicePaymentMode(inv)}</td>
                         <td>
                           <div className={styles.statusWithHint}>
                             <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>

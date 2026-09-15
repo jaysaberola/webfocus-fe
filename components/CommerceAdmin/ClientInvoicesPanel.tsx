@@ -32,15 +32,16 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
-    "commerceAdmin:columnVisibility:clientInvoices:v2",
+    "commerceAdmin:columnVisibility:clientInvoices:v5",
     DEFAULT_INVOICE_COLUMNS,
   );
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
   const invoiceColumnLabel = useCallback((key: InvoiceColumnKey) => INVOICE_COLUMN_LABELS[key], []);
   const { containerRef, layoutFor, startResize } = useResizableColumns<InvoiceColumnKey>(
-    "commerceAdmin:invoiceColumnWidths:v2",
+    "commerceAdmin:invoiceColumnWidths:v5",
     invoiceColumnLabel,
+    { defaultOverflow: true },
   );
 
   useEffect(() => {

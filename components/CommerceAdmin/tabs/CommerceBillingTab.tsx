@@ -66,7 +66,7 @@ export default function CommerceBillingTab() {
   const [clientInfo, setClientInfo] = useState<CustomerRow | null>(null);
   const [editTransaction, setEditTransaction] = useState<SalesTransaction | null>(null);
   const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
-    "commerceAdmin:columnVisibility:billingInvoices:v1",
+    "commerceAdmin:columnVisibility:billingInvoices:v4",
     DEFAULT_INVOICE_COLUMNS,
   );
   const [colVisOpen, setColVisOpen] = useState(false);
@@ -139,6 +139,8 @@ export default function CommerceBillingTab() {
             invoice.collectionDate,
             invoice.wsiInvoiceNumber,
             invoice.officialReceipt,
+            invoice.paymentDate,
+            invoice.paymentMode,
             invoice.status,
             invoice.grandTotal,
           ],
@@ -403,10 +405,11 @@ export default function CommerceBillingTab() {
         ) : (
           <>
             <ResizableTableFrame
-              storageKey="commerceAdmin:billingInvoices"
+              storageKey="commerceAdmin:billingInvoices:v4"
               columns={visibleColumns}
               labels={INVOICE_COLUMN_LABELS}
               selectColumn
+              overflow
               className={styles.tableWrap}
             >
               <table className={`${styles.table} ${styles.invoicesTable}`}>

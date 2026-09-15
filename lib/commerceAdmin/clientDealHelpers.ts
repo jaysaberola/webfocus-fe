@@ -49,6 +49,8 @@ export type ClientDealRow = {
   salesStatus: string;
   paymentTerms: string;
   paymentMethod: string;
+  paymentMode: string;
+  paymentDate: string;
   paymentStatus: string;
   expectedRevenue: number | null;
   probability: string;
@@ -88,6 +90,8 @@ export type DealColumnKey =
   | "salesStatus"
   | "paymentTerms"
   | "paymentMethod"
+  | "paymentMode"
+  | "paymentDate"
   | "paymentStatus"
   | "expectedRevenue"
   | "dealAmount"
@@ -124,6 +128,8 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   dealStatus: "Deal Status",
   paymentTerms: "Payment Terms",
   paymentMethod: "Payment Method",
+  paymentMode: "Payment Mode",
+  paymentDate: "Payment Date",
   paymentStatus: "Payment Status",
   invoiceStatus: "Invoice Status",
   invoiceSentDate: "Invoice Sent Date",
@@ -155,6 +161,8 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   dealStatus: false,
   paymentTerms: false,
   paymentMethod: false,
+  paymentMode: true,
+  paymentDate: true,
   paymentStatus: false,
   invoiceStatus: false,
   invoiceSentDate: false,
@@ -283,6 +291,10 @@ export function orderAdminColumnValue(
       return metaText(meta?.paymentTerms, paymentTermsFrom(transaction));
     case "paymentMethod":
       return metaText(meta?.paymentMethod, extractPaymentMethod(transaction.notes));
+    case "paymentMode":
+      return transactionPaymentMode(transaction, meta);
+    case "paymentDate":
+      return transactionPaymentDate(transaction, meta);
     case "paymentStatus":
       return metaText(meta?.paymentStatus, paymentStatusLabel(transaction.payment_status));
     case "invoiceStatus":
@@ -478,6 +490,28 @@ function dealProbability(stage: string, metaProbability?: string) {
 function extractPaymentMethod(notes?: string | null) {
   const match = String(notes ?? "").match(/Payment:\s*([^·\n]+)/i);
   return dash(match?.[1]);
+}
+
+export function transactionPaymentDate(
+  transaction?: SalesTransaction | null,
+  meta?: { paymentDate?: string } | null,
+) {
+  return formatDealDate(transaction?.payment_date || meta?.paymentDate || null);
+}
+
+export function transactionPaymentMode(
+  transaction?: SalesTransaction | null,
+  meta?: { paymentMode?: string } | null,
+) {
+  const fromApi = String(transaction?.payment_mode ?? "").trim();
+  if (fromApi) return fromApi;
+  const fromMeta = String(meta?.paymentMode ?? "").trim();
+  if (fromMeta) return fromMeta;
+  const fromNotes = String(transaction?.notes ?? "").match(/Payment mode:\s*([^\n]+)/i);
+  if (fromNotes?.[1]?.trim()) return fromNotes[1].trim();
+  const fromMethod = String(transaction?.notes ?? "").match(/Payment method:\s*Paynamics\s*\(([^)]+)\)/i);
+  if (fromMethod?.[1]?.trim()) return fromMethod[1].trim();
+  return "—";
 }
 
 function extractJoNumber(notes?: string | null, transactionNo?: string | null) {
@@ -784,6 +818,8 @@ function crmFields(params: {
     salesStatus: metaText(meta?.salesStatus, titleCaseStatus(transaction?.order_status)),
     paymentTerms: metaText(meta?.paymentTerms, paymentTermsFrom(transaction)),
     paymentMethod: metaText(meta?.paymentMethod, extractPaymentMethod(transaction?.notes)),
+    paymentMode: transactionPaymentMode(transaction, meta),
+    paymentDate: transactionPaymentDate(transaction, meta),
     paymentStatus: metaText(meta?.paymentStatus, transaction ? paymentStatusLabel(transaction.payment_status) : "—"),
     expectedRevenue,
     probability: dealProbability(stage, meta?.probability),

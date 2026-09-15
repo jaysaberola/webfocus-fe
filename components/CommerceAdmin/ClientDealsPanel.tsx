@@ -68,6 +68,10 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return deal.paymentTerms;
     case "paymentMethod":
       return deal.paymentMethod;
+    case "paymentMode":
+      return deal.paymentMode;
+    case "paymentDate":
+      return deal.paymentDate;
     case "paymentStatus":
       return deal.paymentStatus;
     case "expectedRevenue":

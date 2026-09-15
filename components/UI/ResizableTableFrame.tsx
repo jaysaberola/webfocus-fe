@@ -18,6 +18,7 @@ type Props = {
   labels?: Record<string, string>;
   selectColumn?: boolean;
   className?: string;
+  overflow?: boolean;
   children: ReactElement;
 };
 
@@ -27,6 +28,7 @@ export default function ResizableTableFrame({
   labels = {},
   selectColumn = false,
   className,
+  overflow = false,
   children,
 }: Props) {
   const keys = selectColumn ? [SELECT_KEY, ...columns] : columns;
@@ -34,7 +36,9 @@ export default function ResizableTableFrame({
     (key: string) => (key === SELECT_KEY ? "Select" : labels[key] || key),
     [labels],
   );
-  const { containerRef, layoutFor, startResize } = useResizableColumns(storageKey, labelFor);
+  const { containerRef, layoutFor, startResize } = useResizableColumns(storageKey, labelFor, {
+    defaultOverflow: overflow,
+  });
   const layout = layoutFor(keys);
   const table = Children.only(children);
 

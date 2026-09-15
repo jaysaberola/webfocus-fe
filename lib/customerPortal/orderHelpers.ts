@@ -24,9 +24,13 @@ export function orderCanCancel(order: PortalOrder) {
   return order.status === "Pending Request" || order.status === "Awaiting Approval";
 }
 
+export function orderPaymentDate(order: PortalOrder) {
+  return String(order.paymentDate || "").trim() || null;
+}
+
 export function orderPaymentMethodLabel(order: PortalOrder) {
-  const raw = String(order.gateway || "").trim();
-  if (!raw) return "—";
+  const raw = String(order.paymentMode || order.gateway || "").trim();
+  if (!raw || raw === "—") return "—";
 
   const idMatch = raw.match(/paynamics[-_ ]([a-z0-9]+)/i);
   if (idMatch?.[1]) {

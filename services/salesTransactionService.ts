@@ -51,6 +51,8 @@ export interface SalesTransaction {
   created_at?: string | null;
   issued_date?: string | null;
   due_date?: string | null;
+  payment_date?: string | null;
+  payment_mode?: string | null;
   items?: SalesTransactionItem[];
   proposals?: SalesTransactionProposal[];
 }

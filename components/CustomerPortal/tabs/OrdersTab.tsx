@@ -17,6 +17,7 @@ import { formatPeso } from "@/lib/customerPortal/mockData";
 import {
   orderCanCancel,
   orderDueDate,
+  orderPaymentDate,
   orderPaymentMethodLabel,
   orderPlanLabel,
   orderServiceName,
@@ -52,7 +53,7 @@ function orderStatusClass(status: PortalOrder["status"]) {
 
 const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "status", label: "Status" },
-  { id: "gateway", label: "Payment Method" },
+  { id: "gateway", label: "Payment Mode" },
   { id: "serviceName", label: "Service Name" },
   { id: "plan", label: "Plan" },
   { id: "id", label: "Order #", mode: "contains" },
@@ -62,6 +63,8 @@ const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
 const SORT_OPTIONS = [
   { value: "date-desc", label: "Date Ordered (Newest)" },
   { value: "date-asc", label: "Date Ordered (Oldest)" },
+  { value: "paymentDate-desc", label: "Payment Date (Newest)" },
+  { value: "paymentDate-asc", label: "Payment Date (Oldest)" },
   { value: "due-desc", label: "Due Date (Latest)" },
   { value: "due-asc", label: "Due Date (Earliest)" },
   { value: "amount-desc", label: "Amount (High to Low)" },
@@ -81,12 +84,14 @@ type OrderSortKey =
   | "gateway-desc"
   | "date-asc"
   | "date-desc"
+  | "paymentDate-asc"
+  | "paymentDate-desc"
   | "due-asc"
   | "due-desc"
   | "status-asc"
   | "status-desc";
 
-type OrderColumnKey = "id" | "service" | "plan" | "amount" | "gateway" | "date" | "due" | "status";
+type OrderColumnKey = "id" | "service" | "plan" | "amount" | "gateway" | "paymentDate" | "date" | "due" | "status";
 
 const ORDER_SORT_ASC: Record<OrderColumnKey, OrderSortKey> = {
   id: "id-asc",
@@ -94,6 +99,7 @@ const ORDER_SORT_ASC: Record<OrderColumnKey, OrderSortKey> = {
   plan: "plan-asc",
   amount: "amount-asc",
   gateway: "gateway-asc",
+  paymentDate: "paymentDate-asc",
   date: "date-asc",
   due: "due-asc",
   status: "status-asc",
@@ -105,6 +111,7 @@ const ORDER_SORT_DESC: Record<OrderColumnKey, OrderSortKey> = {
   plan: "plan-desc",
   amount: "amount-desc",
   gateway: "gateway-desc",
+  paymentDate: "paymentDate-desc",
   date: "date-desc",
   due: "due-desc",
   status: "status-desc",
@@ -132,6 +139,11 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
     }
     if (sortBy.startsWith("gateway")) {
       return compareText(orderPaymentMethodLabel(a), orderPaymentMethodLabel(b), sortBy === "gateway-desc");
+    }
+    if (sortBy.startsWith("paymentDate")) {
+      const left = Date.parse(String(orderPaymentDate(a) || "")) || 0;
+      const right = Date.parse(String(orderPaymentDate(b) || "")) || 0;
+      return sortBy === "paymentDate-desc" ? right - left : left - right;
     }
     if (sortBy.startsWith("date")) {
       const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
@@ -222,7 +234,7 @@ export default function OrdersTab() {
 
       const item = order.items[0];
       return rowMatchesSearch(
-        [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, orderPaymentMethodLabel(order), order.status],
+        [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, orderPaymentMethodLabel(order), orderPaymentDate(order), order.status],
         search,
       );
     });
@@ -280,7 +292,8 @@ export default function OrdersTab() {
           "Service Name",
           "Plan",
           "Amount",
-          "Payment Method",
+          "Payment Mode",
+          "Payment Date",
           "Date Ordered",
           "Due Date",
           "Status",
@@ -291,6 +304,7 @@ export default function OrdersTab() {
           orderPlanLabel(order),
           formatPeso(order.total),
           orderPaymentMethodLabel(order),
+          orderPaymentDate(order) || "—",
           order.date,
           orderDueDate(order),
           order.status,
@@ -461,13 +475,14 @@ export default function OrdersTab() {
         >
           <ResizableTableFrame
             storageKey="customerPortal:orders"
-            columns={["id", "service", "plan", "amount", "gateway", "date", "due", "status", "action"]}
+            columns={["id", "service", "plan", "amount", "gateway", "paymentDate", "date", "due", "status", "action"]}
             labels={{
               id: "Order #",
               service: "Service Name",
               plan: "Plan",
               amount: "Amount",
-              gateway: "Payment Method",
+              gateway: "Payment Mode",
+              paymentDate: "Payment Date",
               date: "Date Ordered",
               due: "Due Date",
               status: "Status",
@@ -510,10 +525,16 @@ export default function OrdersTab() {
                     onClick={() => setSortBy((current) => toggleOrderSort(current, "amount"))}
                   />
                   <PortalSortableTableHead
-                    label="Payment Method"
+                    label="Payment Mode"
                     active={orderSortDirection(sortBy, "gateway") !== null}
                     direction={orderSortDirection(sortBy, "gateway") ?? "asc"}
                     onClick={() => setSortBy((current) => toggleOrderSort(current, "gateway"))}
+                  />
+                  <PortalSortableTableHead
+                    label="Payment Date"
+                    active={orderSortDirection(sortBy, "paymentDate") !== null}
+                    direction={orderSortDirection(sortBy, "paymentDate") ?? "asc"}
+                    onClick={() => setSortBy((current) => toggleOrderSort(current, "paymentDate"))}
                   />
                   <PortalSortableTableHead
                     label="Date Ordered"
@@ -539,7 +560,7 @@ export default function OrdersTab() {
               <tbody>
                 {paginatedOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>No orders found for the selected filters.</td>
+                    <td colSpan={11}>No orders found for the selected filters.</td>
                   </tr>
                 ) : (
                   paginatedOrders.map((order) => {
@@ -574,6 +595,7 @@ export default function OrdersTab() {
                         <td>{orderPlanLabel(order)}</td>
                         <td className={styles.monoBold}>{formatPeso(order.total)}</td>
                         <td>{orderPaymentMethodLabel(order)}</td>
+                        <td>{orderPaymentDate(order) || "—"}</td>
                         <td>{order.date}</td>
                         <td>{orderDueDate(order)}</td>
                         <td>

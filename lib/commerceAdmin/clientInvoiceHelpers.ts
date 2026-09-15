@@ -3,8 +3,10 @@ import {
   fetchCustomerDealTransactions,
   formatDealAmount,
   formatDealDate,
+  transactionPaymentDate,
+  transactionPaymentMode,
 } from "@/lib/commerceAdmin/clientDealHelpers";
-import { parseDealMeta, toApiOrderStatus, toApiPaymentStatus } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { parseDealMeta, toApiOrderStatus, toApiPaymentStatus, normalizePaymentMode } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { regionForProvince } from "@/lib/commerceAdmin/phAddressCatalog";
 import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
@@ -45,6 +47,8 @@ export type ClientInvoiceFormState = {
   status: string;
   collectionDate: string;
   officialReceipt: string;
+  paymentDate: string;
+  paymentMode: string;
   exchangeRate: string;
   billingStreet: string;
   billingCity: string;
@@ -122,6 +126,8 @@ export function emptyClientInvoiceForm(
     status: "",
     collectionDate: "",
     officialReceipt: "",
+    paymentDate: "",
+    paymentMode: "",
     exchangeRate: "1",
     items: [emptyInvoiceLineItem()],
     adjustment: "",
@@ -166,6 +172,8 @@ export function buildInvoiceNotes(form: ClientInvoiceFormState) {
     status: form.status,
     collectionDate: form.collectionDate,
     officialReceipt: form.officialReceipt,
+    paymentDate: form.paymentDate,
+    paymentMode: form.paymentMode,
     exchangeRate: form.exchangeRate,
     billingStreet: form.billingStreet,
     billingCity: form.billingCity,
@@ -271,6 +279,8 @@ export type ClientInvoiceRow = {
   status: string;
   collectionDate: string;
   officialReceipt: string;
+  paymentDate: string;
+  paymentMode: string;
   exchangeRate: string;
   billingStreet: string;
   billingCity: string;
@@ -291,6 +301,8 @@ export type InvoiceColumnKey =
   | "collectionDate"
   | "wsiInvoiceNumber"
   | "officialReceipt"
+  | "paymentDate"
+  | "paymentMode"
   | "status"
   | "grandTotal"
   | "invoiceOwner"
@@ -312,6 +324,8 @@ export const INVOICE_COLUMN_LABELS: Record<InvoiceColumnKey, string> = {
   collectionDate: "Collection Date",
   wsiInvoiceNumber: "WSI Invoice Number",
   officialReceipt: "Official Receipt",
+  paymentDate: "Payment Date",
+  paymentMode: "Payment Mode",
   status: "Status",
   grandTotal: "Grand Total",
   invoiceOwner: "Invoice Owner",
@@ -334,6 +348,8 @@ export const DEFAULT_INVOICE_COLUMNS: Record<InvoiceColumnKey, boolean> = {
   collectionDate: true,
   wsiInvoiceNumber: true,
   officialReceipt: true,
+  paymentDate: false,
+  paymentMode: false,
   status: true,
   grandTotal: true,
   invoiceOwner: false,
@@ -356,6 +372,8 @@ export const INVOICE_COLUMN_VISIBILITY_KEYS: InvoiceColumnKey[] = [
   "collectionDate",
   "wsiInvoiceNumber",
   "officialReceipt",
+  "paymentDate",
+  "paymentMode",
   "status",
   "grandTotal",
   "invoiceOwner",
@@ -443,6 +461,8 @@ export function invoiceFormFromTransaction(
     status: invoiceStatus(transaction, invoiceMeta?.status || meta?.invoiceStatus),
     collectionDate: invoiceDateInput(invoiceMeta?.collectionDate || meta?.invoiceReceivedDate),
     officialReceipt: invoiceDateInput(invoiceMeta?.officialReceipt),
+    paymentDate: invoiceDateInput(transaction.payment_date || invoiceMeta?.paymentDate || meta?.paymentDate),
+    paymentMode: normalizePaymentMode(transaction.payment_mode || invoiceMeta?.paymentMode || meta?.paymentMode),
     exchangeRate: String(invoiceMeta?.exchangeRate || client.exchange_rate || "1").trim() || "1",
     billingStreet: savedAddress ? String(invoiceMeta?.billingStreet ?? "").trim() : clientAddress.billingStreet,
     billingCity: savedAddress ? String(invoiceMeta?.billingCity ?? "").trim() : clientAddress.billingCity,
@@ -518,6 +538,12 @@ export function buildClientInvoiceRows(
         officialReceipt: invoiceMeta?.officialReceipt
           ? formatDealDate(invoiceMeta.officialReceipt)
           : "—",
+        paymentDate: transactionPaymentDate(transaction, {
+          paymentDate: invoiceMeta?.paymentDate || meta?.paymentDate,
+        }),
+        paymentMode: transactionPaymentMode(transaction, {
+          paymentMode: invoiceMeta?.paymentMode || meta?.paymentMode,
+        }),
         exchangeRate: dash(invoiceMeta?.exchangeRate, exchangeRate),
         billingStreet: dash(invoiceMeta?.billingStreet, billingStreet),
         billingCity: dash(invoiceMeta?.billingCity, billingCity),

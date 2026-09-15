@@ -338,6 +338,25 @@ export const PAYMENT_METHOD_OPTIONS = [
   "Check Pick-up",
 ] as const;
 
+export const PAYMENT_MODE_OPTIONS = [
+  "Credit Card",
+  "GCash",
+  "Maya",
+  "Bank Transfer",
+  "Bank Deposit",
+  "Cash",
+  "Check Pick-up",
+  "PayPal",
+  "QRPh",
+  "BPI",
+  "BDO",
+  "UnionBank",
+  "Landbank",
+  "GrabPay",
+  "Billease",
+  "Online Bills Payment",
+] as const;
+
 export const PAYMENT_TERMS_OPTIONS = [
   "Monthly",
   "Quarterly",
@@ -410,6 +429,8 @@ export type ClientOrderFormState = {
   invoiceSentDate: string;
   invoiceReceivedDate: string;
   paymentCommitmentDate: string;
+  paymentDate: string;
+  paymentMode: string;
   collectionNote: string;
   contractStatus: string;
   contractSentDate: string;
@@ -459,6 +480,8 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   invoiceSentDate: "",
   invoiceReceivedDate: "",
   paymentCommitmentDate: "",
+  paymentDate: "",
+  paymentMode: "",
   collectionNote: "",
   contractStatus: "",
   contractSentDate: "",
@@ -547,6 +570,8 @@ export type DealMeta = {
   invoiceSentDate?: string;
   invoiceReceivedDate?: string;
   paymentCommitmentDate?: string;
+  paymentDate?: string;
+  paymentMode?: string;
   collectionNote?: string;
   statusTriggerDate?: string;
   contractStatus?: string;
@@ -755,6 +780,32 @@ function matchOption(options: readonly string[], value?: string | null) {
   return options.find((option) => option.toLowerCase() === text.toLowerCase()) ?? text;
 }
 
+export function normalizePaymentMode(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+
+  const needle = text.toLowerCase();
+  if (needle.includes("credit") || needle.includes("debit") || needle === "cc") return "Credit Card";
+  if (needle.includes("gcash") || needle === "gc") return "GCash";
+  if (needle.includes("maya") || needle.includes("paymaya")) return "Maya";
+  if (needle.includes("gcash") && needle.includes("maya")) return "GCash";
+  if (needle.includes("paypal")) return "PayPal";
+  if (needle.includes("qrph") || needle.includes("instapay")) return "QRPh";
+  if (needle.includes("grab")) return "GrabPay";
+  if (needle.includes("billease")) return "Billease";
+  if (needle.includes("unionbank") || needle === "ubp") return "UnionBank";
+  if (needle.includes("landbank")) return "Landbank";
+  if (/\bbpi\b/.test(needle)) return "BPI";
+  if (/\bbdo\b/.test(needle)) return "BDO";
+  if (needle.includes("bills") || needle.includes("otc") || needle.includes("ecpay")) return "Online Bills Payment";
+  if (needle.includes("bank transfer") || needle.includes("online bank")) return "Bank Transfer";
+  if (needle.includes("bank deposit")) return "Bank Deposit";
+  if (needle.includes("check")) return "Check Pick-up";
+  if (needle === "cash") return "Cash";
+
+  return matchOption(PAYMENT_MODE_OPTIONS, text);
+}
+
 export function clientOrderFormFromTransaction(transaction: {
   customer_id?: number | null;
   user_id?: number | null;
@@ -765,6 +816,8 @@ export function clientOrderFormFromTransaction(transaction: {
   issued_date?: string | null;
   transacted_at?: string | null;
   due_date?: string | null;
+  payment_date?: string | null;
+  payment_mode?: string | null;
   items?: Array<{ name?: string | null }>;
 }): ClientOrderFormState {
   const meta = parseDealMeta(transaction.notes);
@@ -799,6 +852,8 @@ export function clientOrderFormFromTransaction(transaction: {
     invoiceSentDate: toDateInput(meta?.invoiceSentDate),
     invoiceReceivedDate: toDateInput(meta?.invoiceReceivedDate),
     paymentCommitmentDate: toDateInput(meta?.paymentCommitmentDate),
+    paymentDate: toDateInput(transaction.payment_date || meta?.paymentDate),
+    paymentMode: normalizePaymentMode(transaction.payment_mode || meta?.paymentMode),
     collectionNote: matchOption(COLLECTION_NOTE_OPTIONS, meta?.collectionNote),
     requirementStatus: String(meta?.requirementStatus ?? "").trim(),
     totalContractValue: String(meta?.totalContractValue ?? "").trim(),
@@ -862,6 +917,8 @@ function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
     invoiceSentDate: form.invoiceSentDate,
     invoiceReceivedDate: form.invoiceReceivedDate,
     paymentCommitmentDate: form.paymentCommitmentDate,
+    paymentDate: form.paymentDate,
+    paymentMode: form.paymentMode,
     collectionNote: form.collectionNote,
     statusTriggerDate: form.statusTriggerDate,
     contractStatus: form.contractStatus,

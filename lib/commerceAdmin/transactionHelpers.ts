@@ -27,6 +27,8 @@ export type TxColumnKey =
   | "dealStatus"
   | "paymentTerms"
   | "paymentMethod"
+  | "paymentMode"
+  | "paymentDate"
   | "paymentStatus"
   | "invoiceStatus"
   | "invoiceSentDate"
@@ -69,6 +71,8 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   dealStatus: "Deal Status",
   paymentTerms: "Payment Terms",
   paymentMethod: "Payment Method",
+  paymentMode: "Payment Mode",
+  paymentDate: "Payment Date",
   paymentStatus: "Payment Status",
   invoiceStatus: "Invoice Status",
   invoiceSentDate: "Invoice Sent Date",
@@ -99,6 +103,8 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   dealStatus: false,
   paymentTerms: false,
   paymentMethod: false,
+  paymentMode: true,
+  paymentDate: true,
   paymentStatus: false,
   invoiceStatus: false,
   invoiceSentDate: false,
