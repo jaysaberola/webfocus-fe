@@ -80,6 +80,7 @@ export type SalesTransactionPayload = Partial<SalesTransaction> & {
 
 export interface PaynamicsCheckoutResponse {
   message: string;
+  reused?: boolean;
   data: SalesTransaction;
   paynamics: {
     request_id: string;

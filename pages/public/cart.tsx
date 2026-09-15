@@ -16,6 +16,7 @@ import {
   getPaynamicsPaymentLabel,
   PAYNAMICS_PAYMENT_METHODS,
 } from "@/lib/checkoutPaymentMethods";
+import { pendingInvoicesForCart } from "@/lib/pendingCartInvoices";
 import {
   cartCount,
   cartHasMixedCheckout,
@@ -60,6 +61,8 @@ import {
   createSalesTransaction,
 } from "@/services/salesTransactionService";
 import { WEB_DESIGN_PENDING_QUOTATION_MARKER } from "@/lib/commerceAdmin/webDesignPricing";
+import { fetchPortalBilling } from "@/services/customerPortalService";
+import type { PortalInvoice } from "@/lib/customerPortal/types";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/publicCartCheckout.module.css";
 
@@ -198,6 +201,7 @@ export default function PublicCartCheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState(
     PAYNAMICS_PAYMENT_METHODS[0]?.id ?? "cc",
   );
+  const [pendingInvoices, setPendingInvoices] = useState<PortalInvoice[]>([]);
 
   const refreshAuth = () => {
     const storedCustomer = getStoredCustomer();
@@ -278,6 +282,29 @@ export default function PublicCartCheckoutPage() {
     isLoggedIn && agreementAccepted && !emptyState && (quotationOnly || canCheckoutPayable);
   const checkoutBlockedByAgreement =
     isLoggedIn && !agreementAccepted && !emptyState;
+  const pendingCartInvoices = pendingInvoicesForCart(pendingInvoices, payableItems);
+  const pendingCheckoutInvoice = pendingCartInvoices[0] ?? null;
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setPendingInvoices([]);
+      return;
+    }
+
+    let alive = true;
+    fetchPortalBilling()
+      .then((billing) => {
+        if (!alive) return;
+        setPendingInvoices(billing.invoices ?? []);
+      })
+      .catch(() => {
+        if (alive) setPendingInvoices([]);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [isLoggedIn]);
 
   const removeItem = (key: string) => {
     setItems(removePublicCartItem(key));
@@ -470,7 +497,9 @@ export default function PublicCartCheckoutPage() {
         requestId: result?.paynamics?.request_id ?? null,
       });
       toast.success(
-        mixedCheckout
+        result?.reused
+          ? `You already have a pending payment for ${result?.data?.transaction_no ? `INV-${String(result.data.transaction_no).replace(/^INV-/, "")}` : "this order"}. Continuing that Paynamics payment...`
+          : mixedCheckout
           ? quotationOrderNos.length
             ? `Pending quotation${quotationOrderNos.length > 1 ? "s" : ""} ${quotationOrderLabel} filed on ${quotationOrderNos.length > 1 ? "separate invoices" : "a separate invoice"}. Opening one payment for all priced services...`
             : "Pending quotation stays on a separate invoice. Opening one payment for priced services..."
@@ -490,6 +519,19 @@ export default function PublicCartCheckoutPage() {
         toast.error(
           "Complete your billing address (street, city, province, and ZIP) to continue checkout."
         );
+        return;
+      }
+
+      if (err?.response?.status === 409) {
+        const pendingMessage = String(
+          firstValidationError ||
+            err?.response?.data?.message ||
+            "You already have a pending Paynamics payment for this order."
+        );
+        toast.info(pendingMessage);
+        fetchPortalBilling()
+          .then((billing) => setPendingInvoices(billing.invoices ?? []))
+          .catch(() => undefined);
         return;
       }
 
@@ -756,6 +798,22 @@ export default function PublicCartCheckoutPage() {
                 </p>
               ) : null}
 
+              {pendingCheckoutInvoice ? (
+                <div className={styles.pendingPayNotice}>
+                  <p>
+                    You already have a pending Paynamics payment for{" "}
+                    <strong>
+                      {pendingCheckoutInvoice.serviceName || "this order"}
+                    </strong>{" "}
+                    ({pendingCheckoutInvoice.id}). Finish that payment instead of
+                    creating a new invoice.
+                  </p>
+                  <Link href="/public/dashboard?tab=billing" className={styles.pendingPayLink}>
+                    View pending invoice
+                  </Link>
+                </div>
+              ) : null}
+
               <div className={styles.promoBlock}>
                 <button
                   type="button"
@@ -858,7 +916,9 @@ export default function PublicCartCheckoutPage() {
                         : "Submit Quotation Request"
                       : mixedCheckout
                         ? "Checkout Payable Items"
-                        : "Proceed to Paynamics"}
+                        : pendingCheckoutInvoice
+                          ? "Continue Pending Payment"
+                          : "Proceed to Paynamics"}
                 </button>
               ) : (
                 <button
