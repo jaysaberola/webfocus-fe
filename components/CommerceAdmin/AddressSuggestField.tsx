@@ -21,6 +21,7 @@ type Props = {
   required?: boolean;
   className?: string;
   inputClassName?: string;
+  wrapClassName?: string;
   preventBrowserFill?: boolean;
   onChange: (value: string) => void;
   onSelect?: (value: string, option: AddressSuggestOption) => void;
@@ -40,6 +41,7 @@ export default function AddressSuggestField({
   required,
   className,
   inputClassName,
+  wrapClassName,
   preventBrowserFill = false,
   onChange,
   onSelect,
@@ -114,7 +116,9 @@ export default function AddressSuggestField({
     <label className={className || styles.clientCrmField} data-open={open ? "true" : "false"}>
       <span>{label}</span>
       <div
-        className={`${styles.addressSuggestWrap}${open ? ` ${styles.addressSuggestWrapOpen}` : ""}`}
+        className={`${styles.addressSuggestWrap}${open ? ` ${styles.addressSuggestWrapOpen}` : ""}${
+          wrapClassName ? ` ${wrapClassName}` : ""
+        }`}
         ref={wrapRef}
         data-open={open ? "true" : "false"}
       >

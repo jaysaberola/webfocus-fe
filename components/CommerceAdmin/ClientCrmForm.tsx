@@ -86,6 +86,36 @@ function Field({
   );
 }
 
+function matchedBarangay(street?: string | null, city?: string | null, province?: string | null) {
+  const needle = String(street || "").trim().toLowerCase();
+  if (!needle) return "";
+  const list = streetsForPlace(city || "", province || "");
+  const exact = list.find((place) => place.street?.toLowerCase() === needle);
+  if (exact?.street) return exact.street;
+  const contained = list
+    .filter((place) => place.street && needle.includes(place.street.toLowerCase()))
+    .sort((a, b) => (b.street?.length || 0) - (a.street?.length || 0))[0];
+  return contained?.street || "";
+}
+
+function composeStreetLine(street: string, barangay: string) {
+  const line = street.trim();
+  const place = barangay.trim();
+  if (!place) return line;
+  if (!line) return place;
+  if (line.toLowerCase().includes(place.toLowerCase())) return line;
+  return `${line}, ${place}`;
+}
+
+function streetWithoutBarangay(street: string, barangay: string) {
+  const place = barangay.trim();
+  if (!place) return street.trim();
+  if (street.trim().toLowerCase() === place.toLowerCase()) return "";
+  return street
+    .replace(new RegExp(`,\\s*${place.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"), "")
+    .trim();
+}
+
 function fileLabelFromPath(path?: string | null) {
   if (!path) return null;
   const parts = String(path).replace(/\\/g, "/").split("/");
@@ -149,6 +179,8 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   ref,
 ) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
+  const [billingBarangay, setBillingBarangay] = useState("");
+  const [shippingBarangay, setShippingBarangay] = useState("");
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
   const [billingUsers, setBillingUsers] = useState<CommerceAssignableUser[]>([]);
   const [loading, setLoading] = useState(mode === "edit");
@@ -226,6 +258,8 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     }
     if (mode !== "edit" || !client?.id) {
       setForm(emptyClientCrmForm);
+      setBillingBarangay("");
+      setShippingBarangay("");
       setExistingFiles({});
       setExistingFileUrls({});
       setAudits([]);
@@ -287,29 +321,43 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           billing_in_charge: String(detail?.billing_in_charge || client.billing_in_charge || "").trim(),
           exchange_rate: String(detail?.exchange_rate ?? "1"),
           workdrive_folder_id: detail?.workdrive_folder_id ?? "",
-          address_street: detail?.address_street ?? "",
+          address_street: streetWithoutBarangay(
+            detail?.address_street ?? "",
+            matchedBarangay(detail?.address_street, detail?.address_city, detail?.address_province),
+          ),
           address_city: detail?.address_city ?? "",
           address_province: detail?.address_province ?? "",
           address_region: detail?.address_region || regionForProvince(detail?.address_province ?? ""),
           address_zip: resolveStreetZip(
-            detail?.address_street,
+            matchedBarangay(detail?.address_street, detail?.address_city, detail?.address_province) ||
+              detail?.address_street,
             detail?.address_city,
             detail?.address_province,
             detail?.address_zip,
           ),
           address_country: detail?.address_country || "Philippines",
-          shipping_street: detail?.shipping_street ?? "",
+          shipping_street: streetWithoutBarangay(
+            detail?.shipping_street ?? "",
+            matchedBarangay(detail?.shipping_street, detail?.shipping_city, detail?.shipping_province),
+          ),
           shipping_city: detail?.shipping_city ?? "",
           shipping_province: detail?.shipping_province ?? "",
           shipping_region: detail?.shipping_region || regionForProvince(detail?.shipping_province ?? ""),
           shipping_zip: resolveStreetZip(
-            detail?.shipping_street,
+            matchedBarangay(detail?.shipping_street, detail?.shipping_city, detail?.shipping_province) ||
+              detail?.shipping_street,
             detail?.shipping_city,
             detail?.shipping_province,
             detail?.shipping_zip,
           ),
           shipping_country: detail?.shipping_country || "Philippines",
         });
+        setBillingBarangay(
+          matchedBarangay(detail?.address_street, detail?.address_city, detail?.address_province),
+        );
+        setShippingBarangay(
+          matchedBarangay(detail?.shipping_street, detail?.shipping_city, detail?.shipping_province),
+        );
         setExistingFiles({
           bir_certificate: detail?.bir_certificate ?? null,
           business_permit: detail?.business_permit ?? null,
@@ -356,6 +404,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   };
 
   const copyBillingToShipping = () => {
+    setShippingBarangay(billingBarangay);
     setForm((current) => ({
       ...current,
       shipping_street: current.address_street,
@@ -382,7 +431,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         address_city: place.city,
         address_province: place.province,
         address_region: region || current.address_region,
-        address_zip: place.zip,
+        address_zip: place.zip || current.address_zip,
         address_country: country,
       }));
       return;
@@ -393,20 +442,20 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       shipping_city: place.city,
       shipping_province: place.province,
       shipping_region: region || current.shipping_region,
-      shipping_zip: place.zip,
+      shipping_zip: place.zip || current.shipping_zip,
       shipping_country: country,
     }));
   };
 
   useEffect(() => {
     const billingZip = resolveStreetZip(
-      form.address_street,
+      billingBarangay || form.address_street,
       form.address_city,
       form.address_province,
       form.address_zip,
     );
     const shippingZip = resolveStreetZip(
-      form.shipping_street,
+      shippingBarangay || form.shipping_street,
       form.shipping_city,
       form.shipping_province,
       form.shipping_zip,
@@ -418,9 +467,11 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       shipping_zip: shippingZip || current.shipping_zip,
     }));
   }, [
+    billingBarangay,
     form.address_street,
     form.address_city,
     form.address_province,
+    shippingBarangay,
     form.shipping_street,
     form.shipping_city,
     form.shipping_province,
@@ -512,13 +563,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   );
 
   const billingZipOptions = useMemo(
-    () => zipSuggestOptions(form.address_city, form.address_province, form.address_street),
-    [form.address_city, form.address_province, form.address_street],
+    () => zipSuggestOptions(form.address_city, form.address_province, billingBarangay),
+    [form.address_city, form.address_province, billingBarangay],
   );
 
   const shippingZipOptions = useMemo(
-    () => zipSuggestOptions(form.shipping_city, form.shipping_province, form.shipping_street),
-    [form.shipping_city, form.shipping_province, form.shipping_street],
+    () => zipSuggestOptions(form.shipping_city, form.shipping_province, shippingBarangay),
+    [form.shipping_city, form.shipping_province, shippingBarangay],
   );
 
   const countryOptions = useMemo(
@@ -546,13 +597,13 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     ownership: form.ownership,
     billing_in_charge: form.billing_in_charge,
     exchange_rate: form.exchange_rate || "1",
-    address_street: form.address_street.trim(),
+    address_street: composeStreetLine(form.address_street, billingBarangay),
     address_city: form.address_city.trim(),
     address_province: form.address_province.trim(),
     address_region: form.address_region.trim(),
     address_zip: form.address_zip.trim(),
     address_country: form.address_country.trim(),
-    shipping_street: form.shipping_street.trim(),
+    shipping_street: composeStreetLine(form.shipping_street, shippingBarangay),
     shipping_city: form.shipping_city.trim(),
     shipping_province: form.shipping_province.trim(),
     shipping_region: form.shipping_region.trim(),
@@ -566,7 +617,15 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   });
 
   const save = async (andNew: boolean) => {
-    const validationError = validateClientCrmForm(form);
+    if (!billingBarangay.trim()) {
+      toast.error("Billing Barangay is required for the LBC copy of the Service Invoice.");
+      return;
+    }
+    const validationError = validateClientCrmForm({
+      ...form,
+      address_street: composeStreetLine(form.address_street, billingBarangay),
+      shipping_street: composeStreetLine(form.shipping_street, shippingBarangay),
+    });
     if (validationError) {
       toast.error(validationError);
       return;
@@ -582,6 +641,8 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           skipNextClientLoadRef.current = true;
           setFormMode("create");
           setForm(emptyClientCrmForm);
+          setBillingBarangay("");
+          setShippingBarangay("");
           setExistingFiles({});
           setExistingFileUrls({});
           setAudits([]);
@@ -600,6 +661,8 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       onSaved({ andNew });
       if (andNew) {
         setForm(emptyClientCrmForm);
+        setBillingBarangay("");
+        setShippingBarangay("");
         setExistingFiles({});
         setExistingFileUrls({});
       } else {
@@ -920,7 +983,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </button>
         </div>
         <p className={styles.panelSubtitle}>
-          Use Philippine region, province, city, street/barangay, and ZIP suggestions. Billing address is
+          Use Philippine region, province, city, street, barangay, and ZIP suggestions. Billing address is
           required for the LBC copy of the Service Invoice.
         </p>
         <div className={styles.clientCrmGrid}>
@@ -941,6 +1004,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               onChange={(value) => {
                 setForm((current) => {
                   const keep = Boolean(current.address_province) && regionForProvince(current.address_province) === value;
+                  if (!keep) setBillingBarangay("");
                   return {
                     ...current,
                     address_region: value,
@@ -970,18 +1034,24 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               autoComplete="address-level2"
               placeholder="Start typing a city"
               maxVisible={400}
-              onChange={(value) => setField("address_city", value)}
-              onSelect={(value) => applyPlace("billing", findPlaceByCity(value, form.address_province))}
+              onChange={(value) => {
+                setBillingBarangay("");
+                setField("address_city", value);
+              }}
+              onSelect={(value) => {
+                setBillingBarangay("");
+                applyPlace("billing", findPlaceByCity(value, form.address_province));
+              }}
             />
             <AddressSuggestField
-              label="Street"
-              value={form.address_street}
+              label="Barangay *"
+              value={billingBarangay}
               options={billingStreetOptions}
-              autoComplete="street-address"
-              placeholder="Start typing a street or barangay"
+              placeholder="Choose a barangay"
               maxVisible={400}
-              onChange={(value) => setField("address_street", value)}
-              onSelect={(_value, option) =>
+              onChange={setBillingBarangay}
+              onSelect={(_value, option) => {
+                setBillingBarangay(option.street || option.value);
                 applyPlace(
                   "billing",
                   option.city
@@ -993,10 +1063,19 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                         country: option.country || "Philippines",
                       }
                     : findPlaceByStreet(option.value, form.address_city, form.address_province),
-                  true,
-                )
-              }
+                  false,
+                );
+              }}
             />
+            <Field label="Street">
+              <input
+                className={styles.clientCrmInput}
+                value={form.address_street}
+                autoComplete="street-address"
+                placeholder="House no., building, street"
+                onChange={(event) => setField("address_street", event.target.value)}
+              />
+            </Field>
             <AddressSuggestField
               label="ZIP Code"
               value={form.address_zip}
@@ -1037,6 +1116,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               onChange={(value) => {
                 setForm((current) => {
                   const keep = Boolean(current.shipping_province) && regionForProvince(current.shipping_province) === value;
+                  if (!keep) setShippingBarangay("");
                   return {
                     ...current,
                     shipping_region: value,
@@ -1066,18 +1146,24 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
               autoComplete="shipping address-level2"
               placeholder="Start typing a city"
               maxVisible={400}
-              onChange={(value) => setField("shipping_city", value)}
-              onSelect={(value) => applyPlace("shipping", findPlaceByCity(value, form.shipping_province))}
+              onChange={(value) => {
+                setShippingBarangay("");
+                setField("shipping_city", value);
+              }}
+              onSelect={(value) => {
+                setShippingBarangay("");
+                applyPlace("shipping", findPlaceByCity(value, form.shipping_province));
+              }}
             />
             <AddressSuggestField
-              label="Street"
-              value={form.shipping_street}
+              label="Barangay"
+              value={shippingBarangay}
               options={shippingStreetOptions}
-              autoComplete="shipping street-address"
-              placeholder="Start typing a street or barangay"
+              placeholder="Choose a barangay"
               maxVisible={400}
-              onChange={(value) => setField("shipping_street", value)}
-              onSelect={(_value, option) =>
+              onChange={setShippingBarangay}
+              onSelect={(_value, option) => {
+                setShippingBarangay(option.street || option.value);
                 applyPlace(
                   "shipping",
                   option.city
@@ -1089,10 +1175,19 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                         country: option.country || "Philippines",
                       }
                     : findPlaceByStreet(option.value, form.shipping_city, form.shipping_province),
-                  true,
-                )
-              }
+                  false,
+                );
+              }}
             />
+            <Field label="Street">
+              <input
+                className={styles.clientCrmInput}
+                value={form.shipping_street}
+                autoComplete="shipping street-address"
+                placeholder="House no., building, street"
+                onChange={(event) => setField("shipping_street", event.target.value)}
+              />
+            </Field>
             <AddressSuggestField
               label="ZIP Code"
               value={form.shipping_zip}

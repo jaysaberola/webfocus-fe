@@ -32,6 +32,36 @@ type Props = {
   onSaved: (customer: PublicCustomer) => void;
 };
 
+function matchedBarangay(street: string, city: string, province: string) {
+  const needle = street.trim().toLowerCase();
+  if (!needle) return "";
+  const list = streetsForPlace(city, province);
+  const exact = list.find((place) => place.street?.toLowerCase() === needle);
+  if (exact?.street) return exact.street;
+  const contained = list
+    .filter((place) => place.street && needle.includes(place.street.toLowerCase()))
+    .sort((a, b) => (b.street?.length || 0) - (a.street?.length || 0))[0];
+  return contained?.street || "";
+}
+
+function composeStreetLine(street: string, barangay: string, max = 100) {
+  const line = street.trim();
+  const place = barangay.trim();
+  if (!place) return line.slice(0, max);
+  if (!line) return place.slice(0, max);
+  if (line.toLowerCase().includes(place.toLowerCase())) return line.slice(0, max);
+  return `${line}, ${place}`.slice(0, max);
+}
+
+function streetWithoutBarangay(street: string, barangay: string) {
+  const place = barangay.trim();
+  if (!place) return street.trim();
+  if (street.trim().toLowerCase() === place.toLowerCase()) return street.trim();
+  return street
+    .replace(new RegExp(`,\\s*${place.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"), "")
+    .trim();
+}
+
 export default function CheckoutBillingAddressModal({
   open,
   customer,
@@ -45,11 +75,12 @@ export default function CheckoutBillingAddressModal({
   useEffect(() => {
     if (!open) return;
     const next = billingAddressFromCustomer(customer);
-    setForm(next);
-    const match = streetsForPlace(next.address_city, next.address_province).find(
-      (place) => place.street && place.street.toLowerCase() === next.address_street.toLowerCase(),
-    );
-    setBarangay(match?.street || "");
+    const barangayName = matchedBarangay(next.address_street, next.address_city, next.address_province);
+    setBarangay(barangayName);
+    setForm({
+      ...next,
+      address_street: streetWithoutBarangay(next.address_street, barangayName),
+    });
   }, [open, customer]);
 
   useEffect(() => {
@@ -131,8 +162,12 @@ export default function CheckoutBillingAddressModal({
   }, [form.address_province]);
 
   const canSubmit = useMemo(
-    () => isCheckoutBillingAddressComplete(form) && !saving && Boolean(customer),
-    [form, saving, customer]
+    () =>
+      isCheckoutBillingAddressComplete(form) &&
+      Boolean(barangay.trim()) &&
+      !saving &&
+      Boolean(customer),
+    [form, barangay, saving, customer]
   );
 
   if (!open) return null;
@@ -142,11 +177,16 @@ export default function CheckoutBillingAddressModal({
     if (!customer || !canSubmit) return;
 
     const trimmed: CheckoutBillingAddress = {
-      address_street: form.address_street.trim(),
+      address_street: composeStreetLine(form.address_street, barangay),
       address_city: form.address_city.trim(),
       address_province: form.address_province.trim(),
       address_zip: form.address_zip.trim(),
     };
+
+    if (!barangay.trim()) {
+      toast.error("Barangay is required for checkout.");
+      return;
+    }
 
     for (const key of Object.keys(trimmed) as Array<keyof CheckoutBillingAddress>) {
       if (!trimmed[key]) {
@@ -202,8 +242,8 @@ export default function CheckoutBillingAddressModal({
             <p className={styles.eyebrow}>Paynamics Checkout</p>
             <h2 id="checkout-billing-title">Complete billing address</h2>
             <p className={styles.subtitle}>
-              Choose a street, city, province, and ZIP from the Philippine list. Opening a filled
-              field still shows the matching options.
+              Choose a barangay, street, city, province, and ZIP from the Philippine list. Opening a
+              filled field still shows the matching options.
             </p>
           </div>
           <button
@@ -219,8 +259,42 @@ export default function CheckoutBillingAddressModal({
 
         <form className={styles.form} onSubmit={handleSubmit} autoComplete="off" noValidate>
           <div className={styles.row}>
+            <AddressSuggestField
+              label={
+                <>
+                  Barangay <span className={styles.requiredMark}>*</span>
+                </>
+              }
+              value={barangay}
+              options={streetOptions}
+              placeholder="Choose a barangay"
+              name="checkout-barangay"
+              preventBrowserFill
+              required
+              maxVisible={400}
+              className={styles.field}
+              inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
+              onChange={setBarangay}
+              onSelect={(_value, option) => {
+                setBarangay(option.street || option.value);
+                applyPlace(
+                  option.city
+                    ? {
+                        street: option.street || option.value,
+                        city: option.city,
+                        province: option.province || "",
+                        zip: option.zip || "",
+                      }
+                    : findPlaceByStreet(option.value, form.address_city, form.address_province),
+                  false,
+                );
+              }}
+            />
             <label className={styles.field}>
-              <span>Street address *</span>
+              <span>
+                Street address <span className={styles.requiredMark}>*</span>
+              </span>
               <input
                 className={styles.textbox}
                 name="checkout-street"
@@ -233,47 +307,15 @@ export default function CheckoutBillingAddressModal({
                 }
               />
             </label>
-
-            <label className={styles.field}>
-              <span>Barangay</span>
-              <select
-                className={styles.select}
-                name="checkout-barangay"
-                value={barangay}
-                disabled={streetOptions.length === 0}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setBarangay(value);
-                  const option = streetOptions.find((item) => item.value === value);
-                  if (!option) return;
-                  applyPlace(
-                    option.city
-                      ? {
-                          street: option.street || option.value,
-                          city: option.city,
-                          province: option.province || "",
-                          zip: option.zip || "",
-                        }
-                      : findPlaceByStreet(option.value, form.address_city, form.address_province),
-                    !form.address_street.trim(),
-                  );
-                }}
-              >
-                <option value="">
-                  {streetOptions.length === 0 ? "Choose a city first" : "Choose a barangay"}
-                </option>
-                {streetOptions.map((option) => (
-                  <option key={`${option.value}|${option.zip}`} value={option.value}>
-                    {option.street || option.value}
-                  </option>
-                ))}
-              </select>
-            </label>
           </div>
 
           <div className={styles.row}>
             <AddressSuggestField
-              label="City *"
+              label={
+                <>
+                  City <span className={styles.requiredMark}>*</span>
+                </>
+              }
               value={form.address_city}
               options={cityOptions}
               placeholder="Choose a city"
@@ -283,6 +325,7 @@ export default function CheckoutBillingAddressModal({
               maxVisible={400}
               className={styles.field}
               inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
               onChange={(value) => {
                 setBarangay("");
                 setForm((current) => ({ ...current, address_city: value }));
@@ -301,7 +344,11 @@ export default function CheckoutBillingAddressModal({
               }}
             />
             <AddressSuggestField
-              label="Province *"
+              label={
+                <>
+                  Province <span className={styles.requiredMark}>*</span>
+                </>
+              }
               value={form.address_province}
               options={provinceOptions}
               placeholder="Choose a province"
@@ -310,6 +357,7 @@ export default function CheckoutBillingAddressModal({
               required
               className={styles.field}
               inputClassName={styles.input}
+              wrapClassName={styles.suggestWrap}
               onChange={(value) => {
                 setBarangay("");
                 setForm((current) => ({
@@ -321,7 +369,11 @@ export default function CheckoutBillingAddressModal({
           </div>
 
           <AddressSuggestField
-            label="ZIP Code *"
+            label={
+              <>
+                ZIP Code <span className={styles.requiredMark}>*</span>
+              </>
+            }
             value={form.address_zip}
             options={zipOptions}
             placeholder="Enter ZIP code"
@@ -331,6 +383,7 @@ export default function CheckoutBillingAddressModal({
             filterMode="code"
             className={styles.field}
             inputClassName={styles.input}
+            wrapClassName={styles.suggestWrap}
             onChange={(value) => setForm((current) => ({ ...current, address_zip: value }))}
             onSelect={(value, option) =>
               applyPlace(
@@ -346,8 +399,8 @@ export default function CheckoutBillingAddressModal({
           />
 
           <p className={styles.helperHint}>
-            Type your street in the textbox, then use the barangay dropdown so ZIP can fill
-            automatically.
+            Choose a barangay first so ZIP can fill automatically, then type the house or street
+            line.
           </p>
 
           <div className={styles.actions}>
