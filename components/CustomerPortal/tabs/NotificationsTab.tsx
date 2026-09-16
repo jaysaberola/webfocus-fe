@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import {
@@ -20,16 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
   maintenance: "Maintenance",
   support: "Support",
   renewal: "Renewal",
-};
-
-const TYPE_CLASS: Record<string, string> = {
-  provisioning: styles.badgeBlue,
-  payment: styles.badgeAmber,
-  billing: styles.badgeAmber,
-  general: styles.badgeGreen,
-  maintenance: styles.badgeBlue,
-  support: styles.badgeBlue,
-  renewal: styles.badgeAmber,
+  order: "Orders",
 };
 
 const TYPE_FILTERS = [
@@ -40,80 +31,41 @@ const TYPE_FILTERS = [
   { value: "renewal", label: "Renewal" },
   { value: "support", label: "Support" },
   { value: "maintenance", label: "Maintenance" },
+  { value: "order", label: "Orders" },
   { value: "general", label: "Advisory" },
 ];
 
-type ViewMode = "list" | "grid";
+const PAGE_SIZE = 25;
 
-const PAGE_SIZE = 10;
+function senderLabel(item: PortalNotification) {
+  return TYPE_LABEL[item.type ?? ""] || item.type || "WebFocus";
+}
 
-function NotificationItem({
-  item,
-  viewMode,
-  busyId,
-  onMarkRead,
-  onDismiss,
-}: {
-  item: PortalNotification;
-  viewMode: ViewMode;
-  busyId: number | null;
-  onMarkRead: (item: PortalNotification) => void;
-  onDismiss: (item: PortalNotification) => void;
-}) {
-  return (
-    <article
-      className={[
-        viewMode === "grid" ? styles.notifCardGrid : styles.notifCard,
-        item.unread ? styles.notifUnread : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <div className={styles.notifCardBody}>
-        <div className={styles.notifHead}>
-          <div className={styles.notifTitleRow}>
-            <h3>{item.title}</h3>
-            {item.type ? (
-              <span className={TYPE_CLASS[item.type] ?? styles.badgeBlue}>
-                {TYPE_LABEL[item.type] ?? item.type}
-              </span>
-            ) : null}
-          </div>
-          <span className={styles.notifDate}>{item.date}</span>
-        </div>
-        <p>{item.desc}</p>
-        <div className={styles.notifCardActions}>
-          {item.unread ? (
-            <button
-              type="button"
-              className={styles.notifActionBtn}
-              disabled={busyId === item.id}
-              onClick={() => onMarkRead(item)}
-            >
-              Mark as Read
-            </button>
-          ) : null}
-          {item.actionUrl ? (
-            <Link href={item.actionUrl} className={styles.notifActionLink}>
-              Open Related Page
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            className={styles.notifDismissBtn}
-            disabled={busyId === item.id}
-            onClick={() => onDismiss(item)}
-          >
-            Dismiss
-          </button>
-        </div>
-      </div>
-      {item.unread ? <span className={styles.unreadDot} aria-label="Unread" /> : null}
-    </article>
-  );
+function formatInboxDate(item: PortalNotification) {
+  const raw = String(item.createdAt || item.date || "").trim();
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return item.date || "";
+
+  const date = new Date(parsed);
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function NotificationsTab() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -121,8 +73,8 @@ export default function NotificationsTab() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "unread">("all");
   const [search, setSearch] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const loadNotifications = () =>
     fetchPortalNotifications()
@@ -135,11 +87,12 @@ export default function NotificationsTab() {
 
   useEffect(() => {
     setPage(1);
-  }, [typeFilter, statusFilter, search, viewMode]);
+    setSelectedIds([]);
+  }, [typeFilter, statusFilter, search]);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => item.unread).length,
-    [notifications]
+    [notifications],
   );
 
   const filteredNotifications = useMemo(() => {
@@ -148,7 +101,6 @@ export default function NotificationsTab() {
     return notifications.filter((item) => {
       if (statusFilter === "unread" && !item.unread) return false;
       if (typeFilter !== "all" && item.type !== typeFilter) return false;
-
       if (!query) return true;
 
       const haystack = [item.title, item.desc, item.type, TYPE_LABEL[item.type ?? ""]]
@@ -166,20 +118,36 @@ export default function NotificationsTab() {
     return filteredNotifications.slice(start, start + PAGE_SIZE);
   }, [filteredNotifications, page]);
 
-  const rangeStart =
-    filteredNotifications.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeStart = filteredNotifications.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, filteredNotifications.length);
+  const pageIds = paginatedNotifications.map((item) => item.id);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+  const somePageSelected = pageIds.some((id) => selectedIds.includes(id));
+  const selectedCount = selectedIds.length;
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  const toggleSelected = (id: number) => {
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((rowId) => rowId !== id) : [...current, id],
+    );
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((current) => {
+      if (allPageSelected) return current.filter((id) => !pageIds.includes(id));
+      return [...new Set([...current, ...pageIds])];
+    });
+  };
 
   const markRead = async (item: PortalNotification) => {
     if (!item.unread) return;
 
     setBusyId(item.id);
     setNotifications((prev) =>
-      prev.map((row) => (row.id === item.id ? { ...row, unread: false } : row))
+      prev.map((row) => (row.id === item.id ? { ...row, unread: false } : row)),
     );
 
     try {
@@ -187,11 +155,18 @@ export default function NotificationsTab() {
       notifyPortalNotificationsUpdated();
     } catch {
       setNotifications((prev) =>
-        prev.map((row) => (row.id === item.id ? { ...row, unread: true } : row))
+        prev.map((row) => (row.id === item.id ? { ...row, unread: true } : row)),
       );
       toast.error("Could not mark notification as read.");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const openNotification = async (item: PortalNotification) => {
+    if (item.unread) await markRead(item);
+    if (item.actionUrl) {
+      void router.push(item.actionUrl);
     }
   };
 
@@ -213,20 +188,56 @@ export default function NotificationsTab() {
     }
   };
 
-  const handleDismiss = async (item: PortalNotification) => {
-    if (!window.confirm("Dismiss this notification?")) return;
+  const handleMarkSelectedRead = async () => {
+    const unreadSelected = notifications.filter((item) => selectedIds.includes(item.id) && item.unread);
+    if (unreadSelected.length === 0) return;
 
+    setMarkingAll(true);
+    setNotifications((prev) =>
+      prev.map((row) => (selectedIds.includes(row.id) ? { ...row, unread: false } : row)),
+    );
+
+    try {
+      await Promise.all(unreadSelected.map((item) => markPortalNotificationRead(item.id)));
+      notifyPortalNotificationsUpdated();
+    } catch {
+      await loadNotifications();
+      toast.error("Could not mark selected notifications as read.");
+    } finally {
+      setMarkingAll(false);
+    }
+  };
+
+  const handleDismiss = async (item: PortalNotification) => {
     setBusyId(item.id);
 
     try {
       await deletePortalNotification(item.id);
       setNotifications((prev) => prev.filter((row) => row.id !== item.id));
+      setSelectedIds((current) => current.filter((id) => id !== item.id));
       notifyPortalNotificationsUpdated();
-      toast.success("Notification dismissed.");
     } catch {
       toast.error("Could not dismiss notification.");
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleDismissSelected = async () => {
+    if (selectedCount === 0) return;
+    const ids = [...selectedIds];
+    setMarkingAll(true);
+
+    try {
+      await Promise.all(ids.map((id) => deletePortalNotification(id)));
+      setNotifications((prev) => prev.filter((row) => !ids.includes(row.id)));
+      setSelectedIds([]);
+      notifyPortalNotificationsUpdated();
+    } catch {
+      await loadNotifications();
+      toast.error("Could not dismiss selected notifications.");
+    } finally {
+      setMarkingAll(false);
     }
   };
 
@@ -236,159 +247,180 @@ export default function NotificationsTab() {
 
   return (
     <div className={styles.tabStack}>
-      <section className={styles.panel}>
-        <div className={styles.notifTopBar}>
-          <div className={styles.notifTopBarTitle}>
-            <h2 className={styles.panelTitle}>System Notifications &amp; Advisories</h2>
-            {notifications.length > 0 ? (
-              <span className={styles.notifSummaryInline}>
-                {unreadCount > 0 ? (
-                  <>
-                    <strong>{unreadCount}</strong> unread of {notifications.length}
-                  </>
-                ) : (
-                  <>All {notifications.length} read</>
-                )}
-              </span>
-            ) : null}
+      <section className={`${styles.panel} ${styles.inboxPanel}`}>
+        <div className={styles.inboxHeader}>
+          <div>
+            <h2 className={styles.panelTitle}>Inbox</h2>
+            <p className={styles.inboxCount}>
+              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
+              {notifications.length > 0 ? ` · ${notifications.length} total` : ""}
+            </p>
           </div>
-
-          {notifications.length > 0 ? (
-            <div className={styles.portalToolbarInner}>
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Category</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  aria-label="Filter notifications by category"
-                >
-                  {TYPE_FILTERS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Status</span>
-                <select
-                  className={styles.portalToolbarControl}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as "all" | "unread")}
-                  aria-label="Filter notifications by read status"
-                >
-                  <option value="all">All Notifications</option>
-                  <option value="unread">Unread Only</option>
-                </select>
-              </div>
-
-              <div className={styles.portalToolbarGroup}>
-                <span className={styles.portalToolbarLabel}>Search</span>
-                <input
-                  type="search"
-                  className={`${styles.portalToolbarControl} ${styles.portalToolbarSearch}`}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search..."
-                  aria-label="Search notifications"
-                />
-              </div>
-
-              <div className={styles.portalToolbarGroup}>
-                <div className={styles.viewToggle} role="group" aria-label="Notification view mode">
-                  <button
-                    type="button"
-                    className={[
-                      styles.viewBtn,
-                      viewMode === "list" ? styles.viewBtnActive : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    aria-pressed={viewMode === "list"}
-                    onClick={() => setViewMode("list")}
-                    title="List view"
-                  >
-                    <i className="fa-solid fa-list" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className={[
-                      styles.viewBtn,
-                      viewMode === "grid" ? styles.viewBtnActive : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    aria-pressed={viewMode === "grid"}
-                    onClick={() => setViewMode("grid")}
-                    title="Grid view"
-                  >
-                    <i className="fa-solid fa-grip" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.portalToolbarGroup}>
-                <button
-                  type="button"
-                  className={styles.secondaryBtnSm}
-                  disabled={unreadCount === 0 || markingAll}
-                  onClick={handleMarkAllRead}
-                >
-                  {markingAll ? "Marking..." : "Mark All as Read"}
-                </button>
-              </div>
-            </div>
-          ) : null}
+          <label className={styles.inboxSearch}>
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search mail"
+              aria-label="Search notifications"
+            />
+          </label>
         </div>
 
-        {notifications.length === 0 ? (
-          <p className={styles.panelSub}>No notifications yet.</p>
-        ) : filteredNotifications.length === 0 ? (
-          <p className={styles.panelSub}>No notifications match the selected filters.</p>
-        ) : (
-          <>
-            <div className={viewMode === "grid" ? styles.notifGrid : styles.notifList}>
-              {paginatedNotifications.map((item) => (
-                <NotificationItem
-                  key={item.id}
-                  item={item}
-                  viewMode={viewMode}
-                  busyId={busyId}
-                  onMarkRead={markRead}
-                  onDismiss={handleDismiss}
+        {notifications.length > 0 ? (
+          <div className={styles.inboxToolbar}>
+            <div className={styles.inboxToolbarLeft}>
+              <label className={styles.inboxCheck}>
+                <input
+                  type="checkbox"
+                  checked={allPageSelected}
+                  ref={(node) => {
+                    if (node) node.indeterminate = somePageSelected && !allPageSelected;
+                  }}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all notifications on this page"
                 />
-              ))}
+              </label>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                title="Mark as read"
+                disabled={markingAll || (selectedCount === 0 ? unreadCount === 0 : false)}
+                onClick={() => {
+                  if (selectedCount > 0) void handleMarkSelectedRead();
+                  else void handleMarkAllRead();
+                }}
+              >
+                <i className="fa-regular fa-envelope-open" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                title="Dismiss"
+                disabled={markingAll || selectedCount === 0}
+                onClick={() => void handleDismissSelected()}
+              >
+                <i className="fa-regular fa-trash-can" aria-hidden="true" />
+              </button>
+              <select
+                className={styles.inboxSelect}
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                aria-label="Filter by category"
+              >
+                {TYPE_FILTERS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.inboxSelect}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "unread")}
+                aria-label="Filter by read status"
+              >
+                <option value="all">All</option>
+                <option value="unread">Unread</option>
+              </select>
             </div>
+            <div className={styles.inboxToolbarRight}>
+              <span>
+                {rangeStart}-{rangeEnd} of {filteredNotifications.length}
+              </span>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                disabled={page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                aria-label="Newer"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                disabled={page >= totalPages}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                aria-label="Older"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        ) : null}
 
-            <div className={styles.notifPaginationBar}>
-              <div className={styles.notifPaginationInfo}>
-                Showing {rangeStart}-{rangeEnd} of {filteredNotifications.length} notifications
-              </div>
-              <div className={styles.notifPaginationActions}>
-                <button
-                  type="button"
-                  className={styles.secondaryBtnSm}
-                  disabled={page <= 1}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+        {notifications.length === 0 ? (
+          <p className={styles.inboxEmpty}>No notifications yet.</p>
+        ) : filteredNotifications.length === 0 ? (
+          <p className={styles.inboxEmpty}>No notifications match the selected filters.</p>
+        ) : (
+          <div className={styles.inboxList} role="list">
+            {paginatedNotifications.map((item) => {
+              const selected = selectedIds.includes(item.id);
+              const sender = senderLabel(item);
+
+              return (
+                <div
+                  key={item.id}
+                  role="listitem"
+                  className={[
+                    styles.inboxRow,
+                    item.unread ? styles.inboxRowUnread : "",
+                    selected ? styles.inboxRowSelected : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
-                  Previous
-                </button>
-                <span className={styles.notifPageIndicator}>
-                  {page} / {totalPages}
-                </span>
-                <button
-                  type="button"
-                  className={styles.primaryBtnSm}
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </>
+                  <label className={styles.inboxCheck} onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleSelected(item.id)}
+                      aria-label={`Select ${item.title}`}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.inboxStar}
+                    title={item.unread ? "Mark as read" : "Read"}
+                    disabled={busyId === item.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void markRead(item);
+                    }}
+                  >
+                    <i className="fa-regular fa-star" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.inboxRowMain}
+                    onClick={() => void openNotification(item)}
+                  >
+                    <span className={styles.inboxSender}>{sender}</span>
+                    <span className={styles.inboxCopy}>
+                      <span className={styles.inboxSubject}>{item.title}</span>
+                      <span className={styles.inboxPreview}> - {item.desc}</span>
+                    </span>
+                    <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.inboxRowDismiss}
+                    title="Dismiss"
+                    disabled={busyId === item.id}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void handleDismiss(item);
+                    }}
+                  >
+                    <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
     </div>

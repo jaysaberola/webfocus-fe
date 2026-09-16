@@ -67,6 +67,7 @@ export type PortalNotification = {
   title: string;
   desc: string;
   date: string;
+  createdAt?: string | null;
   unread: boolean;
   type?: string;
   actionUrl?: string | null;
