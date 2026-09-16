@@ -1289,7 +1289,7 @@
 
 .inboxRowMain {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr) 5.5rem;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 7.25rem;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
@@ -1336,16 +1336,37 @@
 
 .inboxDate {
   overflow: hidden;
+  width: 4.25rem;
   text-align: right;
   white-space: nowrap;
   color: #5f6368;
   font-size: 0.75rem;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .inboxRowUnread .inboxDate {
   color: #202124;
   font-weight: 700;
+}
+
+.inboxRowEnd {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  width: 7.25rem;
+  min-width: 7.25rem;
+}
+
+.inboxClip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  min-width: 0.95rem;
+  color: #5f6368;
+  font-size: 0.75rem;
 }
 
 @media (max-width: 720px) {
@@ -1358,11 +1379,207 @@
   }
 
   .inboxRowMain {
-    grid-template-columns: minmax(0, 1fr) 4.75rem;
+    grid-template-columns: minmax(0, 1fr) 7.25rem;
   }
 
   .inboxSender {
     display: none;
+  }
+}
+
+.inboxMessage {
+  padding: 0.5rem 0 1rem;
+}
+
+.inboxMessageCard {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.75rem 2rem;
+}
+
+.inboxMessageMeta {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #eceff1;
+}
+
+.inboxMessageAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.inboxMessageFrom {
+  min-width: 0;
+}
+
+.inboxMessageFrom strong {
+  display: inline;
+  margin-right: 0.4rem;
+  color: #202124;
+  font-size: 0.9375rem;
+}
+
+.inboxMessageFrom span {
+  color: #5f6368;
+  font-size: 0.8125rem;
+}
+
+.inboxMessageFrom p {
+  margin: 0.1rem 0 0;
+  color: #5f6368;
+  font-size: 0.75rem;
+}
+
+.inboxMessageDate {
+  color: #5f6368;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.inboxMessageSubject {
+  margin: 0 0 1.15rem;
+  text-align: center;
+  font-size: 1.625rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.inboxMessageGreeting,
+.inboxMessageIntro {
+  margin: 0 auto 0.85rem;
+  max-width: 36rem;
+  text-align: center;
+  color: #334155;
+  font-size: 0.975rem;
+  line-height: 1.65;
+}
+
+.inboxMessageGreeting {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.inboxMessageDetails {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.35rem auto 1.5rem;
+  max-width: 36rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+}
+
+.inboxMessageDetail {
+  display: grid;
+  grid-template-columns: 8.75rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.inboxMessageDetail dt {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.inboxMessageDetail dd {
+  margin: 0;
+  color: #334155;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.inboxAttachments {
+  margin: 0 auto 1.5rem;
+  max-width: 36rem;
+  text-align: center;
+}
+
+.inboxAttachments p {
+  margin: 0 0 0.75rem;
+  color: #5f6368;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.inboxAttachmentGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
+}
+
+.inboxAttachment {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 22rem);
+  overflow: hidden;
+  border: 1px solid #dadce0;
+  border-radius: 0.75rem;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.inboxAttachment img,
+.inboxAttachmentFile {
+  display: block;
+  width: 100%;
+  height: 14rem;
+  object-fit: contain;
+  background: #f1f5f9;
+}
+
+.inboxAttachmentFile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #5f6368;
+  font-size: 1.5rem;
+}
+
+.inboxAttachmentName {
+  padding: 0.55rem 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #202124;
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.inboxMessageActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+@media (max-width: 640px) {
+  .inboxMessageCard {
+    padding: 1rem 0.25rem 1.25rem;
+  }
+
+  .inboxMessageDetail {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
   }
 }
 

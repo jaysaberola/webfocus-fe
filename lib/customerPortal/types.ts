@@ -62,6 +62,16 @@ export type PortalTicket = {
   status: "Open" | "Resolved";
 };
 
+export type PortalNotificationAttachment = {
+  name: string;
+  url: string;
+};
+
+export type PortalNotificationDetail = {
+  label: string;
+  value: string;
+};
+
 export type PortalNotification = {
   id: number;
   title: string;
@@ -71,6 +81,12 @@ export type PortalNotification = {
   unread: boolean;
   type?: string;
   actionUrl?: string | null;
+  actionLabel?: string | null;
+  intro?: string | null;
+  fromName?: string | null;
+  fromEmail?: string | null;
+  attachments?: PortalNotificationAttachment[];
+  details?: PortalNotificationDetail[];
 };
 
 export type PortalPaymentProof = {

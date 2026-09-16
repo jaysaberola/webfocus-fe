@@ -8,7 +8,8 @@ import {
   markPortalNotificationRead,
   notifyPortalNotificationsUpdated,
 } from "@/services/customerPortalService";
-import type { PortalNotification } from "@/lib/customerPortal/types";
+import type { PortalNotification, PortalNotificationAttachment } from "@/lib/customerPortal/types";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -21,6 +22,7 @@ const TYPE_LABEL: Record<string, string> = {
   support: "Support",
   renewal: "Renewal",
   order: "Orders",
+  account: "Account",
 };
 
 const TYPE_FILTERS = [
@@ -32,6 +34,7 @@ const TYPE_FILTERS = [
   { value: "support", label: "Support" },
   { value: "maintenance", label: "Maintenance" },
   { value: "order", label: "Orders" },
+  { value: "account", label: "Account" },
   { value: "general", label: "Advisory" },
 ];
 
@@ -64,6 +67,45 @@ function formatInboxDate(item: PortalNotification) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatMessageDate(item: PortalNotification) {
+  const raw = String(item.createdAt || item.date || "").trim();
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return item.date || "";
+
+  return new Date(parsed).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function senderInitial(name: string) {
+  const trimmed = name.trim();
+  return trimmed ? trimmed.slice(0, 1).toUpperCase() : "W";
+}
+
+function isImageAttachment(attachment: PortalNotificationAttachment) {
+  return /\.(png|jpe?g|gif|webp|bmp|jfif)(\?.*)?$/i.test(`${attachment.name} ${attachment.url}`);
+}
+
+function attachmentUrl(attachment: PortalNotificationAttachment) {
+  return resolveStorageAssetUrl(attachment.url) || attachment.url;
+}
+
+function actionLabel(item: PortalNotification) {
+  if (item.actionLabel) return item.actionLabel;
+  const url = String(item.actionUrl || "");
+  if (url.includes("tab=billing")) return "Open Billing";
+  if (url.includes("tab=orders")) return "Open Orders";
+  if (url.includes("tab=account")) return "Open Account";
+  if (url.includes("tab=help")) return "Open Help & Communication";
+  if (url.includes("tab=overview")) return "Open Overview";
+  if (url.includes("tab=contract")) return "Open Contract";
+  return "Open related page";
+}
+
 export default function NotificationsTab() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
@@ -75,6 +117,7 @@ export default function NotificationsTab() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [openedId, setOpenedId] = useState<number | null>(null);
 
   const loadNotifications = () =>
     fetchPortalNotifications()
@@ -88,6 +131,7 @@ export default function NotificationsTab() {
   useEffect(() => {
     setPage(1);
     setSelectedIds([]);
+    setOpenedId(null);
   }, [typeFilter, statusFilter, search]);
 
   const unreadCount = useMemo(
@@ -103,7 +147,14 @@ export default function NotificationsTab() {
       if (typeFilter !== "all" && item.type !== typeFilter) return false;
       if (!query) return true;
 
-      const haystack = [item.title, item.desc, item.type, TYPE_LABEL[item.type ?? ""]]
+      const haystack = [
+        item.title,
+        item.desc,
+        item.intro,
+        item.type,
+        TYPE_LABEL[item.type ?? ""],
+        ...(item.details ?? []).flatMap((row) => [row.label, row.value]),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -124,10 +175,16 @@ export default function NotificationsTab() {
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
   const somePageSelected = pageIds.some((id) => selectedIds.includes(id));
   const selectedCount = selectedIds.length;
+  const openedIndex = filteredNotifications.findIndex((item) => item.id === openedId);
+  const opened = openedIndex >= 0 ? filteredNotifications[openedIndex] : null;
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (openedId && openedIndex < 0) setOpenedId(null);
+  }, [openedId, openedIndex]);
 
   const toggleSelected = (id: number) => {
     setSelectedIds((current) =>
@@ -164,10 +221,12 @@ export default function NotificationsTab() {
   };
 
   const openNotification = async (item: PortalNotification) => {
+    setOpenedId(item.id);
     if (item.unread) await markRead(item);
-    if (item.actionUrl) {
-      void router.push(item.actionUrl);
-    }
+  };
+
+  const openRelated = (item: PortalNotification) => {
+    if (item.actionUrl) void router.push(item.actionUrl);
   };
 
   const handleMarkAllRead = async () => {
@@ -215,6 +274,7 @@ export default function NotificationsTab() {
       await deletePortalNotification(item.id);
       setNotifications((prev) => prev.filter((row) => row.id !== item.id));
       setSelectedIds((current) => current.filter((id) => id !== item.id));
+      if (openedId === item.id) setOpenedId(null);
       notifyPortalNotificationsUpdated();
     } catch {
       toast.error("Could not dismiss notification.");
@@ -232,6 +292,7 @@ export default function NotificationsTab() {
       await Promise.all(ids.map((id) => deletePortalNotification(id)));
       setNotifications((prev) => prev.filter((row) => !ids.includes(row.id)));
       setSelectedIds([]);
+      if (openedId && ids.includes(openedId)) setOpenedId(null);
       notifyPortalNotificationsUpdated();
     } catch {
       await loadNotifications();
@@ -257,7 +318,28 @@ export default function NotificationsTab() {
             </p>
           </div>
 
-          {notifications.length > 0 ? (
+          {opened ? (
+            <div className={styles.inboxHeaderTools}>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                title="Back to inbox"
+                onClick={() => setOpenedId(null)}
+                aria-label="Back to inbox"
+              >
+                <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                title="Dismiss"
+                disabled={busyId === opened.id}
+                onClick={() => void handleDismiss(opened)}
+              >
+                <i className="fa-regular fa-trash-can" aria-hidden="true" />
+              </button>
+            </div>
+          ) : notifications.length > 0 ? (
             <div className={styles.inboxHeaderTools}>
               <label className={styles.inboxCheck}>
                 <input
@@ -315,18 +397,44 @@ export default function NotificationsTab() {
             </div>
           ) : null}
 
-          <label className={styles.inboxSearch}>
-            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search mail"
-              aria-label="Search notifications"
-            />
-          </label>
+          {opened ? null : (
+            <label className={styles.inboxSearch}>
+              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search mail"
+                aria-label="Search notifications"
+              />
+            </label>
+          )}
 
-          {notifications.length > 0 ? (
+          {opened ? (
+            <div className={styles.inboxToolbarRight}>
+              <span>
+                {openedIndex + 1} of {filteredNotifications.length}
+              </span>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                disabled={openedIndex <= 0}
+                onClick={() => void openNotification(filteredNotifications[openedIndex - 1])}
+                aria-label="Newer"
+              >
+                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                className={styles.inboxToolBtn}
+                disabled={openedIndex >= filteredNotifications.length - 1}
+                onClick={() => void openNotification(filteredNotifications[openedIndex + 1])}
+                aria-label="Older"
+              >
+                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+              </button>
+            </div>
+          ) : notifications.length > 0 ? (
             <div className={styles.inboxToolbarRight}>
               <span>
                 {rangeStart}-{rangeEnd} of {filteredNotifications.length}
@@ -353,7 +461,9 @@ export default function NotificationsTab() {
           ) : null}
         </div>
 
-        {notifications.length === 0 ? (
+        {opened ? (
+          <InboxMessageView item={opened} onOpenRelated={() => openRelated(opened)} />
+        ) : notifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications yet.</p>
         ) : filteredNotifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications match the selected filters.</p>
@@ -362,6 +472,7 @@ export default function NotificationsTab() {
             {paginatedNotifications.map((item) => {
               const selected = selectedIds.includes(item.id);
               const sender = senderLabel(item);
+              const hasAttachment = (item.attachments?.length ?? 0) > 0;
 
               return (
                 <div
@@ -405,7 +516,12 @@ export default function NotificationsTab() {
                       <span className={styles.inboxSubject}>{item.title}</span>
                       <span className={styles.inboxPreview}> - {item.desc}</span>
                     </span>
-                    <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
+                    <span className={styles.inboxRowEnd}>
+                      <span className={styles.inboxClip} aria-hidden="true">
+                        {hasAttachment ? <i className="fa-solid fa-paperclip" /> : null}
+                      </span>
+                      <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -426,5 +542,94 @@ export default function NotificationsTab() {
         )}
       </section>
     </div>
+  );
+}
+
+function InboxMessageView({
+  item,
+  onOpenRelated,
+}: {
+  item: PortalNotification;
+  onOpenRelated: () => void;
+}) {
+  const fromName = item.fromName || "WebFocus";
+  const fromEmail = item.fromEmail || "";
+  const attachments = item.attachments ?? [];
+  const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
+  const intro = String(item.intro || item.desc || "").trim();
+
+  return (
+    <article className={styles.inboxMessage}>
+      <div className={styles.inboxMessageCard}>
+        <div className={styles.inboxMessageMeta}>
+          <span className={styles.inboxMessageAvatar} aria-hidden="true">
+            {senderInitial(fromName)}
+          </span>
+          <div className={styles.inboxMessageFrom}>
+            <strong>{fromName}</strong>
+            {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}
+            <p>to me</p>
+          </div>
+          <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
+        </div>
+
+        <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
+        <p className={styles.inboxMessageGreeting}>Hello,</p>
+        {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
+
+        {details.length > 0 ? (
+          <dl className={styles.inboxMessageDetails}>
+            {details.map((row) => (
+              <div key={`${row.label}-${row.value}`} className={styles.inboxMessageDetail}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        {attachments.length > 0 ? (
+          <div className={styles.inboxAttachments}>
+            <p>
+              {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
+            </p>
+            <div className={styles.inboxAttachmentGrid}>
+              {attachments.map((attachment) => {
+                const url = attachmentUrl(attachment);
+                const image =
+                  isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
+
+                return (
+                  <a
+                    key={`${attachment.name}-${url}`}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.inboxAttachment}
+                  >
+                    {image ? (
+                      <img src={url} alt={attachment.name} />
+                    ) : (
+                      <span className={styles.inboxAttachmentFile}>
+                        <i className="fa-regular fa-file" aria-hidden="true" />
+                      </span>
+                    )}
+                    <span className={styles.inboxAttachmentName}>{attachment.name}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {item.actionUrl ? (
+          <div className={styles.inboxMessageActions}>
+            <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
+              {actionLabel(item)}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </article>
   );
 }
