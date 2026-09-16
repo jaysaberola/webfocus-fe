@@ -5829,4 +5829,288 @@ select.clientCrmInput {
   border-radius: 0.15rem;
 }
 
+.inboxPanel {
+  padding: 1.5rem 1.75rem 1.5rem;
+  overflow: hidden;
+}
+
+.inboxHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.15rem;
+  padding: 0 0 1.15rem;
+}
+
+.inboxHeaderTitle {
+  flex: 0 0 auto;
+  min-width: 7.5rem;
+}
+
+.inboxHeader .panelTitle {
+  margin: 0;
+}
+
+.inboxHeaderTools {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex: 0 0 auto;
+}
+
+.inboxCount {
+  margin: 0.15rem 0 0;
+  font-size: var(--ca-text-xs);
+  color: var(--ca-slate-500);
+}
+
+.inboxSearch {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 12rem;
+  flex: 1 1 14rem;
+  max-width: 22rem;
+  height: 2.35rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: #eaf1fb;
+  color: #5f6368;
+}
+
+.inboxSearch:focus-within {
+  background: #d3e3fd;
+}
+
+.inboxSearch input,
+.inboxSearch input:focus,
+.inboxSearch input:focus-visible {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: #202124;
+}
+
+.inboxSearch input::placeholder {
+  color: #5f6368;
+  opacity: 1;
+}
+
+.inboxSearch input:focus::placeholder {
+  color: #5f6368;
+}
+
+.inboxToolbarRight {
+  display: flex;
+  align-items: center;
+  color: #5f6368;
+  font-size: 0.75rem;
+  font-weight: 500;
+  gap: 0.25rem;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.inboxCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+}
+
+.inboxCheck input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: #1a73e8;
+  cursor: pointer;
+}
+
+.inboxToolBtn {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #5f6368;
+  cursor: pointer;
+}
+
+.inboxToolBtn:hover:not(:disabled) {
+  background: rgba(32, 33, 36, 0.08);
+}
+
+.inboxToolBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.inboxSelect {
+  height: 1.85rem;
+  margin-left: 0.25rem;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: #5f6368;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.inboxEmpty {
+  margin: 0;
+  padding: 3rem 0 1.75rem;
+  text-align: center;
+  color: var(--ca-slate-500);
+}
+
+.inboxList {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #eceff1;
+  border-radius: 0.85rem;
+}
+
+.inboxRow {
+  display: grid;
+  grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  min-height: 2.7rem;
+  padding: 0 0.65rem;
+  border-bottom: 1px solid #eceff1;
+  background: #f2f6fc;
+}
+
+.inboxRow:last-child {
+  border-bottom: 0;
+}
+
+.inboxRowUnread {
+  background: #fff;
+}
+
+.inboxRowSelected {
+  background: #c2e7ff;
+}
+
+.inboxRow:hover {
+  box-shadow: inset 1px 0 0 #dadce0, inset -1px 0 0 #dadce0, 0 1px 2px 0 rgba(60, 64, 67, 0.15);
+  z-index: 1;
+}
+
+.inboxStar,
+.inboxRowDismiss {
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  color: #b0b3b8;
+  cursor: pointer;
+}
+
+.inboxStar {
+  color: #dadce0;
+}
+
+.inboxStar:hover,
+.inboxRowDismiss:hover:not(:disabled) {
+  color: #5f6368;
+}
+
+.inboxStar:hover {
+  color: #f4b400;
+}
+
+.inboxRowMain {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0.35rem 0 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.inboxSender,
+.inboxSubject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #202124;
+  font-size: 0.875rem;
+}
+
+.inboxSender {
+  font-weight: 500;
+}
+
+.inboxRowUnread .inboxSender,
+.inboxRowUnread .inboxSubject {
+  font-weight: 700;
+}
+
+.inboxCopy {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #5f6368;
+  font-size: 0.875rem;
+}
+
+.inboxPreview {
+  color: #5f6368;
+  font-weight: 400;
+}
+
+.inboxDate {
+  overflow: hidden;
+  text-align: right;
+  white-space: nowrap;
+  color: #5f6368;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.inboxRowUnread .inboxDate {
+  color: #202124;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .inboxRow {
+    grid-template-columns: 2rem 2rem minmax(0, 1fr);
+  }
+
+  .inboxRowDismiss {
+    display: none;
+  }
+
+  .inboxRowMain {
+    grid-template-columns: minmax(0, 1fr) 4.75rem;
+  }
+
+  .inboxSender {
+    display: none;
+  }
+}
+
 

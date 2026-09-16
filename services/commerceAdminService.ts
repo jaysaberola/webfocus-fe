@@ -116,6 +116,9 @@ export type CommerceNotificationAdminRow = {
   email?: string | null;
   transactionNo?: string | null;
   actionUrl?: string | null;
+  createdAt?: string | null;
+  unread?: boolean;
+  manageable?: boolean;
 };
 
 export type CommerceNotificationsPayload = {
@@ -223,6 +226,24 @@ export async function fetchCommerceNotifications(): Promise<CommerceNotification
 export async function broadcastCommerceNotification(payload: { title: string; body: string }) {
   const res = await axiosInstance.post("/commerce-admin/notifications/broadcast", payload);
   return res.data;
+}
+
+export async function markCommerceNotificationRead(id: number) {
+  await axiosInstance.patch(`/commerce-admin/notifications/${id}/read`, null, {
+    headers: { "X-No-Loading": true },
+  });
+}
+
+export async function markAllCommerceNotificationsRead() {
+  await axiosInstance.patch("/commerce-admin/notifications/read-all", null, {
+    headers: { "X-No-Loading": true },
+  });
+}
+
+export async function deleteCommerceNotification(id: number) {
+  await axiosInstance.delete(`/commerce-admin/notifications/${id}`, {
+    headers: { "X-No-Loading": true },
+  });
 }
 
 export type CommerceAssignableUser = {
