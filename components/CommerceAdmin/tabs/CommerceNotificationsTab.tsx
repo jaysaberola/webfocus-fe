@@ -577,10 +577,12 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
                     <span className={styles.inboxSubject}>{item.title}</span>
                     <span className={styles.inboxPreview}> - {item.desc}</span>
                   </span>
-                  {hasAttachment ? (
-                    <i className={`fa-solid fa-paperclip ${styles.inboxClip}`} aria-hidden="true" />
-                  ) : null}
-                  <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
+                  <span className={styles.inboxRowEnd}>
+                    <span className={styles.inboxClip} aria-hidden="true">
+                      {hasAttachment ? <i className="fa-solid fa-paperclip" /> : null}
+                    </span>
+                    <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -613,59 +615,78 @@ function InboxMessageView({
   const fromName = item.fromName || item.audience || senderLabel(item);
   const fromEmail = item.fromEmail || item.email || "";
   const attachments = item.attachments ?? [];
+  const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
+  const intro = String(item.intro || item.desc || "").trim();
 
   return (
     <article className={styles.inboxMessage}>
-      <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
-      <div className={styles.inboxMessageMeta}>
-        <span className={styles.inboxMessageAvatar} aria-hidden="true">
-          {senderInitial(fromName)}
-        </span>
-        <div className={styles.inboxMessageFrom}>
-          <strong>{fromName}</strong>
-          {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}
-          <p>to me</p>
-        </div>
-        <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
-      </div>
-      <div className={styles.inboxMessageBody}>{item.desc}</div>
-      {attachments.length > 0 ? (
-        <div className={styles.inboxAttachments}>
-          <p>
-            {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
-          </p>
-          <div className={styles.inboxAttachmentGrid}>
-            {attachments.map((attachment) => {
-              const url = attachmentUrl(attachment);
-              const image =
-                isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
-
-              return (
-                <a
-                  key={`${attachment.name}-${url}`}
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.inboxAttachment}
-                >
-                  {image ? (
-                    <img src={url} alt={attachment.name} />
-                  ) : (
-                    <span className={styles.inboxAttachmentFile}>
-                      <i className="fa-regular fa-file" aria-hidden="true" />
-                    </span>
-                  )}
-                  <span className={styles.inboxAttachmentName}>{attachment.name}</span>
-                </a>
-              );
-            })}
+      <div className={styles.inboxMessageCard}>
+        <div className={styles.inboxMessageMeta}>
+          <span className={styles.inboxMessageAvatar} aria-hidden="true">
+            {senderInitial(fromName)}
+          </span>
+          <div className={styles.inboxMessageFrom}>
+            <strong>{fromName}</strong>
+            {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}
+            <p>to me</p>
           </div>
+          <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
         </div>
-      ) : null}
-      <div className={styles.inboxMessageActions}>
-        <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
-          {alertActionLabel(item)}
-        </button>
+
+        <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
+        <p className={styles.inboxMessageGreeting}>Hello,</p>
+        {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
+
+        {details.length > 0 ? (
+          <dl className={styles.inboxMessageDetails}>
+            {details.map((row) => (
+              <div key={`${row.label}-${row.value}`} className={styles.inboxMessageDetail}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        {attachments.length > 0 ? (
+          <div className={styles.inboxAttachments}>
+            <p>
+              {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
+            </p>
+            <div className={styles.inboxAttachmentGrid}>
+              {attachments.map((attachment) => {
+                const url = attachmentUrl(attachment);
+                const image =
+                  isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
+
+                return (
+                  <a
+                    key={`${attachment.name}-${url}`}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={styles.inboxAttachment}
+                  >
+                    {image ? (
+                      <img src={url} alt={attachment.name} />
+                    ) : (
+                      <span className={styles.inboxAttachmentFile}>
+                        <i className="fa-regular fa-file" aria-hidden="true" />
+                      </span>
+                    )}
+                    <span className={styles.inboxAttachmentName}>{attachment.name}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className={styles.inboxMessageActions}>
+          <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
+            {alertActionLabel(item)}
+          </button>
+        </div>
       </div>
     </article>
   );

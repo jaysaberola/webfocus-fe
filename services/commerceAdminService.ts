@@ -110,6 +110,11 @@ export type CommerceNotificationAttachment = {
   url: string;
 };
 
+export type CommerceNotificationDetail = {
+  label: string;
+  value: string;
+};
+
 export type CommerceNotificationAdminRow = {
   id: number;
   title: string;
@@ -127,6 +132,8 @@ export type CommerceNotificationAdminRow = {
   fromName?: string | null;
   fromEmail?: string | null;
   attachments?: CommerceNotificationAttachment[];
+  details?: CommerceNotificationDetail[];
+  intro?: string | null;
   actionLabel?: string | null;
 };
 
