@@ -105,6 +105,11 @@ export type CommerceServiceAdminRow = {
   transactionNo?: string | null;
 };
 
+export type CommerceNotificationAttachment = {
+  name: string;
+  url: string;
+};
+
 export type CommerceNotificationAdminRow = {
   id: number;
   title: string;
@@ -119,6 +124,10 @@ export type CommerceNotificationAdminRow = {
   createdAt?: string | null;
   unread?: boolean;
   manageable?: boolean;
+  fromName?: string | null;
+  fromEmail?: string | null;
+  attachments?: CommerceNotificationAttachment[];
+  actionLabel?: string | null;
 };
 
 export type CommerceNotificationsPayload = {

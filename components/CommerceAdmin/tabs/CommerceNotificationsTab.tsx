@@ -5,8 +5,10 @@ import {
   markAllCommerceNotificationsRead,
   markCommerceNotificationRead,
   type CommerceNotificationAdminRow,
+  type CommerceNotificationAttachment,
 } from "@/services/commerceAdminService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -19,19 +21,22 @@ const PAGE_SIZE = 15;
 
 const KIND_LABEL: Record<string, string> = {
   payment_proof: "Billing",
+  billing: "Billing",
   profile_change: "Account",
   support_ticket: "Support",
   web_design_quotation: "Quotations",
+  order: "Orders",
   broadcast: "Advisory",
   general: "Advisory",
 };
 
 const KIND_FILTERS = [
   { value: "all", label: "All Categories" },
-  { value: "payment_proof", label: "Billing" },
+  { value: "billing", label: "Billing" },
   { value: "profile_change", label: "Account" },
   { value: "support_ticket", label: "Support" },
   { value: "web_design_quotation", label: "Quotations" },
+  { value: "order", label: "Orders" },
   { value: "general", label: "Advisory" },
 ];
 
@@ -70,6 +75,33 @@ function formatInboxDate(row: CommerceNotificationAdminRow) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatMessageDate(row: CommerceNotificationAdminRow) {
+  const raw = String(row.createdAt || row.date || "").trim();
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return row.date || "";
+
+  return new Date(parsed).toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function senderInitial(name: string) {
+  const trimmed = name.trim();
+  return trimmed ? trimmed.slice(0, 1).toUpperCase() : "W";
+}
+
+function isImageAttachment(attachment: CommerceNotificationAttachment) {
+  return /\.(png|jpe?g|gif|webp|bmp|jfif)(\?.*)?$/i.test(`${attachment.name} ${attachment.url}`);
+}
+
+function attachmentUrl(attachment: CommerceNotificationAttachment) {
+  return resolveStorageAssetUrl(attachment.url) || attachment.url;
+}
+
 function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
   const url = String(row.actionUrl ?? "");
   if (url.includes("tab=approvals") || row.kind === "payment_proof" || row.kind === "profile_change") {
@@ -78,7 +110,19 @@ function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
   if (url.includes("tab=helpdesk") || row.kind === "support_ticket") {
     return "helpdesk";
   }
+  if (url.includes("tab=invoices") || url.includes("tab=billing") || row.kind === "billing") {
+    return "billing";
+  }
   return "orders";
+}
+
+function alertActionLabel(row: CommerceNotificationAdminRow) {
+  if (row.actionLabel) return row.actionLabel;
+  const tab = alertActionTab(row);
+  if (tab === "approvals") return "Open Approvals";
+  if (tab === "helpdesk") return "Open Helpdesk";
+  if (tab === "billing") return "Open Billing";
+  return "Open Deals";
 }
 
 export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: Props) {
@@ -91,6 +135,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [openedKey, setOpenedKey] = useState<string | null>(null);
 
   const loadRows = useCallback(async () => {
     try {
@@ -108,6 +153,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   useEffect(() => {
     setPage(1);
     setSelectedKeys([]);
+    setOpenedKey(null);
   }, [typeFilter, statusFilter, search]);
 
   const unreadCount = useMemo(
@@ -126,7 +172,9 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
       if (statusFilter === "unread" && item.unread === false) return false;
       if (typeFilter !== "all") {
         const kind = item.kind ?? "general";
-        if (typeFilter === "general") {
+        if (typeFilter === "billing") {
+          if (kind !== "billing" && kind !== "payment_proof") return false;
+        } else if (typeFilter === "general") {
           if (kind !== "general" && kind !== "broadcast") return false;
         } else if (kind !== typeFilter) {
           return false;
@@ -140,6 +188,8 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
         item.kind,
         KIND_LABEL[item.kind ?? ""],
         item.audience,
+        item.fromName,
+        item.fromEmail,
         item.email,
         item.transactionNo,
         item.status,
@@ -168,9 +218,16 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
     (item) => selectedKeys.includes(rowKey(item)) && isManageable(item),
   );
 
+  const openedIndex = filteredNotifications.findIndex((item) => rowKey(item) === openedKey);
+  const opened = openedIndex >= 0 ? filteredNotifications[openedIndex] : null;
+
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (openedKey && openedIndex < 0) setOpenedKey(null);
+  }, [openedKey, openedIndex]);
 
   const toggleSelected = (key: string) => {
     setSelectedKeys((current) =>
@@ -216,8 +273,8 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   };
 
   const openNotification = async (item: CommerceNotificationAdminRow) => {
+    setOpenedKey(rowKey(item));
     if (item.unread !== false && isManageable(item)) await markRead(item);
-    openAlert(item);
   };
 
   const handleMarkAllRead = async () => {
@@ -270,6 +327,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
       await deleteCommerceNotification(item.id);
       setNotifications((prev) => prev.filter((row) => rowKey(row) !== key));
       setSelectedKeys((current) => current.filter((id) => id !== key));
+      if (openedKey === key) setOpenedKey(null);
     } catch {
       toast.error("Could not dismiss notification.");
     } finally {
@@ -314,7 +372,28 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
           </p>
         </div>
 
-        {notifications.length > 0 ? (
+        {opened ? (
+          <div className={styles.inboxHeaderTools}>
+            <button
+              type="button"
+              className={styles.inboxToolBtn}
+              title="Back to inbox"
+              onClick={() => setOpenedKey(null)}
+              aria-label="Back to inbox"
+            >
+              <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.inboxToolBtn}
+              title="Dismiss"
+              disabled={busyKey === rowKey(opened) || !isManageable(opened)}
+              onClick={() => void handleDismiss(opened)}
+            >
+              <i className="fa-regular fa-trash-can" aria-hidden="true" />
+            </button>
+          </div>
+        ) : notifications.length > 0 ? (
           <div className={styles.inboxHeaderTools}>
             <label className={styles.inboxCheck}>
               <input
@@ -377,18 +456,44 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
           </div>
         ) : null}
 
-        <label className={styles.inboxSearch}>
-          <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search mail"
-            aria-label="Search notifications"
-          />
-        </label>
+        {opened ? null : (
+          <label className={styles.inboxSearch}>
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search mail"
+              aria-label="Search notifications"
+            />
+          </label>
+        )}
 
-        {notifications.length > 0 ? (
+        {opened ? (
+          <div className={styles.inboxToolbarRight}>
+            <span>
+              {openedIndex + 1} of {filteredNotifications.length}
+            </span>
+            <button
+              type="button"
+              className={styles.inboxToolBtn}
+              disabled={openedIndex <= 0}
+              onClick={() => void openNotification(filteredNotifications[openedIndex - 1])}
+              aria-label="Newer"
+            >
+              <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.inboxToolBtn}
+              disabled={openedIndex >= filteredNotifications.length - 1}
+              onClick={() => void openNotification(filteredNotifications[openedIndex + 1])}
+              aria-label="Older"
+            >
+              <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+            </button>
+          </div>
+        ) : notifications.length > 0 ? (
           <div className={styles.inboxToolbarRight}>
             <span>
               {rangeStart}-{rangeEnd} of {filteredNotifications.length}
@@ -415,7 +520,9 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
         ) : null}
       </div>
 
-      {notifications.length === 0 ? (
+      {opened ? (
+        <InboxMessageView item={opened} onOpenRelated={() => openAlert(opened)} />
+      ) : notifications.length === 0 ? (
         <p className={styles.inboxEmpty}>No notifications yet.</p>
       ) : filteredNotifications.length === 0 ? (
         <p className={styles.inboxEmpty}>No notifications match the selected filters.</p>
@@ -426,6 +533,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
             const selected = selectedKeys.includes(key);
             const unread = item.unread !== false;
             const sender = senderLabel(item);
+            const hasAttachment = (item.attachments?.length ?? 0) > 0;
 
             return (
               <div
@@ -469,6 +577,9 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
                     <span className={styles.inboxSubject}>{item.title}</span>
                     <span className={styles.inboxPreview}> - {item.desc}</span>
                   </span>
+                  {hasAttachment ? (
+                    <i className={`fa-solid fa-paperclip ${styles.inboxClip}`} aria-hidden="true" />
+                  ) : null}
                   <span className={styles.inboxDate}>{formatInboxDate(item)}</span>
                 </button>
                 <button
@@ -489,5 +600,73 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
         </div>
       )}
     </section>
+  );
+}
+
+function InboxMessageView({
+  item,
+  onOpenRelated,
+}: {
+  item: CommerceNotificationAdminRow;
+  onOpenRelated: () => void;
+}) {
+  const fromName = item.fromName || item.audience || senderLabel(item);
+  const fromEmail = item.fromEmail || item.email || "";
+  const attachments = item.attachments ?? [];
+
+  return (
+    <article className={styles.inboxMessage}>
+      <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
+      <div className={styles.inboxMessageMeta}>
+        <span className={styles.inboxMessageAvatar} aria-hidden="true">
+          {senderInitial(fromName)}
+        </span>
+        <div className={styles.inboxMessageFrom}>
+          <strong>{fromName}</strong>
+          {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}
+          <p>to me</p>
+        </div>
+        <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
+      </div>
+      <div className={styles.inboxMessageBody}>{item.desc}</div>
+      {attachments.length > 0 ? (
+        <div className={styles.inboxAttachments}>
+          <p>
+            {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
+          </p>
+          <div className={styles.inboxAttachmentGrid}>
+            {attachments.map((attachment) => {
+              const url = attachmentUrl(attachment);
+              const image =
+                isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
+
+              return (
+                <a
+                  key={`${attachment.name}-${url}`}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.inboxAttachment}
+                >
+                  {image ? (
+                    <img src={url} alt={attachment.name} />
+                  ) : (
+                    <span className={styles.inboxAttachmentFile}>
+                      <i className="fa-regular fa-file" aria-hidden="true" />
+                    </span>
+                  )}
+                  <span className={styles.inboxAttachmentName}>{attachment.name}</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <div className={styles.inboxMessageActions}>
+        <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
+          {alertActionLabel(item)}
+        </button>
+      </div>
+    </article>
   );
 }
