@@ -1072,7 +1072,7 @@
 }
 
 .inboxPanel {
-  padding: 0;
+  padding: 1.5rem 1.75rem 1.5rem;
   overflow: hidden;
 }
 
@@ -1081,7 +1081,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.85rem 1.15rem;
-  padding: 1.5rem 1.75rem 1.25rem;
+  padding: 0 0 1.15rem;
 }
 
 .inboxHeaderTitle {
@@ -1224,7 +1224,7 @@
 
 .inboxEmpty {
   margin: 0;
-  padding: 3.5rem 1.75rem 4rem;
+  padding: 3rem 0 1.75rem;
   text-align: center;
   color: var(--cp-slate-500);
 }
@@ -1232,6 +1232,9 @@
 .inboxList {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #eceff1;
+  border-radius: 0.85rem;
 }
 
 .inboxRow {
@@ -1239,8 +1242,13 @@
   grid-template-columns: 2rem 2rem minmax(0, 1fr) 2rem;
   align-items: center;
   min-height: 2.7rem;
+  padding: 0 0.65rem;
   border-bottom: 1px solid #eceff1;
   background: #f2f6fc;
+}
+
+.inboxRow:last-child {
+  border-bottom: 0;
 }
 
 .inboxRowUnread {
