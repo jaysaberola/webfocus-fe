@@ -58,7 +58,7 @@ export default function CustomerPortalPage() {
 
   if (loading) {
     return (
-      <div className={styles.page}>
+      <div className={`${styles.page} public-content-gutter`}>
         <PortalTabLoader label="Loading your account..." />
       </div>
     );
@@ -66,14 +66,14 @@ export default function CustomerPortalPage() {
 
   if (!customer) {
     return (
-      <div className={styles.page}>
+      <div className={`${styles.page} public-content-gutter`}>
         <PortalTabLoader label="Redirecting..." />
       </div>
     );
   }
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} public-content-gutter`}>
       <CustomerPortalTabs
         activeTab={activeTab}
         onTabChange={switchTab}

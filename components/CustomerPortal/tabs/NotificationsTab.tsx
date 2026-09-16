@@ -35,7 +35,7 @@ const TYPE_FILTERS = [
   { value: "general", label: "Advisory" },
 ];
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 15;
 
 function senderLabel(item: PortalNotification) {
   return TYPE_LABEL[item.type ?? ""] || item.type || "WebFocus";
@@ -249,28 +249,16 @@ export default function NotificationsTab() {
     <div className={styles.tabStack}>
       <section className={`${styles.panel} ${styles.inboxPanel}`}>
         <div className={styles.inboxHeader}>
-          <div>
+          <div className={styles.inboxHeaderTitle}>
             <h2 className={styles.panelTitle}>Inbox</h2>
             <p className={styles.inboxCount}>
               {unreadCount > 0 ? `${unreadCount} unread` : "All caught up"}
               {notifications.length > 0 ? ` · ${notifications.length} total` : ""}
             </p>
           </div>
-          <label className={styles.inboxSearch}>
-            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search mail"
-              aria-label="Search notifications"
-            />
-          </label>
-        </div>
 
-        {notifications.length > 0 ? (
-          <div className={styles.inboxToolbar}>
-            <div className={styles.inboxToolbarLeft}>
+          {notifications.length > 0 ? (
+            <div className={styles.inboxHeaderTools}>
               <label className={styles.inboxCheck}>
                 <input
                   type="checkbox"
@@ -325,6 +313,20 @@ export default function NotificationsTab() {
                 <option value="unread">Unread</option>
               </select>
             </div>
+          ) : null}
+
+          <label className={styles.inboxSearch}>
+            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search mail"
+              aria-label="Search notifications"
+            />
+          </label>
+
+          {notifications.length > 0 ? (
             <div className={styles.inboxToolbarRight}>
               <span>
                 {rangeStart}-{rangeEnd} of {filteredNotifications.length}
@@ -348,8 +350,8 @@ export default function NotificationsTab() {
                 <i className="fa-solid fa-chevron-right" aria-hidden="true" />
               </button>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         {notifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications yet.</p>
