@@ -9,7 +9,15 @@ import {
   notifyPortalNotificationsUpdated,
 } from "@/services/customerPortalService";
 import type { PortalNotification, PortalNotificationAttachment } from "@/lib/customerPortal/types";
+import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
+import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import {
+  getWebsiteSettingsCached,
+  readStoredWebsiteSettings,
+  resolveWebsiteFaviconUrl,
+  subscribeWebsiteSettingsUpdated,
+} from "@/lib/websiteSettings";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -81,11 +89,6 @@ function formatMessageDate(item: PortalNotification) {
   });
 }
 
-function senderInitial(name: string) {
-  const trimmed = name.trim();
-  return trimmed ? trimmed.slice(0, 1).toUpperCase() : "W";
-}
-
 function isImageAttachment(attachment: PortalNotificationAttachment) {
   return /\.(png|jpe?g|gif|webp|bmp|jfif)(\?.*)?$/i.test(`${attachment.name} ${attachment.url}`);
 }
@@ -108,6 +111,7 @@ function actionLabel(item: PortalNotification) {
 
 export default function NotificationsTab() {
   const router = useRouter();
+  const { customer } = useCustomerPortalAuth();
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -118,6 +122,8 @@ export default function NotificationsTab() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [openedId, setOpenedId] = useState<number | null>(null);
+
+  const greetingName = customerDisplayName(customer?.fname, customer?.lname);
 
   const loadNotifications = () =>
     fetchPortalNotifications()
@@ -462,7 +468,11 @@ export default function NotificationsTab() {
         </div>
 
         {opened ? (
-          <InboxMessageView item={opened} onOpenRelated={() => openRelated(opened)} />
+          <InboxMessageView
+            item={opened}
+            greetingName={greetingName}
+            onOpenRelated={() => openRelated(opened)}
+          />
         ) : notifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications yet.</p>
         ) : filteredNotifications.length === 0 ? (
@@ -545,11 +555,63 @@ export default function NotificationsTab() {
   );
 }
 
+function WebFocusInboxAvatar() {
+  const [src, setSrc] = useState(
+    () => resolveWebsiteFaviconUrl(readStoredWebsiteSettings()) ?? null,
+  );
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    const apply = () => {
+      const url = resolveWebsiteFaviconUrl(readStoredWebsiteSettings()) ?? null;
+      if (alive) {
+        setSrc(url);
+        setFailed(false);
+      }
+    };
+
+    void getWebsiteSettingsCached().then((settings) => {
+      if (!alive) return;
+      setSrc(resolveWebsiteFaviconUrl(settings) ?? null);
+      setFailed(false);
+    });
+
+    const unsub = subscribeWebsiteSettingsUpdated(apply);
+    return () => {
+      alive = false;
+      unsub();
+    };
+  }, []);
+
+  if (src && !failed) {
+    return (
+      <span className={styles.inboxMessageAvatar} aria-hidden="true">
+        <img
+          className={styles.inboxMessageAvatarImg}
+          src={src}
+          alt=""
+          onError={() => setFailed(true)}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`${styles.inboxMessageAvatar} ${styles.inboxMessageAvatarFallback}`} aria-hidden="true">
+      W
+    </span>
+  );
+}
+
 function InboxMessageView({
   item,
+  greetingName,
   onOpenRelated,
 }: {
   item: PortalNotification;
+  greetingName?: string;
   onOpenRelated: () => void;
 }) {
   const fromName = item.fromName || "WebFocus";
@@ -557,14 +619,13 @@ function InboxMessageView({
   const attachments = item.attachments ?? [];
   const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
   const intro = String(item.intro || item.desc || "").trim();
+  const helloName = String(greetingName || "").trim();
 
   return (
     <article className={styles.inboxMessage}>
       <div className={styles.inboxMessageCard}>
         <div className={styles.inboxMessageMeta}>
-          <span className={styles.inboxMessageAvatar} aria-hidden="true">
-            {senderInitial(fromName)}
-          </span>
+          <WebFocusInboxAvatar />
           <div className={styles.inboxMessageFrom}>
             <strong>{fromName}</strong>
             {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}
@@ -574,7 +635,9 @@ function InboxMessageView({
         </div>
 
         <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
-        <p className={styles.inboxMessageGreeting}>Hello,</p>
+        <p className={styles.inboxMessageGreeting}>
+          {helloName ? `Hello, ${helloName},` : "Hello,"}
+        </p>
         {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
 
         {details.length > 0 ? (

@@ -1413,11 +1413,23 @@
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
+  overflow: hidden;
   border-radius: 999px;
-  background: #1a73e8;
+  background: #ea580c;
   color: #fff;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.inboxMessageAvatarImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inboxMessageAvatarFallback {
+  background: #ea580c;
 }
 
 .inboxMessageFrom {
