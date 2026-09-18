@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
-import { dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed, markOpenProofUpload } from "@/lib/paynamicsProofPrompt";
+import { dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed, markOpenProofUpload, paynamicsProofPromptSnoozeRemainingMs } from "@/lib/paynamicsProofPrompt";
 import type { PortalInvoice } from "@/lib/customerPortal/types";
 import { fetchPortalBilling } from "@/services/customerPortalService";
 
@@ -53,7 +53,7 @@ export default function PaynamicsProofReminderHost({ onUpload }: PaynamicsProofR
     };
 
     load();
-    const interval = window.setInterval(load, 15000);
+    const interval = window.setInterval(load, 5000);
     window.addEventListener("focus", load);
     window.addEventListener("visibilitychange", load);
 
@@ -78,6 +78,9 @@ export default function PaynamicsProofReminderHost({ onUpload }: PaynamicsProofR
       onLater={() => {
         setOpen(false);
         dismissPaynamicsProofPrompt();
+        window.setTimeout(() => {
+          void refresh();
+        }, paynamicsProofPromptSnoozeRemainingMs() || 8000);
       }}
     />
   );

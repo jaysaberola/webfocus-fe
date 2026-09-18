@@ -505,6 +505,17 @@
   border: 1px solid #bfdbfe;
 }
 
+.bannerCopy {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.proofNeededBanner > button,
+.reminderBanner > button {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .proofNeededIcon {
   width: 2rem;
   height: 2rem;

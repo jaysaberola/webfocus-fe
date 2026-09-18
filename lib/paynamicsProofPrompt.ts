@@ -1,6 +1,7 @@
 const STORAGE_KEY = "webfocus.paynamicsProofPrompt";
 const DISMISS_KEY = "webfocus.paynamicsProofPrompt.dismissed";
 const OPEN_UPLOAD_KEY = "webfocus.paynamicsProofPrompt.openUpload";
+const TEST_SNOOZE_MS = 8_000;
 
 export type PaynamicsProofPrompt = {
   at: number;
@@ -39,13 +40,21 @@ export function isFreshPaynamicsProofPrompt(maxAgeMs = 30 * 60 * 1000): boolean 
 }
 
 export function isPaynamicsProofPromptDismissed(): boolean {
-  if (typeof window === "undefined") return false;
-  return sessionStorage.getItem(DISMISS_KEY) === "1";
+  return paynamicsProofPromptSnoozeRemainingMs() > 0;
 }
 
-export function dismissPaynamicsProofPrompt() {
+export function paynamicsProofPromptSnoozeRemainingMs(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = sessionStorage.getItem(DISMISS_KEY);
+  if (!raw || raw === "1") return 0;
+  const until = Number(raw);
+  if (!Number.isFinite(until)) return 0;
+  return Math.max(0, until - Date.now());
+}
+
+export function dismissPaynamicsProofPrompt(ms = TEST_SNOOZE_MS) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(DISMISS_KEY, "1");
+  sessionStorage.setItem(DISMISS_KEY, String(Date.now() + ms));
 }
 
 export function clearPaynamicsProofPrompt() {

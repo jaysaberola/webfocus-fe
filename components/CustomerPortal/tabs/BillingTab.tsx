@@ -18,7 +18,7 @@ import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFil
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
-import { consumeOpenProofUpload, clearPaynamicsProofPrompt, dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed } from "@/lib/paynamicsProofPrompt";
+import { consumeOpenProofUpload, clearPaynamicsProofPrompt, dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed, paynamicsProofPromptSnoozeRemainingMs } from "@/lib/paynamicsProofPrompt";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
@@ -469,7 +469,11 @@ export default function BillingTab() {
       if (!proofNeededInvoice) setProofPromptOpen(false);
       return;
     }
-    if (isPaynamicsProofPromptDismissed()) return;
+    if (isPaynamicsProofPromptDismissed()) {
+      const wait = paynamicsProofPromptSnoozeRemainingMs();
+      const timer = window.setTimeout(() => setProofPromptOpen(true), wait);
+      return () => window.clearTimeout(timer);
+    }
     setProofPromptOpen(true);
   }, [loading, proofModal.open, proofNeededInvoice]);
 
@@ -743,7 +747,7 @@ export default function BillingTab() {
             <div className={styles.proofNeededIcon} aria-hidden="true">
               <i className="fa-solid fa-camera" />
             </div>
-            <div>
+            <div className={styles.bannerCopy}>
               <h3 className={styles.proofNeededTitle}>Upload your Paynamics receipt</h3>
               <p className={styles.proofNeededText}>
                 {invoicesNeedingProof.length === 1 ? (
@@ -772,7 +776,7 @@ export default function BillingTab() {
         {reminder ? (
           <div className={styles.reminderBanner}>
             <div className={styles.reminderIcon}>!</div>
-            <div>
+            <div className={styles.bannerCopy}>
               <h3 className={styles.reminderTitle}>{reminder.headline ?? "Payment Due Soon"}</h3>
               <p className={styles.reminderText}>
                 Invoice <span className={styles.monoBlue}>{reminder.invoiceId}</span> ({reminder.title}) is due on{" "}
