@@ -686,7 +686,7 @@
 }
 
 .proofPopupDialog {
-  width: min(100%, 440px);
+  width: min(100%, 480px);
 }
 
 .proofPopup {
@@ -774,6 +774,23 @@
   border-radius: 0.75rem;
   padding: 0.7rem 0.8rem;
   text-align: left;
+}
+
+.proofPopupNote strong {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: #92400e;
+}
+
+.proofPopupFallback {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.proofPopupFallback li {
+  color: #92400e;
 }
 
 .proofPopupActions {

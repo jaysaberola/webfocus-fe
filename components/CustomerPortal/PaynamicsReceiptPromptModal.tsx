@@ -56,17 +56,34 @@ export default function PaynamicsReceiptPromptModal({
           <li>
             <span className={styles.proofPopupStepNum}>2</span>
             <span>
+              {beforePay
+                ? "If you miss that page, keep the Paynamics email or your GCash, Maya, or bank confirmation so you can upload it after you pay."
+                : "If you did not screenshot it, use a Paynamics email receipt or your GCash, Maya, or bank confirmation instead."}
+            </span>
+          </li>
+          <li>
+            <span className={styles.proofPopupStepNum}>3</span>
+            <span>
               Upload that file in <strong>Billing → Submit Payment Proof</strong> so we can confirm your payment.
             </span>
           </li>
         </ol>
 
         {!beforePay ? (
+          <div className={styles.proofPopupNote}>
+            <strong>Didn't screenshot or save it?</strong>
+            <ul className={styles.proofPopupFallback}>
+              <li>Open your email and search for Paynamics, then screenshot or save that receipt.</li>
+              <li>Open GCash, Maya, or your bank app and screenshot the paid transaction for this invoice.</li>
+              <li>Use a card or e-wallet SMS confirmation if it shows this payment.</li>
+            </ul>
+          </div>
+        ) : (
           <p className={styles.proofPopupNote}>
-            If the page already redirected, use the screenshot you saved, your Paynamics email, or your bank/e-wallet
-            confirmation. This reminder stays until you upload the receipt.
+            The success page disappears quickly. If you miss it, your Paynamics email or e-wallet/bank confirmation still
+            works as proof.
           </p>
-        ) : null}
+        )}
 
         <div className={styles.proofPopupActions}>
           <button type="button" className={styles.proofPopupPrimary} onClick={onUpload}>

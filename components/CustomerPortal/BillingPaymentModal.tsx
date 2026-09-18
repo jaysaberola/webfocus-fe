@@ -71,8 +71,8 @@ export default function BillingPaymentModal({
 
       <div className={styles.billingModalBody}>
         <p className={styles.proofNeedHint}>
-          After you pay, screenshot or download the Paynamics <strong>Payment Success</strong> page. You must upload
-          that receipt in Billing as proof of payment.
+          After you pay, screenshot or download the Paynamics <strong>Payment Success</strong> page. If you miss it,
+          keep the Paynamics email or your GCash, Maya, or bank confirmation and upload that as proof.
         </p>
         {mode === "invoice" ? (
           <div className={styles.billingModalSummary}>
