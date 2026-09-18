@@ -5,6 +5,7 @@ export type PaynamicsProofScan = {
   has_brand?: boolean;
   has_amount?: boolean;
   has_success?: boolean;
+  has_date?: boolean;
   matched_request_id?: string | null;
 };
 

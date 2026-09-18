@@ -23,9 +23,9 @@ export default function PaynamicsReceiptPromptModal({
   return (
     <PortalModal
       open={open}
-      onClose={beforePay ? onLater : () => undefined}
+      onClose={onLater}
       closeOnOverlay={false}
-      closeOnEscape={beforePay}
+      closeOnEscape
       ariaLabelledBy="paynamics-receipt-prompt-title"
       dialogClassName={styles.proofPopupDialog}
     >
@@ -57,8 +57,8 @@ export default function PaynamicsReceiptPromptModal({
             <span className={styles.proofPopupStepNum}>2</span>
             <span>
               {beforePay
-                ? "If you miss that page, keep the Paynamics email or your GCash, Maya, or bank confirmation so you can upload it after you pay."
-                : "If you did not screenshot it, use a Paynamics email receipt or your GCash, Maya, or bank confirmation instead."}
+                ? "If you miss that page, save the Paynamics email receipt. A GCash, Maya, or bank confirmation only works if it still shows Paynamics or this payment's Request ID."
+                : "If you did not screenshot it, upload the Paynamics email receipt. An e-wallet or bank confirmation only works if it still shows Paynamics or this payment's Request ID."}
             </span>
           </li>
           <li>
@@ -74,8 +74,8 @@ export default function PaynamicsReceiptPromptModal({
             <strong>Didn't screenshot or save it?</strong>
             <ul className={styles.proofPopupFallback}>
               <li>Open your email and search for Paynamics, then screenshot or save that receipt.</li>
-              <li>Open GCash, Maya, or your bank app and screenshot the paid transaction for this invoice.</li>
-              <li>Use a card or e-wallet SMS confirmation if it shows this payment.</li>
+              <li>GCash, Maya, or bank screenshots only work if they still show Paynamics or this payment's Request ID.</li>
+              <li>A random transfer screenshot with no Paynamics details will be rejected.</li>
             </ul>
           </div>
         ) : (
@@ -89,11 +89,9 @@ export default function PaynamicsReceiptPromptModal({
           <button type="button" className={styles.proofPopupPrimary} onClick={onUpload}>
             {confirmLabel || (beforePay ? "I understand — continue to Paynamics" : "Upload Receipt Now")}
           </button>
-          {beforePay ? (
-            <button type="button" className={styles.proofPopupSecondary} onClick={onLater}>
-              Cancel
-            </button>
-          ) : null}
+          <button type="button" className={styles.proofPopupSecondary} onClick={onLater}>
+            {beforePay ? "Cancel" : "Remind me later"}
+          </button>
         </div>
       </div>
     </PortalModal>

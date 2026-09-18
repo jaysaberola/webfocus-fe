@@ -18,7 +18,7 @@ import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFil
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
-import { consumeOpenProofUpload, clearPaynamicsProofPrompt } from "@/lib/paynamicsProofPrompt";
+import { consumeOpenProofUpload, clearPaynamicsProofPrompt, dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed } from "@/lib/paynamicsProofPrompt";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
@@ -469,6 +469,7 @@ export default function BillingTab() {
       if (!proofNeededInvoice) setProofPromptOpen(false);
       return;
     }
+    if (isPaynamicsProofPromptDismissed()) return;
     setProofPromptOpen(true);
   }, [loading, proofModal.open, proofNeededInvoice]);
 
@@ -1093,7 +1094,10 @@ export default function BillingTab() {
           setProofPromptOpen(false);
           if (proofNeededInvoice) openProofModal(proofNeededInvoice);
         }}
-        onLater={() => undefined}
+        onLater={() => {
+          setProofPromptOpen(false);
+          dismissPaynamicsProofPrompt();
+        }}
       />
 
       <BillingPaymentModal

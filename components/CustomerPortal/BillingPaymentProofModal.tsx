@@ -182,7 +182,7 @@ export default function BillingPaymentProofModal({
       <div className={styles.billingModalBody}>
         <ol className={styles.proofNeedSteps}>
           <li>Screenshot or download the Paynamics Payment Success page.</li>
-          <li>If you missed it, upload the Paynamics email receipt or a GCash, Maya, or bank confirmation instead.</li>
+          <li>If you missed it, upload the Paynamics email receipt. An e-wallet or bank screenshot only works if it still shows Paynamics or this payment's Request ID.</li>
           <li>Upload that file below. We scan it before it can be submitted.</li>
         </ol>
         <div className={styles.proofFormPanel}>
@@ -267,7 +267,7 @@ export default function BillingPaymentProofModal({
                   ? "Checking for a Paynamics payment success proof"
                   : file
                     ? "Click to replace file"
-                    : "PDF, PNG, or JPG · Max 5MB · Paynamics page, email receipt, or e-wallet/bank confirmation"}
+                    : "PDF, PNG, or JPG · Max 5MB · We check Paynamics details, amount, and payment date/time"}
               </span>
               <input
                 ref={fileInputRef}
