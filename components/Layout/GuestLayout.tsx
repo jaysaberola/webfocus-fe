@@ -14,6 +14,7 @@ import { getHeroPreloadImage } from "@/lib/heroBanner";
 import { getWebsiteSettingsCached, readStoredWebsiteSettings, subscribeWebsiteSettingsUpdated } from "@/lib/websiteSettings";
 import SiteFavicon from "@/components/Layout/SiteFavicon";
 import PaynamicsReturnHandler from "@/components/Cart/PaynamicsReturnHandler";
+import CustomerPaynamicsProofGate from "@/components/CustomerPortal/CustomerPaynamicsProofGate";
 
 interface LandingPageLayoutProps {
   children: React.ReactNode;
@@ -116,6 +117,7 @@ export default function LandingPageLayout({
 
         <ToastHost />
         <PaynamicsReturnHandler />
+        <CustomerPaynamicsProofGate />
         <PublicCartDrawer />
         <PrivacyConsentBanner />
       </div>

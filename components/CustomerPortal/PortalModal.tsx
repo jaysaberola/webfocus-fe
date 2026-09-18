@@ -9,6 +9,7 @@ type PortalModalProps = {
   children: ReactNode;
   dialogClassName?: string;
   closeOnOverlay?: boolean;
+  closeOnEscape?: boolean;
 };
 
 export default function PortalModal({
@@ -18,6 +19,7 @@ export default function PortalModal({
   children,
   dialogClassName,
   closeOnOverlay = true,
+  closeOnEscape = true,
 }: PortalModalProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -38,7 +40,7 @@ export default function PortalModal({
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape" && closeOnEscape) onClose();
     };
 
     window.addEventListener("keydown", onKeyDown);
@@ -48,7 +50,7 @@ export default function PortalModal({
       document.body.style.paddingRight = previousPaddingRight;
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, onClose]);
+  }, [open, onClose, closeOnEscape]);
 
   if (!open || !mounted) return null;
 

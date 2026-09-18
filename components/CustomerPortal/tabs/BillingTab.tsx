@@ -18,13 +18,7 @@ import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFil
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
-import {
-  clearPaynamicsProofPrompt,
-  consumeOpenProofUpload,
-  dismissPaynamicsProofPrompt,
-  isFreshPaynamicsProofPrompt,
-  isPaynamicsProofPromptDismissed,
-} from "@/lib/paynamicsProofPrompt";
+import { consumeOpenProofUpload, clearPaynamicsProofPrompt } from "@/lib/paynamicsProofPrompt";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
@@ -475,7 +469,6 @@ export default function BillingTab() {
       if (!proofNeededInvoice) setProofPromptOpen(false);
       return;
     }
-    if (isPaynamicsProofPromptDismissed() && !isFreshPaynamicsProofPrompt()) return;
     setProofPromptOpen(true);
   }, [loading, proofModal.open, proofNeededInvoice]);
 
@@ -667,11 +660,11 @@ export default function BillingTab() {
         scannedText: payload.scannedText,
       });
       toast.success(result?.message || "Payment proof uploaded.");
-      setProofModal({ open: false });
-      setProofPromptOpen(false);
       clearPaynamicsProofPrompt();
       notifyPortalNotificationsUpdated();
       await loadBilling({ dateFrom: dateRange.from || undefined, dateTo: dateRange.to || undefined });
+      setProofModal({ open: false });
+      setProofPromptOpen(false);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Could not upload payment proof.");
     } finally {
@@ -1100,10 +1093,7 @@ export default function BillingTab() {
           setProofPromptOpen(false);
           if (proofNeededInvoice) openProofModal(proofNeededInvoice);
         }}
-        onLater={() => {
-          setProofPromptOpen(false);
-          dismissPaynamicsProofPrompt();
-        }}
+        onLater={() => undefined}
       />
 
       <BillingPaymentModal

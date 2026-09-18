@@ -23,8 +23,9 @@ export default function PaynamicsReceiptPromptModal({
   return (
     <PortalModal
       open={open}
-      onClose={onLater}
+      onClose={beforePay ? onLater : () => undefined}
       closeOnOverlay={false}
+      closeOnEscape={beforePay}
       ariaLabelledBy="paynamics-receipt-prompt-title"
       dialogClassName={styles.proofPopupDialog}
     >
@@ -41,8 +42,8 @@ export default function PaynamicsReceiptPromptModal({
           {beforePay
             ? "Paynamics will show a Payment Success page for a few seconds, then redirect you back. Capture that page before it disappears."
             : invoiceId
-              ? `${invoiceId} is already paid. Billing still needs your Paynamics Payment Success screenshot.`
-              : "Your Paynamics payment went through. Billing still needs your Payment Success screenshot."}
+              ? `${invoiceId} is already paid. Please upload your Paynamics Payment Success screenshot now so billing can confirm it.`
+              : "Your Paynamics payment went through. Please upload your Payment Success screenshot now so billing can confirm it."}
         </p>
 
         <ol className={styles.proofPopupSteps}>
@@ -63,7 +64,7 @@ export default function PaynamicsReceiptPromptModal({
         {!beforePay ? (
           <p className={styles.proofPopupNote}>
             If the page already redirected, use the screenshot you saved, your Paynamics email, or your bank/e-wallet
-            confirmation.
+            confirmation. This reminder stays until you upload the receipt.
           </p>
         ) : null}
 
@@ -71,9 +72,11 @@ export default function PaynamicsReceiptPromptModal({
           <button type="button" className={styles.proofPopupPrimary} onClick={onUpload}>
             {confirmLabel || (beforePay ? "I understand — continue to Paynamics" : "Upload Receipt Now")}
           </button>
-          <button type="button" className={styles.proofPopupSecondary} onClick={onLater}>
-            {beforePay ? "Cancel" : "Remind me later"}
-          </button>
+          {beforePay ? (
+            <button type="button" className={styles.proofPopupSecondary} onClick={onLater}>
+              Cancel
+            </button>
+          ) : null}
         </div>
       </div>
     </PortalModal>
