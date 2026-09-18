@@ -397,6 +397,17 @@
   background: #be123c;
 }
 
+.moduleTabNavSticky {
+  position: sticky;
+  top: var(--public-header-height, 80px);
+  z-index: 40;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0.55rem 0 0.65rem;
+  margin: -0.35rem 0 -0.4rem;
+  background: #fff;
+}
+
 .moduleTabNav {
   display: flex;
   flex-direction: row;
@@ -4503,6 +4514,114 @@ select.clientCrmInput {
   }
 }
 
+.dealPriceSummary {
+  display: grid;
+  grid-template-columns: 11.25rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  font-family: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: var(--ca-slate-600);
+}
+
+.dealPriceSummary .clientOrderLabel {
+  height: auto;
+  min-height: var(--ca-control-height);
+}
+
+.dealPriceSummary .clientOrderLabelText {
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  color: var(--ca-slate-600);
+}
+
+.dealPriceSummaryBox {
+  min-width: 0;
+  padding: 0.35rem 0.55rem 0.4rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.35rem;
+  background: #fff;
+}
+
+.dealPriceSummaryList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.dealPriceSummaryList li,
+.dealPriceSummaryTotal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--ca-control-height);
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: var(--ca-slate-900);
+}
+
+.dealPriceSummaryName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.dealPriceSummaryAmount {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ca-slate-900);
+}
+
+.dealPriceSummaryRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ca-slate-400);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+
+.dealPriceSummaryRemove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.dealPriceSummaryTotal {
+  margin: 0;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--ca-slate-200);
+  font-family: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: var(--ca-slate-900);
+  grid-template-columns: minmax(0, 1fr) auto 1.05rem;
+}
+
+@media (max-width: 640px) {
+  .dealPriceSummary {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+}
+
 .clientOrderGridSpacer {
   display: none;
 }
@@ -4512,6 +4631,134 @@ select.clientCrmInput {
     display: block;
     min-height: var(--ca-control-height);
   }
+}
+
+.clientOrderMultiSelect {
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.clientOrderMultiSelectBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: var(--ca-control-height);
+  height: auto;
+  padding: 0.22rem 1.7rem 0.22rem 0.35rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  color: var(--ca-slate-700);
+  font-size: var(--ca-text-sm);
+  font-weight: 400;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.clientOrderMultiSelectValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.clientOrderMultiSelectChip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 0.22rem;
+  padding: 0.08rem 0.18rem 0.08rem 0.5rem;
+  border: 1px solid #dbe7ff;
+  border-radius: 0.4rem;
+  background: #f4f8ff;
+  color: var(--ca-slate-800);
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1.35;
+}
+
+.clientOrderMultiSelectChipLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.clientOrderMultiSelectChipRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ca-slate-400);
+  font-size: 0.58rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.clientOrderMultiSelectChipRemove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.clientOrderMultiSelectPlaceholder {
+  color: var(--ca-slate-400);
+  font-weight: 400;
+}
+
+.clientOrderMultiSelectBtn > i {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: var(--ca-slate-400);
+  pointer-events: none;
+}
+
+.clientOrderMultiSelectPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 40;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.clientOrderMultiSelectItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 0.4rem;
+  font-size: var(--ca-text-sm);
+  font-weight: 400;
+  font-family: inherit;
+  color: var(--ca-slate-700);
+  cursor: pointer;
+}
+
+.clientOrderMultiSelectItem:hover {
+  background: var(--ca-slate-50);
 }
 
 .clientOrderField {
@@ -4553,6 +4800,28 @@ select.clientCrmInput {
   align-items: center;
   min-width: 0;
   height: var(--ca-control-height);
+}
+
+.clientOrderControl:has(.clientOrderMultiSelect),
+.clientOrderControl:has(.clientOrderClientPick) {
+  height: auto;
+  min-height: var(--ca-control-height);
+  align-items: stretch;
+}
+
+.clientOrderClientPick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.clientOrderClientPick select.clientCrmInput {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  padding-right: 3.35rem;
 }
 
 .clientOrderControl .clientCrmInput,
@@ -4609,6 +4878,11 @@ select.clientCrmInput {
   height: 0.9rem;
   color: #94a3b8;
   pointer-events: none;
+}
+
+.clientOrderControl:has(.clientOrderClientPick) .clientOrderAdornment {
+  top: calc(var(--ca-control-height) / 2);
+  transform: translateY(-50%);
 }
 
 .clientOrderAdornment i {
@@ -5273,7 +5547,7 @@ select.clientCrmInput {
 
 .clientRelatedListWrap {
   position: sticky;
-  top: calc(80px + 1rem);
+  top: calc(var(--public-header-height, 80px) + 5rem);
   z-index: 5;
   align-self: start;
 }

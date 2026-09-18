@@ -302,6 +302,37 @@ export const DEAL_NAME_OPTIONS = [
   "Consultancy Services",
 ] as const;
 
+export const DEAL_NAME_SEPARATOR = " | ";
+
+export function parseDealNames(value?: string | null, extra?: unknown) {
+  if (Array.isArray(extra)) {
+    const fromExtra = extra.map((item) => String(item ?? "").trim()).filter(Boolean);
+    if (fromExtra.length) return uniqueDealNames(fromExtra);
+  }
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+  if (text.includes(DEAL_NAME_SEPARATOR)) {
+    return uniqueDealNames(text.split(DEAL_NAME_SEPARATOR).map((part) => part.trim()).filter(Boolean));
+  }
+  return [text];
+}
+
+export function joinDealNames(names: string[]) {
+  return uniqueDealNames(names).join(DEAL_NAME_SEPARATOR);
+}
+
+function uniqueDealNames(names: string[]) {
+  const seen = new Set<string>();
+  const next: string[] = [];
+  for (const name of names) {
+    const text = String(name ?? "").trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    next.push(text);
+  }
+  return next;
+}
+
 export const SALES_STATUS_OPTIONS = [
   "Cancelled",
   "Cancelled - Upgrade",
@@ -549,6 +580,7 @@ export function toApiOrderStatus(label: string) {
 
 export type DealMeta = {
   dealName?: string;
+  dealNames?: string[];
   campaignSource?: string;
   stage?: string;
   dealType?: string;
@@ -821,8 +853,11 @@ export function clientOrderFormFromTransaction(transaction: {
   items?: Array<{ name?: string | null }>;
 }): ClientOrderFormState {
   const meta = parseDealMeta(transaction.notes);
-  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
-  const dealName = String(meta?.dealName ?? "").trim() || itemName;
+  const itemNames = uniqueDealNames(
+    (transaction.items ?? []).map((item) => String(item.name ?? "").trim()).filter(Boolean),
+  );
+  const dealName =
+    joinDealNames(parseDealNames(meta?.dealName, meta?.dealNames)) || joinDealNames(itemNames) || "";
   const revenue = String(meta?.expectedRevenue ?? transaction.grand_total ?? "").trim();
 
   const nextForm = emptyClientOrderForm({
@@ -838,7 +873,8 @@ export function clientOrderFormFromTransaction(transaction: {
     dealType: matchOption(CLIENT_STATUS_OPTIONS, meta?.dealType),
     dealSubType: matchOption(PRODUCT_STATUS_OPTIONS, meta?.dealSubType),
     productCategory:
-      matchOption(SUBJECT_OPTIONS, meta?.productCategory) || subjectForProductName(dealName),
+      matchOption(SUBJECT_OPTIONS, meta?.productCategory) ||
+      subjectForProductName(parseDealNames(dealName)[0] || dealName),
     productName: String(meta?.productName ?? "").trim() || dealName,
     salesStatus: matchOption(SALES_STATUS_OPTIONS, meta?.salesStatus),
     statusTriggerDate: toDateInput(meta?.statusTriggerDate),
@@ -896,6 +932,7 @@ export function clientOrderFormFromTransaction(transaction: {
 function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
   return {
     dealName: form.dealName.trim(),
+    dealNames: parseDealNames(form.dealName),
     campaignSource: form.campaignSource.trim(),
     stage: form.stage,
     dealType: form.dealType,

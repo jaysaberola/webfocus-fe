@@ -55,6 +55,17 @@
   color: var(--cp-slate-500);
 }
 
+.tabNavSticky {
+  position: sticky;
+  top: var(--public-header-height, 80px);
+  z-index: 40;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 0.55rem 0 0.65rem;
+  margin: -0.35rem 0 -0.4rem;
+  background: #fff;
+}
+
 .tabNav {
   composes: customerPortal;
   display: flex;

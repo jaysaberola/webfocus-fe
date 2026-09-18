@@ -1,4 +1,4 @@
-import { Children, isValidElement, useEffect, useMemo, useState } from "react";
+import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
 import { buildClientDealRows, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
@@ -11,6 +11,8 @@ import {
   deriveContractFields,
   deriveInvoiceFields,
   DEAL_NAME_OPTIONS,
+  parseDealNames,
+  joinDealNames,
   parseDealMeta,
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
@@ -33,8 +35,10 @@ import {
   validateClientOrderForm,
   type ClientOrderFormState,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
-import { clientDisplayName, assignablePersonLabel, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
+import { clientDisplayName, assignablePersonLabel, clientDealStatusFromCustomer, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
 import { isWebDesignPlan, looksLikeDomain } from "@/lib/serviceCategory";
+import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
+import { getAllPublicHostingAddons } from "@/services/publicHostingService";
 import {
   isWebDesignTransaction,
   WEB_DESIGN_PENDING_QUOTATION_MARKER,
@@ -48,7 +52,7 @@ import {
   fetchNextRotatingClientOwner,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
-import { getCustomers, getCustomer, updateCustomer, type CustomerRow } from "@/services/customerService";
+import { getCustomers, getCustomer, updateCustomer, createCustomerCrmAccount, type CustomerRow } from "@/services/customerService";
 import { getServices } from "@/services/serviceService";
 import { createSalesTransaction, updateSalesTransaction, type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -87,6 +91,8 @@ function withExtraOption(options: readonly string[], value?: string | null) {
   return [text, ...options];
 }
 
+const NEW_CLIENT_VALUE = "__new_client__";
+
 function Field({
   label,
   hint,
@@ -102,9 +108,12 @@ function Field({
   children: React.ReactNode;
 }) {
   const childArray = Children.toArray(children);
-  const isSelect = childArray.some(
-    (child) => isValidElement(child) && child.type === "select",
-  );
+  const isSelect = childArray.some((child) => {
+    if (!isValidElement(child)) return false;
+    if (child.type === "select") return true;
+    const props = child.props as { "data-select-control"?: boolean | string };
+    return props["data-select-control"] === true || props["data-select-control"] === "true";
+  });
   const isDate = childArray.some(
     (child) =>
       isValidElement(child) &&
@@ -157,15 +166,311 @@ function inputClass(required?: boolean, extra?: string) {
     .join(" ");
 }
 
+function normalizeCatalogName(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const SHARED_CLOUD_ALIASES: Record<string, string[]> = {
+  "linux cloud starter": ["starter shared", "starter"],
+  "windows cloud starter": ["starter shared", "starter"],
+  "linux cloud standard": ["standard shared", "standard"],
+  "windows cloud standard": ["standard shared", "standard"],
+  "linux cloud deluxe": ["deluxe shared", "deluxe"],
+  "windows cloud deluxe": ["deluxe shared", "deluxe"],
+  "linux cloud business": ["business shared", "business"],
+  "windows cloud business": ["business shared", "business"],
+};
+
+const ADDON_CORE_ALIASES: Record<string, string[]> = {
+  immunify360: ["imunify360"],
+  imunify360: ["immunify360"],
+  "giga bit lan": ["gigabit lan", "bare metal gigabit lan"],
+  whois: ["who is"],
+  "auto back up": ["automatic back up", "auto backup"],
+  ssl: ["secure socket layer standard ssl", "standard ssl"],
+  "wildcard ssl": ["secure socket layer wildcard ssl"],
+  "static ip": ["add ons static ip"],
+  "additional ip": ["dedicated ip", "ip address", "static ip"],
+};
+
+function hasAddonPrefix(normalized: string) {
+  return /^(add ons|add on|addons|addon)\s+/.test(normalized);
+}
+
+function stripAddonPrefix(normalized: string) {
+  return normalized.replace(/^(add ons|add on|addons|addon)\s+/, "").trim();
+}
+
+function addonCoresForName(normalized: string) {
+  const core = stripAddonPrefix(normalized);
+  if (!core) return [];
+  return [core, ...(ADDON_CORE_ALIASES[core] ?? [])];
+}
+
+function catalogNeedlesForProduct(productName: string) {
+  const needle = normalizeCatalogName(productName);
+  if (!needle) return [];
+  const needles = [needle, ...(SHARED_CLOUD_ALIASES[needle] ?? [])];
+  if (hasAddonPrefix(needle)) {
+    for (const core of addonCoresForName(needle)) {
+      needles.push(`add ons ${core}`);
+      needles.push(`add on ${core}`);
+      if (core.length >= 10) needles.push(core);
+    }
+  }
+  return Array.from(new Set(needles.filter(Boolean)));
+}
+
+function catalogLabelsForService(row: any) {
+  const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  const raw = [
+    row?.name,
+    row?.title,
+    row?.plan,
+    row?.plan_name,
+    row?.subject,
+    row?.label,
+    metadata.plan_name,
+    metadata.display_name,
+    metadata.crm_name,
+  ];
+  return Array.from(
+    new Set(
+      raw
+        .flatMap((value) => String(value ?? "").split(","))
+        .map((value) => normalizeCatalogName(value))
+        .filter(Boolean),
+    ),
+  );
+}
+
+function readCatalogPrice(row: any) {
+  const price = Number(row?.price ?? row?.amount ?? row?.unit_price ?? 0);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
+function isUniversalAddonRow(row: any) {
+  const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+  const planType = String(metadata.plan_type ?? row?.plan_type ?? "").toLowerCase();
+  if (planType === "universal") return true;
+  return catalogLabelsForService(row).some((label) => hasAddonPrefix(label));
+}
+
+function matchScoreForProduct(row: any, needles: string[], dealNormalized: string) {
+  const labels = catalogLabelsForService(row);
+  const dealIsAddon = hasAddonPrefix(dealNormalized);
+  const dealCores = addonCoresForName(dealNormalized);
+  let score = 0;
+
+  for (const label of labels) {
+    if (needles[0] === label) score = Math.max(score, 100);
+    else if (needles.includes(label) && (hasAddonPrefix(label) || label.length >= 10)) score = Math.max(score, 95);
+    else if (needles.includes(label)) score = Math.max(score, 80);
+    else if (dealIsAddon && hasAddonPrefix(label) && dealCores.includes(stripAddonPrefix(label))) {
+      score = Math.max(score, 90);
+    } else if (dealIsAddon && isUniversalAddonRow(row) && dealCores.includes(stripAddonPrefix(label))) {
+      score = Math.max(score, 88);
+    } else if (dealIsAddon && dealCores.includes(stripAddonPrefix(label))) {
+      score = Math.max(score, 40);
+    }
+  }
+
+  return score;
+}
+
 function catalogPriceForProduct(services: any[], productName: string) {
-  const needle = productName.trim().toLowerCase();
-  if (!needle) return null;
-  const match =
-    services.find((service) => String(service.name ?? service.title ?? "").trim().toLowerCase() === needle) ??
-    services.find((service) => String(service.name ?? service.title ?? "").toLowerCase().includes(needle));
-  if (!match) return null;
-  const price = Number(match.price ?? 0);
-  return Number.isFinite(price) ? price : null;
+  const needles = catalogNeedlesForProduct(productName);
+  if (!needles.length) return null;
+  const dealNormalized = needles[0];
+  const dealIsAddon = hasAddonPrefix(dealNormalized);
+
+  let best: { price: number; score: number } | null = null;
+  const corePrices = new Set<number>();
+
+  for (const row of services) {
+    const price = readCatalogPrice(row);
+    if (price == null) continue;
+    const score = matchScoreForProduct(row, needles, dealNormalized);
+    if (score <= 0) continue;
+    if (score === 40) corePrices.add(price);
+    if (!best || score > best.score) best = { price, score };
+  }
+
+  if (best && best.score >= 85) return best.price;
+  if (best && !dealIsAddon && best.score >= 80) return best.price;
+
+  const hosting = HOSTING_PLANS.find((plan) => needles.includes(normalizeCatalogName(plan.name)));
+  if (hosting?.price) return hosting.price;
+  const design = WEBDESIGN_PACKAGES.find((pkg) => needles.includes(normalizeCatalogName(pkg.name)));
+  if (design?.price) return design.price;
+  const addon = UNIVERSAL_HOSTING_ADDONS.find((row) => matchScoreForProduct(row, needles, dealNormalized) >= 85);
+  if (addon?.price) return addon.price;
+
+  if (dealIsAddon && best?.score === 40 && corePrices.size === 1) return best.price;
+  if (!dealIsAddon && best) return best.price;
+  return null;
+}
+
+function catalogLinesForDealNames(services: any[], dealName: string) {
+  return parseDealNames(dealName)
+    .map((name) => {
+      const price = catalogPriceForProduct(services, name);
+      return price != null ? { name, price } : null;
+    })
+    .filter((row): row is { name: string; price: number } => Boolean(row));
+}
+
+function catalogTotalForDealNames(services: any[], dealName: string) {
+  const lines = catalogLinesForDealNames(services, dealName);
+  if (!lines.length) return null;
+  const total = lines.reduce((sum, row) => sum + row.price, 0);
+  return Number.isFinite(total) ? total : null;
+}
+
+function extractServicesList(payload: any): any[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
+  return [];
+}
+
+async function fetchAllServiceCatalog(): Promise<any[]> {
+  const collected: any[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const res = await getServices({ per_page: 100, page }, { silent: true }).catch(() => null);
+    collected.push(...extractServicesList(res));
+    lastPage = Math.max(1, Number(res?.meta?.last_page ?? 1));
+    page += 1;
+  } while (page <= lastPage && page <= 25);
+
+  const publicAddons = await getAllPublicHostingAddons().catch(() => []);
+
+  return [
+    ...collected,
+    ...publicAddons.map((addon) => ({
+      name: addon.name,
+      price: addon.price,
+      label: addon.label,
+      metadata: { item_type: "addon", plan_type: addon.plan_type },
+    })),
+    ...HOSTING_PLANS.map((plan) => ({ name: plan.name, price: plan.price })),
+    ...WEBDESIGN_PACKAGES.map((pkg) => ({ name: pkg.name, price: pkg.price })),
+    ...UNIVERSAL_HOSTING_ADDONS.map((addon) => ({
+      name: addon.name,
+      price: addon.price,
+      metadata: { item_type: "addon", plan_type: "universal" },
+    })),
+  ];
+}
+
+function DealNameMultiSelect({
+  options,
+  selected,
+  required,
+  onChange,
+}: {
+  options: readonly string[];
+  selected: string[];
+  required?: boolean;
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const label = selected.length === 0 ? "-None-" : selected.join(", ");
+  const removeSelected = (name: string) => {
+    onChange(selected.filter((item) => item !== name));
+  };
+
+  return (
+    <div className={styles.clientOrderMultiSelect} ref={wrapRef}>
+      <div
+        className={[
+          styles.clientOrderMultiSelectBtn,
+          required ? styles.clientCrmInputRequired : "",
+          selected.length === 0 ? styles.clientOrderMultiSelectPlaceholder : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            setOpen((value) => !value);
+          }
+        }}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        tabIndex={0}
+        title={label}
+      >
+        {selected.length === 0 ? (
+          <span>-None-</span>
+        ) : (
+          <span className={styles.clientOrderMultiSelectValues}>
+            {selected.map((name) => (
+              <span key={name} className={styles.clientOrderMultiSelectChip}>
+                <span className={styles.clientOrderMultiSelectChipLabel}>{name}</span>
+                <button
+                  type="button"
+                  className={styles.clientOrderMultiSelectChipRemove}
+                  aria-label={`Remove ${name}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    removeSelected(name);
+                  }}
+                >
+                  <i className="fa-solid fa-xmark" aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </span>
+        )}
+        <i className="fa-solid fa-chevron-down" aria-hidden="true" />
+      </div>
+      {open ? (
+        <div className={styles.clientOrderMultiSelectPanel} role="listbox" aria-multiselectable="true">
+          {options.map((option) => (
+            <label key={option} className={styles.clientOrderMultiSelectItem}>
+              <input
+                type="checkbox"
+                checked={selected.includes(option)}
+                onChange={() =>
+                  onChange(
+                    selected.includes(option)
+                      ? selected.filter((item) => item !== option)
+                      : [...selected, option],
+                  )
+                }
+              />
+              <span>{option}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function FilePick({
@@ -210,6 +515,7 @@ export default function ClientOrderForm({
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [newClientName, setNewClientName] = useState("");
   const [manualDateFields, setManualDateFields] = useState<Set<AutoDateKey>>(() => new Set());
 
   const setField = <K extends keyof ClientOrderFormState>(key: K, value: ClientOrderFormState[K]) => {
@@ -232,7 +538,7 @@ export default function ClientOrderForm({
       fetchCommerceAssignableUsers({ for: "client_owner" }).catch(() => [] as CommerceAssignableUser[]),
       fetchCommerceAssignableUsers({ for: "billing_in_charge" }).catch(() => [] as CommerceAssignableUser[]),
       getCustomers({ per_page: 200 }, { silent: true }).catch(() => ({ data: [] })),
-      getServices({ per_page: 200, status: "active" }, { silent: true }).catch(() => ({ data: [] })),
+      fetchAllServiceCatalog().catch(() => [] as any[]),
       transaction?.customer_id
         ? getCustomer(transaction.customer_id, { silent: true }).catch(() => null)
         : Promise.resolve(null),
@@ -242,7 +548,7 @@ export default function ClientOrderForm({
         const nextOwners = Array.isArray(clientOwners) ? clientOwners : [];
         const nextStaff = Array.isArray(assignable) ? assignable : [];
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
-        const nextServices = Array.isArray(serviceRes?.data) ? serviceRes.data : [];
+        const nextServices = Array.isArray(serviceRes) ? serviceRes : extractServicesList(serviceRes);
         const detailClient = clientDetail as CustomerRow | null;
         const mergedClients =
           detailClient && !nextClients.some((row) => Number(row.id) === Number(detailClient.id))
@@ -302,6 +608,10 @@ export default function ClientOrderForm({
             clientId: transaction.customer_id ? String(transaction.customer_id) : nextForm.clientId,
             billingInCharge,
             contactName: nextForm.contactName || String(linkedClient?.contact_person ?? ""),
+            dealType:
+              clientDealStatusFromCustomer(linkedClient) ||
+              nextForm.dealType ||
+              "New Client",
           });
           return;
         }
@@ -327,6 +637,7 @@ export default function ClientOrderForm({
               clientId: defaultClient ? String(defaultClient.id) : "",
               contactName: String(defaultClient?.contact_person ?? ""),
               billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
+              dealType: clientDealStatusFromCustomer(defaultClient),
             }),
           );
         };
@@ -350,12 +661,29 @@ export default function ClientOrderForm({
   }, [defaultCustomerId, transaction]);
 
   const selectedClient = clients.find((client) => String(client.id) === form.clientId);
+  const isNewClient = form.clientId === NEW_CLIENT_VALUE;
   const isWebDesignDeal =
     isWebDesignPlan(form.dealName, form.dealSubType || form.dealType) ||
     Boolean(transaction && isWebDesignTransaction(transaction));
 
+  useEffect(() => {
+    if (isNewClient) {
+      setForm((current) =>
+        current.dealType === "New Client" ? current : { ...current, dealType: "New Client" },
+      );
+      return;
+    }
+    if (!form.clientId) {
+      if (isEditing) return;
+      setForm((current) => (current.dealType ? { ...current, dealType: "" } : current));
+      return;
+    }
+    const nextStatus = clientDealStatusFromCustomer(selectedClient) || "New Client";
+    setForm((current) => (current.dealType === nextStatus ? current : { ...current, dealType: nextStatus }));
+  }, [form.clientId, selectedClient, isEditing, isNewClient]);
+
   const applyRotatingOwner = (clientId: string, dealName: string, dealType?: string) => {
-    if (isEditing || !clientId) return;
+    if (isEditing || !clientId || clientId === NEW_CLIENT_VALUE) return;
     const kind = rotatingOwnerKind(dealName, dealType);
     void fetchNextRotatingClientOwner(Number(clientId), kind ? { kind } : undefined)
       .then((rotating) => {
@@ -426,15 +754,23 @@ export default function ClientOrderForm({
     return rows.find((row) => row.dealName === form.dealName) ?? rows[0] ?? null;
   }, [transaction, selectedClient, clients, services, form.dealName]);
 
+  const dealPriceLines = useMemo(
+    () => catalogLinesForDealNames(services, form.dealName || form.productName),
+    [services, form.dealName, form.productName],
+  );
+  const dealPriceTotal = useMemo(
+    () => dealPriceLines.reduce((sum, row) => sum + row.price, 0),
+    [dealPriceLines],
+  );
+
   useEffect(() => {
     if (isEditing) return;
     const catalogName = form.dealName || form.productName;
-    if (!catalogName) return;
-    const price = catalogPriceForProduct(services, catalogName);
-    setForm((current) => ({
-      ...current,
-      expectedRevenue: price != null ? String(price) : current.expectedRevenue || "0",
-    }));
+    const price = catalogName ? catalogTotalForDealNames(services, catalogName) : null;
+    const nextRevenue = price != null ? String(price) : "0";
+    setForm((current) =>
+      current.expectedRevenue === nextRevenue ? current : { ...current, expectedRevenue: nextRevenue },
+    );
   }, [form.dealName, form.productName, services, isEditing]);
 
   useEffect(() => {
@@ -517,8 +853,8 @@ export default function ClientOrderForm({
     transaction,
   ]);
 
-  const handleClientChange = (clientId: string) => {
-    const client = clients.find((row) => String(row.id) === clientId);
+  const applyClientDefaults = (clientId: string, client?: CustomerRow | null) => {
+    const nextStatus = clientId ? clientDealStatusFromCustomer(client) || "New Client" : "";
     setForm((current) => ({
       ...current,
       clientId,
@@ -529,19 +865,53 @@ export default function ClientOrderForm({
           ? String(client.owner_id)
           : "",
       billingInCharge: String(client?.billing_in_charge ?? "").trim(),
+      dealType: nextStatus,
     }));
-    applyRotatingOwner(clientId, form.dealName, form.dealSubType || form.dealType);
   };
 
-  const handleDealNameChange = (dealName: string) => {
-    const domainType = DOMAIN_TYPE_OPTIONS.includes(dealName as (typeof DOMAIN_TYPE_OPTIONS)[number])
-      ? dealName
-      : undefined;
+  const handleClientChange = (clientId: string) => {
+    if (clientId === NEW_CLIENT_VALUE) {
+      setNewClientName("");
+      setForm((current) => ({
+        ...current,
+        clientId,
+        contactName: "",
+        dealType: "New Client",
+      }));
+      return;
+    }
+    setNewClientName("");
+    const client = clients.find((row) => String(row.id) === clientId);
+    applyClientDefaults(clientId, client);
+    applyRotatingOwner(clientId, form.dealName, form.dealSubType || form.dealType);
+    if (!clientId) return;
+    void getCustomer(Number(clientId), { silent: true })
+      .then((detail) => {
+        if (!detail) return;
+        const merged = { ...(client ?? {}), ...detail } as CustomerRow;
+        setClients((current) => {
+          const index = current.findIndex((row) => String(row.id) === clientId);
+          if (index === -1) return [merged, ...current];
+          const next = [...current];
+          next[index] = { ...next[index], ...merged };
+          return next;
+        });
+        applyClientDefaults(clientId, merged);
+      })
+      .catch(() => undefined);
+  };
+
+  const handleDealNamesChange = (names: string[]) => {
+    const dealName = joinDealNames(names);
+    const primary = names[0] || "";
+    const domainType = names.find((name) =>
+      DOMAIN_TYPE_OPTIONS.includes(name as (typeof DOMAIN_TYPE_OPTIONS)[number]),
+    );
     setForm((current) => ({
       ...current,
       dealName,
       productName: dealName,
-      productCategory: current.productCategory || subjectForProductName(dealName),
+      productCategory: current.productCategory || subjectForProductName(primary),
       domainType: current.domainType || domainType || "",
     }));
     applyRotatingOwner(form.clientId, dealName, form.dealSubType || form.dealType);
@@ -577,6 +947,7 @@ export default function ClientOrderForm({
       clientId: defaultClient ? String(defaultClient.id) : "",
       contactName: String(defaultClient?.contact_person ?? ""),
       billingInCharge: String(defaultClient?.billing_in_charge ?? "").trim(),
+      dealType: clientDealStatusFromCustomer(defaultClient),
     });
   };
 
@@ -592,21 +963,52 @@ export default function ClientOrderForm({
       return;
     }
 
-    const clientId = Number(form.clientId);
-    if (!clientId || !form.dealName) {
+    if (form.clientId === NEW_CLIENT_VALUE && !newClientName.trim()) {
+      toast.error("Please enter the new client name.");
+      return;
+    }
+
+    if (!form.clientId || !form.dealName) {
       toast.error("Please select a client and deal name.");
       return;
     }
 
-    const clientName = selectedClient
-      ? clientDisplayName(selectedClient)
-      : String(transaction?.customer_name ?? "").trim();
-    const clientEmail = selectedClient?.email ?? transaction?.customer_email ?? "";
-    const price = Number(form.expectedRevenue || 0);
-
     setSubmitting(true);
     try {
+      let clientId = Number(form.clientId);
+      let clientName = selectedClient
+        ? clientDisplayName(selectedClient)
+        : String(transaction?.customer_name ?? "").trim();
+      let clientEmail = selectedClient?.email ?? transaction?.customer_email ?? "";
+      const price = Number(form.expectedRevenue || 0);
       const ownerId = Number(form.dealOwnerId);
+
+      if (form.clientId === NEW_CLIENT_VALUE) {
+        const company = newClientName.trim();
+        const slug = company.toLowerCase().replace(/[^a-z0-9]+/g, "") || "client";
+        const createdClient = await createCustomerCrmAccount({
+          company,
+          email: `${slug}.${Date.now()}@client.ph`,
+          contact_person: form.contactName.trim() || company,
+          owner_id: ownerId || null,
+          billing_in_charge: form.billingInCharge || undefined,
+          client_classification: "New",
+        });
+        clientId = Number(createdClient?.data?.id ?? createdClient?.id);
+        if (!clientId) {
+          toast.error("Failed to create the new client.");
+          return;
+        }
+        clientName = createdClient?.data?.name || company;
+        clientEmail = createdClient?.data?.email || `${slug}.${Date.now()}@client.ph`;
+        setForm((current) => ({ ...current, clientId: String(clientId) }));
+      }
+
+      if (!clientId) {
+        toast.error("Please select a client and deal name.");
+        return;
+      }
+
       if (transaction) {
         await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
@@ -675,17 +1077,18 @@ export default function ClientOrderForm({
           ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
           : buildDealNotes(form),
         transacted_at: form.closingDate || undefined,
-        items: [
-          {
-            name: form.dealName || form.productName,
-            item_type: isWebDesignDeal
+        items: parseDealNames(form.dealName).map((name) => {
+          const itemPrice = catalogPriceForProduct(services, name) ?? 0;
+          return {
+            name,
+            item_type: isWebDesignPlan(name, form.dealSubType || form.dealType)
               ? "web_design"
               : form.dealSubType || form.dealType || "service",
-            price,
+            price: itemPrice,
             quantity: 1,
-            total_price: price,
-          },
-        ],
+            total_price: itemPrice,
+          };
+        }),
       });
 
       const transactionId = Number(created?.data?.id ?? created?.id);
@@ -718,6 +1121,7 @@ export default function ClientOrderForm({
       onSaved({ andNew });
       if (andNew) {
         setManualDateFields(new Set());
+        setNewClientName("");
         setForm(blankDealForm());
         return;
       }
@@ -786,26 +1190,45 @@ export default function ClientOrderForm({
         <h4 className={styles.clientCrmSectionTitle}>Deal Information</h4>
         <div className={styles.clientOrderGrid}>
             <Field
-              label="Client Owner"
-              hint={
-                isWebDesignDeal
-                  ? "New web design orders alternate between Myrna Glorioso and Michelle Durian"
-                  : "New orders alternate between Myrna Glorioso and Michelle Durian"
-              }
-              icon="fa-solid fa-user"
+              label="Client Name"
+              required
+              hint="Client this order belongs to"
+              icon="fa-solid fa-file"
+              iconCheck
             >
-              <select
-                className={inputClass()}
-                value={form.dealOwnerId}
-                onChange={(e) => setField("dealOwnerId", e.target.value)}
-              >
-                <option value="">-None-</option>
-                {ownerOptions.map((owner) => (
-                  <option key={owner.id} value={String(owner.id)}>
-                    {assignablePersonLabel(owner) || "Current owner"}
-                  </option>
-                ))}
-              </select>
+              <div className={styles.clientOrderClientPick} data-select-control="true">
+                <select
+                  className={inputClass(true)}
+                  value={form.clientId}
+                  onChange={(e) => handleClientChange(e.target.value)}
+                  required
+                >
+                  <option value="">-None-</option>
+                  <option value={NEW_CLIENT_VALUE}>New Client</option>
+                  {clients.map((client) => (
+                    <option key={client.id} value={client.id}>
+                      {clientDisplayName(client)}
+                    </option>
+                  ))}
+                  {transaction?.customer_id &&
+                  !clients.some((client) => Number(client.id) === Number(transaction.customer_id)) ? (
+                    <option value={String(transaction.customer_id)}>
+                      {transactionClientName(transaction) === "—"
+                        ? `Client #${transaction.customer_id}`
+                        : transactionClientName(transaction)}
+                    </option>
+                  ) : null}
+                </select>
+                {isNewClient ? (
+                  <input
+                    className={inputClass(true)}
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="Enter new client name"
+                    required
+                  />
+                ) : null}
+              </div>
             </Field>
             <Field label="Billing-in-Charge" hint="Person responsible for billing">
               <select
@@ -821,12 +1244,23 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Campaign Source" hint="Where this deal originated" icon="fa-solid fa-bullhorn">
-              <input
+            <Field
+              label="Client Owner"
+              hint="Existing clients keep their assigned sales staff. New clients rotate to the next alternate assignee."
+              icon="fa-solid fa-user"
+            >
+              <select
                 className={inputClass()}
-                value={form.campaignSource}
-                onChange={(e) => setField("campaignSource", e.target.value)}
-              />
+                value={form.dealOwnerId}
+                onChange={(e) => setField("dealOwnerId", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {ownerOptions.map((owner) => (
+                  <option key={owner.id} value={String(owner.id)}>
+                    {assignablePersonLabel(owner) || "Current owner"}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Deal Status" hint="Overall deal state">
               <select
@@ -842,14 +1276,11 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Probability (%)" hint="Likelihood this deal will close">
+            <Field label="Contact Name" hint="Billing or signing contact" icon="fa-solid fa-address-card">
               <input
                 className={inputClass()}
-                type="number"
-                min="0"
-                max="100"
-                value={form.probability}
-                onChange={(e) => setField("probability", e.target.value)}
+                value={form.contactName}
+                onChange={(e) => setField("contactName", e.target.value)}
               />
             </Field>
             <Field label="Payment Terms" hint="When payment is due">
@@ -866,16 +1297,26 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Expected Revenue" hint="Auto from the selected product price" icon="fa-solid fa-lock">
-              <span className={styles.clientCrmPesoPrefix}>₱</span>
-              <input
-                className={inputClass(false, styles.clientCrmPesoInput)}
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.expectedRevenue}
-                readOnly
-              />
+            <Field
+              label="Client Status"
+              required={!isEditing}
+              hint="Automatically set from the selected client: Existing Client, New Client, or In-House Account"
+              icon="fa-solid fa-lock"
+            >
+              <select
+                className={inputClass(!isEditing)}
+                value={form.dealType}
+                onChange={(e) => setField("dealType", e.target.value)}
+                required={!isEditing}
+                disabled
+              >
+                <option value="">-None-</option>
+                {withExtraOption(CLIENT_STATUS_OPTIONS, form.dealType).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
             </Field>
             <Field label="Payment Method" hint="How the client will pay">
               <select
@@ -891,6 +1332,233 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
+            <Field label="Deal Name" required hint="Select one or more deal names">
+              <DealNameMultiSelect
+                required
+                selected={parseDealNames(form.dealName)}
+                options={Array.from(
+                  new Set([...parseDealNames(form.dealName), ...DEAL_NAME_OPTIONS]),
+                )}
+                onChange={handleDealNamesChange}
+              />
+            </Field>
+            <Field label="Payment Status" hint="Current payment state">
+              <select
+                className={inputClass()}
+                value={form.paymentStatus}
+                onChange={(e) => setField("paymentStatus", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(PAYMENT_STATUS_OPTIONS, form.paymentStatus).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Product Status" required={!isEditing} hint="Deal sub-type for this order">
+              <select
+                className={inputClass(!isEditing)}
+                value={form.dealSubType}
+                onChange={(e) => setField("dealSubType", e.target.value)}
+                required={!isEditing}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(PRODUCT_STATUS_OPTIONS, form.dealSubType).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Payment Mode"
+              hint="Actual mode used on the related payment"
+            >
+              <select
+                className={inputClass()}
+                value={form.paymentMode}
+                onChange={(e) => setField("paymentMode", e.target.value)}
+                disabled={Boolean(transaction?.payment_mode)}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(PAYMENT_MODE_OPTIONS, form.paymentMode).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Product Category" required={!isEditing} hint="Subject / product category for this deal">
+              <select
+                className={inputClass(!isEditing)}
+                value={form.productCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                required={!isEditing}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(SUBJECT_OPTIONS, form.productCategory).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Invoice Status"
+              hint="Automatically set when the invoice is issued or the client receives it"
+              icon="fa-solid fa-lock"
+            >
+              <select className={inputClass()} value={form.invoiceStatus} disabled>
+                <option value="">-None-</option>
+                {INVOICE_STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Sales Status" required={!isEditing} hint="Current sales progress">
+              <select
+                className={inputClass(!isEditing)}
+                value={form.salesStatus}
+                onChange={(e) => setField("salesStatus", e.target.value)}
+                required={!isEditing}
+              >
+                <option value="">-None-</option>
+                {withExtraOption(SALES_STATUS_OPTIONS, form.salesStatus).map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field
+              label="Invoice Sent Date"
+              hint="Auto-filled from the invoice issue date. You can change it if needed."
+            >
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.invoiceSentDate}
+                onChange={(e) => setDateField("invoiceSentDate", e.target.value)}
+              />
+            </Field>
+            <Field label="Status Trigger Date" hint="Date this status took effect">
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.statusTriggerDate}
+                onChange={(e) => setField("statusTriggerDate", e.target.value)}
+              />
+            </Field>
+            <Field
+              label="Invoice Received Date"
+              hint="Auto-filled when the invoice is received. You can change it if needed."
+            >
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.invoiceReceivedDate}
+                onChange={(e) => setDateField("invoiceReceivedDate", e.target.value)}
+              />
+            </Field>
+            <Field label="JO Number" hint="Job order number if already issued">
+              <input
+                className={inputClass()}
+                value={form.joNumber}
+                onChange={(e) => setField("joNumber", e.target.value)}
+              />
+            </Field>
+            <Field label="Payment Commitment Date">
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.paymentCommitmentDate}
+                onChange={(e) => setField("paymentCommitmentDate", e.target.value)}
+              />
+            </Field>
+            <Field label="Campaign Source" hint="Where this deal originated" icon="fa-solid fa-bullhorn">
+              <input
+                className={inputClass()}
+                value={form.campaignSource}
+                onChange={(e) => setField("campaignSource", e.target.value)}
+              />
+            </Field>
+            <Field label="Collection Note" hint="Collection follow-up note">
+              <select
+                className={inputClass()}
+                value={form.collectionNote}
+                onChange={(e) => setField("collectionNote", e.target.value)}
+              >
+                <option value="">-None-</option>
+                {COLLECTION_NOTE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Probability (%)" hint="Likelihood this deal will close">
+              <input
+                className={inputClass()}
+                type="number"
+                min="0"
+                max="100"
+                value={form.probability}
+                onChange={(e) => setField("probability", e.target.value)}
+              />
+            </Field>
+            {dealPriceLines.length ? (
+              <div className={styles.dealPriceSummary}>
+                <span className={styles.clientOrderLabel}>
+                  <span className={styles.clientOrderLabelText}>Deal Prices</span>
+                  <span className={styles.clientCrmHint} title="Prices from Services for the selected deal names">
+                    i
+                  </span>
+                </span>
+                <div className={styles.dealPriceSummaryBox}>
+                  <ul className={styles.dealPriceSummaryList}>
+                    {dealPriceLines.map((row) => (
+                      <li key={row.name}>
+                        <span className={styles.dealPriceSummaryName}>{row.name}</span>
+                        <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(row.price)}</span>
+                        <button
+                          type="button"
+                          className={styles.dealPriceSummaryRemove}
+                          aria-label={`Remove ${row.name}`}
+                          onClick={() =>
+                            handleDealNamesChange(
+                              parseDealNames(form.dealName).filter((name) => name !== row.name),
+                            )
+                          }
+                        >
+                          <i className="fa-solid fa-xmark" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className={styles.dealPriceSummaryTotal}>
+                    <span>Total</span>
+                    <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(dealPriceTotal)}</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
+            )}
+            <Field label="Expected Revenue" hint="Auto from the selected product price" icon="fa-solid fa-lock">
+              <span className={styles.clientCrmPesoPrefix}>₱</span>
+              <input
+                className={inputClass(false, styles.clientCrmPesoInput)}
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.expectedRevenue}
+                readOnly
+              />
+            </Field>
+            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
             <Field label="Stage" required hint="Pipeline stage for this deal">
               <select
                 className={inputClass(true)}
@@ -915,20 +1583,7 @@ export default function ClientOrderForm({
                 </optgroup>
               </select>
             </Field>
-            <Field label="Payment Status" hint="Current payment state">
-              <select
-                className={inputClass()}
-                value={form.paymentStatus}
-                onChange={(e) => setField("paymentStatus", e.target.value)}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(PAYMENT_STATUS_OPTIONS, form.paymentStatus).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
             <Field label="Payment Date" hint="Date the related payment was received">
               <input
                 className={inputClass()}
@@ -938,218 +1593,13 @@ export default function ClientOrderForm({
                 readOnly={Boolean(transaction?.payment_date)}
               />
             </Field>
-            <Field
-              label="Payment Mode"
-              hint="Actual mode used on the related payment"
-            >
-              <select
-                className={inputClass()}
-                value={form.paymentMode}
-                onChange={(e) => setField("paymentMode", e.target.value)}
-                disabled={Boolean(transaction?.payment_mode)}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(PAYMENT_MODE_OPTIONS, form.paymentMode).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
             <Field label="Closing Date" hint="Expected close date">
               <input
                 className={inputClass()}
                 type="date"
                 value={form.closingDate}
                 onChange={(e) => setField("closingDate", e.target.value)}
-              />
-            </Field>
-            <Field
-              label="Invoice Status"
-              hint="Automatically set when the invoice is issued or the client receives it"
-              icon="fa-solid fa-lock"
-            >
-              <select className={inputClass()} value={form.invoiceStatus} disabled>
-                <option value="">-None-</option>
-                {INVOICE_STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Deal Name" required hint="Select the deal name">
-              <select
-                className={inputClass(true)}
-                value={form.dealName}
-                onChange={(e) => handleDealNameChange(e.target.value)}
-                required
-              >
-                <option value="">-None-</option>
-                {withExtraOption(DEAL_NAME_OPTIONS, form.dealName).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field
-              label="Invoice Sent Date"
-              hint="Auto-filled from the invoice issue date. You can change it if needed."
-            >
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.invoiceSentDate}
-                onChange={(e) => setDateField("invoiceSentDate", e.target.value)}
-              />
-            </Field>
-            <Field
-              label="Client Name"
-              required
-              hint="Client this order belongs to"
-              icon="fa-solid fa-file"
-              iconCheck
-            >
-              <select
-                className={inputClass(true)}
-                value={form.clientId}
-                onChange={(e) => handleClientChange(e.target.value)}
-                required
-              >
-                <option value="">-None-</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>
-                    {clientDisplayName(client)}
-                  </option>
-                ))}
-                {transaction?.customer_id &&
-                !clients.some((client) => Number(client.id) === Number(transaction.customer_id)) ? (
-                  <option value={String(transaction.customer_id)}>
-                    {transactionClientName(transaction) === "—"
-                      ? `Client #${transaction.customer_id}`
-                      : transactionClientName(transaction)}
-                  </option>
-                ) : null}
-              </select>
-            </Field>
-            <Field
-              label="Invoice Received Date"
-              hint="Auto-filled when the invoice is received. You can change it if needed."
-            >
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.invoiceReceivedDate}
-                onChange={(e) => setDateField("invoiceReceivedDate", e.target.value)}
-              />
-            </Field>
-            <Field label="Contact Name" hint="Billing or signing contact" icon="fa-solid fa-address-card">
-              <input
-                className={inputClass()}
-                value={form.contactName}
-                onChange={(e) => setField("contactName", e.target.value)}
-              />
-            </Field>
-            <Field label="Payment Commitment Date">
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.paymentCommitmentDate}
-                onChange={(e) => setField("paymentCommitmentDate", e.target.value)}
-              />
-            </Field>
-            <Field label="Client Status" required={!isEditing} hint="Deal type for this client">
-              <select
-                className={inputClass(!isEditing)}
-                value={form.dealType}
-                onChange={(e) => setField("dealType", e.target.value)}
-                required={!isEditing}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(CLIENT_STATUS_OPTIONS, form.dealType).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Collection Note" hint="Collection follow-up note">
-              <select
-                className={inputClass()}
-                value={form.collectionNote}
-                onChange={(e) => setField("collectionNote", e.target.value)}
-              >
-                <option value="">-None-</option>
-                {COLLECTION_NOTE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Product Status" required={!isEditing} hint="Deal sub-type for this order">
-              <select
-                className={inputClass(!isEditing)}
-                value={form.dealSubType}
-                onChange={(e) => setField("dealSubType", e.target.value)}
-                required={!isEditing}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(PRODUCT_STATUS_OPTIONS, form.dealSubType).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Product Category" required={!isEditing} hint="Subject / product category for this deal">
-              <select
-                className={inputClass(!isEditing)}
-                value={form.productCategory}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                required={!isEditing}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(SUBJECT_OPTIONS, form.productCategory).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Sales Status" required={!isEditing} hint="Current sales progress">
-              <select
-                className={inputClass(!isEditing)}
-                value={form.salesStatus}
-                onChange={(e) => setField("salesStatus", e.target.value)}
-                required={!isEditing}
-              >
-                <option value="">-None-</option>
-                {withExtraOption(SALES_STATUS_OPTIONS, form.salesStatus).map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Status Trigger Date" hint="Date this status took effect">
-              <input
-                className={inputClass()}
-                type="date"
-                value={form.statusTriggerDate}
-                onChange={(e) => setField("statusTriggerDate", e.target.value)}
-              />
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="JO Number" hint="Job order number if already issued">
-              <input
-                className={inputClass()}
-                value={form.joNumber}
-                onChange={(e) => setField("joNumber", e.target.value)}
               />
             </Field>
         </div>

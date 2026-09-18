@@ -23,25 +23,27 @@ export default function CustomerPortalTabs({
   unreadNotifications = 0,
 }: Props) {
   return (
-    <nav className={styles.tabNav} aria-label="Customer portal sections">
-      {TABS.map((tab) => {
-        const isActive = activeTab === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            className={[styles.tabBtn, isActive ? styles.tabBtnActive : ""].filter(Boolean).join(" ")}
-            aria-current={isActive ? "page" : undefined}
-            onClick={() => onTabChange(tab.id)}
-          >
-            <i className={tab.icon} aria-hidden="true" />
-            <span>{tab.label}</span>
-            {tab.id === "notification" && unreadNotifications > 0 && (
-              <span className={styles.tabBadge} aria-hidden="true" />
-            )}
-          </button>
-        );
-      })}
-    </nav>
+    <div className={styles.tabNavSticky}>
+      <nav className={styles.tabNav} aria-label="Customer portal sections">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={[styles.tabBtn, isActive ? styles.tabBtnActive : ""].filter(Boolean).join(" ")}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => onTabChange(tab.id)}
+            >
+              <i className={tab.icon} aria-hidden="true" />
+              <span>{tab.label}</span>
+              {tab.id === "notification" && unreadNotifications > 0 && (
+                <span className={styles.tabBadge} aria-hidden="true" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 }

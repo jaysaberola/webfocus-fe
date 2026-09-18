@@ -35,7 +35,7 @@ body,
   max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: clip;
+  overflow-x: visible;
 }
 
 .public-site-main,
@@ -52,6 +52,13 @@ body,
 :root {
   --public-layout-max: 1320px;
   --public-layout-gutter: clamp(16px, 2.5vw, 32px);
+  --public-header-height: 80px;
+}
+
+@media (max-width: 991px) {
+  :root {
+    --public-header-height: 64px;
+  }
 }
 
 .public-site-main {

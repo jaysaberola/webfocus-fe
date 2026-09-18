@@ -404,9 +404,25 @@ export function clientHasExpiringService(client: CustomerRow, withinDays = 30) {
 
 export function clientClassification(client: CustomerRow): "New" | "Existing" {
   const stored = String(client.client_classification ?? "").trim().toLowerCase();
-  if (stored === "existing") return "Existing";
-  if (stored === "new") return "New";
-  return clientActiveServicesCount(client) > 0 ? "Existing" : "New";
+  if (stored.includes("exist")) return "Existing";
+  if (stored === "new" || stored.includes("new client")) return "New";
+  const orders = Number(client.orders_count ?? 0);
+  return clientActiveServicesCount(client) > 0 || orders > 0 ? "Existing" : "New";
+}
+
+export function clientDealStatusFromCustomer(client?: CustomerRow | null) {
+  if (!client) return "";
+  const hay = [client.client_classification, client.client_type]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .join(" ");
+  if (hay.includes("in-house") || hay.includes("in house") || hay.includes("inhouse")) {
+    return "In-House Account";
+  }
+  if (hay.includes("exist")) return "Existing Client";
+  if (hay === "new" || hay.includes("new client") || hay.split(" ").includes("new")) {
+    return "New Client";
+  }
+  return clientClassification(client) === "Existing" ? "Existing Client" : "New Client";
 }
 
 export function formatClientCreatedTime(client: CustomerRow) {

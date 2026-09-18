@@ -47,27 +47,29 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
   }, []);
 
   return (
-    <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
-      {visibleTabs.map((tab) => {
-        const isActive = activeTab === tab.id;
-        const showBadge = "badge" in tab && tab.badge && pendingApprovals > 0;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            className={isActive ? styles.moduleTabBtnActive : styles.moduleTabBtn}
-            onClick={() => onTabChange(tab.id as CommerceAdminTab)}
-          >
-            <i className={tab.icon} aria-hidden="true" />
-            {tab.label}
-            {showBadge ? (
-              <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
-                {pendingApprovals > 9 ? "9+" : pendingApprovals}
-              </span>
-            ) : null}
-          </button>
-        );
-      })}
-    </nav>
+    <div className={styles.moduleTabNavSticky}>
+      <nav className={styles.moduleTabNav} aria-label="Commerce admin modules">
+        {visibleTabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const showBadge = "badge" in tab && tab.badge && pendingApprovals > 0;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={isActive ? styles.moduleTabBtnActive : styles.moduleTabBtn}
+              onClick={() => onTabChange(tab.id as CommerceAdminTab)}
+            >
+              <i className={tab.icon} aria-hidden="true" />
+              {tab.label}
+              {showBadge ? (
+                <span className={styles.moduleTabBadge} aria-label={`${pendingApprovals} pending`}>
+                  {pendingApprovals > 9 ? "9+" : pendingApprovals}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 }
