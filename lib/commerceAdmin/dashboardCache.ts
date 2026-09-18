@@ -44,6 +44,16 @@ async function fetchDashboard(): Promise<CommerceDashboardData> {
   return data;
 }
 
+export function invalidateCommerceDashboardCache() {
+  inflight = null;
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function readCommerceDashboardCache(): CommerceDashboardData | null {
   const cached = readCache();
   if (!cached) return null;

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { invalidateCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import {
   deleteCommerceNotification,
   fetchCommerceNotifications,
   markAllCommerceNotificationsRead,
   markCommerceNotificationRead,
+  notifyCommerceNotificationsUpdated,
   type CommerceNotificationAdminRow,
   type CommerceNotificationAttachment,
 } from "@/services/commerceAdminService";
@@ -94,6 +96,15 @@ function senderInitial(name: string) {
   return trimmed ? trimmed.slice(0, 1).toUpperCase() : "W";
 }
 
+function isUnread(row: CommerceNotificationAdminRow) {
+  return row.unread === true;
+}
+
+function bumpNotificationBadges() {
+  invalidateCommerceDashboardCache();
+  notifyCommerceNotificationsUpdated();
+}
+
 function isImageAttachment(attachment: CommerceNotificationAttachment) {
   return /\.(png|jpe?g|gif|webp|bmp|jfif)(\?.*)?$/i.test(`${attachment.name} ${attachment.url}`);
 }
@@ -157,11 +168,11 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   }, [typeFilter, statusFilter, search]);
 
   const unreadCount = useMemo(
-    () => notifications.filter((item) => item.unread !== false).length,
+    () => notifications.filter(isUnread).length,
     [notifications],
   );
   const unreadManageableCount = useMemo(
-    () => notifications.filter((item) => item.unread !== false && isManageable(item)).length,
+    () => notifications.filter((item) => isUnread(item) && isManageable(item)).length,
     [notifications],
   );
 
@@ -169,7 +180,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
     const query = search.trim().toLowerCase();
 
     return notifications.filter((item) => {
-      if (statusFilter === "unread" && item.unread === false) return false;
+      if (statusFilter === "unread" && !isUnread(item)) return false;
       if (typeFilter !== "all") {
         const kind = item.kind ?? "general";
         if (typeFilter === "billing") {
@@ -252,7 +263,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   };
 
   const markRead = async (item: CommerceNotificationAdminRow) => {
-    if (item.unread === false || !isManageable(item)) return;
+    if (!isUnread(item) || !isManageable(item)) return;
 
     const key = rowKey(item);
     setBusyKey(key);
@@ -262,6 +273,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
     try {
       await markCommerceNotificationRead(item.id);
+      bumpNotificationBadges();
     } catch {
       setNotifications((prev) =>
         prev.map((row) => (rowKey(row) === key ? { ...row, unread: true } : row)),
@@ -274,11 +286,11 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
   const openNotification = async (item: CommerceNotificationAdminRow) => {
     setOpenedKey(rowKey(item));
-    if (item.unread !== false && isManageable(item)) await markRead(item);
+    if (isUnread(item) && isManageable(item)) await markRead(item);
   };
 
   const handleMarkAllRead = async () => {
-    const unreadManageable = notifications.filter((item) => item.unread !== false && isManageable(item));
+    const unreadManageable = notifications.filter((item) => isUnread(item) && isManageable(item));
     if (unreadManageable.length === 0) return;
 
     setMarkingAll(true);
@@ -288,6 +300,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
     try {
       await markAllCommerceNotificationsRead();
+      bumpNotificationBadges();
       toast.success("All notifications marked as read.");
     } catch {
       await loadRows();
@@ -298,7 +311,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   };
 
   const handleMarkSelectedRead = async () => {
-    const unreadSelected = selectedManageable.filter((item) => item.unread !== false);
+    const unreadSelected = selectedManageable.filter(isUnread);
     if (unreadSelected.length === 0) return;
 
     setMarkingAll(true);
@@ -309,6 +322,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
     try {
       await Promise.all(unreadSelected.map((item) => markCommerceNotificationRead(item.id)));
+      bumpNotificationBadges();
     } catch {
       await loadRows();
       toast.error("Could not mark selected notifications as read.");
@@ -328,6 +342,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
       setNotifications((prev) => prev.filter((row) => rowKey(row) !== key));
       setSelectedKeys((current) => current.filter((id) => id !== key));
       if (openedKey === key) setOpenedKey(null);
+      bumpNotificationBadges();
     } catch {
       toast.error("Could not dismiss notification.");
     } finally {
@@ -345,6 +360,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
       await Promise.all(ids.map((id) => deleteCommerceNotification(id)));
       setNotifications((prev) => prev.filter((row) => !keys.includes(rowKey(row))));
       setSelectedKeys((current) => current.filter((key) => !keys.includes(key)));
+      bumpNotificationBadges();
     } catch {
       await loadRows();
       toast.error("Could not dismiss selected notifications.");
@@ -531,7 +547,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
           {paginatedNotifications.map((item) => {
             const key = rowKey(item);
             const selected = selectedKeys.includes(key);
-            const unread = item.unread !== false;
+            const unread = isUnread(item);
             const sender = senderLabel(item);
             const hasAttachment = (item.attachments?.length ?? 0) > 0;
 

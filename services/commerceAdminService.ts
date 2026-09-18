@@ -14,6 +14,7 @@ export type CommerceDashboardData = {
   counts: {
     pendingApprovals: number;
     pendingQuotations?: number;
+    unreadNotifications?: number;
     openTickets: number;
     activeClients: number;
     activeServices: number;
@@ -140,7 +141,15 @@ export type CommerceNotificationAdminRow = {
 export type CommerceNotificationsPayload = {
   clientAlerts: CommerceNotificationAdminRow[];
   broadcasts: CommerceNotificationAdminRow[];
+  unreadCount?: number;
 };
+
+export const COMMERCE_NOTIFICATIONS_UPDATED_EVENT = "commerce-admin-notifications-updated";
+
+export function notifyCommerceNotificationsUpdated() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(COMMERCE_NOTIFICATIONS_UPDATED_EVENT));
+}
 
 export async function fetchCommerceDashboard() {
   const res = await axiosInstance.get("/commerce-admin/dashboard", {
@@ -222,6 +231,7 @@ export async function fetchCommerceNotifications(): Promise<CommerceNotification
     headers: { "X-No-Loading": true },
   });
   const payload = res.data?.data;
+  const unreadCount = Number(res.data?.meta?.unreadCount);
   if (payload && typeof payload === "object" && !Array.isArray(payload)) {
     return {
       clientAlerts: extractList<CommerceNotificationAdminRow>(
@@ -230,13 +240,22 @@ export async function fetchCommerceNotifications(): Promise<CommerceNotification
       broadcasts: extractList<CommerceNotificationAdminRow>(
         (payload as CommerceNotificationsPayload).broadcasts
       ),
+      unreadCount: Number.isFinite(unreadCount) ? unreadCount : undefined,
     };
   }
   // Legacy flat list = broadcasts only
   return {
     clientAlerts: [],
     broadcasts: extractList<CommerceNotificationAdminRow>(payload),
+    unreadCount: Number.isFinite(unreadCount) ? unreadCount : undefined,
   };
+}
+
+export async function fetchCommerceUnreadNotificationCount() {
+  const res = await axiosInstance.get("/commerce-admin/notifications/unread-count", {
+    headers: { "X-No-Loading": true },
+  });
+  return Number(res.data?.data?.count || 0);
 }
 
 export async function broadcastCommerceNotification(payload: { title: string; body: string }) {
