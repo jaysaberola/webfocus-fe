@@ -764,10 +764,10 @@ export default function ClientOrderForm({
   );
 
   useEffect(() => {
-    if (isEditing) return;
     const catalogName = form.dealName || form.productName;
     const price = catalogName ? catalogTotalForDealNames(services, catalogName) : null;
-    const nextRevenue = price != null ? String(price) : "0";
+    const nextRevenue = price != null ? String(price) : isEditing ? undefined : "0";
+    if (nextRevenue == null) return;
     setForm((current) =>
       current.expectedRevenue === nextRevenue ? current : { ...current, expectedRevenue: nextRevenue },
     );
@@ -1145,12 +1145,17 @@ export default function ClientOrderForm({
         : formName
       : formName || resolved || "Deal Info";
     const fromForm = Number(form.expectedRevenue);
+    const stored = Number(transaction?.grand_total ?? 0);
     const amount =
-      Number.isFinite(fromForm) && String(form.expectedRevenue ?? "").trim() !== ""
-        ? fromForm
-        : Number(transaction?.grand_total ?? 0);
-    return `${dealName} - ${formatDealAmount(Number.isFinite(amount) ? amount : 0)}`;
-  }, [isEditing, pageTitle, form.dealName, form.expectedRevenue, transaction]);
+      dealPriceTotal > 0
+        ? dealPriceTotal
+        : Number.isFinite(fromForm) && fromForm > 0
+          ? fromForm
+          : Number.isFinite(stored) && stored > 0
+            ? stored
+            : 0;
+    return `${dealName} - ${formatDealAmount(amount)}`;
+  }, [isEditing, pageTitle, form.dealName, form.expectedRevenue, dealPriceTotal, transaction]);
 
   if (loading) {
     return <p className={styles.emptyState}>Loading order form...</p>;
@@ -1510,37 +1515,39 @@ export default function ClientOrderForm({
               />
             </Field>
             {dealPriceLines.length ? (
-              <div className={styles.dealPriceSummary}>
-                <span className={styles.clientOrderLabel}>
-                  <span className={styles.clientOrderLabelText}>Deal Prices</span>
-                  <span className={styles.clientCrmHint} title="Prices from Services for the selected deal names">
-                    i
+              <div className={styles.dealPriceSummarySlot}>
+                <div className={styles.dealPriceSummary}>
+                  <span className={styles.clientOrderLabel}>
+                    <span className={styles.clientOrderLabelText}>Deal Prices</span>
+                    <span className={styles.clientCrmHint} title="Prices from Services for the selected deal names">
+                      i
+                    </span>
                   </span>
-                </span>
-                <div className={styles.dealPriceSummaryBox}>
-                  <ul className={styles.dealPriceSummaryList}>
-                    {dealPriceLines.map((row) => (
-                      <li key={row.name}>
-                        <span className={styles.dealPriceSummaryName}>{row.name}</span>
-                        <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(row.price)}</span>
-                        <button
-                          type="button"
-                          className={styles.dealPriceSummaryRemove}
-                          aria-label={`Remove ${row.name}`}
-                          onClick={() =>
-                            handleDealNamesChange(
-                              parseDealNames(form.dealName).filter((name) => name !== row.name),
-                            )
-                          }
-                        >
-                          <i className="fa-solid fa-xmark" aria-hidden="true" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className={styles.dealPriceSummaryTotal}>
-                    <span>Total</span>
-                    <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(dealPriceTotal)}</span>
+                  <div className={styles.dealPriceSummaryBox}>
+                    <ul className={styles.dealPriceSummaryList}>
+                      {dealPriceLines.map((row) => (
+                        <li key={row.name}>
+                          <span className={styles.dealPriceSummaryName}>{row.name}</span>
+                          <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(row.price)}</span>
+                          <button
+                            type="button"
+                            className={styles.dealPriceSummaryRemove}
+                            aria-label={`Remove ${row.name}`}
+                            onClick={() =>
+                              handleDealNamesChange(
+                                parseDealNames(form.dealName).filter((name) => name !== row.name),
+                              )
+                            }
+                          >
+                            <i className="fa-solid fa-xmark" aria-hidden="true" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className={styles.dealPriceSummaryTotal}>
+                      <span>Total</span>
+                      <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(dealPriceTotal)}</span>
+                    </div>
                   </div>
                 </div>
               </div>
