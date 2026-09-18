@@ -366,7 +366,7 @@ function normalizeDomainTypeLabel(value?: string | null): string | null {
   return null;
 }
 
-function domainTypeFromHostname(value?: string | null): string | null {
+export function domainTypeFromHostname(value?: string | null): string | null {
   const host =
     formatDomain(value) ||
     extractDomain(String(value ?? "")) ||

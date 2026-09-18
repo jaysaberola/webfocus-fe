@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, domainTypeFromHostname, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -54,6 +54,13 @@ import {
 } from "@/services/commerceAdminService";
 import { getCustomers, getCustomer, updateCustomer, createCustomerCrmAccount, type CustomerRow } from "@/services/customerService";
 import { getServices } from "@/services/serviceService";
+import {
+  checkDomainAvailability,
+  MORE_TLDS,
+  normalizeDomainInput,
+  PRIMARY_TLDS,
+  type DomainCheckResult,
+} from "@/services/domainSearchService";
 import { createSalesTransaction, updateSalesTransaction, type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -492,6 +499,125 @@ function FilePick({
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
     </label>
+  );
+}
+
+const DEAL_DOMAIN_TLDS = Array.from(
+  new Set<string>([...PRIMARY_TLDS, ...MORE_TLDS, ".edu.ph", ".gov.ph"]),
+);
+
+function DomainNameSuggest({
+  value,
+  onChange,
+  onPick,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onPick: (domain: string, domainType: string, price?: number) => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState<DomainCheckResult[]>([]);
+
+  const parsed = normalizeDomainInput(value);
+  const baseName = parsed.name.replace(/[^a-z0-9-]/g, "");
+  const suggestions = useMemo(() => {
+    if (!baseName || baseName.length < 2) return [];
+    return DEAL_DOMAIN_TLDS.map((tld) => {
+      const domain = `${baseName}${tld}`;
+      const match = results.find((row) => row.domain === domain || row.tld === tld);
+      return {
+        domain,
+        tld,
+        available: match?.available ?? null,
+        price: match?.price ?? 0,
+        currency: match?.currency ?? "PHP",
+      };
+    });
+  }, [baseName, results]);
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, []);
+
+  useEffect(() => {
+    if (!baseName || baseName.length < 2) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setLoading(true);
+      try {
+        const response = await checkDomainAvailability(baseName, DEAL_DOMAIN_TLDS, { silent: true });
+        if (!cancelled) setResults(Array.isArray(response?.results) ? response.results : []);
+      } catch {
+        if (!cancelled) setResults([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [baseName]);
+
+  return (
+    <div className={styles.clientOrderDomainSuggest} ref={wrapRef}>
+      <input
+        className={inputClass()}
+        value={value}
+        placeholder="example.com"
+        autoComplete="off"
+        onFocus={() => {
+          if (baseName.length >= 2) setOpen(true);
+        }}
+        onChange={(event) => {
+          const next = event.target.value;
+          onChange(next);
+          if (normalizeDomainInput(next).name.replace(/[^a-z0-9-]/g, "").length >= 2) {
+            setOpen(true);
+          } else {
+            setOpen(false);
+          }
+        }}
+      />
+      {open && suggestions.length ? (
+        <div className={styles.clientOrderDomainSuggestPanel} role="listbox">
+          {loading ? <div className={styles.clientOrderDomainSuggestHint}>Checking domains…</div> : null}
+          {suggestions.map((row) => (
+            <button
+              key={row.domain}
+              type="button"
+              className={styles.clientOrderDomainSuggestItem}
+              role="option"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onPick(row.domain, domainTypeFromHostname(row.domain) || "", row.price);
+                setOpen(false);
+              }}
+            >
+              <span className={styles.clientOrderDomainSuggestName}>{row.domain}</span>
+              <span className={styles.clientOrderDomainSuggestMeta}>
+                {row.price > 0 ? formatDealAmount(row.price) : ""}
+                {row.available === true ? "Available" : row.available === false ? "Taken" : ""}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1616,11 +1742,25 @@ export default function ClientOrderForm({
         <h4 className={styles.clientCrmSectionTitle}>Domain Registration</h4>
         <div className={styles.clientOrderGrid}>
           <Field label="Domain Name" hint="Registered domain for this deal">
-            <input
-              className={inputClass()}
+            <DomainNameSuggest
               value={form.domainName}
-              onChange={(e) => setField("domainName", e.target.value)}
-              placeholder="example.com"
+              onChange={(name) => {
+                const type = domainTypeFromHostname(name) || "";
+                setForm((current) => ({
+                  ...current,
+                  domainName: name,
+                  domainType: type || current.domainType,
+                }));
+              }}
+              onPick={(name, type, price) => {
+                setForm((current) => ({
+                  ...current,
+                  domainName: name,
+                  domainType: type || current.domainType,
+                  domainRegistrationCost:
+                    price != null && price > 0 ? String(price) : current.domainRegistrationCost,
+                }));
+              }}
             />
           </Field>
           <Field label="Domain Registrar" hint="Registrar used for this domain">

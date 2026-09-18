@@ -130,12 +130,17 @@ export function normalizeDomainInput(raw: string) {
   return { name: value, tld: null as string | null };
 }
 
-export async function checkDomainAvailability(name: string, tlds?: string[]) {
+export async function checkDomainAvailability(
+  name: string,
+  tlds?: string[],
+  options?: { silent?: boolean },
+) {
   const response = await axiosInstance.get<DomainCheckResponse>("/public/domains/check", {
     params: {
       name,
       ...(tlds?.length ? { tlds } : {}),
     },
+    headers: options?.silent ? { "X-No-Loading": true } : undefined,
   });
 
   return response.data;

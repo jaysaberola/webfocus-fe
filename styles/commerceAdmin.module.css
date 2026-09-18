@@ -4782,6 +4782,73 @@ select.clientCrmInput {
   background: var(--ca-slate-50);
 }
 
+.clientOrderDomainSuggest {
+  position: relative;
+  width: 100%;
+  z-index: 3;
+}
+
+.clientOrderDomainSuggestPanel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 45;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.35rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.clientOrderDomainSuggestHint {
+  padding: 0.35rem 0.5rem 0.45rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 500;
+  color: var(--ca-slate-500);
+}
+
+.clientOrderDomainSuggestItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.45rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+  color: var(--ca-slate-800);
+  text-align: left;
+  cursor: pointer;
+}
+
+.clientOrderDomainSuggestItem:hover {
+  background: var(--ca-slate-50);
+}
+
+.clientOrderDomainSuggestName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clientOrderDomainSuggestMeta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 500;
+  color: var(--ca-slate-500);
+}
+
 .clientOrderField {
   display: grid;
   grid-template-columns: 11.25rem minmax(0, 1fr);
@@ -4824,10 +4891,12 @@ select.clientCrmInput {
 }
 
 .clientOrderControl:has(.clientOrderMultiSelect),
-.clientOrderControl:has(.clientOrderClientPick) {
+.clientOrderControl:has(.clientOrderClientPick),
+.clientOrderControl:has(.clientOrderDomainSuggest) {
   height: auto;
   min-height: var(--ca-control-height);
   align-items: stretch;
+  overflow: visible;
 }
 
 .clientOrderClientPick {
