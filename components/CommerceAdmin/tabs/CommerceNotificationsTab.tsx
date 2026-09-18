@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invalidateCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import {
+  approveCommerceProfileChange,
   deleteCommerceNotification,
   fetchCommerceNotifications,
   markAllCommerceNotificationsRead,
   markCommerceNotificationRead,
   notifyCommerceNotificationsUpdated,
+  rejectCommercePaymentProof,
+  rejectCommerceProfileChange,
+  verifyCommercePaymentProof,
   type CommerceNotificationAdminRow,
   type CommerceNotificationAttachment,
 } from "@/services/commerceAdminService";
@@ -48,6 +52,14 @@ function rowKey(row: CommerceNotificationAdminRow) {
 
 function isManageable(row: CommerceNotificationAdminRow) {
   return row.manageable !== false;
+}
+
+function isPendingReview(row: CommerceNotificationAdminRow) {
+  return String(row.status || "").toLowerCase() === "pending review";
+}
+
+function canReviewFromInbox(row: CommerceNotificationAdminRow) {
+  return Boolean(row.referenceId) && isPendingReview(row) && (row.kind === "payment_proof" || row.kind === "profile_change");
 }
 
 function senderLabel(row: CommerceNotificationAdminRow) {
@@ -350,6 +362,51 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
     }
   };
 
+  const handleReviewDecision = async (item: CommerceNotificationAdminRow, decision: "confirm" | "decline") => {
+    if (!canReviewFromInbox(item) || !item.referenceId) return;
+
+    if (decision === "decline") {
+      const reason = window.prompt("Optional note for the customer:");
+      if (reason === null) return;
+      const key = rowKey(item);
+      setBusyKey(key);
+      try {
+        if (item.kind === "profile_change") {
+          await rejectCommerceProfileChange(item.referenceId, reason || undefined);
+          toast.success("Profile change declined. Customer notified.");
+        } else {
+          await rejectCommercePaymentProof(item.referenceId, reason || undefined);
+          toast.success("Payment proof declined. Customer notified.");
+        }
+        bumpNotificationBadges();
+        await loadRows();
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || "Could not decline this request.");
+      } finally {
+        setBusyKey(null);
+      }
+      return;
+    }
+
+    const key = rowKey(item);
+    setBusyKey(key);
+    try {
+      if (item.kind === "profile_change") {
+        await approveCommerceProfileChange(item.referenceId);
+        toast.success("Profile change confirmed. Customer profile updated.");
+      } else {
+        await verifyCommercePaymentProof(item.referenceId);
+        toast.success("Payment proof confirmed. Customer billing updated.");
+      }
+      bumpNotificationBadges();
+      await loadRows();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not confirm this request.");
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
   const handleDismissSelected = async () => {
     if (selectedManageable.length === 0) return;
     const ids = selectedManageable.map((item) => item.id);
@@ -537,7 +594,13 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
       </div>
 
       {opened ? (
-        <InboxMessageView item={opened} onOpenRelated={() => openAlert(opened)} />
+        <InboxMessageView
+          item={opened}
+          busy={busyKey === rowKey(opened)}
+          onOpenRelated={() => openAlert(opened)}
+          onConfirm={() => void handleReviewDecision(opened, "confirm")}
+          onDecline={() => void handleReviewDecision(opened, "decline")}
+        />
       ) : notifications.length === 0 ? (
         <p className={styles.inboxEmpty}>No notifications yet.</p>
       ) : filteredNotifications.length === 0 ? (
@@ -623,16 +686,25 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
 function InboxMessageView({
   item,
+  busy = false,
   onOpenRelated,
+  onConfirm,
+  onDecline,
 }: {
   item: CommerceNotificationAdminRow;
+  busy?: boolean;
   onOpenRelated: () => void;
+  onConfirm: () => void;
+  onDecline: () => void;
 }) {
   const fromName = item.fromName || item.audience || senderLabel(item);
   const fromEmail = item.fromEmail || item.email || "";
   const attachments = item.attachments ?? [];
   const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
   const intro = String(item.intro || item.desc || "").trim();
+  const reviewable = canReviewFromInbox(item);
+  const confirmLabel = item.kind === "profile_change" ? "Confirm Profile" : "Confirm Receipt";
+  const declineLabel = "Decline";
 
   return (
     <article className={styles.inboxMessage}>
@@ -699,7 +771,17 @@ function InboxMessageView({
         ) : null}
 
         <div className={styles.inboxMessageActions}>
-          <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
+          {reviewable ? (
+            <>
+              <button type="button" className={styles.primaryBtnSm} disabled={busy} onClick={onConfirm}>
+                {busy ? "Saving..." : confirmLabel}
+              </button>
+              <button type="button" className={styles.dangerBtnSm} disabled={busy} onClick={onDecline}>
+                {declineLabel}
+              </button>
+            </>
+          ) : null}
+          <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
             {alertActionLabel(item)}
           </button>
         </div>
@@ -707,3 +789,4 @@ function InboxMessageView({
     </article>
   );
 }
+

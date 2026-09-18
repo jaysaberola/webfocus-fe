@@ -136,6 +136,7 @@ export type CommerceNotificationAdminRow = {
   details?: CommerceNotificationDetail[];
   intro?: string | null;
   actionLabel?: string | null;
+  referenceId?: number | null;
 };
 
 export type CommerceNotificationsPayload = {
