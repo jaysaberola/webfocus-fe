@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, domainTypeFromHostname, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -13,6 +13,8 @@ import {
   DEAL_NAME_OPTIONS,
   parseDealNames,
   joinDealNames,
+  retainedDealNames,
+  isUsableDealName,
   parseDealMeta,
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
@@ -145,7 +147,7 @@ function Field({
     .join(" ");
 
   return (
-    <label className={styles.clientOrderField}>
+    <div className={styles.clientOrderField}>
       <span className={styles.clientOrderLabel}>
         <span className={styles.clientOrderLabelText}>{label}</span>
         {hint ? (
@@ -164,7 +166,7 @@ function Field({
           </span>
         ) : null}
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -334,6 +336,57 @@ function catalogLinesForDealNames(services: any[], dealName: string) {
     .filter((row): row is { name: string; price: number } => Boolean(row));
 }
 
+function resolveDomainRegistrationCost(
+  services: any[],
+  domainName: string,
+  domainType: string,
+  typedCost?: string | number | null,
+) {
+  const parsed = Number(typedCost);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  return catalogPriceForDomain(services, domainName, domainType) ?? 0;
+}
+
+function buildDealItemPayload(services: any[], form: ClientOrderFormState) {
+  const names = parseDealNames(form.dealName).filter(isUsableDealName);
+  const domainName = form.domainName.trim();
+  const domainType =
+    matchDomainTypeOption(form.domainType) || domainTypeFromHostname(domainName) || "Domain Registration";
+  const domainCost = resolveDomainRegistrationCost(
+    services,
+    domainName,
+    domainType,
+    form.domainRegistrationCost,
+  );
+  const items = names.map((name) => {
+    const isDomainType = Boolean(matchDomainTypeOption(name));
+    const itemPrice =
+      isDomainType && domainCost > 0 ? domainCost : catalogPriceForProduct(services, name) ?? 0;
+    return {
+      name,
+      item_type: isDomainType
+        ? "domain"
+        : isWebDesignPlan(name, form.dealSubType || form.dealType)
+          ? "web_design"
+          : form.dealSubType || form.dealType || "service",
+      price: itemPrice,
+      quantity: 1,
+      total_price: itemPrice,
+    };
+  });
+  const alreadyPricedAsDealName = names.some((name) => matchDomainTypeOption(name));
+  if (domainName && !alreadyPricedAsDealName) {
+    items.push({
+      name: domainType,
+      item_type: "domain",
+      price: domainCost,
+      quantity: 1,
+      total_price: domainCost,
+    });
+  }
+  return items;
+}
+
 function catalogTotalForDealNames(services: any[], dealName: string) {
   const lines = catalogLinesForDealNames(services, dealName);
   if (!lines.length) return null;
@@ -475,7 +528,10 @@ function DealNameMultiSelect({
   };
 
   return (
-    <div className={styles.clientOrderMultiSelect} ref={wrapRef}>
+    <div
+      className={`${styles.clientOrderMultiSelect} ${open ? styles.clientOrderMultiSelectOpen : ""}`}
+      ref={wrapRef}
+    >
       <div
         className={[
           styles.clientOrderMultiSelectBtn,
@@ -484,7 +540,12 @@ function DealNameMultiSelect({
         ]
           .filter(Boolean)
           .join(" ")}
-        onClick={() => setOpen((value) => !value)}
+        onMouseDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen((value) => !value);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
@@ -523,7 +584,13 @@ function DealNameMultiSelect({
         <i className="fa-solid fa-chevron-down" aria-hidden="true" />
       </div>
       {open ? (
-        <div className={styles.clientOrderMultiSelectPanel} role="listbox" aria-multiselectable="true">
+        <div
+          className={styles.clientOrderMultiSelectPanel}
+          role="listbox"
+          aria-multiselectable="true"
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
           {options.map((option) => (
             <label key={option} className={styles.clientOrderMultiSelectItem}>
               <input
@@ -845,12 +912,17 @@ export default function ClientOrderForm({
           );
           const resolvedDealName = transactionDealName(transaction);
           const resolvedDomain = transactionDomainName(transaction);
+          const retainedNames = retainedDealNames({
+            dealName: nextForm.dealName || resolvedDealName,
+            dealNames: parseDealMeta(transaction.notes)?.dealNames,
+            itemNames: (transaction.items ?? []).map((item) => item.name),
+            fallback: resolvedDealName,
+          });
+          const retainedDealName = joinDealNames(retainedNames);
           setForm({
             ...nextForm,
-            dealName:
-              resolvedDealName && resolvedDealName !== "—"
-                ? resolvedDealName
-                : nextForm.dealName,
+            dealName: retainedDealName || nextForm.dealName,
+            productName: nextForm.productName || retainedDealName,
             domainName:
               nextForm.domainName ||
               (resolvedDomain && resolvedDomain !== "—" ? resolvedDomain : ""),
@@ -998,28 +1070,134 @@ export default function ClientOrderForm({
   const billingSelectValue = resolveAssignableSelectValue(form.billingInCharge, billingOfficers);
 
   const productDeal = useMemo(() => {
-    if (!transaction) return null;
-    const fallbackName = transactionClientName(transaction);
-    const client =
-      selectedClient ??
-      clients.find((row) => Number(row.id) === Number(transaction.customer_id)) ??
-      ({
-        id: Number(transaction.customer_id ?? 0),
-        company: fallbackName === "—" ? "" : fallbackName,
-        email: transaction.customer_email ?? "",
-      } as CustomerRow);
-    const rows = buildClientDealRows(client, [transaction], services);
-    return rows.find((row) => row.dealName === form.dealName) ?? rows[0] ?? null;
-  }, [transaction, selectedClient, clients, services, form.dealName]);
+    const domainName = form.domainName.trim();
+    const domainType = matchDomainTypeOption(form.domainType) || domainTypeFromHostname(domainName) || "";
+    const domainCost = resolveDomainRegistrationCost(
+      services,
+      domainName,
+      domainType,
+      form.domainRegistrationCost,
+    );
+    const liveDomain = {
+      domainName,
+      domainType,
+      cost: domainCost,
+      startDate: form.domainSubscriptionStartDate || form.domainRegistrationStartDate,
+      endDate: form.domainSubscriptionEndDate || form.domainRegistrationExpirationDate,
+    };
 
-  const dealPriceLines = useMemo(
-    () => catalogLinesForDealNames(services, form.dealName || form.productName),
-    [services, form.dealName, form.productName],
-  );
+    if (transaction) {
+      const fallbackName = transactionClientName(transaction);
+      const client =
+        selectedClient ??
+        clients.find((row) => Number(row.id) === Number(transaction.customer_id)) ??
+        ({
+          id: Number(transaction.customer_id ?? 0),
+          company: fallbackName === "—" ? "" : fallbackName,
+          email: transaction.customer_email ?? "",
+        } as CustomerRow);
+      const rows = buildClientDealRows(client, [transaction], services);
+      const row = rows[0] ?? null;
+      if (!row) return null;
+      return withLiveDomainDealLine(row, liveDomain);
+    }
+
+    const catalogItems = catalogLinesForDealNames(services, form.dealName || form.productName).map((row, index) => ({
+      id: `draft-${index}`,
+      name: row.name,
+      domain: "",
+      period: "",
+      listPrice: row.price,
+      quantity: 1,
+      amount: row.price,
+      discount: 0,
+      tax: 0,
+    }));
+    if (!catalogItems.length && !domainName) return null;
+    return withLiveDomainDealLine(
+      buildDraftDealRow({
+        dealName: form.dealName || form.productName,
+        domainName,
+        items: catalogItems,
+      }),
+      liveDomain,
+    );
+  }, [
+    transaction,
+    selectedClient,
+    clients,
+    services,
+    form.dealName,
+    form.productName,
+    form.domainName,
+    form.domainType,
+    form.domainRegistrationCost,
+    form.domainSubscriptionStartDate,
+    form.domainRegistrationStartDate,
+    form.domainSubscriptionEndDate,
+    form.domainRegistrationExpirationDate,
+  ]);
+
+  const dealPriceLines = useMemo(() => {
+    const lines = catalogLinesForDealNames(services, form.dealName || form.productName).map((row) => ({
+      ...row,
+      isDomain: false,
+    }));
+    const domainName = form.domainName.trim();
+    const domainType = matchDomainTypeOption(form.domainType) || domainTypeFromHostname(domainName) || "";
+    const typedCost = Number(form.domainRegistrationCost);
+    const domainPrice =
+      Number.isFinite(typedCost) && typedCost > 0
+        ? typedCost
+        : catalogPriceForDomain(services, domainName, domainType);
+    const alreadyPricedAsDealName = parseDealNames(form.dealName).some((name) => matchDomainTypeOption(name));
+    if (domainName && domainPrice != null && domainPrice > 0 && !alreadyPricedAsDealName) {
+      lines.push({
+        name: domainType ? `${domainType} (${domainName})` : domainName,
+        price: domainPrice,
+        isDomain: true,
+      });
+    }
+    return lines;
+  }, [
+    services,
+    form.dealName,
+    form.productName,
+    form.domainName,
+    form.domainType,
+    form.domainRegistrationCost,
+  ]);
   const dealPriceTotal = useMemo(
     () => dealPriceLines.reduce((sum, row) => sum + row.price, 0),
     [dealPriceLines],
   );
+
+  const dealNameOptions = useMemo(
+    () => Array.from(new Set([...parseDealNames(form.dealName), ...DEAL_NAME_OPTIONS])),
+    [form.dealName],
+  );
+  const selectedDealNames = parseDealNames(form.dealName).filter(isUsableDealName);
+
+  useEffect(() => {
+    if (!transaction) return;
+    setForm((current) => {
+      if (parseDealNames(current.dealName).some(isUsableDealName)) return current;
+      const nextName = joinDealNames(
+        retainedDealNames({
+          dealName: current.dealName,
+          dealNames: parseDealMeta(transaction.notes)?.dealNames,
+          itemNames: (transaction.items ?? []).map((item) => item.name),
+          fallback: transactionDealName(transaction),
+        }),
+      );
+      if (!nextName || nextName === current.dealName) return current;
+      return {
+        ...current,
+        dealName: nextName,
+        productName: current.productName || nextName,
+      };
+    });
+  }, [transaction]);
 
   useEffect(() => {
     const domainName = form.domainName.trim();
@@ -1296,6 +1474,7 @@ export default function ClientOrderForm({
       }
 
       if (transaction) {
+        const itemPayload = buildDealItemPayload(services, form);
         await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
           customer_name: clientName || transaction.customer_name,
@@ -1305,6 +1484,7 @@ export default function ClientOrderForm({
           notes: mergeDealMetaIntoNotes(transaction.notes, form),
           transacted_at: form.closingDate || transaction.transacted_at,
           client_owner_id: ownerId || null,
+          ...(itemPayload.length ? { items: itemPayload } : {}),
         });
 
         if (ownerId && !isWebDesignDeal) {
@@ -1363,18 +1543,7 @@ export default function ClientOrderForm({
           ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
           : buildDealNotes(form),
         transacted_at: form.closingDate || undefined,
-        items: parseDealNames(form.dealName).map((name) => {
-          const itemPrice = catalogPriceForProduct(services, name) ?? 0;
-          return {
-            name,
-            item_type: isWebDesignPlan(name, form.dealSubType || form.dealType)
-              ? "web_design"
-              : form.dealSubType || form.dealType || "service",
-            price: itemPrice,
-            quantity: 1,
-            total_price: itemPrice,
-          };
-        }),
+        items: buildDealItemPayload(services, form),
       });
 
       const transactionId = Number(created?.data?.id ?? created?.id);
@@ -1425,11 +1594,10 @@ export default function ClientOrderForm({
     if (!isEditing) return pageTitle || "Create Deal";
     const formName = String(form.dealName || "").trim();
     const resolved = transaction ? transactionDealName(transaction) : "";
+    const retained = joinDealNames(selectedDealNames);
     const dealName = looksLikeDomain(formName)
-      ? resolved && resolved !== "—"
-        ? resolved
-        : formName
-      : formName || resolved || "Deal Info";
+      ? retained || (resolved && resolved !== "—" ? resolved : formName)
+      : retained || formName || resolved || "Deal Info";
     const fromForm = Number(form.expectedRevenue);
     const stored = Number(transaction?.grand_total ?? 0);
     const amount =
@@ -1441,7 +1609,7 @@ export default function ClientOrderForm({
             ? stored
             : 0;
     return `${dealName} - ${formatDealAmount(amount)}`;
-  }, [isEditing, pageTitle, form.dealName, form.expectedRevenue, dealPriceTotal, transaction]);
+  }, [isEditing, pageTitle, form.dealName, selectedDealNames, form.expectedRevenue, dealPriceTotal, transaction]);
 
   if (loading) {
     return <p className={styles.emptyState}>Loading order form...</p>;
@@ -1626,10 +1794,8 @@ export default function ClientOrderForm({
             <Field label="Deal Name" required hint="Select one or more deal names">
               <DealNameMultiSelect
                 required
-                selected={parseDealNames(form.dealName)}
-                options={Array.from(
-                  new Set([...parseDealNames(form.dealName), ...DEAL_NAME_OPTIONS]),
-                )}
+                selected={selectedDealNames}
+                options={dealNameOptions}
                 onChange={handleDealNamesChange}
               />
             </Field>
@@ -1819,11 +1985,20 @@ export default function ClientOrderForm({
                             type="button"
                             className={styles.dealPriceSummaryRemove}
                             aria-label={`Remove ${row.name}`}
-                            onClick={() =>
+                            onClick={() => {
+                              if (row.isDomain) {
+                                setForm((current) => ({
+                                  ...current,
+                                  domainName: "",
+                                  domainType: "",
+                                  domainRegistrationCost: "",
+                                }));
+                                return;
+                              }
                               handleDealNamesChange(
                                 parseDealNames(form.dealName).filter((name) => name !== row.name),
-                              )
-                            }
+                              );
+                            }}
                           >
                             <i className="fa-solid fa-xmark" aria-hidden="true" />
                           </button>

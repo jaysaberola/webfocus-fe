@@ -4248,6 +4248,7 @@ select.clientCrmInput {
   column-gap: 2rem;
   row-gap: 0.55rem;
   align-items: start;
+  overflow: visible;
 }
 
 @media (min-width: 960px) {
@@ -4660,6 +4661,10 @@ select.clientCrmInput {
   z-index: 2;
 }
 
+.clientOrderMultiSelectOpen {
+  z-index: 60;
+}
+
 .clientOrderMultiSelectBtn {
   position: relative;
   display: flex;
@@ -4916,6 +4921,13 @@ select.clientCrmInput {
   font-size: var(--ca-text-xs);
   font-weight: 700;
   color: var(--ca-slate-600);
+  position: relative;
+}
+
+.clientOrderField:has(.clientOrderMultiSelectOpen),
+.clientOrderField:has(.clientOrderMultiSelectPanel),
+.clientOrderField:has(.clientOrderDomainSuggestPanel) {
+  z-index: 60;
 }
 
 @media (max-width: 640px) {

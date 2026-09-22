@@ -1,4 +1,5 @@
 import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
+import { looksLikeDomain } from "@/lib/serviceCategory";
 
 export const DEAL_STAGE_OPTIONS = [
   "Qualification",
@@ -319,6 +320,29 @@ export function parseDealNames(value?: string | null, extra?: unknown) {
 
 export function joinDealNames(names: string[]) {
   return uniqueDealNames(names).join(DEAL_NAME_SEPARATOR);
+}
+
+export function isUsableDealName(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "—" || text === "-None-") return false;
+  if (looksLikeDomain(text)) return false;
+  return true;
+}
+
+export function retainedDealNames(params: {
+  dealName?: string | null;
+  dealNames?: unknown;
+  itemNames?: Array<string | null | undefined>;
+  fallback?: string | null;
+}) {
+  const fromStored = parseDealNames(params.dealName, params.dealNames).filter(isUsableDealName);
+  const fromItems = uniqueDealNames(
+    (params.itemNames ?? []).map((item) => String(item ?? "").trim()),
+  ).filter(isUsableDealName);
+  const combined = uniqueDealNames([...fromStored, ...fromItems]);
+  if (combined.length) return combined;
+  const fallback = String(params.fallback ?? "").trim();
+  return isUsableDealName(fallback) ? [fallback] : [];
 }
 
 function uniqueDealNames(names: string[]) {
@@ -859,11 +883,14 @@ export function clientOrderFormFromTransaction(transaction: {
   items?: Array<{ name?: string | null }>;
 }): ClientOrderFormState {
   const meta = parseDealMeta(transaction.notes);
-  const itemNames = uniqueDealNames(
-    (transaction.items ?? []).map((item) => String(item.name ?? "").trim()).filter(Boolean),
+  const itemNames = (transaction.items ?? []).map((item) => String(item.name ?? "").trim());
+  const dealName = joinDealNames(
+    retainedDealNames({
+      dealName: meta?.dealName,
+      dealNames: meta?.dealNames,
+      itemNames,
+    }),
   );
-  const dealName =
-    joinDealNames(parseDealNames(meta?.dealName, meta?.dealNames)) || joinDealNames(itemNames) || "";
   const revenue = String(meta?.expectedRevenue ?? transaction.grand_total ?? "").trim();
 
   const nextForm = emptyClientOrderForm({

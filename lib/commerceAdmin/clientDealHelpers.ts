@@ -1,6 +1,8 @@
 import { parseHostingClassification } from "@/lib/commerceAdmin/hostingTransactionTypes";
 import {
   parseDealMeta,
+  retainedDealNames,
+  matchDomainTypeOption,
   SUBJECT_OPTIONS,
   subjectForProductName,
   DOMAIN_TYPE_OPTIONS,
@@ -388,38 +390,45 @@ export function domainTypeFromHostname(value?: string | null): string | null {
 
 function resolveDealName(params: {
   metaDealName?: string | null;
+  metaDealNames?: unknown;
   metaDomainType?: string | null;
   metaProductName?: string | null;
   clientName?: string | null;
   itemName?: string | null;
+  itemNames?: Array<string | null | undefined>;
   domainName?: string | null;
 }) {
-  const labeled =
-    normalizeDomainTypeLabel(params.metaDealName) ||
-    normalizeDomainTypeLabel(params.metaDomainType) ||
-    normalizeDomainTypeLabel(params.metaProductName) ||
-    normalizeDomainTypeLabel(params.itemName);
-  if (labeled) return labeled;
-
   const fromMeta = stripClientPrefixFromDealName(params.metaDealName, params.clientName);
-  if (fromMeta && !looksLikeDomain(fromMeta)) return fromMeta;
-
-  const product = String(params.itemName ?? "").trim();
-  if (product && !looksLikeDomain(product)) return product;
-
-  const inferred = domainTypeFromHostname(fromMeta || product || params.domainName);
-  return inferred || product || "—";
+  const names = retainedDealNames({
+    dealName: fromMeta || params.metaDealName,
+    dealNames: params.metaDealNames,
+    itemNames: [
+      ...(params.itemNames ?? []),
+      params.itemName,
+      params.metaProductName,
+    ],
+    fallback:
+      normalizeDomainTypeLabel(fromMeta) ||
+      normalizeDomainTypeLabel(params.metaProductName) ||
+      normalizeDomainTypeLabel(params.itemName) ||
+      normalizeDomainTypeLabel(params.metaDomainType) ||
+      domainTypeFromHostname(fromMeta || params.itemName || params.domainName) ||
+      "",
+  });
+  return names[0] || "—";
 }
 
 export function transactionDealName(transaction: SalesTransaction) {
   const meta = parseDealMeta(transaction.notes);
-  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  const itemNames = (transaction.items ?? []).map((item) => String(item.name ?? "").trim());
   return resolveDealName({
     metaDealName: meta?.dealName,
+    metaDealNames: meta?.dealNames,
     metaDomainType: meta?.domainType,
     metaProductName: meta?.productName,
     clientName: transaction.customer_name,
-    itemName,
+    itemName: itemNames[0],
+    itemNames,
     domainName: transactionDomainName(transaction),
   });
 }
@@ -798,6 +807,7 @@ function crmFields(params: {
     clientName: clientDisplayName(client),
     dealName: resolveDealName({
       metaDealName: meta?.dealName,
+      metaDealNames: meta?.dealNames,
       metaDomainType: meta?.domainType,
       metaProductName: meta?.productName,
       clientName: clientDisplayName(client),
@@ -904,12 +914,14 @@ function buildLineItems(
     const listPrice = money(item.price);
     let amount = money(item.total_price);
     if (amount <= 0) amount = listPrice * quantity;
-    const domain =
-      formatDomain(looksLikeDomain(String(item.name ?? "")) ? String(item.name) : extractDomain(String(item.name ?? ""))) ||
-      domainFallback;
+    const itemName = String(item.name ?? transaction.transaction_no ?? "Item").trim() || "Item";
+    const extracted =
+      formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) || "";
+    const isDomainProduct = Boolean(matchDomainTypeOption(itemName) || looksLikeDomain(itemName));
+    const domain = extracted || (isDomainProduct ? formatDomain(domainFallback) || "" : "");
     return {
       id: String(item.id ?? `${transaction.id}-${index}`),
-      name: String(item.name ?? transaction.transaction_no ?? "Item").trim() || "Item",
+      name: itemName,
       domain: domain === "—" ? "" : domain,
       period,
       listPrice,
@@ -921,21 +933,215 @@ function buildLineItems(
   });
 
   const amountSum = mapped.reduce((sum, item) => sum + item.amount, 0);
-  return mapped.map((item) => ({
+  const withTax = mapped.map((item) => ({
     ...item,
     tax:
       headerTax > 0 && amountSum > 0
         ? Math.round((headerTax * (item.amount / amountSum)) * 100) / 100
         : vatFromInclusive(item.amount),
   }));
+
+  return appendDomainLineItem(transaction, withTax, domainFallback);
+}
+
+function isDomainProductLine(item: ClientDealLineItem, domainName: string, domainType: string) {
+  const name = String(item.name ?? "").trim();
+  const target = String(domainName ?? "").trim().toLowerCase();
+  if (String(item.id).endsWith("-domain")) return true;
+  if (target && looksLikeDomain(name) && (formatDomain(name) || "").toLowerCase() === target) return true;
+  if (target && (extractDomain(name) || "").toLowerCase() === target && matchDomainTypeOption(name)) return true;
+  const itemType = matchDomainTypeOption(name);
+  const liveType = matchDomainTypeOption(domainType);
+  if (itemType && liveType && itemType === liveType) return true;
+  return false;
+}
+
+function appendDomainLineItem(
+  transaction: SalesTransaction,
+  items: ClientDealLineItem[],
+  _domainFallback: string,
+): ClientDealLineItem[] {
+  const meta = parseDealMeta(transaction.notes);
+  const domainName =
+    formatDomain(meta?.domainName) ||
+    (transactionDomainName(transaction) !== "—" ? transactionDomainName(transaction) : "") ||
+    "";
+  if (!domainName) return items;
+
+  const domainType =
+    matchDomainTypeOption(meta?.domainType) ||
+    normalizeDomainTypeLabel(meta?.domainType) ||
+    domainTypeFromHostname(domainName) ||
+    "Domain Registration";
+  const cost = money(meta?.domainRegistrationCost);
+  const alreadyIncluded = items.some((item) => isDomainProductLine(item, domainName, domainType));
+
+  const period =
+    formatPeriod(
+      meta?.domainSubscriptionStartDate || meta?.domainRegistrationStartDate || transaction.issued_date || transaction.transacted_at,
+      meta?.domainSubscriptionEndDate || meta?.domainRegistrationExpirationDate || transaction.due_date,
+    ) || items[0]?.period || "";
+
+  if (alreadyIncluded) {
+    return items.map((item) => {
+      if (!isDomainProductLine(item, domainName, domainType)) return item;
+      const amount = cost > 0 ? cost : item.amount;
+      return {
+        ...item,
+        name: domainType,
+        domain: domainName,
+        period: period || item.period,
+        listPrice: cost > 0 ? cost : item.listPrice,
+        amount,
+        tax: vatFromInclusive(amount),
+      };
+    });
+  }
+
+  const amount = cost > 0 ? cost : 0;
+  return [
+    ...items,
+    {
+      id: `${transaction.id}-domain`,
+      name: domainType,
+      domain: domainName,
+      period,
+      listPrice: amount,
+      quantity: 1,
+      amount,
+      discount: 0,
+      tax: vatFromInclusive(amount),
+    },
+  ];
 }
 
 function totalsFromItems(items: ClientDealLineItem[], transaction?: SalesTransaction | null) {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-  const discountTotal = transaction ? money(transaction.discount_total) : items.reduce((sum, item) => sum + item.discount, 0);
-  const taxTotal = transaction ? money(transaction.tax_total) : items.reduce((sum, item) => sum + item.tax, 0);
-  const grandTotal = transaction ? money(transaction.grand_total) || subtotal : subtotal;
+  const discountTotal = items.reduce((sum, item) => sum + item.discount, 0);
+  const taxFromItems = items.reduce((sum, item) => sum + item.tax, 0);
+  const headerTax = transaction ? money(transaction.tax_total) : 0;
+  const taxTotal = transaction ? headerTax : taxFromItems;
+  const headerGrand = transaction ? money(transaction.grand_total) : 0;
+  const itemCount = transaction?.items?.length ?? 0;
+  const grandTotal =
+    headerGrand > 0 && items.length === itemCount && Math.abs(headerGrand - subtotal) < 0.51
+      ? headerGrand
+      : Math.max(0, subtotal - discountTotal);
   return { subtotal, discountTotal, taxTotal, adjustment: 0, grandTotal };
+}
+
+export function withLiveDomainDealLine(
+  order: ClientDealRow,
+  domain: {
+    domainName?: string;
+    domainType?: string;
+    cost?: string | number | null;
+    startDate?: string;
+    endDate?: string;
+  },
+): ClientDealRow {
+  const domainName = formatDomain(domain.domainName) || String(domain.domainName ?? "").trim();
+  if (!domainName || domainName === "—") return order;
+
+  const domainType =
+    matchDomainTypeOption(domain.domainType) ||
+    normalizeDomainTypeLabel(domain.domainType) ||
+    domainTypeFromHostname(domainName) ||
+    "Domain Registration";
+  const cost = money(domain.cost);
+  const period = formatPeriod(domain.startDate, domain.endDate);
+  const alreadyIncluded = order.items.some((item) => isDomainProductLine(item, domainName, domainType));
+
+  const items = alreadyIncluded
+    ? order.items.map((item) => {
+        if (!isDomainProductLine(item, domainName, domainType)) return item;
+        const amount = cost > 0 ? cost : item.amount;
+        return {
+          ...item,
+          name: domainType,
+          domain: domainName,
+          period: period || item.period,
+          listPrice: cost > 0 ? cost : item.listPrice,
+          quantity: 1,
+          amount,
+          tax: vatFromInclusive(amount),
+        };
+      })
+    : [
+        ...order.items,
+        {
+          id: `${order.id}-domain`,
+          name: domainType,
+          domain: domainName,
+          period,
+          listPrice: cost,
+          quantity: 1,
+          amount: cost,
+          discount: 0,
+          tax: vatFromInclusive(cost),
+        },
+      ];
+
+  const totals = totalsFromItems(items);
+  return {
+    ...order,
+    domainName,
+    items,
+    subtotal: totals.subtotal,
+    discountTotal: totals.discountTotal,
+    grandTotal: totals.grandTotal,
+    expectedRevenue: totals.grandTotal,
+    amount: totals.grandTotal,
+  };
+}
+
+export function buildDraftDealRow(input: {
+  dealName: string;
+  domainName?: string;
+  transactionNo?: string | null;
+  items: ClientDealLineItem[];
+}): ClientDealRow {
+  const totals = totalsFromItems(input.items);
+  return {
+    id: "draft",
+    transactionId: null,
+    transactionNo: input.transactionNo ?? null,
+    clientOwner: "",
+    clientName: "",
+    dealName: input.dealName,
+    planName: "",
+    stage: "",
+    clientStatus: "",
+    productStatus: "",
+    subject: input.dealName,
+    productCategory: "",
+    domainName: input.domainName ?? "",
+    contactName: "",
+    closingDate: "",
+    salesStatus: "",
+    paymentTerms: "",
+    paymentMethod: "",
+    paymentMode: "",
+    paymentDate: "",
+    paymentStatus: "",
+    expectedRevenue: totals.grandTotal,
+    probability: "",
+    statusTriggerDate: "",
+    joNumber: "",
+    billingInCharge: "",
+    dealStatus: "",
+    invoiceStatus: "",
+    invoiceSentDate: "",
+    invoiceReceivedDate: "",
+    paymentCommitmentDate: "",
+    collectionNote: "",
+    contractStatus: "",
+    dealOwner: "",
+    status: "",
+    amount: totals.grandTotal,
+    items: input.items,
+    ...totals,
+  };
 }
 
 function resolveDealStatus(transaction: SalesTransaction, serviceStatus?: string | null) {
