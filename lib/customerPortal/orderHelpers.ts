@@ -33,6 +33,10 @@ export function orderCanCheckout(order: PortalOrder) {
   return order.status === "Pending Payment" && order.total > 0;
 }
 
+export function orderCanCustomize(order: PortalOrder) {
+  return order.status === "Pending Payment" || orderCanCheckout(order);
+}
+
 export function orderPaymentDate(order: PortalOrder) {
   return String(order.paymentDate || "").trim() || null;
 }

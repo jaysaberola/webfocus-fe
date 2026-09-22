@@ -52,7 +52,16 @@ export type PortalOrder = {
   paymentMode?: string | null;
   canCheckout?: boolean;
   canCancel?: boolean;
-  items: Array<{ name: string; detail: string; price: number }>;
+  items: Array<{
+    id?: number | string;
+    name: string;
+    detail: string;
+    price: number;
+    quantity?: number;
+    unitPrice?: number;
+    total?: number;
+    itemType?: string | null;
+  }>;
 };
 
 export type PortalTicket = {

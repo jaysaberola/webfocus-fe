@@ -3496,3 +3496,205 @@
 .orderInfoItemsTable tr:last-child td {
   border-bottom: 0;
 }
+
+.orderCustomizeWrap {
+  overflow-x: auto;
+  margin-top: 0.15rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.orderCustomizeTable {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.orderCustomizeTable th {
+  padding: 0.7rem 0.65rem;
+  border-bottom: 1px solid var(--cp-slate-200);
+  background: #f8fafc;
+  color: var(--cp-slate-700);
+  font-size: var(--cp-text-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.orderCustomizeTable td {
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid var(--cp-slate-100);
+  vertical-align: top;
+}
+
+.orderCustomizeActionHead,
+.orderCustomizeActionCell {
+  width: 2.4rem;
+  padding-left: 0.7rem !important;
+  padding-right: 0.15rem !important;
+}
+
+.orderCustomizeSno {
+  width: 3.2rem;
+  padding-top: 1rem !important;
+  color: var(--cp-slate-600);
+  font-weight: 700;
+}
+
+.orderCustomizeDealSelect {
+  position: relative;
+  display: block;
+  min-width: 16rem;
+}
+
+.orderCustomizeDealSelect select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2rem;
+  cursor: pointer;
+}
+
+.orderCustomizeDealSelect select::-ms-expand {
+  display: none;
+}
+
+.orderCustomizeDealChevron {
+  position: absolute;
+  top: 50%;
+  right: 0.7rem;
+  transform: translateY(-50%);
+  color: #64748b;
+  font-size: 0.7rem;
+  pointer-events: none;
+}
+
+.orderCustomizeTable th:nth-child(4),
+.orderCustomizeTable td:nth-child(4) {
+  width: 6.25rem;
+  min-width: 6.25rem;
+}
+
+.orderCustomizeInput {
+  width: 100%;
+  min-height: var(--cp-control-height);
+  height: var(--cp-control-height);
+  padding: 0 0.7rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.35rem;
+  background: #fff;
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+  line-height: calc(var(--cp-control-height) - 2px);
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.orderCustomizeInput:read-only {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.orderCustomizeQty {
+  width: 5.5rem !important;
+  min-width: 5.5rem;
+  padding: 0 0.4rem !important;
+  text-align: center;
+  color: #0f172a !important;
+}
+
+.orderCustomizeMoney {
+  width: 7.25rem !important;
+  min-width: 7.25rem;
+  padding: 0 0.55rem !important;
+  text-align: right;
+}
+
+.orderCustomizeRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin-top: 0.2rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.orderCustomizeRemove:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.orderCustomizeFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  margin-top: 0.85rem;
+}
+
+.orderCustomizeAddRow {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid #2563eb;
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #2563eb;
+  font-size: var(--cp-text-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.orderCustomizeAddRow:hover {
+  background: #eff6ff;
+}
+
+.orderCustomizeTotals {
+  width: min(22rem, 100%);
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.orderCustomizeTotals label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin: 0;
+  color: var(--cp-slate-600);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+}
+
+.orderCustomizeTotals input {
+  width: 8.5rem;
+  min-height: var(--cp-control-height);
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.35rem;
+  background: #f8fafc;
+  color: var(--cp-slate-900);
+  text-align: right;
+  font: inherit;
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.orderCustomizeGrand {
+  color: var(--cp-slate-900);
+}

@@ -55,6 +55,14 @@ export async function cancelPortalOrder(recordId: number): Promise<PortalOrder> 
   return res.data?.data;
 }
 
+export async function updatePortalOrderItems(
+  recordId: number,
+  items: Array<{ id?: number | string; name?: string; quantity: number }>,
+): Promise<PortalOrder> {
+  const res = await axiosInstance.patch(`/customer/portal/orders/${recordId}/items`, { items });
+  return res.data?.data;
+}
+
 export async function fetchPortalBilling(params?: {
   dateFrom?: string;
   dateTo?: string;

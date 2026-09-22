@@ -426,6 +426,7 @@ export default function OrdersTab() {
         <OrderInfoPanel
           order={viewingOrder}
           onBack={() => setViewingOrder(null)}
+          onOrderUpdated={setViewingOrder}
           onCheckout={
             orderCanCheckout(viewingOrder)
               ? () => {
