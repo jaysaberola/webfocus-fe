@@ -155,6 +155,7 @@ type OrderInfoPanelProps = {
   onCancel?: () => void;
   onOrderUpdated?: (order: PortalOrder) => void;
   cancelling?: boolean;
+  checkingOut?: boolean;
 };
 
 export default function OrderInfoPanel({
@@ -164,6 +165,7 @@ export default function OrderInfoPanel({
   onCancel,
   onOrderUpdated,
   cancelling = false,
+  checkingOut = false,
 }: OrderInfoPanelProps) {
   const serviceName = orderServiceName(order);
   const plan = orderPlanLabel(order);
@@ -362,8 +364,8 @@ export default function OrderInfoPanel({
         {canCheckout || canCancel ? (
           <div className={styles.orderInfoActions}>
             {canCheckout ? (
-              <button type="button" className={styles.primaryBtnSm} onClick={() => void handleCheckout()} disabled={saving}>
-                Ready for Checkout
+              <button type="button" className={styles.primaryBtnSm} onClick={() => void handleCheckout()} disabled={saving || checkingOut}>
+                {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
               </button>
             ) : null}
             {canCancel ? (

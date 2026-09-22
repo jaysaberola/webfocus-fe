@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import OrderInfoPanel from "@/components/CustomerPortal/OrderInfoPanel";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
@@ -10,6 +10,7 @@ import {
   PortalSelectRowCell,
 } from "@/components/CustomerPortal/PortalSelectCells";
 import ConfirmModal from "@/components/UI/ConfirmModal";
+import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
@@ -29,6 +30,16 @@ import {
   notifyPortalNotificationsUpdated,
 } from "@/services/customerPortalService";
 import { continuePaynamicsCheckout } from "@/services/salesTransactionService";
+import {
+  fetchCurrentCustomer,
+  getStoredCustomer,
+  type PublicCustomer,
+} from "@/services/publicCustomerService";
+import {
+  customerNeedsCheckoutBillingAddress,
+  isCheckoutBillingValidationError,
+  mergeCustomerAddress,
+} from "@/lib/checkoutBillingAddress";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 import {
   emptyDateRange,
@@ -193,6 +204,9 @@ export default function OrdersTab() {
   const [cancelling, setCancelling] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
+  const [checkoutCustomer, setCheckoutCustomer] = useState<PublicCustomer | null>(null);
+  const checkoutOrderRef = useRef<PortalOrder | null>(null);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
 
@@ -358,9 +372,21 @@ export default function OrdersTab() {
     [orders],
   );
 
-  const continuePendingPayment = async (order: PortalOrder) => {
+  const continuePendingPayment = async (
+    order: PortalOrder,
+    customerOverride?: PublicCustomer,
+  ) => {
     const invoiceId = String(order.invoiceId || order.id || "").trim();
     if (!invoiceId || checkingOut) return;
+    checkoutOrderRef.current = order;
+
+    let activeCustomer = customerOverride ?? checkoutCustomer ?? getStoredCustomer();
+    if (customerOverride && customerNeedsCheckoutBillingAddress(customerOverride)) {
+      setCheckoutCustomer(customerOverride);
+      setBillingOpen(true);
+      toast.info("Add your billing address to continue to Paynamics.");
+      return;
+    }
 
     setCheckingOut(true);
     try {
@@ -372,13 +398,51 @@ export default function OrdersTab() {
       toast.success(`Opening Paynamics for ${invoiceId}...`);
       window.location.assign(redirectUrl);
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Failed to open the Paynamics payment portal."
-      );
+      const validationErrors = err?.response?.data?.errors;
+      const message = err?.response?.data?.message || err?.message;
+      if (isCheckoutBillingValidationError(validationErrors, message)) {
+        try {
+          const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+          activeCustomer = activeCustomer ? mergeCustomerAddress(activeCustomer, fresh) : fresh;
+        } catch {
+          // Keep the local customer if refresh fails.
+        }
+        if (!activeCustomer) {
+          toast.error("Complete your billing address in Manage Account, then try checkout again.");
+          window.location.assign("/public/dashboard?tab=account");
+          return;
+        }
+        setCheckoutCustomer(activeCustomer);
+        setBillingOpen(true);
+        toast.info("Add your billing address to continue to Paynamics.");
+        return;
+      }
+      toast.error(message || "Failed to open the Paynamics payment portal.");
     } finally {
       setCheckingOut(false);
+    }
+  };
+
+  const handleBillingAddressSaved = async (updated: PublicCustomer) => {
+    const merged = mergeCustomerAddress(checkoutCustomer, updated);
+    setCheckoutCustomer(merged);
+    setBillingOpen(false);
+
+    const order = checkoutOrderRef.current ?? viewingOrder ?? pendingCheckoutOrders[0];
+    if (!order) return;
+
+    try {
+      const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+      const confirmed = mergeCustomerAddress(merged, fresh);
+      setCheckoutCustomer(confirmed);
+      if (customerNeedsCheckoutBillingAddress(confirmed)) {
+        setBillingOpen(true);
+        toast.error("Billing address did not save. Please try again before checkout.");
+        return;
+      }
+      void continuePendingPayment(order, confirmed);
+    } catch {
+      void continuePendingPayment(order, merged);
     }
   };
 
@@ -420,6 +484,15 @@ export default function OrdersTab() {
     return <PortalTabLoader label="Loading orders..." />;
   }
 
+  const billingModal = (
+    <CheckoutBillingAddressModal
+      open={billingOpen}
+      customer={checkoutCustomer}
+      onClose={() => setBillingOpen(false)}
+      onSaved={(updated) => void handleBillingAddressSaved(updated)}
+    />
+  );
+
   if (viewingOrder) {
     return (
       <div className={styles.tabStack}>
@@ -436,6 +509,7 @@ export default function OrdersTab() {
           }
           onCancel={orderCanCancel(viewingOrder) ? () => setCancelTarget(viewingOrder) : undefined}
           cancelling={cancelling && cancelTarget?.id === viewingOrder.id}
+          checkingOut={checkingOut}
         />
         <ConfirmModal
           show={Boolean(cancelTarget)}
@@ -453,6 +527,7 @@ export default function OrdersTab() {
             if (!cancelling) setCancelTarget(null);
           }}
         />
+        {billingModal}
       </div>
     );
   }
@@ -761,6 +836,7 @@ export default function OrdersTab() {
           if (!cancelling) setCancelTarget(null);
         }}
       />
+      {billingModal}
     </div>
   );
 }

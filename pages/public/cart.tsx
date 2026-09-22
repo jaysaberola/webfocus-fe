@@ -388,7 +388,7 @@ export default function PublicCartCheckoutPage() {
         ? Object.values(validationErrors).flat().find(Boolean)
         : null;
 
-      if (isCheckoutBillingValidationError(validationErrors)) {
+      if (isCheckoutBillingValidationError(validationErrors, err?.response?.data?.message)) {
         setBillingOpen(true);
         toast.error(
           "Complete your billing address (street, city, province, and ZIP) to continue checkout."
@@ -610,7 +610,7 @@ export default function PublicCartCheckoutPage() {
         ? Object.values(validationErrors).flat().find(Boolean)
         : null;
 
-      if (!quotationOnly && isCheckoutBillingValidationError(validationErrors)) {
+      if (!quotationOnly && isCheckoutBillingValidationError(validationErrors, err?.response?.data?.message)) {
         setBillingOpen(true);
         toast.error(
           "Complete your billing address (street, city, province, and ZIP) to continue checkout."

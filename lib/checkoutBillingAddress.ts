@@ -1,5 +1,8 @@
 import { findPlaceByCity } from "@/lib/commerceAdmin/phAddressCatalog";
-import type { PublicCustomer } from "@/services/publicCustomerService";
+import {
+  isPlaceholderLastName,
+  type PublicCustomer,
+} from "@/services/publicCustomerService";
 
 export type CheckoutBillingAddress = {
   address_street: string;
@@ -55,11 +58,47 @@ export function customerNeedsCheckoutBillingAddress(
   return getMissingCheckoutBillingFields(customer).length > 0;
 }
 
-export function isCheckoutBillingValidationError(errors: unknown): boolean {
+export function isCheckoutBillingValidationError(errors: unknown, message?: unknown): boolean {
+  if (typeof message === "string" && /billing address/i.test(message)) return true;
   if (!errors || typeof errors !== "object") return false;
   return Object.keys(errors as Record<string, unknown>).some((key) =>
     key.startsWith("address_")
   );
+}
+
+export function paynamicsPersonName(customer: PublicCustomer | null | undefined): {
+  fname: string;
+  lname: string;
+} {
+  let fname = String(customer?.fname || "").trim();
+  let lname = isPlaceholderLastName(customer?.lname) ? "" : String(customer?.lname || "").trim();
+  const sources = [String(customer?.mname || "").trim(), `${fname} ${lname}`.trim()].filter(Boolean);
+
+  for (const source of sources) {
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (!parts.length) continue;
+    if (!fname) fname = parts[0];
+    if (!lname && parts.length > 1) lname = parts.slice(1).join(" ");
+    if (fname && lname) break;
+  }
+
+  if (!lname) lname = fname;
+  return { fname, lname };
+}
+
+export function mergeCustomerAddress(
+  base: PublicCustomer | null | undefined,
+  next: PublicCustomer,
+): PublicCustomer {
+  return {
+    ...(base || {}),
+    ...next,
+    address_street: next.address_street || base?.address_street,
+    address_city: next.address_city || base?.address_city,
+    address_municipality: next.address_municipality || base?.address_municipality,
+    address_province: next.address_province || base?.address_province,
+    address_zip: next.address_zip || base?.address_zip,
+  };
 }
 
 export function billingAddressFromCustomer(

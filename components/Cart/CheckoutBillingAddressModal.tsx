@@ -5,6 +5,7 @@ import {
   CHECKOUT_BILLING_FIELD_LABELS,
   CHECKOUT_BILLING_MAX,
   isCheckoutBillingAddressComplete,
+  paynamicsPersonName,
   type CheckoutBillingAddress,
 } from "@/lib/checkoutBillingAddress";
 import {
@@ -18,7 +19,6 @@ import {
     zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import {
-  isPlaceholderLastName,
   updateCustomerProfile,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
@@ -203,9 +203,10 @@ export default function CheckoutBillingAddressModal({
 
     try {
       setSaving(true);
+      const person = paynamicsPersonName(customer);
       const updated = await updateCustomerProfile({
-        fname: customer.fname || "",
-        lname: isPlaceholderLastName(customer.lname) ? "" : customer.lname || "",
+        fname: person.fname,
+        lname: person.lname,
         mobile: customer.mobile,
         birth_date: customer.birth_date,
         address_street: trimmed.address_street,
