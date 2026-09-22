@@ -213,13 +213,14 @@ export default function CheckoutBillingAddressModal({
       const updated = await updateCustomerProfile({
         fname: person.fname,
         lname: person.lname,
-        mobile: customer.mobile,
-        birth_date: customer.birth_date,
+        ...(customer.mobile ? { mobile: customer.mobile } : {}),
+        ...(customer.birth_date ? { birth_date: customer.birth_date } : {}),
         address_street: trimmed.address_street,
         address_city: trimmed.address_city,
         address_municipality: customer.address_municipality || trimmed.address_city,
         address_province: trimmed.address_province,
         address_zip: trimmed.address_zip,
+        address_country: "Philippines",
       });
       toast.success("Billing address saved. Continuing to payment...");
       onSaved({

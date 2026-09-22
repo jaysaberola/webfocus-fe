@@ -145,6 +145,7 @@ export const updateCustomerProfile = async (payload: {
   address_municipality?: string | null;
   address_province?: string | null;
   address_zip?: string | null;
+  address_country?: string | null;
   avatar?: File | null;
 }) => {
   const previous = getStoredCustomer();
@@ -183,6 +184,7 @@ export const updateCustomerProfile = async (payload: {
       address_municipality: payload.address_municipality ?? null,
       address_province: payload.address_province ?? null,
       address_zip: payload.address_zip ?? null,
+      address_country: payload.address_country ?? "Philippines",
     });
     user = (res.data?.user ?? res.data) as PublicCustomer;
   }

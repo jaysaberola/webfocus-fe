@@ -431,7 +431,18 @@ export default function OrdersTab() {
       window.location.assign(redirectUrl);
     } catch (err: any) {
       const validationErrors = err?.response?.data?.errors;
-      const message = String(err?.response?.data?.message || err?.message || "");
+      const firstValidationError = Array.isArray(validationErrors)
+        ? validationErrors.find(Boolean)
+        : validationErrors
+          ? Object.values(validationErrors).flat().find(Boolean)
+          : null;
+      const message = String(
+        firstValidationError ||
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          ""
+      );
       if (
         isCheckoutBillingValidationError(validationErrors, message) ||
         customerNeedsCheckoutBillingAddress(activeCustomer)
