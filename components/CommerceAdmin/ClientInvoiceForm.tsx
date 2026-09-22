@@ -15,10 +15,11 @@ import {
   invoiceItemsForApi,
   invoiceTotals,
   validateClientInvoiceForm,
+  withDomainInvoiceLineFromDeals,
   type ClientInvoiceFormState,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
 import { clientDisplayName } from "@/lib/commerceAdmin/clientHelpers";
-import { formatDealAmount } from "@/lib/commerceAdmin/clientDealHelpers";
+import { fetchCustomerDealTransactions, formatDealAmount } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   citiesForProvince,
   findPlaceByCity,
@@ -120,6 +121,7 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
   );
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
   const [clients, setClients] = useState<CustomerRow[]>([]);
+  const [dealTransactions, setDealTransactions] = useState<SalesTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -142,8 +144,9 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
       customerId
         ? getCustomer(customerId, { silent: true }).catch(() => null)
         : Promise.resolve(null),
+      customerId ? fetchCustomerDealTransactions(customerId).catch(() => [] as SalesTransaction[]) : Promise.resolve([]),
     ])
-      .then(([nextOwners, clientRes, detail]) => {
+      .then(([nextOwners, clientRes, detail, deals]) => {
         if (cancelled) return;
         const ownerList = Array.isArray(nextOwners) ? nextOwners : [];
         let clientList = Array.isArray(clientRes?.data) ? clientRes.data : [];
@@ -168,13 +171,16 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
         }
         setOwners(ownerList);
         setClients(clientList);
+        setDealTransactions(Array.isArray(deals) ? deals : []);
         const defaultClient =
           clientList.find((row) => Number(row.id) === Number(customerId)) ?? detailedClient;
-        setForm(
-          transaction
-            ? invoiceFormFromTransaction(transaction, defaultClient ?? client)
-            : emptyClientInvoiceForm(),
-        );
+        const nextForm = transaction
+          ? invoiceFormFromTransaction(transaction, defaultClient ?? client)
+          : emptyClientInvoiceForm();
+        setForm({
+          ...nextForm,
+          items: withDomainInvoiceLineFromDeals(nextForm.items, Array.isArray(deals) ? deals : []),
+        });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -185,6 +191,16 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when opening for this client or invoice
   }, [client.id, transaction?.id]);
+
+  useEffect(() => {
+    setForm((current) => {
+      const nextItems = withDomainInvoiceLineFromDeals(current.items, dealTransactions);
+      if (nextItems.length === current.items.length && nextItems.every((item, index) => item.id === current.items[index]?.id && item.productName === current.items[index]?.productName && item.listPrice === current.items[index]?.listPrice)) {
+        return current;
+      }
+      return { ...current, items: nextItems };
+    });
+  }, [dealTransactions, form.items.map((item) => item.productName).join("|")]);
 
   const handleClientChange = (clientId: string) => {
     const applyClient = (selected?: CustomerRow | null) => {
@@ -202,8 +218,16 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
     const listed = clients.find((row) => String(row.id) === clientId);
     applyClient(listed ?? null);
 
-    if (listed && hasClientBillingAddress(listed)) return;
     const selectedId = Number(clientId);
+    if (selectedId) {
+      void fetchCustomerDealTransactions(selectedId)
+        .then((deals) => setDealTransactions(Array.isArray(deals) ? deals : []))
+        .catch(() => setDealTransactions([]));
+    } else {
+      setDealTransactions([]);
+    }
+
+    if (listed && hasClientBillingAddress(listed)) return;
     if (!selectedId) return;
 
     void getCustomer(selectedId, { silent: true })

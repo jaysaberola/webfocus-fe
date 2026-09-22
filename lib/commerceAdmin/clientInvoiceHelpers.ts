@@ -1,12 +1,13 @@
 import {
   dealSubjectFromName,
+  domainTypeFromHostname,
   fetchCustomerDealTransactions,
   formatDealAmount,
   formatDealDate,
   transactionPaymentDate,
   transactionPaymentMode,
 } from "@/lib/commerceAdmin/clientDealHelpers";
-import { parseDealMeta, toApiOrderStatus, toApiPaymentStatus, normalizePaymentMode } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { matchDomainTypeOption, parseDealMeta, parseDealNames, toApiOrderStatus, toApiPaymentStatus, normalizePaymentMode } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { regionForProvince } from "@/lib/commerceAdmin/phAddressCatalog";
 import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
@@ -231,11 +232,137 @@ export function invoiceItemsForApi(items: InvoiceLineItem[]) {
     .filter((item) => item.productName.trim())
     .map((item) => ({
       name: item.productName.trim(),
-      item_type: "invoice" as const,
+      item_type: matchDomainTypeOption(item.productName) || looksLikeDomainInvoiceName(item)
+        ? "domain"
+        : "invoice",
       price: invoiceMoney(item.listPrice),
       quantity: Math.max(0, invoiceMoney(item.quantity)),
       total_price: invoiceLineAmount(item),
     }));
+}
+
+const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
+  "Country Level Domain": 3456,
+  "Top Level Domain": 1728,
+  "Hybrid Top Level Domain": 4032,
+  "Educational Domain": 5304,
+  "Government Domain": 5184,
+};
+
+function looksLikeDomainInvoiceName(item: Pick<InvoiceLineItem, "productName" | "description">) {
+  const name = String(item.productName ?? "").trim().toLowerCase();
+  const description = String(item.description ?? "").trim().toLowerCase();
+  return Boolean(matchDomainTypeOption(item.productName) || description.includes("."));
+}
+
+export function domainPriceForType(domainType: string, typedCost?: string | number | null) {
+  const parsed = Number(typedCost);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  const type = matchDomainTypeOption(domainType) || domainType;
+  return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
+}
+
+function invoiceHasDomainLine(items: InvoiceLineItem[], domainName: string, domainType: string) {
+  const host = domainName.trim().toLowerCase();
+  const type = domainType.trim().toLowerCase();
+  return items.some((item) => {
+    const name = item.productName.trim().toLowerCase();
+    const description = item.description.trim().toLowerCase();
+    if (!name && !description) return false;
+    if (name === host || description === host) return true;
+    if (matchDomainTypeOption(item.productName) && (description === host || description === "" || name === type)) {
+      return true;
+    }
+    return false;
+  });
+}
+
+export function domainInvoiceLineFromNotes(notes?: string | null): InvoiceLineItem | null {
+  const meta = parseDealMeta(notes);
+  const domainName = String(meta?.domainName ?? "").trim();
+  if (!domainName || domainName === "—") return null;
+  const domainType =
+    matchDomainTypeOption(meta?.domainType) || domainTypeFromHostname(domainName) || "Domain Registration";
+  const price = domainPriceForType(domainType, meta?.domainRegistrationCost);
+  return {
+    id: `inv-domain-${domainName.toLowerCase()}`,
+    productName: domainType,
+    description: domainName,
+    listPrice: price > 0 ? String(price) : "",
+    quantity: "1",
+    discount: "0",
+    tax: "0",
+  };
+}
+
+export function withDomainInvoiceLine(items: InvoiceLineItem[], notes?: string | null): InvoiceLineItem[] {
+  const line = domainInvoiceLineFromNotes(notes);
+  if (!line) return items;
+  if (invoiceHasDomainLine(items, line.description, line.productName)) {
+    return items.map((item) => {
+      if (!invoiceHasDomainLine([item], line.description, line.productName)) return item;
+      const currentPrice = invoiceMoney(item.listPrice);
+      return {
+        ...item,
+        productName: item.productName.trim() || line.productName,
+        description: item.description.trim() || line.description,
+        listPrice: currentPrice > 0 ? item.listPrice : line.listPrice,
+      };
+    });
+  }
+  const named = items.filter((item) => item.productName.trim());
+  const blanks = items.filter((item) => !item.productName.trim());
+  return [...named, line, ...blanks];
+}
+
+export function withDomainInvoiceLineFromDeals(
+  items: InvoiceLineItem[],
+  deals: SalesTransaction[],
+): InvoiceLineItem[] {
+  const invoiceNames = items
+    .map((item) => item.productName.trim().toLowerCase())
+    .filter(Boolean);
+  const domainDeals = deals.filter((deal) => {
+    if (String(deal.notes ?? "").includes("[INVOICE_META]")) return false;
+    return Boolean(domainInvoiceLineFromNotes(deal.notes));
+  });
+  if (!domainDeals.length) return items;
+
+  const overlapping = domainDeals.find((deal) => {
+    const meta = parseDealMeta(deal.notes);
+    const dealNames = [
+      ...(deal.items ?? []).map((item) => String(item.name ?? "").trim().toLowerCase()),
+      ...parseDealNames(String(meta?.dealName ?? "")).map((name) => name.toLowerCase()),
+      ...((Array.isArray(meta?.dealNames) ? meta.dealNames : []) as string[]).map((name) =>
+        String(name).trim().toLowerCase(),
+      ),
+    ].filter(Boolean);
+    return invoiceNames.some((name) => dealNames.includes(name));
+  });
+  const source = overlapping ?? (domainDeals.length === 1 ? domainDeals[0] : null);
+  return source ? withDomainInvoiceLine(items, source.notes) : items;
+}
+
+function invoiceComputedGrandTotal(transaction: SalesTransaction) {
+  const stored = Number(transaction.grand_total) || 0;
+  const fromItems = withDomainInvoiceLine(
+    (transaction.items ?? []).map((item, index) =>
+      normalizeFormLineItem(
+        {
+          id: String(item.id ?? `inv-item-${transaction.id}-${index}`),
+          productName: String(item.name ?? "").trim(),
+          listPrice: String(item.price ?? ""),
+          quantity: String(item.quantity ?? "1"),
+          discount: "0",
+          tax: "0",
+        },
+        `inv-item-${transaction.id}-${index}`,
+      ),
+    ),
+    transaction.notes,
+  );
+  const computed = invoiceTotals(fromItems).grandTotal;
+  return Math.max(stored, computed);
 }
 
 export function formatInvoiceAmount(value: number) {
@@ -437,7 +564,7 @@ export function invoiceFormFromTransaction(
       `inv-item-${transaction.id}-${index}`,
     ),
   );
-  const items = metaItems.length ? metaItems : transactionItems;
+  const items = withDomainInvoiceLine(metaItems.length ? metaItems : transactionItems, transaction.notes);
   const clientAddress = invoiceAddressFromClient(client);
   const savedAddress = Boolean(
     String(invoiceMeta?.billingStreet ?? "").trim() ||
@@ -554,7 +681,7 @@ export function buildClientInvoiceRows(
           meta?.billingInCharge || client.billing_in_charge || transaction.customer?.billing_in_charge,
         ),
         wsiInvoiceNumber: dash(transactionNo ? `INV-${transactionNo}` : ""),
-        grandTotal: Number(transaction.grand_total) || 0,
+        grandTotal: invoiceComputedGrandTotal(transaction),
       };
     });
 }

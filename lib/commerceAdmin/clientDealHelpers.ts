@@ -3,6 +3,7 @@ import {
   parseDealMeta,
   retainedDealNames,
   matchDomainTypeOption,
+  isUsableDealName,
   SUBJECT_OPTIONS,
   subjectForProductName,
   DOMAIN_TYPE_OPTIONS,
@@ -398,6 +399,11 @@ function resolveDealName(params: {
   itemNames?: Array<string | null | undefined>;
   domainName?: string | null;
 }) {
+  const itemName = String(params.itemName ?? "").trim();
+  if (isUsableDealName(itemName) && !looksLikeDomain(itemName)) {
+    return itemName;
+  }
+
   const fromMeta = stripClientPrefixFromDealName(params.metaDealName, params.clientName);
   const names = retainedDealNames({
     dealName: fromMeta || params.metaDealName,
@@ -415,7 +421,8 @@ function resolveDealName(params: {
       domainTypeFromHostname(fromMeta || params.itemName || params.domainName) ||
       "",
   });
-  return names[0] || "—";
+  const productNames = names.filter((name) => !matchDomainTypeOption(name));
+  return productNames[0] || names[0] || "—";
 }
 
 export function transactionDealName(transaction: SalesTransaction) {

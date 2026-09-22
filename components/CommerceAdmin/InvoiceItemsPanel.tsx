@@ -1,4 +1,5 @@
 import {
+  domainPriceForType,
   emptyInvoiceLineItem,
   formatInvoiceAmount,
   invoiceLineAmount,
@@ -7,7 +8,7 @@ import {
   invoiceTotals,
   type InvoiceLineItem,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
-import { DEAL_NAME_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { DEAL_NAME_OPTIONS, matchDomainTypeOption } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -31,6 +32,11 @@ function catalogPriceForDealName(dealName: string) {
   if (hosting) return hosting.price;
   const design = WEBDESIGN_PACKAGES.find((pkg) => pkg.name.toLowerCase() === needle);
   if (design) return design.price;
+  const domainType = matchDomainTypeOption(dealName);
+  if (domainType) {
+    const price = domainPriceForType(domainType);
+    return price > 0 ? price : null;
+  }
   return null;
 }
 

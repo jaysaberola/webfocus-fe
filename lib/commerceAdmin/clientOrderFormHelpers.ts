@@ -339,6 +339,10 @@ export function retainedDealNames(params: {
   const fromItems = uniqueDealNames(
     (params.itemNames ?? []).map((item) => String(item ?? "").trim()),
   ).filter(isUsableDealName);
+  const productNames = uniqueDealNames(
+    [...fromStored, ...fromItems].filter((name) => !matchDomainTypeOption(name)),
+  );
+  if (productNames.length) return productNames;
   const combined = uniqueDealNames([...fromStored, ...fromItems]);
   if (combined.length) return combined;
   const fallback = String(params.fallback ?? "").trim();
