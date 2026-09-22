@@ -18,6 +18,7 @@ import {
   DEAL_STATUS_OPTIONS,
   DOMAIN_REGISTRAR_OPTIONS,
   DOMAIN_TYPE_OPTIONS,
+  matchDomainTypeOption,
   emptyClientOrderForm,
   INVOICE_STATUS_OPTIONS,
   mergeDealMetaIntoNotes,
@@ -373,7 +374,7 @@ const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
 };
 
 function catalogPriceForDomainType(services: any[], domainType: string) {
-  const type = String(domainType ?? "").trim();
+  const type = matchDomainTypeOption(domainType);
   if (!type) return null;
 
   for (const name of DOMAIN_TYPE_CATALOG_ALIASES[type] ?? [type]) {
@@ -589,20 +590,51 @@ function DomainNameSuggest({
 
   const parsed = normalizeDomainInput(value);
   const baseName = parsed.name.replace(/[^a-z0-9-]/g, "");
+  const typedDomain = String(value || "").trim().toLowerCase();
+
   const suggestions = useMemo(() => {
     if (!baseName || baseName.length < 2) return [];
     return DEAL_DOMAIN_TLDS.map((tld) => {
       const domain = `${baseName}${tld}`;
-      const match = results.find((row) => row.domain === domain || row.tld === tld);
+      const match = results.find(
+        (row) =>
+          String(row.domain || "").toLowerCase() === domain ||
+          `.${String(row.tld || "").replace(/^\./, "").toLowerCase()}` === tld,
+      );
       return {
         domain,
         tld,
+        checked: Boolean(match),
         available: match?.available ?? null,
         price: match?.price && match.price > 0 ? match.price : priceForDomain?.(domain) ?? 0,
         currency: match?.currency ?? "PHP",
       };
     });
   }, [baseName, results, priceForDomain]);
+
+  const enteredDomain = parsed.tld ? `${parsed.name}${parsed.tld}` : typedDomain;
+
+  const currentRow = useMemo(() => {
+    if (!enteredDomain.includes(".")) return null;
+    return (
+      suggestions.find((row) => row.domain === enteredDomain) ??
+      (() => {
+        const match = results.find((row) => String(row.domain || "").toLowerCase() === enteredDomain);
+        return match
+          ? {
+              domain: enteredDomain,
+              tld: parsed.tld || "",
+              checked: true,
+              available: match.available,
+              price: match.price || 0,
+              currency: match.currency ?? "PHP",
+            }
+          : null;
+      })()
+    );
+  }, [enteredDomain, suggestions, results, parsed.tld]);
+
+  const isUnavailable = Boolean(currentRow?.checked && currentRow.available !== true);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -625,8 +657,29 @@ function DomainNameSuggest({
     const timer = window.setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await checkDomainAvailability(baseName, DEAL_DOMAIN_TLDS, { silent: true });
-        if (!cancelled) setResults(Array.isArray(response?.results) ? response.results : []);
+        const preferredTld = parsed.tld;
+        const orderedTlds = [
+          ...(preferredTld ? [preferredTld] : []),
+          ...DEAL_DOMAIN_TLDS.filter((tld) => tld !== preferredTld),
+        ];
+        const chunks: string[][] = [];
+        for (let index = 0; index < orderedTlds.length; index += 10) {
+          chunks.push(orderedTlds.slice(index, index + 10));
+        }
+        const responses = await Promise.all(
+          chunks.map((chunk) => checkDomainAvailability(baseName, chunk, { silent: true })),
+        );
+        const merged: DomainCheckResult[] = [];
+        const seen = new Set<string>();
+        responses.forEach((response) => {
+          (Array.isArray(response?.results) ? response.results : []).forEach((row) => {
+            const key = String(row.domain || "").toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            merged.push(row);
+          });
+        });
+        if (!cancelled) setResults(merged);
       } catch {
         if (!cancelled) setResults([]);
       } finally {
@@ -638,7 +691,7 @@ function DomainNameSuggest({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [baseName]);
+  }, [baseName, parsed.tld]);
 
   return (
     <div className={styles.clientOrderDomainSuggest} ref={wrapRef}>
@@ -647,6 +700,7 @@ function DomainNameSuggest({
         value={value}
         placeholder="example.com"
         autoComplete="off"
+        aria-invalid={isUnavailable}
         onFocus={() => {
           if (baseName.length >= 2) setOpen(true);
         }}
@@ -660,28 +714,41 @@ function DomainNameSuggest({
           }
         }}
       />
+      {isUnavailable ? (
+        <span className={styles.clientOrderDomainTakenMark}>TAKEN</span>
+      ) : null}
+      {loading && enteredDomain.includes(".") && !isUnavailable ? (
+        <span className={styles.clientOrderDomainCheckHint}>Checking…</span>
+      ) : null}
       {open && suggestions.length ? (
         <div className={styles.clientOrderDomainSuggestPanel} role="listbox">
           {loading ? <div className={styles.clientOrderDomainSuggestHint}>Checking domains…</div> : null}
-          {suggestions.map((row) => (
-            <button
-              key={row.domain}
-              type="button"
-              className={styles.clientOrderDomainSuggestItem}
-              role="option"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                onPick(row.domain, domainTypeFromHostname(row.domain) || "", row.price);
-                setOpen(false);
-              }}
-            >
-              <span className={styles.clientOrderDomainSuggestName}>{row.domain}</span>
-              <span className={styles.clientOrderDomainSuggestMeta}>
-                {row.price > 0 ? formatDealAmount(row.price) : ""}
-                {row.available === true ? "Available" : row.available === false ? "Taken" : ""}
-              </span>
-            </button>
-          ))}
+          {suggestions.map((row) => {
+            const taken = !loading && row.checked && row.available !== true;
+            return (
+              <button
+                key={row.domain}
+                type="button"
+                className={`${styles.clientOrderDomainSuggestItem} ${
+                  taken ? styles.clientOrderDomainSuggestItemTaken : ""
+                }`}
+                role="option"
+                disabled={taken}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (taken) return;
+                  onPick(row.domain, domainTypeFromHostname(row.domain) || "", row.price);
+                  setOpen(false);
+                }}
+              >
+                <span className={styles.clientOrderDomainSuggestName}>{row.domain}</span>
+                <span className={styles.clientOrderDomainSuggestMeta}>
+                  {taken ? null : row.price > 0 ? formatDealAmount(row.price) : ""}
+                  {row.available === true ? "Available" : taken ? "TAKEN" : ""}
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
     </div>
@@ -788,10 +855,8 @@ export default function ClientOrderForm({
               nextForm.domainName ||
               (resolvedDomain && resolvedDomain !== "—" ? resolvedDomain : ""),
             domainType:
-              nextForm.domainType ||
-              (DOMAIN_TYPE_OPTIONS.includes(resolvedDealName as (typeof DOMAIN_TYPE_OPTIONS)[number])
-                ? resolvedDealName
-                : ""),
+              matchDomainTypeOption(nextForm.domainType) ||
+              matchDomainTypeOption(resolvedDealName),
             productCategory:
               nextForm.productCategory ||
               (looksLikeDomain(nextForm.dealName) ? "Domain Registration" : nextForm.productCategory),
@@ -958,13 +1023,25 @@ export default function ClientOrderForm({
 
   useEffect(() => {
     const domainName = form.domainName.trim();
-    const type = form.domainType || domainTypeFromHostname(domainName) || "";
-    if (!domainName && !type) return;
+    const type = matchDomainTypeOption(form.domainType) || domainTypeFromHostname(domainName) || "";
+    if (!domainName && !type) {
+      setForm((current) => {
+        if (!current.domainType && !current.domainRegistrationCost) return current;
+        return {
+          ...current,
+          domainType: matchDomainTypeOption(current.domainType),
+          domainRegistrationCost: matchDomainTypeOption(current.domainType)
+            ? current.domainRegistrationCost
+            : "",
+        };
+      });
+      return;
+    }
     const price = catalogPriceForDomain(services, domainName, type);
     if (price == null) return;
     const nextCost = String(price);
     setForm((current) => {
-      const nextType = current.domainType || type;
+      const nextType = matchDomainTypeOption(current.domainType) || type;
       if (current.domainRegistrationCost === nextCost && current.domainType === nextType) {
         return current;
       }
@@ -977,14 +1054,12 @@ export default function ClientOrderForm({
   }, [form.domainName, form.domainType, services]);
 
   useEffect(() => {
-    const catalogName = form.dealName || form.productName;
-    const price = catalogName ? catalogTotalForDealNames(services, catalogName) : null;
-    const nextRevenue = price != null ? String(price) : isEditing ? undefined : "0";
+    const nextRevenue = dealPriceTotal > 0 ? String(dealPriceTotal) : isEditing ? undefined : "0";
     if (nextRevenue == null) return;
     setForm((current) =>
       current.expectedRevenue === nextRevenue ? current : { ...current, expectedRevenue: nextRevenue },
     );
-  }, [form.dealName, form.productName, services, isEditing]);
+  }, [dealPriceTotal, isEditing]);
 
   useEffect(() => {
     const next = deriveInvoiceFields(form, transaction);
@@ -1117,15 +1192,13 @@ export default function ClientOrderForm({
   const handleDealNamesChange = (names: string[]) => {
     const dealName = joinDealNames(names);
     const primary = names[0] || "";
-    const domainType = names.find((name) =>
-      DOMAIN_TYPE_OPTIONS.includes(name as (typeof DOMAIN_TYPE_OPTIONS)[number]),
-    );
+    const domainType = names.map((name) => matchDomainTypeOption(name)).find(Boolean) || "";
     setForm((current) => ({
       ...current,
       dealName,
       productName: dealName,
       productCategory: current.productCategory || subjectForProductName(primary),
-      domainType: current.domainType || domainType || "",
+      domainType: matchDomainTypeOption(current.domainType) || domainType,
     }));
     applyRotatingOwner(form.clientId, dealName, form.dealSubType || form.dealType);
   };
@@ -1835,7 +1908,7 @@ export default function ClientOrderForm({
               onChange={(name) => {
                 const type = domainTypeFromHostname(name) || "";
                 setForm((current) => {
-                  const nextType = type || current.domainType;
+                  const nextType = type || matchDomainTypeOption(current.domainType);
                   const price = catalogPriceForDomain(services, name, nextType);
                   return {
                     ...current,
@@ -1848,7 +1921,7 @@ export default function ClientOrderForm({
               }}
               onPick={(name, type, price) => {
                 setForm((current) => {
-                  const nextType = type || current.domainType;
+                  const nextType = matchDomainTypeOption(type) || matchDomainTypeOption(current.domainType);
                   const catalogPrice = catalogPriceForDomain(services, name, nextType);
                   const nextCost =
                     price != null && price > 0 ? price : catalogPrice;
@@ -1880,9 +1953,9 @@ export default function ClientOrderForm({
           <Field label="Domain Type" hint="Type of domain registration">
             <select
               className={inputClass()}
-              value={form.domainType}
+              value={matchDomainTypeOption(form.domainType)}
               onChange={(e) => {
-                const type = e.target.value;
+                const type = matchDomainTypeOption(e.target.value);
                 setForm((current) => {
                   const price = catalogPriceForDomain(services, current.domainName, type);
                   return {
@@ -1895,7 +1968,7 @@ export default function ClientOrderForm({
               }}
             >
               <option value="">-None-</option>
-              {withExtraOption(DOMAIN_TYPE_OPTIONS, form.domainType).map((option) => (
+              {DOMAIN_TYPE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>

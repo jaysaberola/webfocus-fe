@@ -432,6 +432,12 @@ export const CONTRACT_STATUS_OPTIONS = [
 
 export const DOMAIN_TYPE_OPTIONS = PRODUCT_NAMES_BY_SUBJECT["Domain Registration"];
 
+export function matchDomainTypeOption(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return DOMAIN_TYPE_OPTIONS.find((option) => option.toLowerCase() === text.toLowerCase()) ?? "";
+}
+
 export const DOMAIN_REGISTRAR_OPTIONS = ["Enom", "Webnic"] as const;
 
 export type ClientOrderFormState = {
@@ -900,7 +906,7 @@ export function clientOrderFormFromTransaction(transaction: {
     totalEstimatedCost: String(meta?.totalEstimatedCost ?? "").trim(),
     expectedDiscount: String(meta?.expectedDiscount ?? "").trim(),
     domainName: String(meta?.domainName ?? "").trim(),
-    domainType: matchOption(DOMAIN_TYPE_OPTIONS, meta?.domainType) || matchOption(DOMAIN_TYPE_OPTIONS, dealName),
+    domainType: matchDomainTypeOption(meta?.domainType) || matchDomainTypeOption(dealName),
     domainRegistrar: matchOption(DOMAIN_REGISTRAR_OPTIONS, meta?.domainRegistrar),
     domainSubscriptionStartDate: toDateInput(meta?.domainSubscriptionStartDate),
     domainSubscriptionEndDate: toDateInput(meta?.domainSubscriptionEndDate),

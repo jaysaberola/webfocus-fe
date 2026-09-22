@@ -4832,6 +4832,64 @@ select.clientCrmInput {
   background: var(--ca-slate-50);
 }
 
+.clientOrderDomainSuggestItemTaken,
+.clientOrderDomainSuggestItemTaken:hover {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.clientOrderDomainSuggestItemTaken .clientOrderDomainSuggestMeta {
+  min-width: 4.4rem;
+  justify-content: center;
+  padding: 0.22rem 0.5rem;
+  border-radius: 3px;
+  background: #b8c0cc;
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clientOrderDomainTakenMark,
+.clientOrderDomainCheckHint {
+  position: absolute;
+  top: calc(var(--ca-control-height) / 2);
+  right: 0.45rem;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.4rem;
+  height: 1.45rem;
+  padding: 0 0.55rem;
+  border-radius: 3px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.clientOrderDomainTakenMark {
+  background: #b8c0cc;
+  color: #fff;
+}
+
+.clientOrderDomainCheckHint {
+  min-width: 0;
+  background: #f1f5f9;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.clientOrderDomainSuggest:has(.clientOrderDomainTakenMark) input,
+.clientOrderDomainSuggest:has(.clientOrderDomainCheckHint) input {
+  padding-right: 5.4rem !important;
+}
+
 .clientOrderDomainSuggestName {
   min-width: 0;
   overflow: hidden;
