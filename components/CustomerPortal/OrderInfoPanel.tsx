@@ -10,7 +10,7 @@ import {
   orderPlanLabel,
   orderServiceName,
 } from "@/lib/customerPortal/orderHelpers";
-import { DEAL_NAME_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { DEAL_NAME_OPTIONS, DOMAIN_TYPE_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { fetchPublicProducts } from "@/services/publicProductService";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
@@ -33,6 +33,14 @@ type DraftItem = {
 type CatalogService = {
   name: string;
   price: number;
+};
+
+const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
+  "Country Level Domain": 3456,
+  "Top Level Domain": 1728,
+  "Hybrid Top Level Domain": 4032,
+  "Educational Domain": 5304,
+  "Government Domain": 5184,
 };
 
 function orderStatusClass(status: PortalOrder["status"]) {
@@ -164,6 +172,10 @@ export default function OrderInfoPanel({
         ...HOSTING_PLANS.map((plan) => ({ name: plan.name, price: plan.price })),
         ...WEBDESIGN_PACKAGES.map((pkg) => ({ name: pkg.name, price: pkg.price })),
         ...UNIVERSAL_HOSTING_ADDONS.map((addon) => ({ name: addon.name, price: addon.price })),
+        ...DOMAIN_TYPE_OPTIONS.map((name) => ({
+          name,
+          price: DOMAIN_TYPE_FALLBACK_PRICE[name] ?? 0,
+        })).filter((row) => row.price > 0),
       ]);
     });
     return () => {
