@@ -1232,6 +1232,12 @@ export function buildClientDealRows(
 
     const lineItems = buildLineItems(transaction, items, clientDomainValue || "");
     const totals = totalsFromItems(lineItems, transaction);
+    const meta = parseDealMeta(transaction.notes);
+    const dealDomain =
+      formatDomain(meta?.domainName) ||
+      (transactionDomainName(transaction) !== "—" ? transactionDomainName(transaction) : "") ||
+      lineItems.map((item) => formatDomain(item.domain)).find(Boolean) ||
+      "";
 
     for (const item of items) {
       const itemName = String(item.name ?? "").trim();
@@ -1244,11 +1250,11 @@ export function buildClientDealRows(
       }
       const domain =
         formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) ||
+        dealDomain ||
         clientDomainValue ||
         "—";
       const dealType = resolveDealType(itemName, transaction, seenItemNames);
       const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : null;
-      const meta = parseDealMeta(transaction.notes);
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
