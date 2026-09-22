@@ -28,6 +28,8 @@ type DraftItem = {
   originalName: string;
   quantity: number;
   unitPrice: number;
+  itemType?: string | null;
+  persistable: boolean;
 };
 
 type CatalogService = {
@@ -104,20 +106,40 @@ function readCatalogRows(payload: any): CatalogService[] {
     .filter((row: CatalogService | null): row is CatalogService => Boolean(row));
 }
 
+function isDomainTypeName(value?: string | null) {
+  const text = normalizeItemName(value);
+  if (!text) return false;
+  return DOMAIN_TYPE_OPTIONS.some((option) => {
+    const optionName = normalizeItemName(option);
+    return text === optionName || text.startsWith(`${optionName} `);
+  });
+}
+
 function draftsFromOrder(order: PortalOrder): DraftItem[] {
   return (order.items || []).map((item, index) => {
     const quantity = Math.max(1, Number(item.quantity || 1));
     const total = Number(item.total ?? item.price ?? 0);
     const unitPrice = Number(item.unitPrice ?? 0) || (quantity > 0 ? total / quantity : total);
     const detail = item.detail || item.name || "Item";
+    const rawId = item.id;
+    const numericId = typeof rawId === "number" ? rawId : Number(rawId);
+    const recordId = Number.isFinite(numericId) && numericId > 0 ? numericId : undefined;
+    const synthetic =
+      !recordId &&
+      (String(rawId ?? "").startsWith("domain-") ||
+        String(item.itemType ?? "").toLowerCase() === "domain" ||
+        isDomainTypeName(detail) ||
+        isDomainTypeName(item.name));
     return {
-      key: String(item.id ?? `row-${index}`),
-      recordId: typeof item.id === "number" ? item.id : Number(item.id) || undefined,
+      key: String(rawId ?? `row-${index}`),
+      recordId,
       name: item.name || "Item",
       detail,
       originalName: detail,
       quantity,
       unitPrice,
+      itemType: item.itemType,
+      persistable: !synthetic,
     };
   });
 }
@@ -222,7 +244,7 @@ export default function OrderInfoPanel({
   const persistItems = async (items: DraftItem[]) => {
     if (!order.recordId || !canCustomize) return null;
     const payload = items
-      .filter((item) => String(item.detail || item.name).trim())
+      .filter((item) => item.persistable && String(item.detail || item.name).trim())
       .map((item) => {
         const name = item.detail || item.name;
         const unchanged = Boolean(item.recordId) && normalizeItemName(name) === normalizeItemName(item.originalName);
@@ -285,6 +307,7 @@ export default function OrderInfoPanel({
         originalName: "",
         quantity: 1,
         unitPrice: 0,
+        persistable: true,
       },
     ]);
   };
@@ -300,6 +323,9 @@ export default function OrderInfoPanel({
           name,
           detail: name,
           unitPrice: priceForService(name, unchanged ? item.unitPrice : 0),
+          persistable:
+            Boolean(item.recordId) ||
+            (Boolean(name) && !isDomainTypeName(name) && !String(item.key).startsWith("domain-")),
         };
       }),
     );
