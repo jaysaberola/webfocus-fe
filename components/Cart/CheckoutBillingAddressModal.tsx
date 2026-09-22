@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import {
   billingAddressFromCustomer,
@@ -56,7 +57,7 @@ function composeStreetLine(street: string, barangay: string, max = 100) {
 function streetWithoutBarangay(street: string, barangay: string) {
   const place = barangay.trim();
   if (!place) return street.trim();
-  if (street.trim().toLowerCase() === place.toLowerCase()) return street.trim();
+  if (street.trim().toLowerCase() === place.toLowerCase()) return "";
   return street
     .replace(new RegExp(`,\\s*${place.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i"), "")
     .trim();
@@ -71,6 +72,11 @@ export default function CheckoutBillingAddressModal({
   const [form, setForm] = useState<CheckoutBillingAddress>(billingAddressFromCustomer(customer));
   const [barangay, setBarangay] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -170,7 +176,7 @@ export default function CheckoutBillingAddressModal({
     [form, barangay, saving, customer]
   );
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -229,7 +235,7 @@ export default function CheckoutBillingAddressModal({
     }
   };
 
-  return (
+  return createPortal(
     <div className={styles.overlay} role="presentation" onClick={() => !saving && onClose()}>
       <div
         className={styles.dialog}
@@ -416,6 +422,7 @@ export default function CheckoutBillingAddressModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
