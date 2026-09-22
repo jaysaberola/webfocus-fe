@@ -258,8 +258,9 @@ export function formatPeso(amount: number) {
 export function customerDisplayName(fname?: string | null, lname?: string | null) {
   const first = String(fname || "").trim();
   const last = String(lname || "").trim();
-  // Signup used to store a placeholder last name; never show it as part of the name.
-  const placeholderLast = /^(customer|user)$/i.test(last);
+  const placeholderLast =
+    /^(customer|user)$/i.test(last) ||
+    /\b(inc|incorporated|llc|corp|corporation|ltd|limited)\b/i.test(last);
   const parts = [first, placeholderLast ? "" : last].filter(Boolean);
   return parts.join(" ") || "Client";
 }

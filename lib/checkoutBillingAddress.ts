@@ -1,6 +1,6 @@
 import { findPlaceByCity } from "@/lib/commerceAdmin/phAddressCatalog";
 import {
-  isPlaceholderLastName,
+  usableLastName,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 
@@ -28,6 +28,8 @@ export const CHECKOUT_BILLING_MAX: Record<keyof CheckoutBillingAddress, number> 
   address_province: 30,
   address_zip: 12,
 };
+
+export const CHECKOUT_NAME_MAX = 50;
 
 export function billingCityFromCustomer(customer: PublicCustomer | null | undefined) {
   return String(customer?.address_city || customer?.address_municipality || "").trim();
@@ -58,11 +60,61 @@ export function customerNeedsCheckoutBillingAddress(
   return getMissingCheckoutBillingFields(customer).length > 0;
 }
 
+export function checkoutPersonName(customer: PublicCustomer | null | undefined): {
+  fname: string;
+  lname: string;
+} {
+  const company = String(customer?.mname || "").trim();
+  let fname = String(customer?.fname || "").trim();
+  let lname = usableLastName(customer?.lname, company);
+  const parts = fname.split(/\s+/).filter(Boolean);
+  if (!lname && parts.length > 1) {
+    const rest = parts.slice(1).join(" ");
+    if (usableLastName(rest, company)) {
+      fname = parts[0];
+      lname = rest;
+    } else {
+      fname = parts[0];
+    }
+  }
+  return { fname, lname };
+}
+
+export function customerNeedsCheckoutName(
+  customer: PublicCustomer | null | undefined
+) {
+  const { fname, lname } = checkoutPersonName(customer);
+  return !fname || !lname;
+}
+
+export function customerNeedsCheckoutProfile(
+  customer: PublicCustomer | null | undefined
+) {
+  return !customer || customerNeedsCheckoutName(customer) || customerNeedsCheckoutBillingAddress(customer);
+}
+
+export function checkoutProfileNotice(customer: PublicCustomer | null | undefined) {
+  const needsName = !customer || customerNeedsCheckoutName(customer);
+  const needsAddress = !customer || customerNeedsCheckoutBillingAddress(customer);
+  if (needsName && needsAddress) {
+    return "Add your first name, last name, and billing address to continue to Paynamics.";
+  }
+  if (needsName) {
+    return "Add your first name and last name to continue to Paynamics.";
+  }
+  return "Add your billing address to continue to Paynamics.";
+}
+
 export function isCheckoutBillingValidationError(errors: unknown, message?: unknown): boolean {
-  if (typeof message === "string" && /billing address/i.test(message)) return true;
+  if (
+    typeof message === "string" &&
+    /(billing address|first name|last name)/i.test(message)
+  ) {
+    return true;
+  }
   if (!errors || typeof errors !== "object") return false;
-  return Object.keys(errors as Record<string, unknown>).some((key) =>
-    key.startsWith("address_")
+  return Object.keys(errors as Record<string, unknown>).some(
+    (key) => key.startsWith("address_") || key === "fname" || key === "lname"
   );
 }
 
@@ -70,20 +122,7 @@ export function paynamicsPersonName(customer: PublicCustomer | null | undefined)
   fname: string;
   lname: string;
 } {
-  let fname = String(customer?.fname || "").trim();
-  let lname = isPlaceholderLastName(customer?.lname) ? "" : String(customer?.lname || "").trim();
-  const sources = [String(customer?.mname || "").trim(), `${fname} ${lname}`.trim()].filter(Boolean);
-
-  for (const source of sources) {
-    const parts = source.split(/\s+/).filter(Boolean);
-    if (!parts.length) continue;
-    if (!fname) fname = parts[0];
-    if (!lname && parts.length > 1) lname = parts.slice(1).join(" ");
-    if (fname && lname) break;
-  }
-
-  if (!lname) lname = fname;
-  return { fname, lname };
+  return checkoutPersonName(customer);
 }
 
 export function mergeCustomerAddress(
@@ -93,6 +132,8 @@ export function mergeCustomerAddress(
   return {
     ...(base || {}),
     ...next,
+    fname: next.fname ?? base?.fname,
+    lname: next.lname ?? base?.lname,
     address_street: next.address_street || base?.address_street,
     address_city: next.address_city || base?.address_city,
     address_municipality: next.address_municipality || base?.address_municipality,

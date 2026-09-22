@@ -36,7 +36,8 @@ import {
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import {
-  customerNeedsCheckoutBillingAddress,
+  checkoutProfileNotice,
+  customerNeedsCheckoutProfile,
   isCheckoutBillingValidationError,
   mergeCustomerAddress,
 } from "@/lib/checkoutBillingAddress";
@@ -400,7 +401,7 @@ export default function OrdersTab() {
         setBillingOpen(true);
         return;
       }
-      toast.error("Sign in again to complete your billing address.");
+      toast.error("Sign in again to complete checkout.");
     }
   };
 
@@ -413,10 +414,10 @@ export default function OrdersTab() {
     checkoutOrderRef.current = order;
 
     const activeCustomer = customerOverride ?? checkoutCustomer ?? getStoredCustomer();
-    if (!activeCustomer || customerNeedsCheckoutBillingAddress(activeCustomer)) {
+    if (!activeCustomer || customerNeedsCheckoutProfile(activeCustomer)) {
       setCheckoutCustomer(activeCustomer);
       setBillingOpen(true);
-      toast.info("Add your billing address to continue to Paynamics.");
+      toast.info(checkoutProfileNotice(activeCustomer));
       return;
     }
 
@@ -445,11 +446,11 @@ export default function OrdersTab() {
       );
       if (
         isCheckoutBillingValidationError(validationErrors, message) ||
-        customerNeedsCheckoutBillingAddress(activeCustomer)
+        customerNeedsCheckoutProfile(activeCustomer)
       ) {
         setCheckoutCustomer(activeCustomer);
         setBillingOpen(true);
-        toast.info("Add your billing address to continue to Paynamics.");
+        toast.info(checkoutProfileNotice(activeCustomer));
         return;
       }
       toast.error(message || "Failed to open the Paynamics payment portal.");
@@ -470,9 +471,9 @@ export default function OrdersTab() {
       const fresh = await fetchCurrentCustomer({ silent: true, force: true });
       const confirmed = mergeCustomerAddress(merged, fresh);
       setCheckoutCustomer(confirmed);
-      if (customerNeedsCheckoutBillingAddress(confirmed)) {
+      if (customerNeedsCheckoutProfile(confirmed)) {
         setBillingOpen(true);
-        toast.error("Billing address did not save. Please try again before checkout.");
+        toast.error("Checkout details did not save. Please try again before checkout.");
         return;
       }
       void continuePendingPayment(order, confirmed);

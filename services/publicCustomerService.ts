@@ -34,6 +34,44 @@ export function isPlaceholderLastName(value?: string | null) {
   return /^(customer|user)$/i.test(String(value ?? "").trim());
 }
 
+export function usableLastName(
+  lname?: string | null,
+  company?: string | null,
+) {
+  const value = isPlaceholderLastName(lname) ? "" : String(lname ?? "").trim();
+  if (!value) return "";
+  const companyName = String(company ?? "")
+    .replace(/\s+(Customer|User)$/i, "")
+    .trim();
+  if (companyName) {
+    if (value.toLowerCase() === companyName.toLowerCase()) return "";
+    if (companyName.toLowerCase().endsWith(value.toLowerCase())) return "";
+  }
+  if (/\b(inc|incorporated|llc|corp|corporation|ltd|limited)\b/i.test(value)) {
+    return "";
+  }
+  return value;
+}
+
+function sanitizeCustomerRecord(customer: PublicCustomer): PublicCustomer {
+  const company = String(customer.mname || "").trim();
+  let fname = String(customer.fname || "").trim();
+  let lname = usableLastName(customer.lname, company);
+  const parts = fname.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    const rest = parts.slice(1).join(" ");
+    if (usableLastName(rest, company)) {
+      if (!lname) {
+        fname = parts[0];
+        lname = rest;
+      }
+    } else {
+      fname = parts[0];
+    }
+  }
+  return { ...customer, fname, lname };
+}
+
 export function publicCustomerLabel(
   customer: Pick<PublicCustomer, "fname" | "lname" | "mname">,
 ) {
@@ -41,7 +79,7 @@ export function publicCustomerLabel(
     .replace(/\s+(Customer|User)$/i, "")
     .trim();
   if (company) return company;
-  const last = isPlaceholderLastName(customer.lname) ? "" : String(customer.lname || "").trim();
+  const last = usableLastName(customer.lname, customer.mname);
   return `${String(customer.fname || "").trim()} ${last}`.replace(/\s+(Customer|User)$/i, "").trim();
 }
 
@@ -49,7 +87,9 @@ export const getStoredCustomer = (): PublicCustomer | null => {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(CUSTOMER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const parsed = raw ? (JSON.parse(raw) as PublicCustomer) : null;
+    if (!parsed) return null;
+    return sanitizeCustomerRecord(parsed);
   } catch {
     return null;
   }
@@ -58,7 +98,9 @@ export const getStoredCustomer = (): PublicCustomer | null => {
 export const storeCustomer = (customer: PublicCustomer | null, options?: { notify?: boolean }) => {
   if (typeof window === "undefined") return;
   if (!customer) localStorage.removeItem(CUSTOMER_KEY);
-  else localStorage.setItem(CUSTOMER_KEY, JSON.stringify(customer));
+  else {
+    localStorage.setItem(CUSTOMER_KEY, JSON.stringify(sanitizeCustomerRecord(customer)));
+  }
   bindPublicCartToCustomer(customer?.id ?? null);
   if (options?.notify !== false) {
     window.dispatchEvent(new Event("public-customer-updated"));
@@ -213,7 +255,7 @@ export const updateCustomerProfile = async (payload: {
 export const uploadCustomerAvatar = async (file: File, customer: PublicCustomer) => {
   return updateCustomerProfile({
     fname: customer.fname || "",
-    lname: isPlaceholderLastName(customer.lname) ? "" : customer.lname || "",
+    lname: usableLastName(customer.lname, customer.mname),
     mobile: customer.mobile,
     birth_date: customer.birth_date,
     address_street: customer.address_street,

@@ -8,7 +8,8 @@ import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddres
 import LiveCheckoutProgress from "@/components/Cart/LiveCheckoutProgress";
 import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import {
-  customerNeedsCheckoutBillingAddress,
+  checkoutProfileNotice,
+  customerNeedsCheckoutProfile,
   isCheckoutBillingValidationError,
 } from "@/lib/checkoutBillingAddress";
 import {
@@ -357,9 +358,9 @@ export default function PublicCartCheckoutPage() {
       // Keep local customer if refresh fails.
     }
 
-    if (customerNeedsCheckoutBillingAddress(activeCustomer)) {
+    if (customerNeedsCheckoutProfile(activeCustomer)) {
       setBillingOpen(true);
-      toast.info("Add your billing address to continue to Paynamics.");
+      toast.info(checkoutProfileNotice(activeCustomer));
       return;
     }
 
@@ -390,9 +391,7 @@ export default function PublicCartCheckoutPage() {
 
       if (isCheckoutBillingValidationError(validationErrors, err?.response?.data?.message)) {
         setBillingOpen(true);
-        toast.error(
-          "Complete your billing address (street, city, province, and ZIP) to continue checkout."
-        );
+        toast.error(checkoutProfileNotice(activeCustomer));
         return;
       }
 
@@ -462,9 +461,9 @@ export default function PublicCartCheckoutPage() {
         // Keep local customer if refresh fails.
       }
 
-      if (customerNeedsCheckoutBillingAddress(activeCustomer)) {
+      if (customerNeedsCheckoutProfile(activeCustomer)) {
         setBillingOpen(true);
-        toast.info("Add your billing address to continue to Paynamics.");
+        toast.info(checkoutProfileNotice(activeCustomer));
         return;
       }
     }
@@ -612,9 +611,7 @@ export default function PublicCartCheckoutPage() {
 
       if (!quotationOnly && isCheckoutBillingValidationError(validationErrors, err?.response?.data?.message)) {
         setBillingOpen(true);
-        toast.error(
-          "Complete your billing address (street, city, province, and ZIP) to continue checkout."
-        );
+        toast.error(checkoutProfileNotice(customer));
         return;
       }
 
@@ -670,10 +667,10 @@ export default function PublicCartCheckoutPage() {
         address_zip: fresh.address_zip || updated.address_zip,
       };
       setCustomer(merged);
-      if (customerNeedsCheckoutBillingAddress(merged)) {
+      if (customerNeedsCheckoutProfile(merged)) {
         setBillingOpen(true);
         toast.error(
-          "Billing address did not save. Please try again before checkout."
+          "Checkout details did not save. Please try again before checkout."
         );
         return;
       }
@@ -1080,10 +1077,10 @@ export default function PublicCartCheckoutPage() {
                   Sales and remains in your cart as Pending Quotation.
                 </p>
               ) : paymentStepActive &&
-                customerNeedsCheckoutBillingAddress(customer) ? (
+                customerNeedsCheckoutProfile(customer) ? (
                 <p className={styles.agreementHint}>
-                  You&apos;ll be asked for street, city, province, and ZIP before
-                  Paynamics opens.
+                  You&apos;ll be asked for your first name, last name, and billing
+                  address before Paynamics opens.
                 </p>
               ) : paymentStepActive ? (
                 <p className={styles.agreementHint}>

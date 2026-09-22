@@ -11,6 +11,7 @@ import {
 } from "@/services/customerPortalService";
 import {
   fetchCurrentCustomer,
+  usableLastName,
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { toast } from "@/lib/toast";
@@ -35,10 +36,12 @@ import {
   streetsForPlace,
   zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
+import { checkoutPersonName } from "@/lib/checkoutBillingAddress";
 import styles from "@/styles/customerPortal.module.css";
 
 type ProfileForm = {
-  name: string;
+  fname: string;
+  lname: string;
   email: string;
   phone: string;
   company: string;
@@ -50,11 +53,8 @@ type ProfileForm = {
   address_zip: string;
 };
 
-function splitRepresentativeName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return { fname: "", lname: "" };
-  if (parts.length === 1) return { fname: parts[0], lname: "" };
-  return { fname: parts[0], lname: parts.slice(1).join(" ") };
+function representativeNameFields(customer: PublicCustomer | null | undefined) {
+  return checkoutPersonName(customer);
 }
 
 function mapPendingApproval(data: any): PortalProfileApproval {
@@ -75,7 +75,8 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
   const defaults = PORTAL_ACCOUNT_DEFAULTS;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<ProfileForm>({
-    name: "",
+    fname: "",
+    lname: "",
     email: "",
     phone: "",
     company: defaults.company,
@@ -96,8 +97,10 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
   useEffect(() => {
     if (!customer) return;
+    const names = representativeNameFields(customer);
     const nextForm: ProfileForm = {
-      name: customerDisplayName(customer.fname, customer.lname),
+      fname: names.fname,
+      lname: names.lname,
       email: customer.email || "",
       phone: sanitizePhMobileInput(customer.mobile || ""),
       company: customer.mname || defaults.company,
@@ -147,7 +150,9 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     setAvatarLoadFailed(false);
   }, [customer?.avatar, pendingAvatarUrl, avatarPreview]);
 
-  const displayName = form.name || customerDisplayName(customer?.fname, customer?.lname);
+  const displayName =
+    customerDisplayName(form.fname, form.lname) ||
+    customerDisplayName(customer?.fname, customer?.lname);
   const initials = useMemo(() => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);
     if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
@@ -230,7 +235,8 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
   const hasFormChanges =
     baseline &&
-    (form.name !== baseline.name ||
+    (form.fname !== baseline.fname ||
+      form.lname !== baseline.lname ||
       form.phone !== baseline.phone ||
       form.company !== baseline.company ||
       form.address_country !== baseline.address_country ||
@@ -260,13 +266,20 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       return;
     }
 
-    const { fname, lname } = splitRepresentativeName(form.name);
+    if (!form.fname.trim()) {
+      toast.error("Enter the authorized representative first name.");
+      return;
+    }
+    if (form.lname.trim() && !usableLastName(form.lname, form.company)) {
+      toast.error("Last name cannot be the company name. Enter the representative's last name.");
+      return;
+    }
 
     try {
       setSubmitting(true);
       const data = await submitPortalProfileChange({
-        fname,
-        lname,
+        fname: form.fname.trim(),
+        lname: usableLastName(form.lname, form.company),
         mobile: form.phone.trim() ? normalizePhMobile(form.phone) : "",
         mname: form.company,
         address_country: form.address_country,
@@ -388,13 +401,28 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       </div>
 
       <form className={styles.accountForm} onSubmit={submitForApproval}>
+        <div className={`${styles.fullWidth} ${styles.accountAddressHead}`}>
+          <span>Authorized Representative</span>
+          <p>Enter first name and last name in separate fields. Last name is required for Paynamics checkout.</p>
+        </div>
         <label>
-          <span>Authorized Representative Name</span>
+          <span>First Name</span>
           <input
             className={styles.cpControl}
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            value={form.fname}
+            autoComplete="given-name"
+            onChange={(e) => setForm({ ...form, fname: e.target.value })}
             required
+          />
+        </label>
+        <label>
+          <span>Last Name</span>
+          <input
+            className={styles.cpControl}
+            value={form.lname}
+            autoComplete="family-name"
+            placeholder="Required for Paynamics checkout"
+            onChange={(e) => setForm({ ...form, lname: e.target.value })}
           />
         </label>
         <label>

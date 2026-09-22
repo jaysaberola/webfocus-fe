@@ -5,8 +5,9 @@ import {
   billingAddressFromCustomer,
   CHECKOUT_BILLING_FIELD_LABELS,
   CHECKOUT_BILLING_MAX,
+  CHECKOUT_NAME_MAX,
+  checkoutPersonName,
   isCheckoutBillingAddressComplete,
-  paynamicsPersonName,
   type CheckoutBillingAddress,
 } from "@/lib/checkoutBillingAddress";
 import {
@@ -70,6 +71,7 @@ export default function CheckoutBillingAddressModal({
   onSaved,
 }: Props) {
   const [form, setForm] = useState<CheckoutBillingAddress>(billingAddressFromCustomer(customer));
+  const [names, setNames] = useState(() => checkoutPersonName(customer));
   const [barangay, setBarangay] = useState("");
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -82,6 +84,7 @@ export default function CheckoutBillingAddressModal({
     if (!open) return;
     const next = billingAddressFromCustomer(customer);
     const barangayName = matchedBarangay(next.address_street, next.address_city, next.address_province);
+    setNames(checkoutPersonName(customer));
     setBarangay(barangayName);
     setForm({
       ...next,
@@ -169,11 +172,13 @@ export default function CheckoutBillingAddressModal({
 
   const canSubmit = useMemo(
     () =>
+      Boolean(names.fname.trim()) &&
+      Boolean(names.lname.trim()) &&
       isCheckoutBillingAddressComplete(form) &&
       Boolean(barangay.trim()) &&
       !saving &&
       Boolean(customer),
-    [form, barangay, saving, customer]
+    [names, form, barangay, saving, customer]
   );
 
   if (!open || !mounted) return null;
@@ -188,6 +193,21 @@ export default function CheckoutBillingAddressModal({
       address_province: form.address_province.trim(),
       address_zip: form.address_zip.trim(),
     };
+
+    const fname = names.fname.trim();
+    const lname = names.lname.trim();
+    if (!fname) {
+      toast.error("First name is required for Paynamics checkout.");
+      return;
+    }
+    if (!lname) {
+      toast.error("Last name is required for Paynamics checkout.");
+      return;
+    }
+    if (fname.length > CHECKOUT_NAME_MAX || lname.length > CHECKOUT_NAME_MAX) {
+      toast.error(`First and last name must be ${CHECKOUT_NAME_MAX} characters or fewer.`);
+      return;
+    }
 
     if (!barangay.trim()) {
       toast.error("Barangay is required for checkout.");
@@ -209,10 +229,9 @@ export default function CheckoutBillingAddressModal({
 
     try {
       setSaving(true);
-      const person = paynamicsPersonName(customer);
       const updated = await updateCustomerProfile({
-        fname: person.fname,
-        lname: person.lname,
+        fname,
+        lname,
         ...(customer.mobile ? { mobile: customer.mobile } : {}),
         ...(customer.birth_date ? { birth_date: customer.birth_date } : {}),
         address_street: trimmed.address_street,
@@ -222,7 +241,7 @@ export default function CheckoutBillingAddressModal({
         address_zip: trimmed.address_zip,
         address_country: "Philippines",
       });
-      toast.success("Billing address saved. Continuing to payment...");
+      toast.success("Checkout details saved. Continuing to payment...");
       onSaved({
         ...updated,
         address_region: regionForProvince(trimmed.address_province) || updated.address_region,
@@ -248,10 +267,10 @@ export default function CheckoutBillingAddressModal({
         <header className={styles.header}>
           <div>
             <p className={styles.eyebrow}>Paynamics Checkout</p>
-            <h2 id="checkout-billing-title">Complete billing address</h2>
+            <h2 id="checkout-billing-title">Complete checkout details</h2>
             <p className={styles.subtitle}>
-              Choose a province, city, barangay, street, and ZIP from the Philippine list. Opening a
-              filled field still shows the matching options.
+              Paynamics requires your first name, last name, and billing address. Last name stays
+              blank until you enter it — it is not filled from your company name.
             </p>
           </div>
           <button
@@ -266,6 +285,43 @@ export default function CheckoutBillingAddressModal({
         </header>
 
         <form className={styles.form} onSubmit={handleSubmit} autoComplete="off" noValidate>
+          <div className={styles.row}>
+            <label className={styles.field}>
+              <span>
+                First name <span className={styles.requiredMark}>*</span>
+              </span>
+              <input
+                className={styles.textbox}
+                name="checkout-fname"
+                value={names.fname}
+                autoComplete="given-name"
+                required
+                maxLength={CHECKOUT_NAME_MAX}
+                placeholder="Enter first name"
+                onChange={(event) =>
+                  setNames((current) => ({ ...current, fname: event.target.value }))
+                }
+              />
+            </label>
+            <label className={styles.field}>
+              <span>
+                Last name <span className={styles.requiredMark}>*</span>
+              </span>
+              <input
+                className={styles.textbox}
+                name="checkout-lname"
+                value={names.lname}
+                autoComplete="family-name"
+                required
+                maxLength={CHECKOUT_NAME_MAX}
+                placeholder="Enter last name"
+                onChange={(event) =>
+                  setNames((current) => ({ ...current, lname: event.target.value }))
+                }
+              />
+            </label>
+          </div>
+
           <div className={styles.row}>
             <AddressSuggestField
               label={
@@ -409,8 +465,8 @@ export default function CheckoutBillingAddressModal({
           </div>
 
           <p className={styles.helperHint}>
-            Choose province, then city, then barangay so ZIP can fill automatically. Type the house
-            or street line last.
+            Enter your first and last name as they should appear on the payment. Then choose
+            province, city, and barangay so ZIP can fill automatically.
           </p>
 
           <div className={styles.actions}>
