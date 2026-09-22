@@ -886,6 +886,22 @@ function money(value: unknown) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
+  "Country Level Domain": 3456,
+  "Top Level Domain": 1728,
+  "Hybrid Top Level Domain": 4032,
+  "Educational Domain": 5304,
+  "Government Domain": 5184,
+};
+
+function catalogDomainCost(domainType: string, typedCost?: unknown) {
+  const type = matchDomainTypeOption(domainType) || domainType;
+  const catalog = DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
+  if (catalog > 0) return catalog;
+  const cost = money(typedCost);
+  return cost > 0 ? cost : 0;
+}
+
 function formatPeriod(start?: string | null, end?: string | null) {
   const startDate = start ? new Date(start) : null;
   const endDate = end ? new Date(end) : null;
@@ -980,7 +996,7 @@ function appendDomainLineItem(
     normalizeDomainTypeLabel(meta?.domainType) ||
     domainTypeFromHostname(domainName) ||
     "Domain Registration";
-  const cost = money(meta?.domainRegistrationCost);
+  const cost = catalogDomainCost(domainType, meta?.domainRegistrationCost);
   const alreadyIncluded = items.some((item) => isDomainProductLine(item, domainName, domainType));
 
   const period =
@@ -1239,22 +1255,12 @@ export function buildClientDealRows(
       lineItems.map((item) => formatDomain(item.domain)).find(Boolean) ||
       "";
 
-    for (const item of items) {
+    for (const item of lineItems) {
       const itemName = String(item.name ?? "").trim();
-      let amount = Number(item.total_price ?? Number(item.price || 0) * Number(item.quantity || 1));
-      if (!Number.isFinite(amount) || amount <= 0) {
-        const fallbackTotal = Number(transaction.grand_total);
-        if (items.length === 1 && Number.isFinite(fallbackTotal) && fallbackTotal > 0) {
-          amount = fallbackTotal;
-        }
-      }
-      const domain =
-        formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) ||
-        dealDomain ||
-        clientDomainValue ||
-        "—";
+      const amount = Number(item.amount);
+      const domain = formatDomain(item.domain) || dealDomain || clientDomainValue || "—";
       const dealType = resolveDealType(itemName, transaction, seenItemNames);
-      const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : null;
+      const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : catalogDomainCost(itemName) || null;
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
@@ -1274,6 +1280,12 @@ export function buildClientDealRows(
           dealStatus: resolveDealStatus(transaction, matchingServiceStatus(itemName, client, adminServices)),
           adminServices,
         }),
+        productCategory: matchDomainTypeOption(itemName)
+          ? "Domain Registration"
+          : metaText(
+              meta?.productCategory,
+              dealSubjectFromName(matchingProductCategory(itemName, client, adminServices) || itemName),
+            ),
         items: lineItems,
         ...totals,
       });
