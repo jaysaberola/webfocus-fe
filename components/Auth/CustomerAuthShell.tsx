@@ -65,6 +65,14 @@ export function FloatingField({
   showToggle,
   showValue,
   onToggleShow,
+  inputMode,
+  maxLength,
+  pattern,
+  spellCheck,
+  autoCapitalize,
+  excludeLetters,
+  error,
+  placeholder,
 }: {
   id: string;
   label: string;
@@ -76,6 +84,14 @@ export function FloatingField({
   showToggle?: boolean;
   showValue?: boolean;
   onToggleShow?: () => void;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
+  maxLength?: number;
+  pattern?: string;
+  spellCheck?: boolean;
+  autoCapitalize?: string;
+  excludeLetters?: boolean;
+  error?: string | null;
+  placeholder?: string;
 }) {
   return (
     <label className={styles.field} htmlFor={id}>
@@ -90,13 +106,31 @@ export function FloatingField({
         onChange={(event) => onChange(event.target.value)}
         required={required}
         autoComplete={autoComplete}
-        className={`${styles.fieldInput} ${showToggle ? styles.fieldInputWithToggle : ""}`}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        pattern={pattern}
+        spellCheck={spellCheck}
+        autoCapitalize={autoCapitalize}
+        autoCorrect="off"
+        placeholder={placeholder}
+        onKeyDown={(event) => {
+          if (!excludeLetters) return;
+          if (event.ctrlKey || event.metaKey || event.altKey) return;
+          if (event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
+            event.preventDefault();
+          }
+        }}
+        className={`${styles.fieldInput} ${showToggle ? styles.fieldInputWithToggle : ""} ${
+          error ? styles.fieldInputInvalid : ""
+        }`}
+        aria-invalid={Boolean(error)}
       />
       {showToggle && (
         <button type="button" className={styles.showBtn} onClick={onToggleShow}>
           {showValue ? "Hide" : "Show"}
         </button>
       )}
+      {error ? <span className={styles.fieldError}>{error}</span> : null}
     </label>
   );
 }

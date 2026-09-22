@@ -14,6 +14,14 @@ import {
   type PublicCustomer,
 } from "@/services/publicCustomerService";
 import { toast } from "@/lib/toast";
+import {
+  normalizePhMobile,
+  phMobileError,
+  phMobileLiveError,
+  phMobileMaxLength,
+  rejectLetterKey,
+  sanitizePhMobileInput,
+} from "@/lib/phMobile";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import {
   PH_COUNTRIES,
@@ -69,7 +77,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
   const [form, setForm] = useState<ProfileForm>({
     name: "",
     email: "",
-    phone: defaults.phone,
+    phone: "",
     company: defaults.company,
     address_country: "Philippines",
     address_region: "",
@@ -91,7 +99,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     const nextForm: ProfileForm = {
       name: customerDisplayName(customer.fname, customer.lname),
       email: customer.email || "",
-      phone: customer.mobile || defaults.phone,
+      phone: sanitizePhMobileInput(customer.mobile || ""),
       company: customer.mname || defaults.company,
       address_country: customer.address_country || "Philippines",
       address_region: customer.address_region || regionForProvince(customer.address_province || ""),
@@ -246,6 +254,12 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
     event.preventDefault();
     if (!customer || !hasChanges) return;
 
+    const mobileError = phMobileError(form.phone, false);
+    if (mobileError) {
+      toast.error(mobileError);
+      return;
+    }
+
     const { fname, lname } = splitRepresentativeName(form.name);
 
     try {
@@ -253,7 +267,7 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
       const data = await submitPortalProfileChange({
         fname,
         lname,
-        mobile: form.phone,
+        mobile: form.phone.trim() ? normalizePhMobile(form.phone) : "",
         mname: form.company,
         address_country: form.address_country,
         address_region: form.address_region,
@@ -388,12 +402,25 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
           <input className={styles.cpControl} type="email" value={form.email} disabled />
         </label>
         <label>
-          <span>Mobile Phone (+63)</span>
+          <span>Mobile Phone</span>
           <input
-            className={styles.cpControl}
+            className={`${styles.cpControl} ${
+              phMobileLiveError(form.phone) ? styles.cpControlInvalid : ""
+            }`}
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            maxLength={phMobileMaxLength(form.phone)}
+            spellCheck={false}
+            autoCorrect="off"
+            placeholder="09XXXXXXXXX or +639XXXXXXXXX"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            onKeyDown={rejectLetterKey}
+            onChange={(e) => setForm({ ...form, phone: sanitizePhMobileInput(e.target.value) })}
           />
+          {phMobileLiveError(form.phone) ? (
+            <span className={styles.fieldHintError}>{phMobileLiveError(form.phone)}</span>
+          ) : null}
         </label>
         <label>
           <span>Company Legal Name</span>

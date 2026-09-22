@@ -6,6 +6,7 @@ import { createJobOrder } from "@/services/jobOrderService";
 import { getProducts } from "@/services/productService";
 import { getServices } from "@/services/serviceService";
 import { getCustomers, CustomerRow } from "@/services/customerService";
+import { normalizePhMobile, phMobileError, phMobileMaxLength, rejectLetterKey, sanitizePhMobileInput } from "@/lib/phMobile";
 
 type LineItem = {
   id: number;
@@ -226,6 +227,14 @@ function CreateJobOrder() {
       return;
     }
 
+    if (customerType === "New") {
+      const contactError = phMobileError(customerContact, true);
+      if (contactError) {
+        toast.error(contactError);
+        return;
+      }
+    }
+
     try {
       setSaving(true);
       await createJobOrder({
@@ -233,7 +242,7 @@ function CreateJobOrder() {
         customer_type: customerType.toLowerCase(),
         customer_name: customerType === "Existing" ? selectedCustomer?.name : [newLastName, newFirstName].filter(Boolean).join(", "),
         customer_email: customerType === "Existing" ? selectedCustomer?.email : customerEmail,
-        customer_contact: customerContact,
+        customer_contact: customerContact.trim() ? normalizePhMobile(customerContact) || customerContact : "",
         source,
         category: "Order",
         status,
@@ -345,7 +354,17 @@ function CreateJobOrder() {
                 </div>
                 <div className="col-12">
                   <label className="jo-label">Contact Number <span className="req">*</span></label>
-                  <input className="form-control jo-input" value={customerContact} onChange={(e) => setCustomerContact(e.target.value)} />
+                  <input
+                    className="form-control jo-input"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    maxLength={phMobileMaxLength(customerContact)}
+                    placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                    value={customerContact}
+                    onKeyDown={rejectLetterKey}
+                    onChange={(e) => setCustomerContact(sanitizePhMobileInput(e.target.value))}
+                  />
                 </div>
               </div>
             )}

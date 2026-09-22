@@ -1,3 +1,5 @@
+import { isValidPhMobile, phMobileLocalDigits } from "@/lib/phMobile";
+
 export type ClientCrmFormState = {
   owner_id: number | null;
   company: string;
@@ -102,15 +104,7 @@ export const CLIENT_OWNERSHIP_OPTIONS = ["Private", "Public", "Government", "NGO
 export const CLIENT_CURRENCY_OPTIONS = ["PHP", "USD", "EUR", "SGD", "JPY"];
 
 export function parseMobileDigits(mobile?: string | null) {
-  if (!mobile) return "";
-  const digits = mobile.replace(/\D/g, "");
-  if (digits.startsWith("63") && digits.length >= 11) {
-    return digits.slice(2, 11);
-  }
-  if (digits.length >= 9) {
-    return digits.slice(-9);
-  }
-  return digits.slice(0, 9);
+  return phMobileLocalDigits(mobile);
 }
 
 export function validateClientCrmForm(form: ClientCrmFormState) {
@@ -126,8 +120,8 @@ export function validateClientCrmForm(form: ClientCrmFormState) {
     return "Please enter a valid email address.";
   }
 
-  if (form.mobile.trim() && !/^\d{9}$/.test(form.mobile.trim())) {
-    return "Contact Number must be exactly 9 digits (e.g. 917123456).";
+  if (form.mobile.trim() && !isValidPhMobile(form.mobile.trim())) {
+    return "Enter a valid PH mobile number (10 digits after +63, starting with 9).";
   }
 
   if (!form.address_street.trim()) {
@@ -199,9 +193,8 @@ export function validateClientAccountForm(form: ClientAccountFormState, mode: "c
     return "Please enter a valid email address format (e.g. contact@domain.ph).";
   }
 
-  const mobileRegex = /^\d{9}$/;
-  if (!mobileRegex.test(form.mobile.trim())) {
-    return "Mobile number must be exactly 9 digits (e.g. 917123456).";
+  if (!isValidPhMobile(form.mobile.trim())) {
+    return "Enter a valid PH mobile number (10 digits after +63, starting with 9).";
   }
 
   return null;

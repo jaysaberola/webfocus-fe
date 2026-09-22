@@ -264,6 +264,12 @@
   gap: 0.4rem;
 }
 
+.fieldError {
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .fieldFull {
   grid-column: 1 / -1;
 }

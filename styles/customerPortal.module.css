@@ -398,6 +398,19 @@
   width: 100%;
 }
 
+.cpControlInvalid {
+  border-color: #dc2626 !important;
+  background: #fef2f2;
+}
+
+.fieldHintError {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
 .cpControl:focus,
 .portalToolbarControl:focus,
 .billingActionsSelect:focus,

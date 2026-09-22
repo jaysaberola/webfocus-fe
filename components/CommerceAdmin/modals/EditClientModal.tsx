@@ -210,7 +210,7 @@ export default function EditClientModal({ open, client, onClose, onUpdated }: Pr
 
             <div className={styles.modalGrid2}>
               <label className={styles.modalLabel}>
-                Mobile Number (9 digits) *
+                Mobile Number *
                 <div className={styles.phoneInputWrap}>
                   <span className={styles.phonePrefix}>+63</span>
                   <input
@@ -219,12 +219,12 @@ export default function EditClientModal({ open, client, onClose, onUpdated }: Pr
                     onChange={(e) =>
                       setForm((current) => ({
                         ...current,
-                        mobile: e.target.value.replace(/\D/g, "").slice(0, 9),
+                        mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
                       }))
                     }
-                    placeholder="917123456"
+                    placeholder="9171234567"
                     inputMode="numeric"
-                    maxLength={9}
+                    maxLength={10}
                     required
                   />
                 </div>

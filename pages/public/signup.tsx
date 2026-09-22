@@ -10,6 +10,7 @@ import CustomerAuthShell, {
 import styles from "@/styles/customerAuth.module.css";
 import { toast } from "@/lib/toast";
 import { customerSignup } from "@/services/publicCustomerService";
+import { normalizePhMobile, phMobileError, phMobileLiveError, phMobileMaxLength, sanitizePhMobileInput } from "@/lib/phMobile";
 
 type SignupStep = "choose" | "email";
 
@@ -34,6 +35,11 @@ function CustomerSignupPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const mobileError = phMobileError(form.mobile, true);
+    if (mobileError) {
+      toast.error(mobileError);
+      return;
+    }
     try {
       setLoading(true);
       const company = form.clientName.trim();
@@ -41,7 +47,7 @@ function CustomerSignupPage() {
         fname: form.username.trim(),
         lname: "",
         email: form.email.trim(),
-        mobile: form.mobile.trim() || undefined,
+        mobile: normalizePhMobile(form.mobile) || undefined,
         company: company || undefined,
         password: form.password,
         password_confirmation: form.password_confirmation || form.password,
@@ -135,9 +141,16 @@ function CustomerSignupPage() {
               label="Mobile number"
               type="tel"
               value={form.mobile}
-              onChange={(value) => setForm({ ...form, mobile: value })}
+              onChange={(value) => setForm({ ...form, mobile: sanitizePhMobileInput(value) })}
               required
               autoComplete="tel"
+              inputMode="numeric"
+              maxLength={phMobileMaxLength(form.mobile)}
+              placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+              spellCheck={false}
+              autoCapitalize="off"
+              excludeLetters
+              error={phMobileLiveError(form.mobile)}
             />
 
             <div className={styles.smsBlock}>

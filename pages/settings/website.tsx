@@ -11,6 +11,7 @@ import {
   DEFAULT_PRIVACY_TITLE,
 } from "@/lib/defaultPrivacyContent";
 import { notifyWebsiteSettingsUpdated, resolveWebsiteAssetUrl, storeWebsiteSettings } from "@/lib/websiteSettings";
+import { normalizePhMobile, phMobileError, phMobileMaxLength, rejectLetterKey, sanitizePhMobileInput } from "@/lib/phMobile";
 import CmsModuleShell from "@/components/Modules/CmsModuleShell";
 import {
   CmsSettingsChoicePills,
@@ -247,10 +248,16 @@ function WebsiteSettingsPage() {
 
 
   const handleSaveContact = async () => {
+    const mobileError = phMobileError(mobile, true);
+    if (mobileError) {
+      toast.error(mobileError);
+      return;
+    }
+
     try {
       await websiteService.updateContact({
         company_address: address,
-        mobile_no: mobile,
+        mobile_no: normalizePhMobile(mobile),
         fax_no: fax,
         tel_no: telephone,
         email: contactEmail,
@@ -476,8 +483,14 @@ function WebsiteSettingsPage() {
                   <CmsSettingsField label="Mobile Number" required>
                     <input
                       className="form-control"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={phMobileMaxLength(mobile)}
+                      placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                       value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
+                      onKeyDown={rejectLetterKey}
+                      onChange={(e) => setMobile(sanitizePhMobileInput(e.target.value))}
                     />
                   </CmsSettingsField>
                   <CmsSettingsField label="Telephone Number" required>

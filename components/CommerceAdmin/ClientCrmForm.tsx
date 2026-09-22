@@ -875,11 +875,11 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
                   className={styles.phoneInput}
                   value={form.mobile}
                   onChange={(e) =>
-                    setField("mobile", e.target.value.replace(/\D/g, "").slice(0, 9))
+                    setField("mobile", e.target.value.replace(/\D/g, "").slice(0, 10))
                   }
-                  placeholder="917123456"
+                  placeholder="9171234567"
                   inputMode="numeric"
-                  maxLength={9}
+                  maxLength={10}
                 />
               </div>
             </Field>

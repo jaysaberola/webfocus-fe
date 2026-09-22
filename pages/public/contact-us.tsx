@@ -4,6 +4,14 @@ import { getPublicPageBySlug, sendContactMessage } from "@/services/publicPageSe
 import { websiteService } from "@/services/websiteService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "@/styles/contactPage.module.css";
+import {
+  normalizePhMobile,
+  phMobileError,
+  phMobileLiveError,
+  phMobileMaxLength,
+  rejectLetterKey,
+  sanitizePhMobileInput,
+} from "@/lib/phMobile";
 
 const OFFICE = {
   addressLines: [
@@ -64,7 +72,11 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({
+      ...form,
+      [name]: name === "contact_number" ? sanitizePhMobileInput(value) : value,
+    });
   };
 
   const togglePreferredService = (service: string) => {
@@ -98,11 +110,18 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
       return;
     }
 
+    const contactError = phMobileError(form.contact_number, true);
+    if (contactError) {
+      setError(contactError);
+      return;
+    }
+
     setLoading(true);
 
     try {
       await sendContactMessage({
         ...form,
+        contact_number: normalizePhMobile(form.contact_number),
         preferred_services: preferredServices.length ? preferredServices : undefined,
         recaptcha_token: recaptchaToken,
       });
@@ -304,10 +323,21 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
                       id="contact_number"
                       className={styles.input}
                       name="contact_number"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={phMobileMaxLength(form.contact_number)}
+                      spellCheck={false}
+                      autoCorrect="off"
+                      placeholder="09XXXXXXXXX or +639XXXXXXXXX"
                       value={form.contact_number}
+                      onKeyDown={rejectLetterKey}
                       onChange={handleChange}
                       required
                     />
+                    {phMobileLiveError(form.contact_number) ? (
+                      <span className={styles.fieldError}>{phMobileLiveError(form.contact_number)}</span>
+                    ) : null}
                   </div>
 
                   <div className={`${styles.field} ${styles.fieldFull}`}>
