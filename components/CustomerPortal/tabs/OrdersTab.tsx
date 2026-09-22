@@ -372,6 +372,38 @@ export default function OrdersTab() {
     [orders],
   );
 
+  useEffect(() => {
+    const stored = getStoredCustomer();
+    if (stored) setCheckoutCustomer(stored);
+    fetchCurrentCustomer({ silent: true, force: true })
+      .then(setCheckoutCustomer)
+      .catch(() => {});
+  }, []);
+
+  const openBillingForCheckout = async (order: PortalOrder) => {
+    const invoiceId = String(order.invoiceId || order.id || "").trim();
+    if (!invoiceId || checkingOut || billingOpen) return;
+    checkoutOrderRef.current = order;
+
+    const stored = checkoutCustomer ?? getStoredCustomer();
+    if (stored) {
+      setCheckoutCustomer(stored);
+      setBillingOpen(true);
+    }
+
+    try {
+      const fresh = await fetchCurrentCustomer({ silent: true, force: true });
+      setCheckoutCustomer(stored ? mergeCustomerAddress(stored, fresh) : fresh);
+      setBillingOpen(true);
+    } catch {
+      if (stored) {
+        setBillingOpen(true);
+        return;
+      }
+      toast.error("Sign in again to complete your billing address.");
+    }
+  };
+
   const continuePendingPayment = async (
     order: PortalOrder,
     customerOverride?: PublicCustomer,
@@ -380,9 +412,9 @@ export default function OrdersTab() {
     if (!invoiceId || checkingOut) return;
     checkoutOrderRef.current = order;
 
-    let activeCustomer = customerOverride ?? checkoutCustomer ?? getStoredCustomer();
-    if (customerOverride && customerNeedsCheckoutBillingAddress(customerOverride)) {
-      setCheckoutCustomer(customerOverride);
+    const activeCustomer = customerOverride ?? checkoutCustomer ?? getStoredCustomer();
+    if (!activeCustomer || customerNeedsCheckoutBillingAddress(activeCustomer)) {
+      setCheckoutCustomer(activeCustomer);
       setBillingOpen(true);
       toast.info("Add your billing address to continue to Paynamics.");
       return;
@@ -399,19 +431,11 @@ export default function OrdersTab() {
       window.location.assign(redirectUrl);
     } catch (err: any) {
       const validationErrors = err?.response?.data?.errors;
-      const message = err?.response?.data?.message || err?.message;
-      if (isCheckoutBillingValidationError(validationErrors, message)) {
-        try {
-          const fresh = await fetchCurrentCustomer({ silent: true, force: true });
-          activeCustomer = activeCustomer ? mergeCustomerAddress(activeCustomer, fresh) : fresh;
-        } catch {
-          // Keep the local customer if refresh fails.
-        }
-        if (!activeCustomer) {
-          toast.error("Complete your billing address in Manage Account, then try checkout again.");
-          window.location.assign("/public/dashboard?tab=account");
-          return;
-        }
+      const message = String(err?.response?.data?.message || err?.message || "");
+      if (
+        isCheckoutBillingValidationError(validationErrors, message) ||
+        customerNeedsCheckoutBillingAddress(activeCustomer)
+      ) {
         setCheckoutCustomer(activeCustomer);
         setBillingOpen(true);
         toast.info("Add your billing address to continue to Paynamics.");
@@ -448,7 +472,7 @@ export default function OrdersTab() {
 
   const handleOrderAction = (order: PortalOrder, action: string) => {
     if (action === "checkout") {
-      void continuePendingPayment(order);
+      void openBillingForCheckout(order);
       return;
     }
 
@@ -503,7 +527,7 @@ export default function OrdersTab() {
           onCheckout={
             orderCanCheckout(viewingOrder)
               ? () => {
-                  void continuePendingPayment(viewingOrder);
+                  void openBillingForCheckout(viewingOrder);
                 }
               : undefined
           }
@@ -570,10 +594,10 @@ export default function OrdersTab() {
                 <button
                   type="button"
                   className={styles.pendingPayLink}
-                  disabled={checkingOut}
+                  disabled={checkingOut || billingOpen}
                   onClick={() => {
                     const first = pendingCheckoutOrders[0];
-                    if (first) void continuePendingPayment(first);
+                    if (first) void openBillingForCheckout(first);
                   }}
                 >
                   {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
