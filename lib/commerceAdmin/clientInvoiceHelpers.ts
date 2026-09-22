@@ -256,10 +256,21 @@ function looksLikeDomainInvoiceName(item: Pick<InvoiceLineItem, "productName" | 
 }
 
 export function domainPriceForType(domainType: string, typedCost?: string | number | null) {
-  const parsed = Number(typedCost);
-  if (Number.isFinite(parsed) && parsed > 0) return parsed;
   const type = matchDomainTypeOption(domainType) || domainType;
-  return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
+  const catalog = DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
+  if (catalog > 0) return catalog;
+  const parsed = Number(typedCost);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function withCatalogDomainPrices(items: InvoiceLineItem[]): InvoiceLineItem[] {
+  return items.map((item) => {
+    const type = matchDomainTypeOption(item.productName);
+    if (!type) return item;
+    const catalog = domainPriceForType(type);
+    if (catalog <= 0 || invoiceMoney(item.listPrice) === catalog) return item;
+    return { ...item, listPrice: String(catalog) };
+  });
 }
 
 function invoiceHasDomainLine(items: InvoiceLineItem[], domainName: string, domainType: string) {
@@ -297,22 +308,23 @@ export function domainInvoiceLineFromNotes(notes?: string | null): InvoiceLineIt
 
 export function withDomainInvoiceLine(items: InvoiceLineItem[], notes?: string | null): InvoiceLineItem[] {
   const line = domainInvoiceLineFromNotes(notes);
-  if (!line) return items;
+  if (!line) return withCatalogDomainPrices(items);
   if (invoiceHasDomainLine(items, line.description, line.productName)) {
-    return items.map((item) => {
-      if (!invoiceHasDomainLine([item], line.description, line.productName)) return item;
-      const currentPrice = invoiceMoney(item.listPrice);
-      return {
-        ...item,
-        productName: item.productName.trim() || line.productName,
-        description: item.description.trim() || line.description,
-        listPrice: currentPrice > 0 ? item.listPrice : line.listPrice,
-      };
-    });
+    return withCatalogDomainPrices(
+      items.map((item) => {
+        if (!invoiceHasDomainLine([item], line.description, line.productName)) return item;
+        return {
+          ...item,
+          productName: item.productName.trim() || line.productName,
+          description: item.description.trim() || line.description,
+          listPrice: line.listPrice || item.listPrice,
+        };
+      }),
+    );
   }
   const named = items.filter((item) => item.productName.trim());
   const blanks = items.filter((item) => !item.productName.trim());
-  return [...named, line, ...blanks];
+  return withCatalogDomainPrices([...named, line, ...blanks]);
 }
 
 export function withDomainInvoiceLineFromDeals(
@@ -326,7 +338,7 @@ export function withDomainInvoiceLineFromDeals(
     if (String(deal.notes ?? "").includes("[INVOICE_META]")) return false;
     return Boolean(domainInvoiceLineFromNotes(deal.notes));
   });
-  if (!domainDeals.length) return items;
+  if (!domainDeals.length) return withCatalogDomainPrices(items);
 
   const overlapping = domainDeals.find((deal) => {
     const meta = parseDealMeta(deal.notes);

@@ -58,7 +58,9 @@ export default function InvoiceItemsPanel({
 
     const catalogPrice = catalogPriceForDealName(dealName);
     const currentPrice = invoiceMoney(current.listPrice);
-    const shouldFillPrice = catalogPrice != null && (currentPrice === 0 || !String(current.listPrice).trim());
+    const isDomain = Boolean(matchDomainTypeOption(dealName));
+    const shouldFillPrice =
+      catalogPrice != null && (isDomain || currentPrice === 0 || !String(current.listPrice).trim());
 
     updateItem(id, {
       productName: dealName,
