@@ -340,6 +340,71 @@ function catalogTotalForDealNames(services: any[], dealName: string) {
   return Number.isFinite(total) ? total : null;
 }
 
+const DOMAIN_TYPE_CATALOG_ALIASES: Record<string, string[]> = {
+  "Country Level Domain": [
+    "Country Level Domain",
+    "Country Level Domains",
+    "Country Level Domains (.ph .com.ph .net.ph .org.ph)",
+  ],
+  "Top Level Domain": ["Top Level Domain", "Top Level Domains"],
+  "Hybrid Top Level Domain": [
+    "Hybrid Top Level Domain",
+    "Hybrid Top Level Domains",
+    "Hybrid Top Level Domains (.biz .info .mobi, .pro, .asia, .online)",
+  ],
+  "Educational Domain": [
+    "Educational Domain",
+    "Education Domains",
+    "Education Domain",
+  ],
+  "Government Domain": [
+    "Government Domain",
+    "Government Domains",
+    "Government Domains (one-time registration) .gov.ph",
+  ],
+};
+
+const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
+  "Country Level Domain": 3456,
+  "Top Level Domain": 1728,
+  "Hybrid Top Level Domain": 4032,
+  "Educational Domain": 5304,
+  "Government Domain": 5184,
+};
+
+function catalogPriceForDomainType(services: any[], domainType: string) {
+  const type = String(domainType ?? "").trim();
+  if (!type) return null;
+
+  for (const name of DOMAIN_TYPE_CATALOG_ALIASES[type] ?? [type]) {
+    const price = catalogPriceForProduct(services, name);
+    if (price != null) return price;
+  }
+
+  const needle = normalizeCatalogName(type);
+  if (!needle) return null;
+  let best: { price: number; score: number } | null = null;
+  for (const row of services) {
+    const price = readCatalogPrice(row);
+    if (price == null) continue;
+    for (const label of catalogLabelsForService(row)) {
+      let score = 0;
+      if (label === needle) score = 100;
+      else if (label.startsWith(needle)) score = 90;
+      else if (label.includes(needle)) score = 80;
+      if (score > 0 && (!best || score > best.score)) best = { price, score };
+    }
+  }
+  return best && best.score >= 80 ? best.price : null;
+}
+
+function catalogPriceForDomain(services: any[], domainName: string, domainType?: string) {
+  const type = String(domainType || domainTypeFromHostname(domainName) || "").trim();
+  const catalog = catalogPriceForDomainType(services, type);
+  if (catalog != null) return catalog;
+  return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? null;
+}
+
 function extractServicesList(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -510,10 +575,12 @@ function DomainNameSuggest({
   value,
   onChange,
   onPick,
+  priceForDomain,
 }: {
   value: string;
   onChange: (value: string) => void;
   onPick: (domain: string, domainType: string, price?: number) => void;
+  priceForDomain?: (domain: string) => number | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -531,11 +598,11 @@ function DomainNameSuggest({
         domain,
         tld,
         available: match?.available ?? null,
-        price: match?.price ?? 0,
+        price: match?.price && match.price > 0 ? match.price : priceForDomain?.(domain) ?? 0,
         currency: match?.currency ?? "PHP",
       };
     });
-  }, [baseName, results]);
+  }, [baseName, results, priceForDomain]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -888,6 +955,26 @@ export default function ClientOrderForm({
     () => dealPriceLines.reduce((sum, row) => sum + row.price, 0),
     [dealPriceLines],
   );
+
+  useEffect(() => {
+    const domainName = form.domainName.trim();
+    const type = form.domainType || domainTypeFromHostname(domainName) || "";
+    if (!domainName && !type) return;
+    const price = catalogPriceForDomain(services, domainName, type);
+    if (price == null) return;
+    const nextCost = String(price);
+    setForm((current) => {
+      const nextType = current.domainType || type;
+      if (current.domainRegistrationCost === nextCost && current.domainType === nextType) {
+        return current;
+      }
+      return {
+        ...current,
+        domainType: nextType,
+        domainRegistrationCost: nextCost,
+      };
+    });
+  }, [form.domainName, form.domainType, services]);
 
   useEffect(() => {
     const catalogName = form.dealName || form.productName;
@@ -1744,22 +1831,35 @@ export default function ClientOrderForm({
           <Field label="Domain Name" hint="Registered domain for this deal">
             <DomainNameSuggest
               value={form.domainName}
+              priceForDomain={(domain) => catalogPriceForDomain(services, domain)}
               onChange={(name) => {
                 const type = domainTypeFromHostname(name) || "";
-                setForm((current) => ({
-                  ...current,
-                  domainName: name,
-                  domainType: type || current.domainType,
-                }));
+                setForm((current) => {
+                  const nextType = type || current.domainType;
+                  const price = catalogPriceForDomain(services, name, nextType);
+                  return {
+                    ...current,
+                    domainName: name,
+                    domainType: nextType,
+                    domainRegistrationCost:
+                      price != null ? String(price) : current.domainRegistrationCost,
+                  };
+                });
               }}
               onPick={(name, type, price) => {
-                setForm((current) => ({
-                  ...current,
-                  domainName: name,
-                  domainType: type || current.domainType,
-                  domainRegistrationCost:
-                    price != null && price > 0 ? String(price) : current.domainRegistrationCost,
-                }));
+                setForm((current) => {
+                  const nextType = type || current.domainType;
+                  const catalogPrice = catalogPriceForDomain(services, name, nextType);
+                  const nextCost =
+                    price != null && price > 0 ? price : catalogPrice;
+                  return {
+                    ...current,
+                    domainName: name,
+                    domainType: nextType,
+                    domainRegistrationCost:
+                      nextCost != null ? String(nextCost) : current.domainRegistrationCost,
+                  };
+                });
               }}
             />
           </Field>
@@ -1781,7 +1881,18 @@ export default function ClientOrderForm({
             <select
               className={inputClass()}
               value={form.domainType}
-              onChange={(e) => setField("domainType", e.target.value)}
+              onChange={(e) => {
+                const type = e.target.value;
+                setForm((current) => {
+                  const price = catalogPriceForDomain(services, current.domainName, type);
+                  return {
+                    ...current,
+                    domainType: type,
+                    domainRegistrationCost:
+                      price != null ? String(price) : current.domainRegistrationCost,
+                  };
+                });
+              }}
             >
               <option value="">-None-</option>
               {withExtraOption(DOMAIN_TYPE_OPTIONS, form.domainType).map((option) => (
