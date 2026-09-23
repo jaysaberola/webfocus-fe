@@ -41,6 +41,53 @@ export function orderPaymentDate(order: PortalOrder) {
   return String(order.paymentDate || "").trim() || null;
 }
 
+export const PROVISIONING_MIN_HOURS = 24;
+export const PROVISIONING_MAX_HOURS = 48;
+
+export function orderProvisioningStartedAt(
+  order: Pick<PortalOrder, "approvedAt">,
+) {
+  const parsed = Date.parse(String(order.approvedAt || ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function provisioningCountdownCopy(
+  order: Pick<PortalOrder, "approvedAt">,
+  now = Date.now(),
+) {
+  const startedAt = orderProvisioningStartedAt(order);
+  if (startedAt == null) {
+    return {
+      hours: PROVISIONING_MAX_HOURS,
+      minutes: 0,
+      headline: "48h 00m left",
+      detail: "Starts when admin approves",
+    };
+  }
+
+  const elapsedMs = Math.max(0, now - startedAt);
+  const remainingMs = Math.max(0, PROVISIONING_MAX_HOURS * 36e5 - elapsedMs);
+  const totalHours = Math.floor(remainingMs / 36e5);
+  const minutes = Math.floor((remainingMs % 36e5) / 6e4);
+  const elapsedHours = elapsedMs / 36e5;
+
+  if (elapsedHours >= PROVISIONING_MAX_HOURS) {
+    return {
+      hours: 0,
+      minutes: 0,
+      headline: "0 hours left",
+      detail: "Past 48 hours (2 days)",
+    };
+  }
+
+  return {
+    hours: totalHours,
+    minutes,
+    headline: `${totalHours}h ${String(minutes).padStart(2, "0")}m left`,
+    detail: "24–48 hours (2 days)",
+  };
+}
+
 export function orderPaymentMethodLabel(order: PortalOrder) {
   const raw = String(order.paymentMode || order.gateway || "").trim();
   if (!raw || raw === "—") return "—";

@@ -49,6 +49,7 @@ export type PortalOrder = {
   paymentStatus?: string;
   gateway: string;
   paymentDate?: string | null;
+  approvedAt?: string | null;
   paymentMode?: string | null;
   canCheckout?: boolean;
   canCancel?: boolean;

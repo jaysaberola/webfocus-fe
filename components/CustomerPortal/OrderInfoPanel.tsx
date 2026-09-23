@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPeso } from "@/lib/customerPortal/mockData";
+import OrderStatusBadge from "@/components/CustomerPortal/OrderStatusBadge";
 import {
   orderCanCancel,
   orderCanCheckout,
@@ -44,13 +45,6 @@ const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
   "Educational Domain": 5304,
   "Government Domain": 5184,
 };
-
-function orderStatusClass(status: PortalOrder["status"]) {
-  if (status === "Active Live") return styles.badgeGreen;
-  if (status === "Provisioning") return styles.badgeBlue;
-  if (status === "Cancelled" || status === "Expired") return styles.badgeRed;
-  return styles.badgeAmber;
-}
 
 function ReadField({ label, value }: { label: string; value: string }) {
   return (
@@ -399,7 +393,7 @@ export default function OrderInfoPanel({
           <label className={styles.orderInfoField}>
             <span className={styles.orderInfoLabel}>Status</span>
             <span className={styles.orderInfoStatusWrap}>
-              <span className={orderStatusClass(order.status)}>{order.status}</span>
+              <OrderStatusBadge order={order} />
             </span>
           </label>
         </div>

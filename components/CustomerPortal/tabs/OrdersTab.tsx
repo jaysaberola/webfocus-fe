@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import OrderInfoPanel from "@/components/CustomerPortal/OrderInfoPanel";
+import OrderStatusBadge from "@/components/CustomerPortal/OrderStatusBadge";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
@@ -57,13 +58,6 @@ import {
 } from "@/lib/tableFilterHelpers";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/customerPortal.module.css";
-
-function orderStatusClass(status: PortalOrder["status"]) {
-  if (status === "Active Live") return styles.badgeGreen;
-  if (status === "Provisioning") return styles.badgeBlue;
-  if (status === "Cancelled" || status === "Expired") return styles.badgeRed;
-  return styles.badgeAmber;
-}
 
 const ORDER_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "status", label: "Status" },
@@ -793,9 +787,7 @@ export default function OrdersTab() {
                         <td>{order.date}</td>
                         <td>{orderDueDate(order)}</td>
                         <td>
-                          <span className={orderStatusClass(order.status)}>
-                            {order.status}
-                          </span>
+                          <OrderStatusBadge order={order} />
                         </td>
                         <td className={styles.billingActionsCell}>
                           <select

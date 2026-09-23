@@ -946,6 +946,45 @@
 .badgeBlue { background: #dbeafe; color: #1d4ed8; }
 .badgeRed { background: #fee2e2; color: #b91c1c; }
 
+.statusTipWrap {
+  position: relative;
+  display: inline-flex;
+  z-index: 2;
+}
+
+.statusTip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.4rem);
+  transform: translateX(-50%);
+  min-width: 7.5rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.55rem;
+  background: #0f172a;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.22);
+  color: #f8fafc;
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.statusTip strong {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.statusTip em {
+  display: block;
+  margin-top: 0.12rem;
+  color: #cbd5e1;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .orderCards {
   display: flex;
   flex-direction: column;
