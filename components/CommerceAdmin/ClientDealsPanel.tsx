@@ -361,7 +361,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "dealName") {
                       return (
-                        <td key={column} className={styles.resizableCell}>
+                        <td key={column} className={`${styles.resizableCell} ${styles.dealNameCell}`} data-deal-name-cell="">
                           <button
                             type="button"
                             className={styles.tableCellLink}

@@ -6089,6 +6089,19 @@ select.clientCrmInput {
   white-space: nowrap;
 }
 
+.dealNameCell {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  max-width: none;
+}
+
+.dealNameCell .tableCellLink {
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+
 .dealsSubject {
   color: #2563eb;
   font-weight: 600;

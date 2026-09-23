@@ -389,7 +389,19 @@ export function domainTypeFromHostname(value?: string | null): string | null {
   return "Top Level Domain";
 }
 
-function resolveDealName(params: {
+export function formatDealNamesForDisplay(names: string[]) {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    const text = String(name ?? "").trim();
+    if (!text || text === "—" || seen.has(text.toLowerCase())) continue;
+    seen.add(text.toLowerCase());
+    unique.push(text);
+  }
+  return unique.join(" + ") || "—";
+}
+
+function listedDealNames(params: {
   metaDealName?: string | null;
   metaDealNames?: unknown;
   metaDomainType?: string | null;
@@ -399,11 +411,6 @@ function resolveDealName(params: {
   itemNames?: Array<string | null | undefined>;
   domainName?: string | null;
 }) {
-  const itemName = String(params.itemName ?? "").trim();
-  if (isUsableDealName(itemName) && !looksLikeDomain(itemName)) {
-    return itemName;
-  }
-
   const fromMeta = stripClientPrefixFromDealName(params.metaDealName, params.clientName);
   const names = retainedDealNames({
     dealName: fromMeta || params.metaDealName,
@@ -422,7 +429,30 @@ function resolveDealName(params: {
       "",
   });
   const productNames = names.filter((name) => !matchDomainTypeOption(name));
-  return productNames[0] || names[0] || "—";
+  return productNames.length ? productNames : names;
+}
+
+function resolveDealName(params: {
+  metaDealName?: string | null;
+  metaDealNames?: unknown;
+  metaDomainType?: string | null;
+  metaProductName?: string | null;
+  clientName?: string | null;
+  itemName?: string | null;
+  itemNames?: Array<string | null | undefined>;
+  domainName?: string | null;
+}, options?: { allNames?: boolean }) {
+  const listed = listedDealNames(params);
+  if (options?.allNames) {
+    return formatDealNamesForDisplay(listed);
+  }
+
+  const itemName = String(params.itemName ?? "").trim();
+  if (isUsableDealName(itemName) && !looksLikeDomain(itemName)) {
+    return itemName;
+  }
+
+  return listed[0] || "—";
 }
 
 export function transactionDealName(transaction: SalesTransaction) {
@@ -437,7 +467,7 @@ export function transactionDealName(transaction: SalesTransaction) {
     itemName: itemNames[0],
     itemNames,
     domainName: transactionDomainName(transaction),
-  });
+  }, { allNames: true });
 }
 
 export function transactionDomainName(transaction: SalesTransaction) {
@@ -812,15 +842,17 @@ function crmFields(params: {
   return {
     clientOwner: transaction ? transactionClientOwner(transaction) : clientOwnerName(client),
     clientName: clientDisplayName(client),
-    dealName: resolveDealName({
-      metaDealName: meta?.dealName,
-      metaDealNames: meta?.dealNames,
-      metaDomainType: meta?.domainType,
-      metaProductName: meta?.productName,
-      clientName: clientDisplayName(client),
-      itemName,
-      domainName: domain,
-    }),
+    dealName: transaction
+      ? transactionDealName(transaction)
+      : resolveDealName({
+          metaDealName: meta?.dealName,
+          metaDealNames: meta?.dealNames,
+          metaDomainType: meta?.domainType,
+          metaProductName: meta?.productName,
+          clientName: clientDisplayName(client),
+          itemName,
+          domainName: domain,
+        }),
     planName: matchingPlanName(itemName, client, adminServices),
     stage,
     clientStatus: metaText(meta?.dealType, dealType),

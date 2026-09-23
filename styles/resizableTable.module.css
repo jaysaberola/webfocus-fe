@@ -24,7 +24,8 @@
 .table :global(.dt-select-col),
 .table th:has(input[type="checkbox"]),
 .table td:has(input[type="checkbox"]),
-.table td:has([data-provisioning-status]) {
+.table td:has([data-provisioning-status]),
+.table td[data-deal-name-cell] {
   overflow: visible;
   max-width: none;
   text-overflow: clip;

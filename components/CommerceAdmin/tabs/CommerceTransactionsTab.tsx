@@ -670,7 +670,7 @@ export default function CommerceTransactionsTab() {
     if (column === "dealName") {
       const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       return (
-        <td key={column} className={styles.dealsNowrap}>
+        <td key={column} className={styles.dealNameCell} data-deal-name-cell="">
           <button type="button" className={styles.tableCellLink} onClick={() => openDealInfo(row)}>
             {name}
           </button>
