@@ -640,8 +640,11 @@ export function cartHasMixedCheckout(items: PublicCartItem[]) {
   return cartPayableItems(items).length > 0 && cartHeldQuotationItems(items).length > 0;
 }
 
+export const WEB_DESIGN_CART_NOTICE =
+  "Web design is a Pending Quotation. After you submit the request, track it in the Customer Portal under Orders. It is not charged through Paynamics until Sales sets the price.";
+
 export const MIXED_CART_WEB_DESIGN_NOTICE =
-  "Priced services will share one invoice and one payment. Pending quotation items stay in your cart and are billed on a separate invoice — they are not included in the Paynamics payment.";
+  "Priced services share one Paynamics payment. Web design is a separate Pending Quotation — submit it to Sales, then follow it in the Customer Portal under Orders.";
 
 export const cartCategoryLabel = (category?: string) => {
   const value = String(category || "Service").trim();

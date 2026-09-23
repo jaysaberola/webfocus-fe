@@ -31,6 +31,7 @@ import {
   isQuotationSubmittedCartItem,
   applyQuotationTransactionNumbers,
   MIXED_CART_WEB_DESIGN_NOTICE,
+  WEB_DESIGN_CART_NOTICE,
   PENDING_QUOTATION_LABEL,
   PublicCartItem,
   readPublicCart,
@@ -501,7 +502,7 @@ export default function PublicCartCheckoutPage() {
         const unsubmitted = cartUnsubmittedQuotationItems(cartWithNotes);
         if (!unsubmitted.length) {
           toast.info(
-            "This web design quotation was already sent to Sales. It stays in your cart until the package price is set."
+            "This web design quotation was already sent to Sales. Track it in the Customer Portal under Orders."
           );
           return;
         }
@@ -512,9 +513,11 @@ export default function PublicCartCheckoutPage() {
         toast.success(
           orderNos.length
             ? `Quotation request${orderNos.length > 1 ? "s" : ""} ${orderNos.join(", ")} submitted to Sales. ${
-                orderNos.length > 1 ? "Each pending quotation has its own invoice." : "It remains in your cart until priced."
+                orderNos.length > 1
+                  ? "Each pending quotation has its own invoice in Customer Portal → Orders."
+                  : "Track it in the Customer Portal under Orders."
               }`
-            : "Quotation request submitted to Sales. It remains in your cart until priced."
+            : "Quotation request submitted to Sales. Track it in the Customer Portal under Orders."
         );
         window.location.assign("/public/cart");
         return;
@@ -731,12 +734,14 @@ export default function PublicCartCheckoutPage() {
 
         <div className={styles.layout}>
           <section className={styles.mainColumn}>
-            {mixedCheckout ? (
+            {heldQuotationItems.length > 0 ? (
               <div className={styles.mixedCartNotice} role="status">
                 <i className="fa-solid fa-circle-info" aria-hidden="true" />
                 <div>
-                  <strong>Mixed cart checkout</strong>
-                  <p>{MIXED_CART_WEB_DESIGN_NOTICE}</p>
+                  <strong>
+                    {mixedCheckout ? "Mixed cart checkout" : "Web design pending quotation"}
+                  </strong>
+                  <p>{mixedCheckout ? MIXED_CART_WEB_DESIGN_NOTICE : WEB_DESIGN_CART_NOTICE}</p>
                 </div>
               </div>
             ) : null}
@@ -797,7 +802,7 @@ export default function PublicCartCheckoutPage() {
                                   item.quotationTransactionNo !== "submitted"
                                     ? ` (${item.quotationTransactionNo})`
                                     : ""
-                                } · Pending Quotation · stays in your cart`
+                                } · Pending Quotation · see Customer Portal Orders`
                               : "One-time web design package · Pending Quotation · no renewal term"}
                           </p>
                           <label className={styles.quoteNotes}>
@@ -897,10 +902,8 @@ export default function PublicCartCheckoutPage() {
                   {heldQuotationItems.length === 1 ? "" : "s"} as{" "}
                   {PENDING_QUOTATION_LABEL}
                   {heldQuotationItems.every(isQuotationSubmittedCartItem)
-                    ? " — already sent to Sales (kept in your cart, not included in Paynamics)"
-                    : mixedCheckout
-                      ? " — will be sent to Sales and kept in your cart when you checkout"
-                      : " — stays in your cart after Sales receives the request"}
+                    ? " — already sent to Sales. Track it in Customer Portal → Orders"
+                    : " — submit the request, then track it in Customer Portal → Orders"}
                   .
                 </p>
               ) : null}
@@ -1068,13 +1071,13 @@ export default function PublicCartCheckoutPage() {
               ) : paymentStepActive && quotationOnly ? (
                 <p className={styles.agreementHint}>
                   {heldQuotationItems.every(isQuotationSubmittedCartItem)
-                    ? "Sales already received this quotation. It remains in your cart until the package price is set."
-                    : "This request goes to Sales as Pending Quotation and stays in your cart until priced."}
+                    ? "Sales already received this quotation. Open Customer Portal → Orders to follow it."
+                    : "This request goes to Sales as Pending Quotation. After you submit it, track it in Customer Portal → Orders."}
                 </p>
               ) : paymentStepActive && mixedCheckout ? (
                 <p className={styles.agreementHint}>
-                  Payable services go to Paynamics. Web design stays in your cart
-                  as Pending Quotation and is not included in that payment.
+                  Payable services go to Paynamics. Web design is a separate
+                  Pending Quotation in Customer Portal → Orders.
                 </p>
               ) : paymentStepActive &&
                 customerNeedsCheckoutProfile(customer) ? (
