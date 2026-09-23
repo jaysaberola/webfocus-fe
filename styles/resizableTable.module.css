@@ -23,10 +23,12 @@
 
 .table :global(.dt-select-col),
 .table th:has(input[type="checkbox"]),
-.table td:has(input[type="checkbox"]) {
+.table td:has(input[type="checkbox"]),
+.table td:has([data-provisioning-status]) {
   overflow: visible;
   max-width: none;
   text-overflow: clip;
+  white-space: normal;
 }
 
 .lines {

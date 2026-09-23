@@ -51,16 +51,25 @@ export function orderProvisioningStartedAt(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function formatCountdownClock(hours: number, minutes: number, seconds: number) {
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  return `${hours}h ${mm}m ${ss}s`;
+}
+
 export function provisioningCountdownCopy(
   order: Pick<PortalOrder, "approvedAt">,
   now = Date.now(),
 ) {
   const startedAt = orderProvisioningStartedAt(order);
   if (startedAt == null) {
+    const clock = formatCountdownClock(PROVISIONING_MAX_HOURS, 0, 0);
     return {
       hours: PROVISIONING_MAX_HOURS,
       minutes: 0,
-      headline: "48h 00m left",
+      seconds: 0,
+      clock,
+      headline: `${clock} left`,
       detail: "Starts when admin approves",
     };
   }
@@ -69,13 +78,17 @@ export function provisioningCountdownCopy(
   const remainingMs = Math.max(0, PROVISIONING_MAX_HOURS * 36e5 - elapsedMs);
   const totalHours = Math.floor(remainingMs / 36e5);
   const minutes = Math.floor((remainingMs % 36e5) / 6e4);
+  const seconds = Math.floor((remainingMs % 6e4) / 1000);
+  const clock = formatCountdownClock(totalHours, minutes, seconds);
   const elapsedHours = elapsedMs / 36e5;
 
   if (elapsedHours >= PROVISIONING_MAX_HOURS) {
     return {
       hours: 0,
       minutes: 0,
-      headline: "0 hours left",
+      seconds: 0,
+      clock,
+      headline: `${clock} left`,
       detail: "Past 48 hours (2 days)",
     };
   }
@@ -83,7 +96,9 @@ export function provisioningCountdownCopy(
   return {
     hours: totalHours,
     minutes,
-    headline: `${totalHours}h ${String(minutes).padStart(2, "0")}m left`,
+    seconds,
+    clock,
+    headline: `${clock} left`,
     detail: "24–48 hours (2 days)",
   };
 }

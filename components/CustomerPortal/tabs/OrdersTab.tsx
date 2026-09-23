@@ -786,7 +786,7 @@ export default function OrdersTab() {
                         <td>{orderPaymentDate(order) || "—"}</td>
                         <td>{order.date}</td>
                         <td>{orderDueDate(order)}</td>
-                        <td>
+                        <td className={styles.statusCell}>
                           <OrderStatusBadge order={order} />
                         </td>
                         <td className={styles.billingActionsCell}>
