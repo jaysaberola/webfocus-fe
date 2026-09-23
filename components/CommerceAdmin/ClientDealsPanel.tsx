@@ -6,6 +6,7 @@ import ResizableTableHead from "@/components/CommerceAdmin/ResizableTableHead";
 import ColumnResizeLines from "@/components/CommerceAdmin/ColumnResizeLines";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
+import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
 import {
   buildClientDealRows,
   DEAL_COLUMN_VISIBILITY_KEYS,
@@ -362,13 +363,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     if (column === "dealName") {
                       return (
                         <td key={column} className={`${styles.resizableCell} ${styles.dealNameCell}`} data-deal-name-cell="">
-                          <button
-                            type="button"
-                            className={styles.tableCellLink}
-                            onClick={() => openEditDeal(deal)}
-                          >
-                            {deal.dealName}
-                          </button>
+                          <DealNameCell names={deal.dealName} onClick={() => openEditDeal(deal)} />
                         </td>
                       );
                     }

@@ -4,6 +4,7 @@ import {
   retainedDealNames,
   matchDomainTypeOption,
   isUsableDealName,
+  normalizeDealNameList,
   SUBJECT_OPTIONS,
   subjectForProductName,
   DOMAIN_TYPE_OPTIONS,
@@ -390,15 +391,21 @@ export function domainTypeFromHostname(value?: string | null): string | null {
 }
 
 export function formatDealNamesForDisplay(names: string[]) {
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const name of names) {
-    const text = String(name ?? "").trim();
-    if (!text || text === "—" || seen.has(text.toLowerCase())) continue;
-    seen.add(text.toLowerCase());
-    unique.push(text);
-  }
-  return unique.join(" + ") || "—";
+  return normalizeDealNameList(names).join(" + ") || "—";
+}
+
+export function compactDealName(names: Array<string | null | undefined> | string | null | undefined) {
+  const all = normalizeDealNameList(names).filter((name) => name !== "—");
+  return {
+    primary: all[0] || "—",
+    extra: Math.max(0, all.length - 1),
+    all,
+    title: all.join(" + ") || "—",
+  };
+}
+
+export function transactionDealNames(transaction: SalesTransaction) {
+  return normalizeDealNameList(transactionDealName(transaction));
 }
 
 function listedDealNames(params: {

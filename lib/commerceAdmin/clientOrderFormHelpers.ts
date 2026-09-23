@@ -305,6 +305,11 @@ export const DEAL_NAME_OPTIONS = [
 
 export const DEAL_NAME_SEPARATOR = " | ";
 
+export function normalizeDealNameList(values: Array<string | null | undefined> | string | null | undefined) {
+  const parts = Array.isArray(values) ? values : [values];
+  return uniqueDealNames(parts.map((value) => String(value ?? "")));
+}
+
 export function parseDealNames(value?: string | null, extra?: unknown) {
   if (Array.isArray(extra)) {
     const fromExtra = extra.map((item) => String(item ?? "").trim()).filter(Boolean);
@@ -349,14 +354,23 @@ export function retainedDealNames(params: {
   return isUsableDealName(fallback) ? [fallback] : [];
 }
 
+function expandDealNameParts(value: string) {
+  return String(value ?? "")
+    .split(/\s+\+\s+|\s+\|\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function uniqueDealNames(names: string[]) {
   const seen = new Set<string>();
   const next: string[] = [];
   for (const name of names) {
-    const text = String(name ?? "").trim();
-    if (!text || seen.has(text)) continue;
-    seen.add(text);
-    next.push(text);
+    for (const part of expandDealNameParts(name)) {
+      const key = part.toLowerCase();
+      if (!part || seen.has(key)) continue;
+      seen.add(key);
+      next.push(part);
+    }
   }
   return next;
 }

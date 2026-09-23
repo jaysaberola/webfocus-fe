@@ -17,7 +17,8 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
-import { orderAdminColumnValue, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
+import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
+import { orderAdminColumnValue, transactionDealNames, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_KEYS,
@@ -668,12 +669,9 @@ export default function CommerceTransactionsTab() {
       );
     }
     if (column === "dealName") {
-      const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       return (
         <td key={column} className={styles.dealNameCell} data-deal-name-cell="">
-          <button type="button" className={styles.tableCellLink} onClick={() => openDealInfo(row)}>
-            {name}
-          </button>
+          <DealNameCell names={transactionDealNames(row)} onClick={() => openDealInfo(row)} />
         </td>
       );
     }
@@ -1045,7 +1043,7 @@ export default function CommerceTransactionsTab() {
                         {isNew ? (
                           <span className={styles.newDealDot} aria-hidden="true" />
                         ) : null}
-                        {orderAdminColumnValue(row, "dealName", { assigned: assignedUserLabel(row) })}
+                        <DealNameCell names={transactionDealNames(row)} />
                       </button>
                       {renderStatusBadge(row)}
                     </div>
@@ -1070,13 +1068,7 @@ export default function CommerceTransactionsTab() {
                     <div>
                       <div className={styles.txGridLabel}>Deal Name</div>
                       <div className={styles.txGridValue}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => openView(row)}
-                        >
-                          {orderAdminColumnValue(row, "dealName", { assigned: assignedUserLabel(row) })}
-                        </button>
+                        <DealNameCell names={transactionDealNames(row)} onClick={() => openView(row)} />
                       </div>
                     </div>
                     <div>

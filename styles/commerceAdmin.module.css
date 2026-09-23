@@ -6090,16 +6090,60 @@ select.clientCrmInput {
 }
 
 .dealNameCell {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-  max-width: none;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 16rem;
 }
 
-.dealNameCell .tableCellLink {
-  white-space: normal;
+.dealNameLink,
+.dealNameText {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  font-weight: 600;
   text-align: left;
-  line-height: 1.35;
+  cursor: pointer;
+}
+
+.dealNameText {
+  cursor: default;
+  color: inherit;
+  font-weight: 600;
+}
+
+.dealNameLink:hover .dealNamePrimary,
+.dealNameLink:focus-visible .dealNamePrimary {
+  text-decoration: underline;
+}
+
+.dealNamePrimary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dealNameMore {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.55rem;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
 }
 
 .dealsSubject {
