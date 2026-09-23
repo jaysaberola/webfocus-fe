@@ -6090,17 +6090,18 @@ select.clientCrmInput {
 }
 
 .dealNameCell {
-  white-space: nowrap;
   overflow: hidden;
-  max-width: 22rem;
+  white-space: normal;
+  max-width: none;
+  vertical-align: middle;
 }
 
 .dealNameLink,
 .dealNameText {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -6115,7 +6116,23 @@ select.clientCrmInput {
 .dealNameText {
   cursor: default;
   color: inherit;
-  font-weight: 600;
+}
+
+.dealNameStack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.dealNameRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .dealNameLink:hover .dealNamePrimary,
@@ -6130,8 +6147,7 @@ select.clientCrmInput {
   white-space: nowrap;
 }
 
-.dealNameMore,
-.dealNameDomain {
+.dealNameMore {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -6144,16 +6160,20 @@ select.clientCrmInput {
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.2;
-  letter-spacing: 0.01em;
 }
 
-.dealNameDomain {
-  max-width: 12rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dealNameType {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.25;
   white-space: nowrap;
-  background: #f1f5f9;
-  color: #334155;
 }
 
 .dealsSubject {

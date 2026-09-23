@@ -13,11 +13,13 @@ export default function DealNameCell({ names, domain, domainType, onClick }: Pro
   const type = displayDomainType(domainType, domain);
   const title = [compact.title !== "—" ? compact.title : "", type].filter(Boolean).join(" + ") || undefined;
   const content = (
-    <>
-      <span className={styles.dealNamePrimary}>{compact.primary}</span>
-      {compact.extra > 0 ? <span className={styles.dealNameMore}>+{compact.extra}</span> : null}
-      {type ? <span className={styles.dealNameDomain}>+ {type}</span> : null}
-    </>
+    <span className={styles.dealNameStack}>
+      <span className={styles.dealNameRow}>
+        <span className={styles.dealNamePrimary}>{compact.primary}</span>
+        {compact.extra > 0 ? <span className={styles.dealNameMore}>+{compact.extra}</span> : null}
+      </span>
+      {type ? <span className={styles.dealNameType}>{type}</span> : null}
+    </span>
   );
 
   if (onClick) {
