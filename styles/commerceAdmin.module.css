@@ -6089,6 +6089,12 @@ select.clientCrmInput {
   white-space: nowrap;
 }
 
+.dealNameHost {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
 .dealNameCell {
   overflow: hidden;
   white-space: normal;
@@ -6145,6 +6151,16 @@ select.clientCrmInput {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.dealNameFull {
+  display: block;
+  width: 100%;
+  color: inherit;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .dealNameMore {

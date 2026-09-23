@@ -5,6 +5,7 @@ import {
   matchDomainTypeOption,
   isUsableDealName,
   normalizeDealNameList,
+  standardizeDealProductName,
   SUBJECT_OPTIONS,
   subjectForProductName,
   DOMAIN_TYPE_OPTIONS,
@@ -391,7 +392,7 @@ export function domainTypeFromHostname(value?: string | null): string | null {
 }
 
 export function formatDealNamesForDisplay(names: string[]) {
-  return normalizeDealNameList(names).join(" + ") || "—";
+  return normalizeDealNameList(names.map(standardizeDealProductName)).join(" + ") || "—";
 }
 
 export function usableDealDomain(value?: string | null) {
@@ -415,7 +416,8 @@ export function transactionDomainType(transaction: SalesTransaction) {
 }
 
 export function compactDealName(names: Array<string | null | undefined> | string | null | undefined) {
-  const all = normalizeDealNameList(names).filter((name) => name !== "—");
+  const source = Array.isArray(names) ? names : [names];
+  const all = normalizeDealNameList(source.map(standardizeDealProductName)).filter((name) => name !== "—");
   return {
     primary: all[0] || "—",
     extra: Math.max(0, all.length - 1),

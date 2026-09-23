@@ -480,6 +480,28 @@ export function matchDomainTypeOption(value?: string | null) {
   return DOMAIN_TYPE_OPTIONS.find((option) => option.toLowerCase() === text.toLowerCase()) ?? "";
 }
 
+export function standardizeDealProductName(name?: string | null) {
+  const text = String(name ?? "").trim();
+  if (!text || text === "—") return text;
+  if (matchDomainTypeOption(text)) return text;
+
+  const looksLikeAddon =
+    /^add[\s_-]*ons?\b/i.test(text) ||
+    /addon/i.test(text) ||
+    subjectForProductName(text) === "Add On";
+  if (!looksLikeAddon) return text;
+
+  const core = text
+    .replace(/^add[\s_-]*ons?[\s_-]*/i, "")
+    .replace(/^add\s*on\s*-\s*/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s*\((shared|dedicated)\)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return core ? `Add On - ${core}` : text;
+}
+
 export const DOMAIN_REGISTRAR_OPTIONS = ["Enom", "Webnic"] as const;
 
 export type ClientOrderFormState = {
