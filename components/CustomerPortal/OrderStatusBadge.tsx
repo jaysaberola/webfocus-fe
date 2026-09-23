@@ -22,10 +22,10 @@ export default function OrderStatusBadge({ order }: Props) {
   const wrapRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (order.status !== "Provisioning") return;
+    if (order.status !== "Provisioning" || !open) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [order.status]);
+  }, [open, order.status]);
 
   useEffect(() => {
     if (!open || !wrapRef.current) return;
@@ -68,9 +68,6 @@ export default function OrderStatusBadge({ order }: Props) {
     >
       <span className={orderStatusClass(order.status)} tabIndex={0}>
         {order.status}
-      </span>
-      <span className={styles.statusCountdown} aria-live="polite">
-        {countdown.clock}
       </span>
       {open && typeof document !== "undefined"
         ? createPortal(

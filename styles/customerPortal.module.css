@@ -954,21 +954,7 @@
 .statusTipWrap {
   position: relative;
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.18rem;
   z-index: 2;
-}
-
-.statusCountdown {
-  display: block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: #1d4ed8;
-  white-space: nowrap;
 }
 
 .statusTip {
