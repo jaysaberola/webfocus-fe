@@ -6163,16 +6163,10 @@ select.clientCrmInput {
 }
 
 .dealNameType {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.16rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 0.68rem;
+  color: #2563eb;
+  font-size: inherit;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.35;
   white-space: nowrap;
 }
 
