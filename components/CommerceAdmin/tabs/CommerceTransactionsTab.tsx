@@ -18,7 +18,7 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
-import { orderAdminColumnValue, transactionDealNames, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
+import { orderAdminColumnValue, transactionDealNames, transactionDomainType, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_KEYS,
@@ -671,7 +671,11 @@ export default function CommerceTransactionsTab() {
     if (column === "dealName") {
       return (
         <td key={column} className={styles.dealNameCell} data-deal-name-cell="">
-          <DealNameCell names={transactionDealNames(row)} onClick={() => openDealInfo(row)} />
+          <DealNameCell
+            names={transactionDealNames(row)}
+            domainType={transactionDomainType(row)}
+            onClick={() => openDealInfo(row)}
+          />
         </td>
       );
     }
@@ -1043,7 +1047,7 @@ export default function CommerceTransactionsTab() {
                         {isNew ? (
                           <span className={styles.newDealDot} aria-hidden="true" />
                         ) : null}
-                        <DealNameCell names={transactionDealNames(row)} />
+                        <DealNameCell names={transactionDealNames(row)} domainType={transactionDomainType(row)} />
                       </button>
                       {renderStatusBadge(row)}
                     </div>
@@ -1068,7 +1072,11 @@ export default function CommerceTransactionsTab() {
                     <div>
                       <div className={styles.txGridLabel}>Deal Name</div>
                       <div className={styles.txGridValue}>
-                        <DealNameCell names={transactionDealNames(row)} onClick={() => openView(row)} />
+                        <DealNameCell
+                          names={transactionDealNames(row)}
+                          domainType={transactionDomainType(row)}
+                          onClick={() => openView(row)}
+                        />
                       </div>
                     </div>
                     <div>

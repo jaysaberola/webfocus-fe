@@ -6092,7 +6092,7 @@ select.clientCrmInput {
 .dealNameCell {
   white-space: nowrap;
   overflow: hidden;
-  max-width: 16rem;
+  max-width: 22rem;
 }
 
 .dealNameLink,
@@ -6130,7 +6130,8 @@ select.clientCrmInput {
   white-space: nowrap;
 }
 
-.dealNameMore {
+.dealNameMore,
+.dealNameDomain {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -6144,6 +6145,15 @@ select.clientCrmInput {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.01em;
+}
+
+.dealNameDomain {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #f1f5f9;
+  color: #334155;
 }
 
 .dealsSubject {

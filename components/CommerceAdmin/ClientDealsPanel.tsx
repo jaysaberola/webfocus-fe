@@ -363,7 +363,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     if (column === "dealName") {
                       return (
                         <td key={column} className={`${styles.resizableCell} ${styles.dealNameCell}`} data-deal-name-cell="">
-                          <DealNameCell names={deal.dealName} onClick={() => openEditDeal(deal)} />
+                          <DealNameCell names={deal.dealName} domain={deal.domainName} onClick={() => openEditDeal(deal)} />
                         </td>
                       );
                     }

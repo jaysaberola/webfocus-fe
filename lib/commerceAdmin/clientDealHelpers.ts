@@ -394,6 +394,26 @@ export function formatDealNamesForDisplay(names: string[]) {
   return normalizeDealNameList(names).join(" + ") || "—";
 }
 
+export function usableDealDomain(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "—") return "";
+  return text;
+}
+
+export function displayDomainType(domainType?: string | null, domainName?: string | null) {
+  return (
+    matchDomainTypeOption(domainType) ||
+    normalizeDomainTypeLabel(domainType) ||
+    domainTypeFromHostname(domainName) ||
+    ""
+  );
+}
+
+export function transactionDomainType(transaction: SalesTransaction) {
+  const meta = parseDealMeta(transaction.notes);
+  return displayDomainType(meta?.domainType, transactionDomainName(transaction));
+}
+
 export function compactDealName(names: Array<string | null | undefined> | string | null | undefined) {
   const all = normalizeDealNameList(names).filter((name) => name !== "—");
   return {
