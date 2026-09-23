@@ -19,7 +19,7 @@ export type PublicCartItem = {
   webDesign?: WebDesignCartMeta;
   /** Web design packages are quote-based until Sales sets a price. */
   pricingStatus?: "pending_quotation" | "priced";
-  /** Set after the Pending Quotation request was filed with Sales. Filed rows are removed from the cart. */
+  /** Set after the Pending Quotation request was filed with Sales (item stays in cart). */
   quotationTransactionNo?: string | null;
   /** Client-entered notes for Sales on pending quotation items. */
   clientNotes?: string;
@@ -185,71 +185,6 @@ export function isQuotationSubmittedCartItem(item: PublicCartItem) {
   );
 }
 
-/** Pending quotations that already have an Orders record must not stay in the cart. */
-export function withoutFiledQuotationItems(items: PublicCartItem[]) {
-  return items.filter((item) => !isQuotationSubmittedCartItem(item));
-}
-
-function normalizeOrderNo(value?: string | null) {
-  return String(value || "").replace(/^INV-/i, "").trim().toLowerCase();
-}
-
-function cartItemLooksLikeWebDesignOrder(item: PublicCartItem, order: {
-  id?: string;
-  invoiceId?: string;
-  serviceName?: string;
-  plan?: string;
-  total?: number;
-  pendingQuotation?: boolean;
-  items?: Array<{ name?: string; itemType?: string | null }>;
-}) {
-  const orderNos = [order.id, order.invoiceId].map(normalizeOrderNo).filter(Boolean);
-  const tagged = normalizeOrderNo(item.quotationTransactionNo);
-  if (tagged && orderNos.some((value) => value === tagged || value.endsWith(tagged))) {
-    return true;
-  }
-
-  const haystack = [
-    order.serviceName,
-    order.plan,
-    ...(order.items || []).map((row) => `${row.name || ""} ${row.itemType || ""}`),
-  ]
-    .join(" ")
-    .toLowerCase();
-  const isWebDesignOrder =
-    Boolean(order.pendingQuotation) ||
-    /web design|webdesign|web_design/.test(haystack) ||
-    (order.items || []).some((row) => /web_design|webdesign/i.test(String(row.itemType || "")));
-  if (!isWebDesignOrder || Number(order.total || 0) > 0) return false;
-
-  const itemName = String(item.name || "").trim().toLowerCase();
-  if (itemName && haystack.includes(itemName)) return true;
-  if (order.pendingQuotation && isPendingQuotationCartItem(item)) return true;
-  return false;
-}
-
-/** Drop cart quotations that already exist as Orders / ₱0 web-design invoices. */
-export function dropCartQuotationsMatchingOrders(
-  orders: Array<{
-    id?: string;
-    invoiceId?: string;
-    serviceName?: string;
-    plan?: string;
-    total?: number;
-    pendingQuotation?: boolean;
-    items?: Array<{ name?: string; itemType?: string | null }>;
-  }>,
-) {
-  const current = readPublicCart();
-  const next = current.filter((item) => {
-    if (!isPendingQuotationCartItem(item)) return true;
-    if (isQuotationSubmittedCartItem(item)) return false;
-    return !orders.some((order) => cartItemLooksLikeWebDesignOrder(item, order));
-  });
-  if (next.length !== current.length) writePublicCart(next);
-  return next;
-}
-
 export function markQuotationSubmittedCartItems(
   items: PublicCartItem[],
   transactionNo: string | null | undefined
@@ -375,9 +310,7 @@ export const readPublicCart = (): PublicCartItem[] => {
   try {
     const parsed = JSON.parse(localStorage.getItem(key) || "[]");
     if (!Array.isArray(parsed)) return [];
-    const normalized = withoutFiledQuotationItems(
-      parsed.map((item) => normalizeCartItem(item as PublicCartItem)),
-    );
+    const normalized = parsed.map((item) => normalizeCartItem(item as PublicCartItem));
     // Persist upgraded quote flags so UI stays consistent across refreshes.
     try {
       const raw = JSON.stringify(parsed);
@@ -422,7 +355,7 @@ export const writePublicCart = (
   options?: { syncCheckoutBackup?: boolean },
 ) => {
   if (typeof window === "undefined") return;
-  const normalized = withoutFiledQuotationItems(items.map(normalizeCartItem));
+  const normalized = items.map(normalizeCartItem);
   localStorage.setItem(cartStorageKey(), JSON.stringify(normalized));
   if (options?.syncCheckoutBackup !== false) {
     syncCheckoutBackupWithCart(normalized);
@@ -510,9 +443,7 @@ export function cartPayableItems(items: PublicCartItem[]) {
 }
 
 export function cartHeldQuotationItems(items: PublicCartItem[]) {
-  return items.filter(
-    (item) => !cartItemHasAvailableAmount(item) && !isQuotationSubmittedCartItem(item),
-  );
+  return items.filter((item) => !cartItemHasAvailableAmount(item));
 }
 
 function readCheckoutBackup(): PublicCartItem[] | null {
@@ -654,7 +585,7 @@ export function clearPublicCartCheckoutBackup() {
   }
 }
 
-/** Remove payable items after successful payment; keep only unsubmitted quotation rows. */
+/** Remove payable items after successful payment; keep Pending Quotation rows. */
 export function clearPayablePublicCartItems() {
   const remaining = cartHeldQuotationItems(readPublicCart());
   writePublicCart(remaining, { syncCheckoutBackup: false });
@@ -710,7 +641,7 @@ export function cartHasMixedCheckout(items: PublicCartItem[]) {
 }
 
 export const MIXED_CART_WEB_DESIGN_NOTICE =
-  "Priced services will share one invoice and one payment. A new pending quotation is filed on a separate invoice and then removed from the cart.";
+  "Priced services will share one invoice and one payment. Pending quotation items stay in your cart and are billed on a separate invoice — they are not included in the Paynamics payment.";
 
 export const cartCategoryLabel = (category?: string) => {
   const value = String(category || "Service").trim();
