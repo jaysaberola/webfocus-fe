@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import ConfirmModal from "@/components/UI/ConfirmModal";
 import { COMMERCE_ADMIN_TABS } from "@/lib/commerceAdmin/mockData";
 import { getCommerceDashboardCached, readCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import { useStaffUnreadCount } from "@/lib/commerceAdmin/useStaffUnreadCount";
@@ -7,6 +8,7 @@ import { canAccessCommerceTab } from "@/lib/navPermissions";
 import { scheduleIdleTask } from "@/lib/publicAuthState";
 import type { User } from "@/services/accountService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
+import { signOutAdminAndStayOnSite } from "@/lib/publicSignOut";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -19,6 +21,7 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const unreadNotifications = useStaffUnreadCount(true);
 
   const visibleTabs = useMemo(
@@ -94,6 +97,11 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
     setMenuOpen(false);
   };
 
+  const requestLogout = () => {
+    setMenuOpen(false);
+    setLogoutOpen(true);
+  };
+
   const drawer =
     mounted && menuOpen
       ? createPortal(
@@ -157,7 +165,12 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
                   );
                 })}
               </nav>
-              <p className={styles.moduleDrawerFoot}>Tap a module to switch pages</p>
+              <div className={styles.moduleDrawerFoot}>
+                <button type="button" className={styles.moduleDrawerLogout} onClick={requestLogout}>
+                  <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
+                  Log out
+                </button>
+              </div>
             </aside>
           </>,
           document.body
@@ -214,6 +227,21 @@ export default function CommerceAdminShell({ activeTab, onTabChange, user }: Pro
         })}
       </nav>
       {drawer}
+      <ConfirmModal
+        show={logoutOpen}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        danger={false}
+        confirmLabel="Yes, log out"
+        cancelLabel="Cancel"
+        confirmVariant="primary"
+        accentVariant="primary"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          signOutAdminAndStayOnSite();
+        }}
+      />
     </div>
   );
 }

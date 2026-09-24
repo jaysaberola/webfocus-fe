@@ -442,10 +442,29 @@
 
 .moduleDrawerFoot {
   margin-top: auto;
-  padding: 0.85rem 1rem 1.15rem;
-  color: var(--cp-slate-500);
-  font-size: 0.72rem;
-  font-weight: 600;
+  padding: 0.85rem 0.75rem 1.15rem;
+  border-top: 1px solid var(--cp-slate-100);
+}
+
+.moduleDrawerLogout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.7rem;
+  border: 1px solid #fecdd3;
+  border-radius: 0.9rem;
+  background: #fff1f2;
+  color: #be123c;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.moduleDrawerLogout:hover {
+  background: #ffe4e6;
 }
 
 @keyframes moduleOverlayIn {

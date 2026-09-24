@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import ConfirmModal from "@/components/UI/ConfirmModal";
 import type { CustomerPortalTab } from "@/lib/customerPortal/types";
 import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import { resolveAvatarUrl } from "@/lib/currentUser";
+import { signOutCustomerAndStayOnSite } from "@/lib/publicSignOut";
 import type { PublicCustomer } from "@/services/publicCustomerService";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -32,6 +34,7 @@ export default function CustomerPortalTabs({
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const activeItem = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
   const customerName = customerDisplayName(customer?.fname, customer?.lname);
   const customerInitial = (customerName.charAt(0) || "C").toUpperCase();
@@ -72,6 +75,11 @@ export default function CustomerPortalTabs({
   const selectTab = (tabId: CustomerPortalTab) => {
     onTabChange(tabId);
     setMenuOpen(false);
+  };
+
+  const requestLogout = () => {
+    setMenuOpen(false);
+    setLogoutOpen(true);
   };
 
   const drawer =
@@ -142,7 +150,12 @@ export default function CustomerPortalTabs({
                   );
                 })}
               </nav>
-              <p className={styles.moduleDrawerFoot}>Tap a section to switch pages</p>
+              <div className={styles.moduleDrawerFoot}>
+                <button type="button" className={styles.moduleDrawerLogout} onClick={requestLogout}>
+                  <i className="fa-solid fa-right-from-bracket" aria-hidden="true" />
+                  Log out
+                </button>
+              </div>
             </aside>
           </>,
           document.body
@@ -190,6 +203,21 @@ export default function CustomerPortalTabs({
         })}
       </nav>
       {drawer}
+      <ConfirmModal
+        show={logoutOpen}
+        title="Log out"
+        message="Are you sure you want to log out?"
+        danger={false}
+        confirmLabel="Yes, log out"
+        cancelLabel="Cancel"
+        confirmVariant="primary"
+        accentVariant="primary"
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          signOutCustomerAndStayOnSite();
+        }}
+      />
     </div>
   );
 }
