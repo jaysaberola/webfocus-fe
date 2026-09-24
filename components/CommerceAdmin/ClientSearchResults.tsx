@@ -224,6 +224,7 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
           storageKey="commerceAdmin:searchClients"
           columns={["owner", "name", "phone", "website"]}
           labels={{ owner: "Client Owner", name: "Client Name", phone: "Phone", website: "Website" }}
+          stackOnMobile
           className={styles.tableWrap}
         >
           <table className={styles.table}>
@@ -243,14 +244,14 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               ) : (
                 pagedClients.map((client) => (
                   <tr key={String(client.id)}>
-                    <td>{clientOwnerName(client)}</td>
-                    <td>
+                    <td data-label="Client Owner">{clientOwnerName(client)}</td>
+                    <td data-label="Client Name">
                       <button type="button" className={styles.tableCellLink} onClick={() => onOpenClient(client)}>
                         {highlightSearch(clientDisplayName(client), search, styles.searchHit)}
                       </button>
                     </td>
-                    <td>{phoneOf(client)}</td>
-                    <td>{client.website || "—"}</td>
+                    <td data-label="Phone">{phoneOf(client)}</td>
+                    <td data-label="Website">{client.website || "—"}</td>
                   </tr>
                 ))
               )}
@@ -273,6 +274,7 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
             stage: "Stage",
             contact: "Contact Name",
           }}
+          stackOnMobile
           className={styles.tableWrap}
         >
           <table className={styles.table}>
@@ -299,21 +301,21 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               ) : (
                 pagedDeals.map((deal) => (
                   <tr key={deal.id}>
-                    <td>{deal.owner}</td>
-                    <td className={styles.dealsAmount}>{formatDealAmount(deal.amount)}</td>
-                    <td>
+                    <td data-label="Deal Owner">{deal.owner}</td>
+                    <td className={styles.dealsAmount} data-label="Amount">{formatDealAmount(deal.amount)}</td>
+                    <td data-label="Deal Name">
                       <button type="button" className={styles.dealsSubject} onClick={() => onOpenClient(deal.client)}>
                         {deal.name}
                       </button>
                     </td>
-                    <td>{deal.closingDate}</td>
-                    <td>
+                    <td data-label="Closing Date">{deal.closingDate}</td>
+                    <td data-label="Client Name">
                       <button type="button" className={styles.tableCellLink} onClick={() => onOpenClient(deal.client)}>
                         {highlightSearch(deal.clientName, search, styles.searchHit)}
                       </button>
                     </td>
-                    <td>{deal.stage}</td>
-                    <td>{deal.contactName}</td>
+                    <td data-label="Stage">{deal.stage}</td>
+                    <td data-label="Contact Name">{deal.contactName}</td>
                   </tr>
                 ))
               )}
@@ -342,6 +344,7 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
             total: "Grand Total",
             contact: "Contact Name",
           }}
+          stackOnMobile
           className={styles.tableWrap}
         >
           <table className={styles.table}>
@@ -368,21 +371,21 @@ export default function ClientSearchResults({ search, clients, onOpenClient }: P
               ) : (
                 pagedInvoices.map((invoice) => (
                   <tr key={invoice.id}>
-                    <td>
+                    <td data-label="Subject">
                       <button type="button" className={styles.dealsSubject} onClick={() => onOpenClient(invoice.client)}>
                         {invoice.subject}
                       </button>
                     </td>
-                    <td>{invoice.invoiceDate}</td>
-                    <td>{invoice.status}</td>
-                    <td>
+                    <td data-label="Invoice Date">{invoice.invoiceDate}</td>
+                    <td data-label="Status">{invoice.status}</td>
+                    <td data-label="Client Name">
                       <button type="button" className={styles.tableCellLink} onClick={() => onOpenClient(invoice.client)}>
                         {highlightSearch(invoice.clientName, search, styles.searchHit)}
                       </button>
                     </td>
-                    <td>{invoice.owner}</td>
-                    <td className={styles.dealsAmount}>{formatDealAmount(invoice.grandTotal)}</td>
-                    <td>{invoice.contactName}</td>
+                    <td data-label="Invoice Owner">{invoice.owner}</td>
+                    <td className={styles.dealsAmount} data-label="Grand Total">{formatDealAmount(invoice.grandTotal)}</td>
+                    <td data-label="Contact Name">{invoice.contactName}</td>
                   </tr>
                 ))
               )}

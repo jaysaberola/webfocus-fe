@@ -78,6 +78,7 @@ export default function CustomerPortalPage() {
         activeTab={activeTab}
         onTabChange={switchTab}
         unreadNotifications={unreadCount}
+        customer={customer}
       />
 
       <div key={activeTab} className={styles.tabPanel}>

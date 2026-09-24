@@ -336,7 +336,9 @@ export default function CommerceBillingTab() {
                   setColVisOpen((open) => !open);
                 }}
               >
-                <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+                <i className="fa-solid fa-table-columns" aria-hidden="true" />
+                <span className={styles.toolbarLabelFull}>Column Visibility</span>
+                <span className={styles.toolbarLabelShort}>Columns</span>
               </button>
               {colVisOpen ? (
                 <div className={styles.colVisPanel}>
@@ -361,7 +363,9 @@ export default function CommerceBillingTab() {
             </div>
           </div>
           <button type="button" className={styles.primaryBtnSm} onClick={openCreateInvoice}>
-            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Invoice
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+            <span className={styles.toolbarLabelFull}>Create Invoice</span>
+            <span className={styles.toolbarLabelShort}>Create</span>
           </button>
         </div>
       )}
@@ -410,6 +414,7 @@ export default function CommerceBillingTab() {
               labels={INVOICE_COLUMN_LABELS}
               selectColumn
               overflow
+              stackOnMobile
               className={styles.tableWrap}
             >
               <table className={`${styles.table} ${styles.invoicesTable}`}>
@@ -525,7 +530,7 @@ function renderInvoiceCell(
 ) {
   if (column === "clientName") {
     return (
-      <td key={column}>
+      <td key={column} data-label={INVOICE_COLUMN_LABELS[column]}>
         <button type="button" className={styles.tableCellLink} onClick={() => actions?.onOpenClient?.()}>
           {invoiceCellValue(invoice, column)}
         </button>
@@ -535,7 +540,7 @@ function renderInvoiceCell(
 
   if (column === "subject") {
     return (
-      <td key={column}>
+      <td key={column} data-label={INVOICE_COLUMN_LABELS[column]}>
         <button type="button" className={styles.tableCellLink} onClick={() => actions?.onEditInvoice?.()}>
           {invoiceCellValue(invoice, column)}
         </button>
@@ -545,11 +550,15 @@ function renderInvoiceCell(
 
   if (column === "grandTotal") {
     return (
-      <td key={column} className={styles.dealsAmount}>
+      <td key={column} className={styles.dealsAmount} data-label={INVOICE_COLUMN_LABELS[column]}>
         {invoiceCellValue(invoice, column)}
       </td>
     );
   }
 
-  return <td key={column}>{invoiceCellValue(invoice, column)}</td>;
+  return (
+    <td key={column} data-label={INVOICE_COLUMN_LABELS[column]}>
+      {invoiceCellValue(invoice, column)}
+    </td>
+  );
 }

@@ -395,7 +395,7 @@ export default function CommerceManagedTab() {
         onChange={() => selection.toggleRow(service)}
         label={`Select service ${service.name ?? service.title}`}
       />
-      <td>
+      <td data-label="Service Name">
         <button
           type="button"
           className={styles.tableCellLink}
@@ -404,16 +404,16 @@ export default function CommerceManagedTab() {
           {service.name ?? service.title}
         </button>
       </td>
-      <td><span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span></td>
-      <td className={styles.amountCell}>{formatCommerceMoney(Number(service.price ?? 0))}</td>
-      <td>
+      <td data-label="Type"><span className={styles.typeBadge}>{resolveServiceTypeLabel(service)}</span></td>
+      <td className={styles.amountCell} data-label="Base Price">{formatCommerceMoney(Number(service.price ?? 0))}</td>
+      <td data-label="Status">
         <span className={serviceActive(service) ? styles.badgePaid : styles.badgeMuted}>
           {serviceActive(service) ? "Active" : "Disabled"}
         </span>
       </td>
-      <td>{formatServiceDate(service.created_at)}</td>
-      <td>{formatServiceDate(service.updated_at)}</td>
-      <td className={styles.tableActionCell}>{renderServiceActionSelect(service)}</td>
+      <td data-label="Date create">{formatServiceDate(service.created_at)}</td>
+      <td data-label="Date Modified">{formatServiceDate(service.updated_at)}</td>
+      <td className={styles.tableActionCell} data-label="Action">{renderServiceActionSelect(service)}</td>
     </tr>
   );
 
@@ -493,20 +493,26 @@ export default function CommerceManagedTab() {
               </p>
             </div>
             <div className={styles.toolbar}>
-              <div className={styles.analyticsToggle}>
+              <div className={`${styles.analyticsToggle} ${styles.viewModeToggle}`} role="group" aria-label="View mode">
                 <button
                   type="button"
                   className={viewMode === "list" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
                   onClick={() => setViewMode("list")}
+                  aria-label="List view"
+                  title="List view"
                 >
-                  <i className="fa-solid fa-list" aria-hidden="true" /> List
+                  <i className="fa-solid fa-list" aria-hidden="true" />
+                  <span className={styles.viewModeToggleLabel}>List</span>
                 </button>
                 <button
                   type="button"
                   className={viewMode === "grid" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
                   onClick={() => setViewMode("grid")}
+                  aria-label="Grid view"
+                  title="Grid view"
                 >
-                  <i className="fa-solid fa-table-cells" aria-hidden="true" /> Grid
+                  <i className="fa-solid fa-table-cells" aria-hidden="true" />
+                  <span className={styles.viewModeToggleLabel}>Grid</span>
                 </button>
               </div>
               <button type="button" className={styles.primaryBtnSm} onClick={() => setCreateServiceOpen(true)}>
@@ -583,6 +589,7 @@ export default function CommerceManagedTab() {
                       action: "Action",
                     }}
                     selectColumn
+                    stackOnMobile
                     className={styles.tableWrap}
                   >
                     <table className={styles.table}>

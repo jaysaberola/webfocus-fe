@@ -132,9 +132,9 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
                     <tbody>
                       {textChanges.map((change) => (
                         <tr key={change.field}>
-                          <td>{change.label}</td>
-                          <td>{change.from || "—"}</td>
-                          <td>
+                          <td data-label="Field">{change.label}</td>
+                          <td data-label="Current">{change.from || "—"}</td>
+                          <td data-label="Requested">
                             <strong>{change.to || "—"}</strong>
                           </td>
                         </tr>

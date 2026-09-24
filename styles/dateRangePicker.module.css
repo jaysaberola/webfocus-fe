@@ -78,6 +78,16 @@
   .calendars {
     grid-template-columns: 1fr;
   }
+
+  .label {
+    display: none;
+  }
+
+  .trigger {
+    min-width: 0;
+    max-width: 8.5rem;
+    padding: 0.4rem 0.55rem;
+  }
 }
 
 .month {

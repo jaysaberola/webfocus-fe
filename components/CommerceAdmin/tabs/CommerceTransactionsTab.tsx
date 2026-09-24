@@ -18,7 +18,13 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
-import { orderAdminColumnValue, transactionDealNames, transactionDomainType, transactionPreferredClientOwner } from "@/lib/commerceAdmin/clientDealHelpers";
+import {
+  formatDealNamesForDisplay,
+  orderAdminColumnValue,
+  transactionDealNames,
+  transactionDomainType,
+  transactionPreferredClientOwner,
+} from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
   TX_COLUMN_KEYS,
@@ -637,7 +643,7 @@ export default function CommerceTransactionsTab() {
   const renderOrderColumnCell = (row: SalesTransaction, column: TxColumnKey) => {
     if (column === "clientOwner") {
       return (
-        <td key={column} className={styles.dealsNowrap}>
+        <td key={column} className={styles.dealsNowrap} data-label={TX_COLUMN_LABELS[column]}>
           {orderAdminColumnValue(row, column)}
         </td>
       );
@@ -646,14 +652,14 @@ export default function CommerceTransactionsTab() {
       const label = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       const paid = label.toLowerCase() === "paid" || isPaidStatus(row.payment_status);
       return (
-        <td key={column} className={styles.statusCell}>
+        <td key={column} className={styles.statusCell} data-label={TX_COLUMN_LABELS[column]}>
           <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>
         </td>
       );
     }
     if (column === "expectedRevenue" || column === "dealAmount") {
       return (
-        <td key={column} className={styles.amountCell}>
+        <td key={column} className={styles.amountCell} data-label={TX_COLUMN_LABELS[column]}>
           {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
         </td>
       );
@@ -661,7 +667,7 @@ export default function CommerceTransactionsTab() {
     if (column === "clientName") {
       const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
       return (
-        <td key={column} className={styles.dealsNowrap}>
+        <td key={column} className={styles.dealsNowrap} data-label={TX_COLUMN_LABELS[column]}>
           <button type="button" className={styles.tableCellLink} onClick={() => void openClientInfo(row)}>
             {name}
           </button>
@@ -670,7 +676,7 @@ export default function CommerceTransactionsTab() {
     }
     if (column === "dealName") {
       return (
-        <td key={column} className={styles.dealNameCell} data-deal-name-cell="">
+        <td key={column} className={styles.dealNameCell} data-deal-name-cell="" data-label={TX_COLUMN_LABELS[column]}>
           <DealNameCell
             names={transactionDealNames(row)}
             domainType={transactionDomainType(row)}
@@ -683,6 +689,7 @@ export default function CommerceTransactionsTab() {
       <td
         key={column}
         className={column === "collectionNote" ? undefined : styles.dealsNowrap}
+        data-label={TX_COLUMN_LABELS[column]}
       >
         {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
       </td>
@@ -824,20 +831,26 @@ export default function CommerceTransactionsTab() {
             Track client deals, owners, domains, and product categories.
           </p>
         </div>
-        <div className={styles.analyticsToggle}>
+        <div className={`${styles.analyticsToggle} ${styles.viewModeToggle}`} role="group" aria-label="View mode">
           <button
             type="button"
             className={viewMode === "list" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
             onClick={() => setViewMode("list")}
+            aria-label="List view"
+            title="List view"
           >
-            <i className="fa-solid fa-list" aria-hidden="true" /> List
+            <i className="fa-solid fa-list" aria-hidden="true" />
+            <span className={styles.viewModeToggleLabel}>List</span>
           </button>
           <button
             type="button"
             className={viewMode === "grid" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
             onClick={() => setViewMode("grid")}
+            aria-label="Grid view"
+            title="Grid view"
           >
-            <i className="fa-solid fa-table-cells" aria-hidden="true" /> Grid
+            <i className="fa-solid fa-table-cells" aria-hidden="true" />
+            <span className={styles.viewModeToggleLabel}>Grid</span>
           </button>
         </div>
       </div>
@@ -888,7 +901,9 @@ export default function CommerceTransactionsTab() {
                   setColVisOpen((open) => !open);
                 }}
               >
-                <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+                <i className="fa-solid fa-table-columns" aria-hidden="true" />
+                <span className={styles.toolbarLabelFull}>Column Visibility</span>
+                <span className={styles.toolbarLabelShort}>Columns</span>
               </button>
               {colVisOpen ? (
                 <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
@@ -915,7 +930,9 @@ export default function CommerceTransactionsTab() {
               setView("create");
             }}
           >
-            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Deal
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+            <span className={styles.toolbarLabelFull}>Create Deal</span>
+            <span className={styles.toolbarLabelShort}>Create</span>
           </button>
         </div>
       )}
@@ -976,6 +993,7 @@ export default function CommerceTransactionsTab() {
               columns={visibleOrderColumns}
               labels={TX_COLUMN_LABELS}
               selectColumn
+              stackOnMobile
               className={styles.tableWrap}
             >
               <table className={styles.table}>
@@ -1030,6 +1048,12 @@ export default function CommerceTransactionsTab() {
               ) : (
                 displayRows.map((row) => {
                   const isNew = isNewDealRow(row, seenDealIds);
+                  const dealNames = transactionDealNames(row);
+                  const domainType = transactionDomainType(row);
+                  const dealTitle = formatDealNamesForDisplay(dealNames);
+                  const extraType = domainType && !dealNames.some((name) => name.trim().toLowerCase() === domainType.trim().toLowerCase())
+                    ? domainType
+                    : "";
                   return (
                   <article
                     key={row.id}
@@ -1041,54 +1065,47 @@ export default function CommerceTransactionsTab() {
                     <div className={styles.txGridCardTop}>
                       <button
                         type="button"
-                        className={styles.tableCellLink}
+                        className={styles.txGridTitle}
                         onClick={() => openView(row)}
                       >
                         {isNew ? (
                           <span className={styles.newDealDot} aria-hidden="true" />
                         ) : null}
-                        <DealNameCell names={transactionDealNames(row)} domainType={transactionDomainType(row)} />
+                        <span className={styles.txGridTitleText}>{dealTitle}</span>
+                        {extraType ? <span className={styles.dealNameType}>{extraType}</span> : null}
                       </button>
                       {renderStatusBadge(row)}
                     </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Client Owner</div>
-                      <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "clientOwner")}
+                    <div className={styles.txGridFields}>
+                      <div>
+                        <div className={styles.txGridLabel}>Client</div>
+                        <div className={styles.txGridValue}>
+                          <button
+                            type="button"
+                            className={styles.tableCellLink}
+                            onClick={() => void openClientInfo(row)}
+                          >
+                            {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Client Name</div>
-                      <div className={styles.txGridValue}>
-                        <button
-                          type="button"
-                          className={styles.tableCellLink}
-                          onClick={() => void openClientInfo(row)}
-                        >
-                          {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
-                        </button>
+                      <div>
+                        <div className={styles.txGridLabel}>Owner</div>
+                        <div className={styles.txGridValue}>
+                          {orderAdminColumnValue(row, "clientOwner")}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Deal Name</div>
-                      <div className={styles.txGridValue}>
-                        <DealNameCell
-                          names={transactionDealNames(row)}
-                          domainType={transactionDomainType(row)}
-                          onClick={() => openView(row)}
-                        />
+                      <div>
+                        <div className={styles.txGridLabel}>Domain</div>
+                        <div className={styles.txGridValue}>
+                          {orderAdminColumnValue(row, "domainName", { assigned: assignedUserLabel(row) })}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Domain Name</div>
-                      <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "domainName", { assigned: assignedUserLabel(row) })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={styles.txGridLabel}>Product Category</div>
-                      <div className={styles.txGridValue}>
-                        {orderAdminColumnValue(row, "productCategory", { assigned: assignedUserLabel(row) })}
+                      <div>
+                        <div className={styles.txGridLabel}>Category</div>
+                        <div className={styles.txGridValue}>
+                          {orderAdminColumnValue(row, "productCategory", { assigned: assignedUserLabel(row) })}
+                        </div>
                       </div>
                     </div>
                     <div className={styles.txGridFooter}>
@@ -1307,6 +1324,7 @@ export default function CommerceTransactionsTab() {
                 needed: "Needed Action",
                 action: "Action",
               }}
+              stackOnMobile
               className={styles.tableWrap}
             >
               <table className={styles.table}>
@@ -1321,16 +1339,16 @@ export default function CommerceTransactionsTab() {
                 <tbody>
                   {neededActions.map((item) => (
                     <tr key={item.row.id}>
-                      <td>{item.row.transaction_no}</td>
-                      <td>{item.row.customer_name || "—"}</td>
-                      <td>
+                      <td data-label="Invoice">{item.row.transaction_no}</td>
+                      <td data-label="Client">{item.row.customer_name || "—"}</td>
+                      <td data-label="Needed Action">
                         {item.action === "upload"
                           ? "Upload Proposal Quotation"
                           : item.action === "set-price"
                             ? "Set package price before Proceed Payment"
                             : "Proceed Payment — signed proposal received"}
                       </td>
-                      <td>
+                      <td data-label="Action">
                         <button
                           type="button"
                           className={styles.primaryBtnSm}

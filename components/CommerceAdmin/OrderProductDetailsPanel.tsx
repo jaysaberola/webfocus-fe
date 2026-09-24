@@ -64,20 +64,20 @@ export default function OrderProductDetailsPanel({ order, embedded = false, onCl
                 const period = splitPeriod(item.period);
                 return (
                 <tr key={item.id}>
-                  <td>{index + 1}</td>
-                  <td>
+                  <td data-label="S.NO">{index + 1}</td>
+                  <td data-label="Deal Name">
                     <div className={styles.productNameCell}>
                       <strong>{item.name}</strong>
                       {item.domain ? <span>{item.domain}</span> : null}
                     </div>
                   </td>
-                  <td className={styles.dealsNowrap}>{period.start}</td>
-                  <td className={styles.dealsNowrap}>{period.end}</td>
-                  <td className={styles.dealsAmount}>{moneyCell(item.listPrice)}</td>
-                  <td className={styles.dealsAmount}>{item.quantity}</td>
-                  <td className={styles.dealsAmount}>{moneyCell(item.amount)}</td>
-                  <td className={styles.dealsAmount}>{moneyCell(item.discount)}</td>
-                  <td className={styles.dealsAmount}>{moneyCell(item.tax)}</td>
+                  <td className={styles.dealsNowrap} data-label="Start Date">{period.start}</td>
+                  <td className={styles.dealsNowrap} data-label="End Date">{period.end}</td>
+                  <td className={styles.dealsAmount} data-label="List Price(₱)">{moneyCell(item.listPrice)}</td>
+                  <td className={styles.dealsAmount} data-label="Quantity">{item.quantity}</td>
+                  <td className={styles.dealsAmount} data-label="Amount(₱)">{moneyCell(item.amount)}</td>
+                  <td className={styles.dealsAmount} data-label="Discount(₱)">{moneyCell(item.discount)}</td>
+                  <td className={styles.dealsAmount} data-label="Tax(₱)">{moneyCell(item.tax)}</td>
                 </tr>
                 );
               })

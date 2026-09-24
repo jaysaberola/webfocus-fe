@@ -589,7 +589,9 @@ export default function CommerceClientsTab(_props: Props) {
                   setColVisOpen((open) => !open);
                 }}
               >
-                <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+                <i className="fa-solid fa-table-columns" aria-hidden="true" />
+                <span className={styles.toolbarLabelFull}>Column Visibility</span>
+                <span className={styles.toolbarLabelShort}>Columns</span>
               </button>
               {colVisOpen ? (
                 <div className={styles.colVisPanel}>
@@ -609,7 +611,9 @@ export default function CommerceClientsTab(_props: Props) {
             </div>
           </div>
           <button type="button" className={styles.primaryBtnSm} onClick={openCreate}>
-            <i className="fa-solid fa-plus" aria-hidden="true" /> Create Client
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+            <span className={styles.toolbarLabelFull}>Create Client</span>
+            <span className={styles.toolbarLabelShort}>Create</span>
           </button>
         </div>
       )}
@@ -682,6 +686,7 @@ export default function CommerceClientsTab(_props: Props) {
               columns={visibleClientColumns}
               labels={CLIENT_COLUMN_LABELS}
               selectColumn
+              stackOnMobile
               className={styles.tableWrap}
             >
               <table className={styles.table}>
@@ -725,7 +730,7 @@ export default function CommerceClientsTab(_props: Props) {
                             label={`Select client ${clientDisplayName(client)}`}
                           />
                           {columnsVisible.name ? (
-                            <td>
+                            <td data-label={CLIENT_COLUMN_LABELS.name}>
                               <button
                                 type="button"
                                 className={styles.tableCellLink}
@@ -736,7 +741,7 @@ export default function CommerceClientsTab(_props: Props) {
                             </td>
                           ) : null}
                           {columnsVisible.owner ? (
-                            <td>
+                            <td data-label={CLIENT_COLUMN_LABELS.owner}>
                               <button
                                 type="button"
                                 className={styles.tableCellLink}
@@ -748,13 +753,13 @@ export default function CommerceClientsTab(_props: Props) {
                             </td>
                           ) : null}
                           {columnsVisible.created ? (
-                            <td>{formatClientCreatedTime(client)}</td>
+                            <td data-label={CLIENT_COLUMN_LABELS.created}>{formatClientCreatedTime(client)}</td>
                           ) : null}
                           {columnsVisible.billing ? (
-                            <td>{clientBillingInCharge(client)}</td>
+                            <td data-label={CLIENT_COLUMN_LABELS.billing}>{clientBillingInCharge(client)}</td>
                           ) : null}
                           {columnsVisible.status ? (
-                            <td>
+                            <td data-label={CLIENT_COLUMN_LABELS.status}>
                               {clientDisplayStatus(client) === "Active" ? (
                                 <span className={styles.badgePaid}>{clientDisplayStatus(client)}</span>
                               ) : (
@@ -762,13 +767,23 @@ export default function CommerceClientsTab(_props: Props) {
                               )}
                             </td>
                           ) : null}
-                          {columnsVisible.service ? <td>{clientServiceName(client)}</td> : null}
-                          {columnsVisible.plan ? <td>{clientPlanName(client)}</td> : null}
-                          {columnsVisible.subject ? <td>{clientSubject(client)}</td> : null}
-                          {columnsVisible.productCategory ? <td>{clientProductCategory(client)}</td> : null}
-                          {columnsVisible.domain ? <td>{clientDomain(client)}</td> : null}
+                          {columnsVisible.service ? (
+                            <td data-label={CLIENT_COLUMN_LABELS.service}>{clientServiceName(client)}</td>
+                          ) : null}
+                          {columnsVisible.plan ? (
+                            <td data-label={CLIENT_COLUMN_LABELS.plan}>{clientPlanName(client)}</td>
+                          ) : null}
+                          {columnsVisible.subject ? (
+                            <td data-label={CLIENT_COLUMN_LABELS.subject}>{clientSubject(client)}</td>
+                          ) : null}
+                          {columnsVisible.productCategory ? (
+                            <td data-label={CLIENT_COLUMN_LABELS.productCategory}>{clientProductCategory(client)}</td>
+                          ) : null}
+                          {columnsVisible.domain ? (
+                            <td data-label={CLIENT_COLUMN_LABELS.domain}>{clientDomain(client)}</td>
+                          ) : null}
                           {columnsVisible.classification ? (
-                            <td>
+                            <td data-label={CLIENT_COLUMN_LABELS.classification}>
                               <span
                                 className={
                                   classification === "Existing"

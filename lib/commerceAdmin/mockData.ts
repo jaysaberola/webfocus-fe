@@ -11,14 +11,14 @@ import type {
 } from "./types";
 
 export const COMMERCE_ADMIN_TABS = [
-  { id: "dashboard", label: "Dashboard", icon: "fa-solid fa-gauge-high" },
-  { id: "clients", label: "Clients", icon: "fa-solid fa-users" },
-  { id: "orders", label: "Deals", icon: "fa-regular fa-handshake" },
-  { id: "approvals", label: "Approvals", icon: "fa-solid fa-circle-check", badge: true },
-  { id: "billing", label: "Billing and Payments", icon: "fa-solid fa-file-invoice-dollar" },
-  { id: "notifications", label: "Notifications", icon: "fa-regular fa-bell", badge: true },
-  { id: "helpdesk", label: "Helpdesk", icon: "fa-solid fa-headset" },
-  { id: "reports", label: "Reports", icon: "fa-solid fa-chart-column" },
+  { id: "dashboard", label: "Dashboard", shortLabel: "Home", icon: "fa-solid fa-gauge-high" },
+  { id: "clients", label: "Clients", shortLabel: "Clients", icon: "fa-solid fa-users" },
+  { id: "orders", label: "Deals", shortLabel: "Deals", icon: "fa-regular fa-handshake" },
+  { id: "approvals", label: "Approvals", shortLabel: "Approve", icon: "fa-solid fa-circle-check", badge: true },
+  { id: "billing", label: "Billing and Payments", shortLabel: "Billing", icon: "fa-solid fa-file-invoice-dollar" },
+  { id: "notifications", label: "Notifications", shortLabel: "Inbox", icon: "fa-regular fa-bell", badge: true },
+  { id: "helpdesk", label: "Helpdesk", shortLabel: "Help", icon: "fa-solid fa-headset" },
+  { id: "reports", label: "Reports", shortLabel: "Reports", icon: "fa-solid fa-chart-column" },
 ] as const;
 
 export const COMMERCE_KPIS: CommerceKpi[] = [

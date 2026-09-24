@@ -126,7 +126,9 @@ export default function ClientInvoicesPanel({ client, onEditClient, onCreateInvo
                 setColVisOpen((open) => !open);
               }}
             >
-              <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+              <i className="fa-solid fa-table-columns" aria-hidden="true" />
+              <span className={styles.toolbarLabelFull}>Column Visibility</span>
+              <span className={styles.toolbarLabelShort}>Columns</span>
             </button>
             {colVisOpen ? (
               <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
@@ -248,7 +250,7 @@ function renderInvoiceCell(
 ) {
   if (column === "clientName") {
     return (
-      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={INVOICE_COLUMN_LABELS[column]}>
         <button type="button" className={styles.tableCellLink} onClick={() => onEditClient?.()}>
           {invoice.clientName}
         </button>
@@ -258,7 +260,7 @@ function renderInvoiceCell(
 
   if (column === "subject") {
     return (
-      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={INVOICE_COLUMN_LABELS[column]}>
         <button type="button" className={styles.tableCellLink} onClick={() => onEditInvoice?.()}>
           {invoice.subject}
         </button>
@@ -268,14 +270,14 @@ function renderInvoiceCell(
 
   if (column === "grandTotal") {
     return (
-      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.dealsAmount}`}>
+      <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.dealsAmount}`} data-label={INVOICE_COLUMN_LABELS[column]}>
         {invoiceCellValue(invoice, column)}
       </td>
     );
   }
 
   return (
-    <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+    <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={INVOICE_COLUMN_LABELS[column]}>
       {invoiceCellValue(invoice, column)}
     </td>
   );

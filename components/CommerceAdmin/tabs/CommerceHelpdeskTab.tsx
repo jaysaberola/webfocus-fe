@@ -243,6 +243,7 @@ export default function CommerceHelpdeskTab() {
                   status: "Status",
                 }}
                 selectColumn
+                stackOnMobile
                 className={styles.tableWrap}
               >
                 <table className={styles.table}>
@@ -272,25 +273,25 @@ export default function CommerceHelpdeskTab() {
                           onChange={() => selection.toggleRow(ticket)}
                           label={`Select ticket ${ticket.ticketNo}`}
                         />
-                        <td className={styles.monoCell}>
+                        <td className={styles.monoCell} data-label="Ticket">
                           <button type="button" className={styles.tableCellLink}>
                             {ticket.ticketNo}
                           </button>
                         </td>
-                        <td>
+                        <td data-label="Subject">
                           <strong>{ticket.subject}</strong>
                           {ticket.message ? (
                             <div className={styles.panelSubtitle}>{ticket.message}</div>
                           ) : null}
                         </td>
-                        <td>
+                        <td data-label="Client">
                           {ticket.client}
                           {ticket.email ? (
                             <div className={styles.panelSubtitle}>{ticket.email}</div>
                           ) : null}
                         </td>
-                        <td>{ticket.updatedAt}</td>
-                        <td>
+                        <td data-label="Updated">{ticket.updatedAt}</td>
+                        <td data-label="Status">
                           <select
                             className={styles.selectInline}
                             value={ticket.status}

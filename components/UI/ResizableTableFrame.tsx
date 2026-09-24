@@ -3,6 +3,8 @@ import {
   cloneElement,
   isValidElement,
   useCallback,
+  useEffect,
+  useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
   type ReactElement,
@@ -41,8 +43,18 @@ export default function ResizableTableFrame({
   const { containerRef, layoutFor, startResize } = useResizableColumns(storageKey, labelFor, {
     defaultOverflow: overflow,
   });
+  const [stacking, setStacking] = useState(false);
+  useEffect(() => {
+    if (!stackOnMobile) return;
+    const media = window.matchMedia("(max-width: 768px)");
+    const sync = () => setStacking(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, [stackOnMobile]);
   const layout = layoutFor(keys);
   const table = Children.only(children);
+  const stacked = stackOnMobile && stacking;
 
   if (!isValidElement(table) || keys.length === 0) return children;
 
@@ -54,12 +66,16 @@ export default function ResizableTableFrame({
     <div
       ref={containerRef}
       className={[styles.wrap, stackOnMobile ? styles.stackOnMobile : "", className].filter(Boolean).join(" ")}
-      style={{ overflowX: layout.overflowing ? "auto" : "hidden" }}
+      style={{ overflowX: stacked ? "visible" : layout.overflowing ? "auto" : "hidden" }}
     >
-      <div className={styles.inner} style={{ width: layout.innerWidth }}>
+      <div className={styles.inner} style={{ width: stacked ? "100%" : layout.innerWidth }}>
         {cloneElement(tableElement, {
           className: [tableElement.props.className, styles.table].filter(Boolean).join(" "),
-          style: { ...tableElement.props.style, width: "100%", tableLayout: "fixed" },
+          style: {
+            ...tableElement.props.style,
+            width: "100%",
+            tableLayout: stacked ? "auto" : "fixed",
+          },
           children: (
             <>
               <colgroup>

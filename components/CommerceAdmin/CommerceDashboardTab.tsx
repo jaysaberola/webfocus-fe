@@ -167,11 +167,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         ) : (
                           visibleNewOrders.map((row) => (
                             <tr key={row.id}>
-                              <td className={styles.queueCellStrong}>{row.orderId}</td>
-                              <td>{row.company}</td>
-                              <td>{row.dateCreated}</td>
-                              <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
-                              <td><span className={styles.statusNew}>{row.status}</span></td>
+                              <td className={styles.queueCellStrong} data-label="Order ID">{row.orderId}</td>
+                              <td data-label="Company Name">{row.company}</td>
+                              <td data-label="Date Created">{row.dateCreated}</td>
+                              <td className={styles.queueCellAmount} data-label="Amount">{formatCommerceMoney(row.amount)}</td>
+                              <td data-label="Status"><span className={styles.statusNew}>{row.status}</span></td>
                             </tr>
                           ))
                         )}
@@ -214,11 +214,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         ) : (
                           visibleExpiringServices.map((row) => (
                             <tr key={row.id}>
-                              <td className={styles.queueCellStrong}>{row.service}</td>
-                              <td>{row.company}</td>
-                              <td>{row.expiryDate}</td>
-                              <td>{row.daysLeft}</td>
-                              <td><span className={styles.statusExpiring}>Expiring</span></td>
+                              <td className={styles.queueCellStrong} data-label="Service">{row.service}</td>
+                              <td data-label="Company Name">{row.company}</td>
+                              <td data-label="Expiry Date">{row.expiryDate}</td>
+                              <td data-label="Days Left">{row.daysLeft}</td>
+                              <td data-label="Status"><span className={styles.statusExpiring}>Expiring</span></td>
                             </tr>
                           ))
                         )}
@@ -261,11 +261,11 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
                         ) : (
                           visibleOverdueInvoices.map((row) => (
                             <tr key={row.id}>
-                              <td className={styles.queueCellStrong}>{row.reference}</td>
-                              <td>{row.company}</td>
-                              <td>{row.dueDate}</td>
-                              <td className={styles.queueCellAmount}>{formatCommerceMoney(row.amount)}</td>
-                              <td><span className={styles.statusOverdue}>Overdue</span></td>
+                              <td className={styles.queueCellStrong} data-label="SOA / REF #">{row.reference}</td>
+                              <td data-label="Company Name">{row.company}</td>
+                              <td data-label="Due Date">{row.dueDate}</td>
+                              <td className={styles.queueCellAmount} data-label="Amount">{formatCommerceMoney(row.amount)}</td>
+                              <td data-label="Status"><span className={styles.statusOverdue}>Overdue</span></td>
                             </tr>
                           ))
                         )}
@@ -397,12 +397,12 @@ export default function CommerceDashboardTab({ onTabChange }: Props) {
               <tbody>
                 {COMMERCE_RECENT_ACTIVITY.map((row) => (
                   <tr key={row.id}>
-                    <td>{row.dateTime}</td>
-                    <td>{row.activity}</td>
-                    <td>{row.reference}</td>
-                    <td>{row.company}</td>
-                    <td>{row.performedBy}</td>
-                    <td>
+                    <td data-label="Date & Time">{row.dateTime}</td>
+                    <td data-label="Activity">{row.activity}</td>
+                    <td data-label="Reference">{row.reference}</td>
+                    <td data-label="Company Name">{row.company}</td>
+                    <td data-label="Performed By">{row.performedBy}</td>
+                    <td data-label="Status">
                       <span className={row.status === "In Progress" ? styles.statusInProgress : styles.statusFailed}>
                         {row.status}
                       </span>

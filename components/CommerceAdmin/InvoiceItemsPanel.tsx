@@ -109,8 +109,8 @@ export default function InvoiceItemsPanel({
                     <i className="fa-regular fa-trash-can" aria-hidden="true" />
                   </button>
                 </td>
-                <td className={styles.invoiceItemsSno}>{index + 1}</td>
-                <td>
+                <td className={styles.invoiceItemsSno} data-label="S.NO">{index + 1}</td>
+                <td data-label="Deal Name">
                   <div className={styles.invoiceItemsProduct}>
                     <div className={styles.invoiceItemsDealSelect}>
                       <select
@@ -140,7 +140,7 @@ export default function InvoiceItemsPanel({
                     />
                   </div>
                 </td>
-                <td>
+                <td data-label="List Price(₱)">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsMoney}`}
                     inputMode="decimal"
@@ -148,7 +148,7 @@ export default function InvoiceItemsPanel({
                     onChange={(event) => updateItem(item.id, { listPrice: event.target.value })}
                   />
                 </td>
-                <td>
+                <td data-label="Quantity">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsQty}`}
                     inputMode="decimal"
@@ -156,7 +156,7 @@ export default function InvoiceItemsPanel({
                     onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
                   />
                 </td>
-                <td>
+                <td data-label="Amount(₱)">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsMoney}`}
                     value={formatInvoiceAmount(invoiceLineAmount(item))}
@@ -164,7 +164,7 @@ export default function InvoiceItemsPanel({
                     tabIndex={-1}
                   />
                 </td>
-                <td>
+                <td data-label="Discount(₱)">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsMoney}`}
                     inputMode="decimal"
@@ -172,7 +172,7 @@ export default function InvoiceItemsPanel({
                     onChange={(event) => updateItem(item.id, { discount: event.target.value })}
                   />
                 </td>
-                <td>
+                <td data-label="Tax(₱)">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsMoney}`}
                     inputMode="decimal"
@@ -180,7 +180,7 @@ export default function InvoiceItemsPanel({
                     onChange={(event) => updateItem(item.id, { tax: event.target.value })}
                   />
                 </td>
-                <td>
+                <td data-label="Total(₱)">
                   <input
                     className={`${styles.clientCrmInput} ${styles.invoiceItemsMoney}`}
                     value={formatInvoiceAmount(invoiceLineTotal(item))}

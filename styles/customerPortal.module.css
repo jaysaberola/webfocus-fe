@@ -203,87 +203,298 @@
   background: #f43f5e;
 }
 
+.moduleMobileBar {
+  display: none;
+}
+
+@media (min-width: 769px) {
+  .moduleMobileBar,
+  .moduleDrawerOverlay,
+  .moduleDrawer {
+    display: none !important;
+  }
+}
+
+.moduleHamburger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border: 0;
+  border-radius: 0.85rem;
+  background: #021845;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(2, 24, 69, 0.22);
+  cursor: pointer;
+}
+
+.moduleHamburgerDot {
+  position: absolute;
+  top: 0.32rem;
+  right: 0.32rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border: 2px solid #021845;
+  border-radius: 999px;
+  background: #f43f5e;
+}
+
+.moduleMobileCurrent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  color: var(--cp-slate-900);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.moduleMobileCurrent i {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.7rem;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.moduleMobileCurrent span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moduleDrawerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1180;
+  border: 0;
+  padding: 0;
+  background: rgba(2, 24, 69, 0.48);
+  animation: moduleOverlayIn 0.22s ease both;
+}
+
+.moduleDrawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1190;
+  display: flex;
+  flex-direction: column;
+  width: min(20rem, 88vw);
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 7.5rem);
+  box-shadow: 18px 0 48px rgba(2, 24, 69, 0.2);
+  animation: moduleDrawerIn 0.28s ease both;
+}
+
+.moduleDrawerHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.2rem 1rem 1.05rem;
+  background: linear-gradient(135deg, #021845 0%, #1d4ed8 100%);
+  color: #fff;
+}
+
+.moduleDrawerBrand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.moduleDrawerBrandIcon,
+.moduleDrawerAvatar {
+  display: grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.moduleDrawerAvatar {
+  overflow: hidden;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.moduleDrawerAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.moduleDrawerKicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.moduleDrawerTitle {
+  margin: 0.12rem 0 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.moduleDrawerClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+
+.moduleDrawerNav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 0.9rem 0.75rem 0.4rem;
+  overflow-y: auto;
+}
+
+.moduleDrawerBtn,
+.moduleDrawerBtnActive {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.85rem;
+  padding: 0.58rem 0.75rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: #fff;
+  color: var(--cp-slate-700);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: left;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+  cursor: pointer;
+}
+
+.moduleDrawerBtn i,
+.moduleDrawerBtnActive i {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.moduleDrawerBtn:hover {
+  background: #f8fafc;
+}
+
+.moduleDrawerBtnActive {
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: inset 3px 0 0 #2563eb, 0 8px 18px rgba(37, 99, 235, 0.08);
+}
+
+.moduleDrawerBtnActive i {
+  background: #2563eb;
+  color: #fff;
+}
+
+.moduleDrawerBadge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.32rem;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.moduleDrawerFoot {
+  margin-top: auto;
+  padding: 0.85rem 1rem 1.15rem;
+  color: var(--cp-slate-500);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+@keyframes moduleOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes moduleDrawerIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moduleDrawerOverlay,
+  .moduleDrawer {
+    animation: none;
+  }
+}
+
 @media (max-width: 768px) {
   .tabNavSticky {
-    padding: 0.05rem 0 0.45rem;
+    padding: 0.15rem 0 0.55rem;
     margin: 0;
     background: #fff;
   }
 
   .tabNav {
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0.1rem;
-    width: 100%;
-    padding: 0.1rem 0 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-    overflow: hidden;
-  }
-
-  .tabBtn {
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: center;
-    gap: 0.22rem;
-    width: 100%;
-    min-width: 0;
-    padding: 0.15rem 0.05rem 0.1rem;
-    border-radius: 0.7rem;
-    background: transparent;
-    color: #64748b;
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0;
-    white-space: normal;
-    box-shadow: none;
-  }
-
-  .tabBtn:hover,
-  .tabBtnActive:hover {
-    background: transparent;
-  }
-
-  .tabBtn i {
-    display: grid;
-    place-items: center;
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 0.65rem;
-    background: #f1f5f9;
-    font-size: 0.78rem;
-  }
-
-  .tabBtnActive {
-    background: transparent;
-    color: #2563eb;
-    box-shadow: none;
-  }
-
-  .tabBtnActive i {
-    background: #2563eb;
-    color: #fff;
-    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.26);
-  }
-
-  .tabLabelDesktop {
     display: none;
   }
 
-  .tabLabelMobile {
-    display: block;
+  .moduleMobileBar {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
     width: 100%;
-    line-height: 1.15;
-    text-align: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .tabBadge {
-    top: 0;
-    right: calc(50% - 1.05rem);
+    min-width: 0;
+    padding: 0.4rem 0.45rem;
+    border: 1px solid var(--cp-slate-200);
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
   }
 }
 
@@ -2866,7 +3077,32 @@
     align-items: flex-start;
   }
 
-  .statGrid,
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .statCard {
+    min-width: 0;
+    padding: 0.95rem 0.85rem;
+  }
+
+  .statLabel {
+    letter-spacing: 0.04em;
+    overflow-wrap: anywhere;
+  }
+
+  .statValue {
+    font-size: 1.2rem;
+  }
+
+  .statMetaGreen,
+  .statMetaAmber,
+  .statMetaBlue,
+  .statMetaMuted {
+    overflow-wrap: anywhere;
+  }
+
   .contractGrid,
   .helpGrid,
   .accountForm,

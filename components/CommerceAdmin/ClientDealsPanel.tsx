@@ -240,7 +240,9 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                 setColVisOpen((open) => !open);
               }}
             >
-              <i className="fa-solid fa-table-columns" aria-hidden="true" /> Column Visibility
+              <i className="fa-solid fa-table-columns" aria-hidden="true" />
+              <span className={styles.toolbarLabelFull}>Column Visibility</span>
+              <span className={styles.toolbarLabelShort}>Columns</span>
             </button>
             {colVisOpen ? (
               <div className={`${styles.colVisPanel} ${styles.dealsColVisPanel}`}>
@@ -334,7 +336,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   {visibleColumns.map((column) => {
                     if (column === "clientOwner") {
                       return (
-                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
                           <LookupHoverActions
                             label={deal.clientOwner}
                             assigned={clientIsAssigned(client)}
@@ -349,7 +351,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "clientName") {
                       return (
-                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -362,14 +364,14 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "dealName") {
                       return (
-                        <td key={column} className={`${styles.resizableCell} ${styles.dealNameCell}`} data-deal-name-cell="">
+                        <td key={column} className={`${styles.resizableCell} ${styles.dealNameCell}`} data-deal-name-cell="" data-label={DEAL_COLUMN_LABELS[column]}>
                           <DealNameCell names={deal.dealName} domain={deal.domainName} onClick={() => openEditDeal(deal)} />
                         </td>
                       );
                     }
                     if (column === "dealStatus") {
                       return (
-                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`}>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
                           {deal.dealStatus.toLowerCase() === "active" ? (
                             <span className={styles.badgePaid}>ACTIVE</span>
                           ) : (
@@ -391,6 +393,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         ]
                           .filter(Boolean)
                           .join(" ")}
+                        data-label={DEAL_COLUMN_LABELS[column]}
                       >
                         {dealCellValue(deal, column)}
                       </td>

@@ -307,20 +307,28 @@ export default function CommerceApprovalsTab() {
   const renderApprovalGridCard = (row: CommercePaymentProofRow) => (
     <article key={row.id} className={styles.txGridCard}>
       <div className={styles.txGridCardTop}>
-        <span className={styles.monoCell}>{row.invoiceId || row.proofNo}</span>
+        <span className={styles.txGridTitleText}>{row.invoiceId || row.proofNo}</span>
         <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
       </div>
-      <div>
-        <div className={styles.txGridLabel}>Service Name</div>
-        <div className={styles.txGridValue}>{approvalServiceLabel(row)}</div>
-      </div>
-      <div>
-        <div className={styles.txGridLabel}>Plan</div>
-        <div className={styles.txGridValue}>{approvalPlanLabel(row)}</div>
+      <div className={styles.txGridFields}>
+        <div>
+          <div className={styles.txGridLabel}>Service</div>
+          <div className={styles.txGridValue}>{approvalServiceLabel(row)}</div>
+        </div>
+        <div>
+          <div className={styles.txGridLabel}>Plan</div>
+          <div className={styles.txGridValue}>{approvalPlanLabel(row)}</div>
+        </div>
+        <div>
+          <div className={styles.txGridLabel}>Client</div>
+          <div className={styles.txGridValue}>{row.client}</div>
+        </div>
+        <div>
+          <div className={styles.txGridLabel}>Issued</div>
+          <div className={styles.txGridValue}>{approvalIssuedDate(row)}</div>
+        </div>
       </div>
       <div className={styles.txGridMeta}>
-        <span>Client: {row.client}</span>
-        <span>Issued: {approvalIssuedDate(row)}</span>
         <span>Due: {approvalDueDate(row)}</span>
       </div>
       {row.fileName ? <div className={styles.approvalFileInline}>{row.fileName}</div> : null}
@@ -348,20 +356,26 @@ export default function CommerceApprovalsTab() {
             Review pending server deployment requests, uploaded payment receipts, and customer profile change requests.
           </p>
         </div>
-        <div className={styles.analyticsToggle}>
+        <div className={`${styles.analyticsToggle} ${styles.viewModeToggle}`} role="group" aria-label="View mode">
           <button
             type="button"
             className={viewMode === "list" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
             onClick={() => setViewMode("list")}
+            aria-label="List view"
+            title="List view"
           >
-            <i className="fa-solid fa-list" aria-hidden="true" /> List
+            <i className="fa-solid fa-list" aria-hidden="true" />
+            <span className={styles.viewModeToggleLabel}>List</span>
           </button>
           <button
             type="button"
             className={viewMode === "grid" ? styles.analyticsToggleBtnActive : styles.analyticsToggleBtn}
             onClick={() => setViewMode("grid")}
+            aria-label="Grid view"
+            title="Grid view"
           >
-            <i className="fa-solid fa-table-cells" aria-hidden="true" /> Grid
+            <i className="fa-solid fa-table-cells" aria-hidden="true" />
+            <span className={styles.viewModeToggleLabel}>Grid</span>
           </button>
         </div>
       </div>
@@ -444,6 +458,7 @@ export default function CommerceApprovalsTab() {
                   action: "Action",
                 }}
                 selectColumn
+                stackOnMobile
                 className={styles.tableWrap}
               >
                 <table className={styles.table}>
@@ -482,7 +497,7 @@ export default function CommerceApprovalsTab() {
                             onChange={() => selection.toggleRow(row)}
                             label={`Select approval ${row.invoiceId || row.proofNo}`}
                           />
-                          <td className={styles.monoCell}>
+                          <td className={styles.monoCell} data-label="Invoice #">
                             <button
                               type="button"
                               className={styles.tableCellLink}
@@ -491,18 +506,18 @@ export default function CommerceApprovalsTab() {
                               {row.invoiceId || row.proofNo}
                             </button>
                           </td>
-                          <td className={styles.txServiceCell}>{approvalServiceLabel(row)}</td>
-                          <td className={styles.txPlanCell}>
+                          <td className={styles.txServiceCell} data-label="Service Name">{approvalServiceLabel(row)}</td>
+                          <td className={styles.txPlanCell} data-label="Plan">
                             <strong>{approvalPlanLabel(row)}</strong>
                           </td>
-                          <td>{row.client}</td>
-                          <td>{approvalIssuedDate(row)}</td>
-                          <td>{approvalDueDate(row)}</td>
-                          <td className={styles.amountCell}>{approvalAmountLabel(row)}</td>
-                          <td className={styles.statusCell}>
+                          <td data-label="Client">{row.client}</td>
+                          <td data-label="Issued Date">{approvalIssuedDate(row)}</td>
+                          <td data-label="Due Date">{approvalDueDate(row)}</td>
+                          <td className={styles.amountCell} data-label="Amount">{approvalAmountLabel(row)}</td>
+                          <td className={styles.statusCell} data-label="Status">
                             <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
                           </td>
-                          <td className={styles.tableActionCell}>{renderActionSelect(row)}</td>
+                          <td className={styles.tableActionCell} data-label="Action">{renderActionSelect(row)}</td>
                         </tr>
                       ))
                     )}

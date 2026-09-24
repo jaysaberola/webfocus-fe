@@ -192,6 +192,35 @@
   white-space: nowrap;
 }
 
+@media (max-width: 768px) {
+  .toggleRow {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+  }
+
+  .tools {
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .searchWrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .searchLabel,
+  .toolLabel,
+  .total {
+    display: none;
+  }
+
+  .toggleBtn {
+    padding: 0.4rem 0.65rem;
+  }
+}
+
 .panel {
   display: flex;
   flex-direction: column;
