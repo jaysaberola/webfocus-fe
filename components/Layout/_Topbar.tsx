@@ -133,10 +133,14 @@ export default function LandingTopbar() {
               </svg>
               Search
             </Link>
-            <Link href="/public/login" className={styles["mobile-utility-link"]} onClick={closeMobileMenu}>
-              <i className="fa-regular fa-user" aria-hidden="true" />
-              Sign In
-            </Link>
+            {isLoggedIn ? (
+              <SignInDropdown variant="menuTile" onNavigate={closeMobileMenu} />
+            ) : (
+              <Link href="/public/login" className={styles["mobile-utility-link"]} onClick={closeMobileMenu}>
+                <i className="fa-regular fa-user" aria-hidden="true" />
+                Sign In
+              </Link>
+            )}
           </div>
           <ul className={styles["nav-list"]}>
             <Menu isMobile={mobileOpen} onNavigate={closeMobileMenu} />
@@ -154,10 +158,12 @@ export default function LandingTopbar() {
           </Link>
 
           <div className={styles["icon-group"]}>
-            <SignInDropdown
-              buttonClassName={styles["portal-btn"]}
-              chevronClassName={styles["portal-chevron"]}
-            />
+            <div className={styles.headerAccount}>
+              <SignInDropdown
+                buttonClassName={`${styles["portal-btn"]}${isLoggedIn ? ` ${styles["portal-btnAccount"]}` : ""}`}
+                chevronClassName={styles["portal-chevron"]}
+              />
+            </div>
 
             <Link href="/public/contact-us" className={styles["contact-btn"]} aria-label="Contact us" title="Contact us">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

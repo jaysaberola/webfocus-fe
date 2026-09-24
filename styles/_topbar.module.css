@@ -341,10 +341,22 @@
   font-size: 0.875rem;
   font-weight: 500;
   font-family: inherit;
+  line-height: 1.25;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.portal-btnAccount {
+  width: auto;
+  min-width: 7.5rem;
+  overflow: visible;
+}
+
+.headerAccount {
+  display: inline-flex;
+  align-items: center;
 }
 
 .portal-chevron {
@@ -504,6 +516,10 @@
     display: none !important;
   }
 
+  .headerAccount {
+    display: none !important;
+  }
+
   .portal-btn {
     display: inline-flex;
     align-items: center;
@@ -520,9 +536,8 @@
     gap: 0;
   }
 
-  .portal-btn span,
   .portal-btn .portal-chevron,
-  .portal-btn :global(.fa-chevron-down) {
+  .portal-btn :global(.fa-user) ~ :global(.fa-chevron-down) {
     display: none;
   }
 
@@ -590,7 +605,7 @@
   .contact-btn,
   .cart-btn,
   .notify-btn,
-  .portal-btn,
+  .portal-btn:not(.portal-btnAccount),
   .mobile-toggle {
     width: 38px;
     height: 38px;

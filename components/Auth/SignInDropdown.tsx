@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { createPortal } from "react-dom";
 import {
   fetchCurrentCustomer,
@@ -19,6 +19,7 @@ type SignInDropdownProps = {
   buttonClassName?: string;
   chevronClassName?: string;
   onNavigate?: () => void;
+  variant?: "header" | "menuTile";
 };
 
 function useMobileSheet() {
@@ -43,6 +44,7 @@ function FloatingPanel({
   role,
   ariaLabel,
   onClose,
+  panelRef,
   children,
 }: {
   open: boolean;
@@ -50,6 +52,7 @@ function FloatingPanel({
   role: string;
   ariaLabel: string;
   onClose: () => void;
+  panelRef?: Ref<HTMLDivElement>;
   children: ReactNode;
 }) {
   const { isMobile, mounted } = useMobileSheet();
@@ -59,7 +62,7 @@ function FloatingPanel({
   const node = (
     <>
       {isMobile ? <div className={styles.mobileBackdrop} onClick={onClose} /> : null}
-      <div className={className} role={role} aria-label={ariaLabel}>
+      <div ref={panelRef} className={className} role={role} aria-label={ariaLabel}>
         {children}
       </div>
     </>
@@ -69,11 +72,18 @@ function FloatingPanel({
   return node;
 }
 
-export default function SignInDropdown({ buttonClassName, chevronClassName, onNavigate }: SignInDropdownProps) {
+export default function SignInDropdown({
+  buttonClassName,
+  chevronClassName,
+  onNavigate,
+  variant = "header",
+}: SignInDropdownProps) {
   const { customer, adminUser } = useStoredPublicAuthState();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
+  const isMenuTile = variant === "menuTile";
 
   useEffect(() => {
     if (!readStoredAuthToken()) return;
@@ -112,9 +122,11 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
     if (!open) return;
 
     const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return;
       }
+      setOpen(false);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -167,10 +179,10 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
 
   if (adminUser) {
     return (
-      <div className={styles.root} ref={rootRef}>
+      <div className={`${styles.root}${isMenuTile ? ` ${styles.menuTile}` : ""}`} ref={rootRef}>
         <button
           type="button"
-          className={`${styles.loggedInBtn} ${buttonClassName || ""}`}
+          className={`${styles.loggedInBtn}${isMenuTile ? ` ${styles.menuTileBtn}` : ""} ${buttonClassName || ""}`}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
@@ -189,7 +201,9 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
             )}
           </span>
           <span className={styles.loggedInName}>{adminDisplayName}</span>
-          <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
+          {isMenuTile ? null : (
+            <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
+          )}
         </button>
         <FloatingPanel
           open={open}
@@ -197,6 +211,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           role="menu"
           ariaLabel="Admin menu"
           onClose={() => setOpen(false)}
+          panelRef={panelRef}
         >
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
@@ -251,10 +266,10 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
 
   if (customer) {
     return (
-      <div className={styles.root} ref={rootRef}>
+      <div className={`${styles.root}${isMenuTile ? ` ${styles.menuTile}` : ""}`} ref={rootRef}>
         <button
           type="button"
-          className={`${styles.loggedInBtn} ${buttonClassName || ""}`}
+          className={`${styles.loggedInBtn}${isMenuTile ? ` ${styles.menuTileBtn}` : ""} ${buttonClassName || ""}`}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
@@ -273,7 +288,9 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
             )}
           </span>
           <span className={styles.loggedInName}>{displayName}</span>
-          <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
+          {isMenuTile ? null : (
+            <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
+          )}
         </button>
         <FloatingPanel
           open={open}
@@ -281,6 +298,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           role="menu"
           ariaLabel="Account menu"
           onClose={() => setOpen(false)}
+          panelRef={panelRef}
         >
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
@@ -343,7 +361,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
         onClick={() => setOpen((value) => !value)}
       >
         <i className="fa-regular fa-user" aria-hidden="true" />
-        <span>Sign In</span>
+        <span className={styles.signInLabel}>Sign In</span>
         <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
       </button>
 
