@@ -3,6 +3,7 @@ import { formatPeso } from "@/lib/customerPortal/mockData";
 import type { PortalInvoice } from "@/lib/customerPortal/types";
 import { ocrReceiptFile, type PaynamicsProofScan } from "@/lib/paynamicsProofScan";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
+import PortalPickSelect from "@/components/CustomerPortal/PortalPickSelect";
 import { scanPortalPaymentProof } from "@/services/customerPortalService";
 import styles from "@/styles/customerPortal.module.css";
 
@@ -185,15 +186,25 @@ export default function BillingPaymentProofModal({
           <li>If you missed it, upload the Paynamics email receipt. An e-wallet or bank screenshot only works if it still shows Paynamics or this payment's Request ID.</li>
           <li>Upload that file below. We scan it before it can be submitted.</li>
         </ol>
+        <p className={styles.proofNeedStepsMobile}>
+          Upload the Paynamics Payment Success screenshot or email receipt. We scan it before submit.
+        </p>
         <div className={styles.proofFormPanel}>
           {showInvoicePicker ? (
             <label className={styles.proofField}>
               <span>Select Invoice</span>
-              <select
+              <PortalPickSelect
                 className={styles.cpControl}
                 value={selectedInvoiceId}
-                onChange={(e) => {
-                  setSelectedInvoiceId(e.target.value);
+                ariaLabel="Select invoice"
+                placeholder="Select invoice"
+                options={payableInvoices.map((inv) => ({
+                  value: inv.id,
+                  label: `${inv.id} · ${formatPeso(inv.amount)} · ${inv.serviceName ?? inv.items}`,
+                }))}
+                onChange={(nextId) => {
+                  if (!nextId) return;
+                  setSelectedInvoiceId(nextId);
                   if (file) {
                     setScan({
                       status: "scanning",
@@ -202,13 +213,7 @@ export default function BillingPaymentProofModal({
                     });
                   }
                 }}
-              >
-                {payableInvoices.map((inv) => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.id} · {formatPeso(inv.amount)} · {inv.serviceName ?? inv.items}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
           ) : null}
 

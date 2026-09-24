@@ -263,7 +263,14 @@ export default function DomainSearchPanel({ variant = "home" }: DomainSearchPane
               aria-label="Domain name"
             />
             <button type="submit" className={styles.searchBtn} disabled={loading}>
-              {loading ? "Checking..." : "Search Domains"}
+              {loading ? (
+                "Checking..."
+              ) : (
+                <>
+                  <span className={styles.searchBtnFull}>Search Domains</span>
+                  <span className={styles.searchBtnShort}>Search</span>
+                </>
+              )}
             </button>
           </form>
 

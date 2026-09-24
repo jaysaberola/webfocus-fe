@@ -677,6 +677,7 @@ export default function OrdersTab() {
               action: "Action",
             }}
             selectColumn
+            stackOnMobile
             className={styles.tableWrap}
           >
             <table className={styles.dataTable}>
@@ -748,7 +749,7 @@ export default function OrdersTab() {
               <tbody>
                 {paginatedOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={11}>No orders found for the selected filters.</td>
+                    <td colSpan={11} className={styles.emptyTableCell}>No orders found for the selected filters.</td>
                   </tr>
                 ) : (
                   paginatedOrders.map((order) => {
@@ -762,7 +763,7 @@ export default function OrdersTab() {
                           onChange={() => selection.toggleRow(order)}
                           label={`Select order ${order.id}`}
                         />
-                        <td className={styles.monoBlue}>
+                        <td className={styles.monoBlue} data-label="Order #">
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -771,7 +772,7 @@ export default function OrdersTab() {
                             {order.id}
                           </button>
                         </td>
-                        <td className={styles.serviceNameBold}>
+                        <td className={styles.serviceNameBold} data-label="Service Name">
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -780,16 +781,16 @@ export default function OrdersTab() {
                             {orderServiceName(order)}
                           </button>
                         </td>
-                        <td>{orderPlanLabel(order)}</td>
-                        <td className={styles.monoBold}>{formatPeso(order.total)}</td>
-                        <td>{orderPaymentMethodLabel(order)}</td>
-                        <td>{orderPaymentDate(order) || "—"}</td>
-                        <td>{order.date}</td>
-                        <td>{orderDueDate(order)}</td>
-                        <td className={styles.statusCell}>
+                        <td data-label="Plan">{orderPlanLabel(order)}</td>
+                        <td className={styles.monoBold} data-label="Amount">{formatPeso(order.total)}</td>
+                        <td data-label="Payment Mode">{orderPaymentMethodLabel(order)}</td>
+                        <td data-label="Payment Date">{orderPaymentDate(order) || "—"}</td>
+                        <td data-label="Date Ordered">{order.date}</td>
+                        <td data-label="Due Date">{orderDueDate(order)}</td>
+                        <td className={styles.statusCell} data-label="Status">
                           <OrderStatusBadge order={order} />
                         </td>
-                        <td className={styles.billingActionsCell}>
+                        <td className={styles.billingActionsCell} data-label="Action">
                           <select
                             className={styles.billingActionsSelect}
                             defaultValue=""

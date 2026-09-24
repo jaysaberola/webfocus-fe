@@ -65,21 +65,33 @@ export default function LandingTopbar() {
     if (!mobileOpen) {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
       return;
     }
 
+    const scrollY = window.scrollY;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
     return () => {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
     };
   }, [mobileOpen]);
 
   const closeMobileMenu = () => setMobileOpen(false);
 
   return (
-    <header className={`${styles.header} ${scrolled ? styles.scrolled : ""}`}>
+    <header className={`${styles.header} ${scrolled ? styles.scrolled : ""} ${mobileOpen ? styles.menuOpen : ""}`}>
       <div className={styles["topbar-inner"]}>
         <div className={styles.left}>
           <Link href="/public/home" className={styles.brand} onClick={closeMobileMenu} aria-label="WebFocus Solutions, Inc." prefetch>
@@ -141,12 +153,12 @@ export default function LandingTopbar() {
             </svg>
           </Link>
 
-          <SignInDropdown
-            buttonClassName={`${styles["portal-btn"]} ${styles["desktop-only"]}`}
-            chevronClassName={styles["portal-chevron"]}
-          />
-
           <div className={styles["icon-group"]}>
+            <SignInDropdown
+              buttonClassName={styles["portal-btn"]}
+              chevronClassName={styles["portal-chevron"]}
+            />
+
             <Link href="/public/contact-us" className={styles["contact-btn"]} aria-label="Contact us" title="Contact us">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />

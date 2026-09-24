@@ -17,6 +17,7 @@ import { fetchPublicProducts } from "@/services/publicProductService";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
 import { getServices } from "@/services/serviceService";
 import { updatePortalOrderItems } from "@/services/customerPortalService";
+import PortalPickSelect from "@/components/CustomerPortal/PortalPickSelect";
 import { toast } from "@/lib/toast";
 import type { PortalOrder } from "@/lib/customerPortal/types";
 import styles from "@/styles/customerPortal.module.css";
@@ -420,7 +421,7 @@ export default function OrderInfoPanel({
                   const options = uniqueServiceNames([selected, ...serviceOptions]);
                   return (
                     <tr key={item.key}>
-                      <td className={styles.orderCustomizeActionCell}>
+                      <td className={styles.orderCustomizeActionCell} data-label="Remove">
                         <button
                           type="button"
                           className={styles.orderCustomizeRemove}
@@ -431,28 +432,23 @@ export default function OrderInfoPanel({
                           <i className="fa-regular fa-trash-can" aria-hidden="true" />
                         </button>
                       </td>
-                      <td className={styles.orderCustomizeSno}>{index + 1}</td>
-                      <td>
+                      <td className={styles.orderCustomizeSno} data-label="S.NO">{index + 1}</td>
+                      <td data-label="Item">
                         <div className={styles.orderCustomizeDealSelect}>
-                          <select
+                          <PortalPickSelect
                             className={styles.orderCustomizeInput}
                             value={selected}
-                            onChange={(event) => handleServiceChange(item.key, event.target.value)}
-                            aria-label="Service"
-                          >
-                            <option value="">-None-</option>
-                            {options.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
+                            placeholder="-None-"
+                            options={options.map((option) => ({ value: option, label: option }))}
+                            onChange={(name) => handleServiceChange(item.key, name)}
+                            ariaLabel="Service"
+                          />
                           <span className={styles.orderCustomizeDealChevron} aria-hidden="true">
                             <i className="fa-solid fa-chevron-down" />
                           </span>
                         </div>
                       </td>
-                      <td>
+                      <td data-label="Quantity">
                         <input
                           className={`${styles.orderCustomizeInput} ${styles.orderCustomizeQty}`}
                           inputMode="numeric"
@@ -461,7 +457,7 @@ export default function OrderInfoPanel({
                           aria-label="Quantity"
                         />
                       </td>
-                      <td>
+                      <td data-label="Amount">
                         <input
                           className={`${styles.orderCustomizeInput} ${styles.orderCustomizeMoney}`}
                           value={moneyText(item.unitPrice)}
@@ -470,7 +466,7 @@ export default function OrderInfoPanel({
                           aria-label="Amount"
                         />
                       </td>
-                      <td>
+                      <td data-label="Total">
                         <input
                           className={`${styles.orderCustomizeInput} ${styles.orderCustomizeMoney}`}
                           value={moneyText(lineTotal(item))}
@@ -513,9 +509,9 @@ export default function OrderInfoPanel({
               <tbody>
                 {order.items.map((item, index) => (
                   <tr key={`${item.name}-${index}`}>
-                    <td>{item.name || "—"}</td>
-                    <td>{item.detail || "—"}</td>
-                    <td className={styles.monoBold}>{formatPeso(item.price)}</td>
+                    <td data-label="Item">{item.name || "—"}</td>
+                    <td data-label="Detail">{item.detail || "—"}</td>
+                    <td className={styles.monoBold} data-label="Amount">{formatPeso(item.price)}</td>
                   </tr>
                 ))}
               </tbody>

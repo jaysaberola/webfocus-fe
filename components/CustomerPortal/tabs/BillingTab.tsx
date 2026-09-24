@@ -871,6 +871,7 @@ export default function BillingTab() {
               actions: "Actions",
             }}
             selectColumn
+            stackOnMobile
             className={styles.tableWrap}
           >
             <table className={styles.dataTable}>
@@ -942,7 +943,7 @@ export default function BillingTab() {
               <tbody>
                 {paginatedInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={11}>No invoices found for the selected filters.</td>
+                    <td colSpan={11} className={styles.emptyTableCell}>No invoices found for the selected filters.</td>
                   </tr>
                 ) : (
                   paginatedInvoices.map((inv) => {
@@ -961,7 +962,7 @@ export default function BillingTab() {
                           onChange={() => selection.toggleRow(inv)}
                           label={`Select invoice ${inv.id}`}
                         />
-                        <td className={styles.monoBlue}>
+                        <td className={styles.monoBlue} data-label="Invoice ID">
                           <button
                             type="button"
                             className={styles.tableCellLink}
@@ -970,14 +971,14 @@ export default function BillingTab() {
                             {inv.id}
                           </button>
                         </td>
-                        <td className={styles.serviceNameBold}>{inv.serviceName ?? inv.items}</td>
-                        <td>{invoicePlanLabel(inv)}</td>
-                        <td>{inv.date}</td>
-                        <td>{inv.due}</td>
-                        <td className={styles.monoBold}>{formatPeso(inv.amount)}</td>
-                        <td>{invoicePaymentDate(inv)}</td>
-                        <td>{invoicePaymentMode(inv)}</td>
-                        <td>
+                        <td className={styles.serviceNameBold} data-label="Service Name">{inv.serviceName ?? inv.items}</td>
+                        <td data-label="Plan">{invoicePlanLabel(inv)}</td>
+                        <td data-label="Issued">{inv.date}</td>
+                        <td data-label="Due Date">{inv.due}</td>
+                        <td className={styles.monoBold} data-label="Amount">{formatPeso(inv.amount)}</td>
+                        <td data-label="Payment Date">{invoicePaymentDate(inv)}</td>
+                        <td data-label="Payment Mode">{invoicePaymentMode(inv)}</td>
+                        <td data-label="Status">
                           <div className={styles.statusWithHint}>
                             <span className={invoiceStatusClass(inv.status)}>{inv.status}</span>
                             {inv.status === "Paid" && invoiceProofs.length === 0 ? (
@@ -991,7 +992,7 @@ export default function BillingTab() {
                             ) : null}
                           </div>
                         </td>
-                        <td className={styles.billingActionsCell}>
+                        <td className={styles.billingActionsCell} data-label="Actions">
                           <select
                             className={styles.billingActionsSelect}
                             defaultValue=""

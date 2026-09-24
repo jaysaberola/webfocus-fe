@@ -268,6 +268,7 @@ export default function HelpTab() {
                   date: "Date",
                   status: "Status",
                 }}
+                stackOnMobile
                 className={styles.tableWrap}
               >
                 <table className={styles.dataTable}>
@@ -302,15 +303,15 @@ export default function HelpTab() {
                   <tbody>
                     {filteredTickets.length === 0 ? (
                       <tr>
-                        <td colSpan={4}>No support tickets yet.</td>
+                        <td colSpan={4} className={styles.emptyTableCell}>No support tickets yet.</td>
                       </tr>
                     ) : (
                       filteredTickets.map((ticket) => (
                         <tr key={ticket.id}>
-                          <td className={styles.monoBlue}>{ticket.id}</td>
-                          <td className={styles.serviceNameBold}>{ticket.subject}</td>
-                          <td>{ticket.date}</td>
-                          <td>
+                          <td className={styles.monoBlue} data-label="Ticket">{ticket.id}</td>
+                          <td className={styles.serviceNameBold} data-label="Subject">{ticket.subject}</td>
+                          <td data-label="Date">{ticket.date}</td>
+                          <td data-label="Status">
                             <span className={ticket.status === "Resolved" ? styles.badgeGreen : styles.badgeBlue}>
                               {ticket.status}
                             </span>

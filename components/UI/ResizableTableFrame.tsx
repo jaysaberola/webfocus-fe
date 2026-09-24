@@ -19,6 +19,7 @@ type Props = {
   selectColumn?: boolean;
   className?: string;
   overflow?: boolean;
+  stackOnMobile?: boolean;
   children: ReactElement;
 };
 
@@ -29,6 +30,7 @@ export default function ResizableTableFrame({
   selectColumn = false,
   className,
   overflow = false,
+  stackOnMobile = false,
   children,
 }: Props) {
   const keys = selectColumn ? [SELECT_KEY, ...columns] : columns;
@@ -51,7 +53,7 @@ export default function ResizableTableFrame({
   return (
     <div
       ref={containerRef}
-      className={[styles.wrap, className].filter(Boolean).join(" ")}
+      className={[styles.wrap, stackOnMobile ? styles.stackOnMobile : "", className].filter(Boolean).join(" ")}
       style={{ overflowX: layout.overflowing ? "auto" : "hidden" }}
     >
       <div className={styles.inner} style={{ width: layout.innerWidth }}>

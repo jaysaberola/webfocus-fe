@@ -789,5 +789,92 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 0.85rem 0 5.5rem;
+  }
+
+  .container {
+    width: calc(100% - 1.2rem);
+  }
+
+  .pageHeader {
+    margin-bottom: 0.8rem;
+  }
+
+  .pageHeader h1 {
+    font-size: 1.4rem;
+  }
+
+  .pageHeader p {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .layout,
+  .mainColumn,
+  .sidebar {
+    gap: 0.8rem;
+  }
+
+  .itemCard {
+    gap: 0.65rem;
+    padding: 0.8rem 0.75rem;
+  }
+
+  .itemIcon {
+    width: 2.2rem;
+    height: 2.2rem;
+    font-size: 0.85rem;
+  }
+
+  .itemTitle {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .termRow select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .itemPrice {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .summaryCard,
+  .trustCard {
+    padding: 0.8rem 0.8rem;
+  }
+
+  .summaryTotal {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.65rem;
+  }
+
+  .summaryTotal strong {
+    font-size: 1.15rem;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  .promoRow {
+    flex-wrap: wrap;
+  }
+
+  .promoInput,
+  .promoApplyBtn,
+  .checkoutBtn {
+    width: 100%;
+  }
+
+  .agreementBlock {
+    padding: 0.7rem 0.75rem;
   }
 }

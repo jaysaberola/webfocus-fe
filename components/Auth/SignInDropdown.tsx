@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   fetchCurrentCustomer,
   storeCustomer,
@@ -19,6 +20,54 @@ type SignInDropdownProps = {
   chevronClassName?: string;
   onNavigate?: () => void;
 };
+
+function useMobileSheet() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const media = window.matchMedia("(max-width: 991px)");
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  return { isMobile, mounted };
+}
+
+function FloatingPanel({
+  open,
+  className,
+  role,
+  ariaLabel,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  className: string;
+  role: string;
+  ariaLabel: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const { isMobile, mounted } = useMobileSheet();
+
+  if (!open) return null;
+
+  const node = (
+    <>
+      {isMobile ? <div className={styles.mobileBackdrop} onClick={onClose} /> : null}
+      <div className={className} role={role} aria-label={ariaLabel}>
+        {children}
+      </div>
+    </>
+  );
+
+  if (isMobile && mounted) return createPortal(node, document.body);
+  return node;
+}
 
 export default function SignInDropdown({ buttonClassName, chevronClassName, onNavigate }: SignInDropdownProps) {
   const { customer, adminUser } = useStoredPublicAuthState();
@@ -142,8 +191,13 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           <span className={styles.loggedInName}>{adminDisplayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
-        {open && (
-          <div className={styles.accountPanel} role="menu" aria-label="Admin menu">
+        <FloatingPanel
+          open={open}
+          className={styles.accountPanel}
+          role="menu"
+          ariaLabel="Admin menu"
+          onClose={() => setOpen(false)}
+        >
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
                 {showAdminAvatar ? (
@@ -190,8 +244,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
             <button type="button" className={styles.signOutItem} role="menuitem" onClick={signOutAdmin}>
               Sign out
             </button>
-          </div>
-        )}
+        </FloatingPanel>
       </div>
     );
   }
@@ -222,8 +275,13 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
           <span className={styles.loggedInName}>{displayName}</span>
           <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
         </button>
-        {open && (
-          <div className={styles.accountPanel} role="menu" aria-label="Account menu">
+        <FloatingPanel
+          open={open}
+          className={styles.accountPanel}
+          role="menu"
+          ariaLabel="Account menu"
+          onClose={() => setOpen(false)}
+        >
             <div className={styles.accountHeader}>
               <span className={styles.avatarLarge}>
                 {showCustomerAvatar ? (
@@ -270,8 +328,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
             <button type="button" className={styles.signOutItem} role="menuitem" onClick={signOut}>
               Sign out
             </button>
-          </div>
-        )}
+        </FloatingPanel>
       </div>
     );
   }
@@ -290,8 +347,13 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
         <i className={`fas fa-chevron-down ${chevronClassName || ""}`} aria-hidden="true" />
       </button>
 
-      {open && (
-        <div className={styles.panel} role="dialog" aria-label="Sign in options">
+      <FloatingPanel
+        open={open}
+        className={styles.panel}
+        role="dialog"
+        ariaLabel="Sign in options"
+        onClose={() => setOpen(false)}
+      >
           <button type="button" className={styles.closeBtn} aria-label="Close" onClick={() => setOpen(false)}>
             ×
           </button>
@@ -342,8 +404,7 @@ export default function SignInDropdown({ buttonClassName, chevronClassName, onNa
               </Link>
             </div>
           </section>
-        </div>
-      )}
+      </FloatingPanel>
     </div>
   );
 }

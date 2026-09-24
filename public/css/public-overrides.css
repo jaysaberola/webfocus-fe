@@ -78,6 +78,12 @@ body,
   padding: 1.25rem clamp(3.5rem, 9vw, 8rem) 2rem !important;
 }
 
+@media (max-width: 768px) {
+  .public-content-gutter {
+    padding: 0.85rem 0.75rem 1.15rem !important;
+  }
+}
+
 .public-site-main.pt-0 {
   min-height: calc(100dvh - 80px);
 }

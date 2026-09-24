@@ -403,68 +403,70 @@ export default function NotificationsTab() {
             </div>
           ) : null}
 
-          {opened ? null : (
-            <label className={styles.inboxSearch}>
-              <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search mail"
-                aria-label="Search notifications"
-              />
-            </label>
-          )}
+          <div className={styles.inboxSearchRow}>
+            {opened ? null : (
+              <label className={styles.inboxSearch}>
+                <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search mail"
+                  aria-label="Search notifications"
+                />
+              </label>
+            )}
 
-          {opened ? (
-            <div className={styles.inboxToolbarRight}>
-              <span>
-                {openedIndex + 1} of {filteredNotifications.length}
-              </span>
-              <button
-                type="button"
-                className={styles.inboxToolBtn}
-                disabled={openedIndex <= 0}
-                onClick={() => void openNotification(filteredNotifications[openedIndex - 1])}
-                aria-label="Newer"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className={styles.inboxToolBtn}
-                disabled={openedIndex >= filteredNotifications.length - 1}
-                onClick={() => void openNotification(filteredNotifications[openedIndex + 1])}
-                aria-label="Older"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
-            </div>
-          ) : notifications.length > 0 ? (
-            <div className={styles.inboxToolbarRight}>
-              <span>
-                {rangeStart}-{rangeEnd} of {filteredNotifications.length}
-              </span>
-              <button
-                type="button"
-                className={styles.inboxToolBtn}
-                disabled={page <= 1}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                aria-label="Newer"
-              >
-                <i className="fa-solid fa-chevron-left" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className={styles.inboxToolBtn}
-                disabled={page >= totalPages}
-                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                aria-label="Older"
-              >
-                <i className="fa-solid fa-chevron-right" aria-hidden="true" />
-              </button>
-            </div>
-          ) : null}
+            {opened ? (
+              <div className={styles.inboxToolbarRight}>
+                <span>
+                  {openedIndex + 1} of {filteredNotifications.length}
+                </span>
+                <button
+                  type="button"
+                  className={styles.inboxToolBtn}
+                  disabled={openedIndex <= 0}
+                  onClick={() => void openNotification(filteredNotifications[openedIndex - 1])}
+                  aria-label="Newer"
+                >
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={styles.inboxToolBtn}
+                  disabled={openedIndex >= filteredNotifications.length - 1}
+                  onClick={() => void openNotification(filteredNotifications[openedIndex + 1])}
+                  aria-label="Older"
+                >
+                  <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+            ) : notifications.length > 0 ? (
+              <div className={styles.inboxToolbarRight}>
+                <span>
+                  {rangeStart}-{rangeEnd} of {filteredNotifications.length}
+                </span>
+                <button
+                  type="button"
+                  className={styles.inboxToolBtn}
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  aria-label="Newer"
+                >
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className={styles.inboxToolBtn}
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  aria-label="Older"
+                >
+                  <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {opened ? (

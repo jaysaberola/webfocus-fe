@@ -72,3 +72,36 @@
 .line:last-child {
   margin-left: -10px;
 }
+
+@media (max-width: 768px) {
+  .stackOnMobile {
+    overflow: visible !important;
+  }
+
+  .stackOnMobile .inner {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .stackOnMobile .lines {
+    display: none;
+  }
+
+  .stackOnMobile .table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto !important;
+  }
+
+  .stackOnMobile .table colgroup {
+    display: none;
+  }
+
+  .stackOnMobile .table th,
+  .stackOnMobile .table td {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    max-width: none;
+  }
+}

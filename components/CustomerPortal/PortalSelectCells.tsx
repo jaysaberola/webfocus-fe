@@ -41,7 +41,7 @@ type RowProps = {
 
 export function PortalSelectRowCell({ checked, onChange, label, disabled }: RowProps) {
   return (
-    <td className={styles.selectCol}>
+    <td className={styles.selectCol} data-label="Select">
       <input
         type="checkbox"
         className={styles.selectCheckbox}
