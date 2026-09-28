@@ -1956,15 +1956,29 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Probability (%)" hint="Likelihood this deal will close">
-              <input
-                className={inputClass()}
-                type="number"
-                min="0"
-                max="100"
-                value={form.probability}
-                onChange={(e) => setField("probability", e.target.value)}
-              />
+            <Field label="Stage" required hint="Pipeline stage for this deal">
+              <select
+                className={inputClass(true)}
+                value={form.stage}
+                onChange={(e) => handleStageChange(e.target.value)}
+                required
+              >
+                <option value="">-None-</option>
+                <optgroup label="Manual Create Status">
+                  {DEAL_STAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Automatic Status: WebOrder">
+                  {AUTOMATIC_STAGE_OPTIONS.map((option) => (
+                    <option key={option} value={option} disabled>
+                      {option}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
             </Field>
             {dealPriceLines.length ? (
               <div className={styles.dealPriceSummarySlot}>
@@ -2015,43 +2029,6 @@ export default function ClientOrderForm({
             ) : (
               <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
             )}
-            <Field label="Expected Revenue" hint="Auto from the selected product price" icon="fa-solid fa-lock">
-              <span className={styles.clientCrmPesoPrefix}>₱</span>
-              <input
-                className={inputClass(false, styles.clientCrmPesoInput)}
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.expectedRevenue}
-                readOnly
-              />
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
-            <Field label="Stage" required hint="Pipeline stage for this deal">
-              <select
-                className={inputClass(true)}
-                value={form.stage}
-                onChange={(e) => handleStageChange(e.target.value)}
-                required
-              >
-                <option value="">-None-</option>
-                <optgroup label="Manual Create Status">
-                  {DEAL_STAGE_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Automatic Status: WebOrder">
-                  {AUTOMATIC_STAGE_OPTIONS.map((option) => (
-                    <option key={option} value={option} disabled>
-                      {option}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </Field>
-            <div className={styles.clientOrderGridSpacer} aria-hidden="true" />
             <Field label="Payment Date" hint="Date the related payment was received">
               <input
                 className={inputClass()}

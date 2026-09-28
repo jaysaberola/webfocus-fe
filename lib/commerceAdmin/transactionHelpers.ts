@@ -117,7 +117,9 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
 export const TX_COLUMN_KEYS = Object.keys(TX_COLUMN_LABELS) as TxColumnKey[];
 
 /** Columns shown in Deals Column Visibility. Deal Name is included. */
-export const TX_COLUMN_VISIBILITY_KEYS = TX_COLUMN_KEYS;
+export const TX_COLUMN_VISIBILITY_KEYS = TX_COLUMN_KEYS.filter(
+  (key) => key !== "probability" && key !== "expectedRevenue",
+);
 
 const normalizeItems = (items: SalesTransaction["items"]) =>
   (items ?? []).map((item) => ({
