@@ -181,7 +181,9 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
 export const DEAL_COLUMN_KEYS = Object.keys(DEAL_COLUMN_LABELS) as DealColumnKey[];
 
 /** Fields with Column Visibility = YES. Plan Name stays reserved/off. */
-export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter((key) => key !== "planName");
+export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter(
+  (key) => key !== "planName" && key !== "probability" && key !== "expectedRevenue",
+);
 
 export function formatDealAmount(amount: number | null) {
   if (amount == null || !Number.isFinite(amount)) return "—";
