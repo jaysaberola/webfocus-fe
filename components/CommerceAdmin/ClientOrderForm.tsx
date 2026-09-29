@@ -43,7 +43,9 @@ import { isWebDesignPlan, looksLikeDomain } from "@/lib/serviceCategory";
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
 import {
+  isQuotedWebDesign,
   isWebDesignTransaction,
+  quotedWebDesignAmount,
   WEB_DESIGN_PENDING_QUOTATION_MARKER,
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { readStoredCurrentUser } from "@/lib/currentUser";
@@ -327,11 +329,22 @@ function catalogPriceForProduct(services: any[], productName: string) {
   return null;
 }
 
-function catalogLinesForDealNames(services: any[], dealName: string) {
+function catalogLinesForDealNames(
+  services: any[],
+  dealName: string,
+  transaction?: SalesTransaction | null,
+) {
+  const quoted = isQuotedWebDesign(transaction);
+  const quotedAmount = quotedWebDesignAmount(transaction);
+
   return parseDealNames(dealName)
+    .filter(isUsableDealName)
     .map((name) => {
-      const price = catalogPriceForProduct(services, name);
-      return price != null ? { name, price } : null;
+      const catalog = catalogPriceForProduct(services, name);
+      if (isWebDesignPlan(name)) {
+        return { name, price: quoted ? quotedAmount || catalog || 0 : 0 };
+      }
+      return catalog != null ? { name, price: catalog } : null;
     })
     .filter((row): row is { name: string; price: number } => Boolean(row));
 }
@@ -347,7 +360,11 @@ function resolveDomainRegistrationCost(
   return catalogPriceForDomain(services, domainName, domainType) ?? 0;
 }
 
-function buildDealItemPayload(services: any[], form: ClientOrderFormState) {
+function buildDealItemPayload(
+  services: any[],
+  form: ClientOrderFormState,
+  transaction?: SalesTransaction | null,
+) {
   const names = parseDealNames(form.dealName).filter(isUsableDealName);
   const domainName = form.domainName.trim();
   const domainType =
@@ -358,15 +375,21 @@ function buildDealItemPayload(services: any[], form: ClientOrderFormState) {
     domainType,
     form.domainRegistrationCost,
   );
+  const quoted = isQuotedWebDesign(transaction);
+  const quotedAmount = quotedWebDesignAmount(transaction);
   const items = names.map((name) => {
     const isDomainType = Boolean(matchDomainTypeOption(name));
-    const itemPrice =
+    const isWebDesign = isWebDesignPlan(name, form.dealSubType || form.dealType);
+    let itemPrice =
       isDomainType && domainCost > 0 ? domainCost : catalogPriceForProduct(services, name) ?? 0;
+    if (isWebDesign) {
+      itemPrice = quoted ? quotedAmount || itemPrice : 0;
+    }
     return {
       name,
       item_type: isDomainType
         ? "domain"
-        : isWebDesignPlan(name, form.dealSubType || form.dealType)
+        : isWebDesign
           ? "web_design"
           : form.dealSubType || form.dealType || "service",
       price: itemPrice,
@@ -1102,7 +1125,7 @@ export default function ClientOrderForm({
       return withLiveDomainDealLine(row, liveDomain);
     }
 
-    const catalogItems = catalogLinesForDealNames(services, form.dealName || form.productName).map((row, index) => ({
+    const catalogItems = catalogLinesForDealNames(services, form.dealName || form.productName, transaction).map((row, index) => ({
       id: `draft-${index}`,
       name: row.name,
       domain: "",
@@ -1139,7 +1162,7 @@ export default function ClientOrderForm({
   ]);
 
   const dealPriceLines = useMemo(() => {
-    const lines = catalogLinesForDealNames(services, form.dealName || form.productName).map((row) => ({
+    const lines = catalogLinesForDealNames(services, form.dealName || form.productName, transaction).map((row) => ({
       ...row,
       isDomain: false,
     }));
@@ -1166,6 +1189,7 @@ export default function ClientOrderForm({
     form.domainName,
     form.domainType,
     form.domainRegistrationCost,
+    transaction,
   ]);
   const dealPriceTotal = useMemo(
     () => dealPriceLines.reduce((sum, row) => sum + row.price, 0),
@@ -1232,12 +1256,21 @@ export default function ClientOrderForm({
   }, [form.domainName, form.domainType, services]);
 
   useEffect(() => {
+    const holdWebDesignQuote =
+      parseDealNames(form.dealName || form.productName).some((name) => isWebDesignPlan(name)) &&
+      !isQuotedWebDesign(transaction);
+    if (holdWebDesignQuote) {
+      setForm((current) =>
+        current.expectedRevenue === "0" ? current : { ...current, expectedRevenue: "0" },
+      );
+      return;
+    }
     const nextRevenue = dealPriceTotal > 0 ? String(dealPriceTotal) : isEditing ? undefined : "0";
     if (nextRevenue == null) return;
     setForm((current) =>
       current.expectedRevenue === nextRevenue ? current : { ...current, expectedRevenue: nextRevenue },
     );
-  }, [dealPriceTotal, isEditing]);
+  }, [dealPriceTotal, isEditing, form.dealName, form.productName, transaction]);
 
   useEffect(() => {
     const next = deriveInvoiceFields(form, transaction);
@@ -1444,7 +1477,8 @@ export default function ClientOrderForm({
         ? clientDisplayName(selectedClient)
         : String(transaction?.customer_name ?? "").trim();
       let clientEmail = selectedClient?.email ?? transaction?.customer_email ?? "";
-      const price = Number(form.expectedRevenue || 0);
+      const price =
+        isWebDesignDeal && !isQuotedWebDesign(transaction) ? 0 : Number(form.expectedRevenue || 0);
       const ownerId = Number(form.dealOwnerId);
 
       if (form.clientId === NEW_CLIENT_VALUE) {
@@ -1474,7 +1508,7 @@ export default function ClientOrderForm({
       }
 
       if (transaction) {
-        const itemPayload = buildDealItemPayload(services, form);
+        const itemPayload = buildDealItemPayload(services, form, transaction);
         await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
           customer_name: clientName || transaction.customer_name,
@@ -1543,7 +1577,7 @@ export default function ClientOrderForm({
           ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
           : buildDealNotes(form),
         transacted_at: form.closingDate || undefined,
-        items: buildDealItemPayload(services, form),
+        items: buildDealItemPayload(services, form, transaction),
       });
 
       const transactionId = Number(created?.data?.id ?? created?.id);
@@ -1600,8 +1634,11 @@ export default function ClientOrderForm({
       : retained || formName || resolved || "Deal Info";
     const fromForm = Number(form.expectedRevenue);
     const stored = Number(transaction?.grand_total ?? 0);
-    const amount =
-      dealPriceTotal > 0
+    const holdWebDesignQuote =
+      parseDealNames(dealName).some((name) => isWebDesignPlan(name)) && !isQuotedWebDesign(transaction);
+    const amount = holdWebDesignQuote
+      ? 0
+      : dealPriceTotal > 0
         ? dealPriceTotal
         : Number.isFinite(fromForm) && fromForm > 0
           ? fromForm

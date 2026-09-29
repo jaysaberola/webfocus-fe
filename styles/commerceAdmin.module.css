@@ -6609,6 +6609,29 @@ select.clientCrmInput {
   font-weight: 600;
 }
 
+.productIncludedServices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  margin-top: 0.18rem;
+  max-width: 22rem;
+}
+
+.productIncludedServicesLabel {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.productIncludedServicesList {
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .productDetailsTotals {
   width: min(18rem, 100%);
   margin-left: auto;

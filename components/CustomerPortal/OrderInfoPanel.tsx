@@ -58,15 +58,24 @@ function ReadField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ItemExtras({ notes }: { extras?: string[]; notes?: string }) {
+function ItemExtras({ extras, notes }: { extras?: string[]; notes?: string }) {
+  const services = (extras ?? []).map((value) => String(value || "").trim()).filter(Boolean);
   const note = String(notes || "").trim();
-  if (!note) return null;
+  if (!services.length && !note) return null;
   return (
     <div className={styles.orderInfoItemExtras}>
-      <div className={styles.orderInfoItemNote}>
-        <span className={styles.orderInfoItemExtrasLabel}>Notes</span>
-        <p>{note}</p>
-      </div>
+      {services.length ? (
+        <div className={styles.orderInfoItemIncluded}>
+          <span className={styles.orderInfoItemExtrasLabel}>Included services</span>
+          <p>{services.join(", ")}</p>
+        </div>
+      ) : null}
+      {note ? (
+        <div className={styles.orderInfoItemNote}>
+          <span className={styles.orderInfoItemExtrasLabel}>Notes</span>
+          <p>{note}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

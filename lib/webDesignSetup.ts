@@ -172,6 +172,33 @@ export function webDesignAdditionalServicesLabel(meta: WebDesignCartMeta | null 
   return [...features, ...payments].join(", ");
 }
 
+export function webDesignIncludedServices(source?: string | null): string[] {
+  const meta = parseWebDesignMeta(source);
+  const fromMeta = [
+    ...(meta?.serviceFeatures ?? []).filter((value) => value && value.toLowerCase() !== "none selected"),
+    ...paymentMethodLabels(meta?.paymentMethods),
+  ];
+  if (fromMeta.length) return uniqueServiceLabels(fromMeta);
+
+  const match = String(source ?? "").match(/Additional Services:\s*(.+)/i);
+  if (!match) return [];
+  return uniqueServiceLabels(String(match[1]).split(","));
+}
+
+function uniqueServiceLabels(values: Array<string | null | undefined>) {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const value of values) {
+    const label = String(value ?? "").trim();
+    if (!label || label.toLowerCase() === "none selected") continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    labels.push(label);
+  }
+  return labels;
+}
+
 export function webDesignClientNotes(source?: string | null): string {
   const fromMeta = String(parseWebDesignMeta(source)?.clientNotes ?? "").trim();
   if (fromMeta) return fromMeta;

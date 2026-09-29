@@ -28,6 +28,24 @@ export function isWebDesignPaymentRequested(transaction: SalesTransaction) {
   return hasMarker(notesOf(transaction), WEB_DESIGN_PAYMENT_REQUESTED_MARKER);
 }
 
+export function isQuotedWebDesign(transaction?: SalesTransaction | null) {
+  if (!transaction) return false;
+  const notes = notesOf(transaction);
+  if (hasMarker(notes, WEB_DESIGN_PRICE_SET_MARKER)) return true;
+  if (isWebDesignPaymentRequested(transaction)) return true;
+  return ["paid", "completed", "success"].includes(String(transaction.payment_status || "").toLowerCase());
+}
+
+export function quotedWebDesignAmount(transaction?: SalesTransaction | null) {
+  if (!transaction || !isQuotedWebDesign(transaction)) return 0;
+  const items = Array.isArray(transaction.items) ? transaction.items : [];
+  const design = items.find((item) => isWebDesignPlan(item.name, item.item_type));
+  const fromItem = Number(design?.total_price ?? design?.price ?? 0);
+  if (Number.isFinite(fromItem) && fromItem > 0) return fromItem;
+  const stored = Number(transaction.grand_total || 0);
+  return Number.isFinite(stored) && stored > 0 ? stored : 0;
+}
+
 export function isPendingQuotationTransaction(transaction: SalesTransaction) {
   if (!isWebDesignTransaction(transaction)) return false;
   const paid = ["paid", "completed", "success"].includes(

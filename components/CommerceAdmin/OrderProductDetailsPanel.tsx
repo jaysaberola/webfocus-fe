@@ -68,6 +68,14 @@ export default function OrderProductDetailsPanel({ order, embedded = false, onCl
                   <td data-label="Deal Name">
                     <div className={styles.productNameCell}>
                       <strong>{item.name}</strong>
+                      {item.additionalServices?.length ? (
+                        <div className={styles.productIncludedServices}>
+                          <span className={styles.productIncludedServicesLabel}>Included services</span>
+                          <span className={styles.productIncludedServicesList}>
+                            {item.additionalServices.join(", ")}
+                          </span>
+                        </div>
+                      ) : null}
                       {item.domain ? <span>{item.domain}</span> : null}
                     </div>
                   </td>

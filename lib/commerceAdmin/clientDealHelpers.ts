@@ -15,6 +15,7 @@ import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transa
 import { isWebDesignPlan } from "@/lib/serviceCategory";
 import { subjectForPublicCatalogName } from "@/lib/servicesCatalog";
 import { isWebDesignTransaction } from "@/lib/commerceAdmin/webDesignPricing";
+import { webDesignIncludedServices } from "@/lib/webDesignSetup";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import type { CustomerRow, CustomerServiceLine } from "@/services/customerService";
@@ -33,6 +34,7 @@ export type ClientDealLineItem = {
   amount: number;
   discount: number;
   tax: number;
+  additionalServices?: string[];
 };
 
 export type ClientDealRow = {
@@ -1027,7 +1029,22 @@ function buildLineItems(
         : vatFromInclusive(item.amount),
   }));
 
-  return appendDomainLineItem(transaction, withTax, domainFallback);
+  return attachWebDesignPackageExtras(transaction, appendDomainLineItem(transaction, withTax, domainFallback));
+}
+
+function attachWebDesignPackageExtras(transaction: SalesTransaction, items: ClientDealLineItem[]): ClientDealLineItem[] {
+  const extras = webDesignIncludedServices(transaction.notes);
+  const extraKeys = new Set(extras.map((value) => value.toLowerCase()));
+  const folded = items.filter((item) => {
+    const name = String(item.name ?? "").trim().toLowerCase();
+    return name !== "additional service" && !extraKeys.has(name);
+  });
+  if (!extras.length || !folded.length) return folded;
+
+  const packageIndex = folded.findIndex((item) => isWebDesignPlan(item.name));
+  const target = packageIndex >= 0 ? packageIndex : 0;
+  folded[target] = { ...folded[target], additionalServices: extras };
+  return folded;
 }
 
 function isDomainProductLine(item: ClientDealLineItem, domainName: string, domainType: string) {
