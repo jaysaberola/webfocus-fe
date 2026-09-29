@@ -6610,26 +6610,13 @@ select.clientCrmInput {
 }
 
 .productIncludedServices {
-  display: flex;
-  flex-direction: column;
-  gap: 0.18rem;
-  margin-top: 0.18rem;
-  max-width: 22rem;
-}
-
-.productIncludedServicesLabel {
-  color: #64748b;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.productIncludedServicesList {
-  color: #334155;
-  font-size: 0.78rem;
-  font-weight: 600;
-  line-height: 1.4;
+  display: block;
+  margin-top: 0.12rem;
+  max-width: 28rem;
+  color: var(--ca-slate-500);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .productDetailsTotals {

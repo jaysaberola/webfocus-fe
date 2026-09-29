@@ -65,17 +65,9 @@ function ItemExtras({ extras, notes }: { extras?: string[]; notes?: string }) {
   return (
     <div className={styles.orderInfoItemExtras}>
       {services.length ? (
-        <div className={styles.orderInfoItemIncluded}>
-          <span className={styles.orderInfoItemExtrasLabel}>Included services</span>
-          <p>{services.join(", ")}</p>
-        </div>
+        <p className={styles.orderInfoItemServices}>{services.join(" · ")}</p>
       ) : null}
-      {note ? (
-        <div className={styles.orderInfoItemNote}>
-          <span className={styles.orderInfoItemExtrasLabel}>Notes</span>
-          <p>{note}</p>
-        </div>
-      ) : null}
+      {note ? <p className={styles.orderInfoItemNote}>Notes: {note}</p> : null}
     </div>
   );
 }
@@ -545,7 +537,7 @@ export default function OrderInfoPanel({
                     <td data-label="Item">{item.name || "—"}</td>
                     <td data-label="Detail">
                       <div className={styles.orderInfoItemDetail}>
-                        <span>{item.detail || "—"}</span>
+                        <span className={styles.orderInfoItemPackage}>{item.detail || "—"}</span>
                         <ItemExtras extras={item.additionalServices} notes={item.clientNotes} />
                       </div>
                     </td>

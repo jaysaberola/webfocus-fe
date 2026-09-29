@@ -4401,10 +4401,11 @@
 
 .orderInfoItemsTable th,
 .orderInfoItemsTable td {
-  padding: 0.7rem 0.85rem;
+  padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--cp-slate-100);
   text-align: left;
   font-size: var(--cp-text-sm);
+  vertical-align: top;
 }
 
 .orderInfoItemsTable th {
@@ -4412,6 +4413,25 @@
   color: var(--cp-slate-600);
   font-size: var(--cp-text-xs);
   font-weight: 700;
+}
+
+.orderInfoItemsTable th:nth-child(1),
+.orderInfoItemsTable td:nth-child(1) {
+  width: 26%;
+  color: #334155;
+  font-weight: 600;
+}
+
+.orderInfoItemsTable th:nth-child(2),
+.orderInfoItemsTable td:nth-child(2) {
+  width: 54%;
+}
+
+.orderInfoItemsTable th:nth-child(3),
+.orderInfoItemsTable td:nth-child(3) {
+  width: 20%;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .orderInfoItemsTable tr:last-child td {
@@ -4422,79 +4442,35 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.28rem;
+  min-width: 0;
+}
+
+.orderInfoItemPackage {
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .orderInfoItemExtras {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
-  width: 100%;
+  gap: 0.12rem;
+  min-width: 0;
+  max-width: 36rem;
 }
 
-.orderInfoItemExtrasLabel {
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #94a3b8;
-}
-
-.orderInfoItemChips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.orderInfoItemChip {
-  display: inline-flex;
-  align-items: center;
-  max-width: 100%;
-  padding: 0.28rem 0.65rem;
-  border-radius: 999px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-  font-size: 0.72rem;
-  font-weight: 650;
-  line-height: 1.3;
-}
-
-.orderInfoItemIncluded {
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-  width: 100%;
-  max-width: 28rem;
-}
-
-.orderInfoItemIncluded p {
+.orderInfoItemServices,
+.orderInfoItemNote {
   margin: 0;
-  color: #334155;
+  color: #64748b;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.45;
 }
 
 .orderInfoItemNote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-  width: 100%;
-  max-width: 28rem;
-}
-
-.orderInfoItemNote p {
-  margin: 0;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.7rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #334155;
-  font-size: 0.78rem;
-  font-weight: 500;
-  line-height: 1.45;
   white-space: pre-wrap;
 }
 
@@ -4849,12 +4825,20 @@
   .orderInfoItemsTable tbody,
   .orderInfoItemsTable tr,
   .orderInfoItemsTable td,
+  .orderInfoItemsTable th:nth-child(1),
+  .orderInfoItemsTable td:nth-child(1),
+  .orderInfoItemsTable th:nth-child(2),
+  .orderInfoItemsTable td:nth-child(2),
+  .orderInfoItemsTable th:nth-child(3),
+  .orderInfoItemsTable td:nth-child(3),
   .orderCustomizeTable tbody,
   .orderCustomizeTable tr,
   .orderCustomizeTable td {
     display: block;
     width: 100%;
     max-width: none;
+    text-align: left;
+    white-space: normal;
   }
 
   .orderInfoItemsTable tbody tr,
