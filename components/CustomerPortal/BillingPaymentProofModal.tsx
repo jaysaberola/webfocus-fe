@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import type { PortalInvoice } from "@/lib/customerPortal/types";
+import { portalBilledAmount } from "@/lib/customerPortal/orderHelpers";
 import { ocrReceiptFile, type PaynamicsProofScan } from "@/lib/paynamicsProofScan";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
 import PortalPickSelect from "@/components/CustomerPortal/PortalPickSelect";
@@ -200,7 +201,7 @@ export default function BillingPaymentProofModal({
                 placeholder="Select invoice"
                 options={payableInvoices.map((inv) => ({
                   value: inv.id,
-                  label: `${inv.id} · ${formatPeso(inv.amount)} · ${inv.serviceName ?? inv.items}`,
+                  label: `${inv.id} · ${formatPeso(portalBilledAmount(inv))} · ${inv.serviceName ?? inv.items}`,
                 }))}
                 onChange={(nextId) => {
                   if (!nextId) return;
@@ -230,7 +231,7 @@ export default function BillingPaymentProofModal({
                     ? ` · ${selectedInvoice.plan ?? selectedInvoice.subscription}`
                     : ""}
                 </p>
-                <p className={styles.proofInvoiceAmount}>{formatPeso(selectedInvoice.amount)}</p>
+                <p className={styles.proofInvoiceAmount}>{formatPeso(portalBilledAmount(selectedInvoice))}</p>
               </div>
             </div>
           ) : (

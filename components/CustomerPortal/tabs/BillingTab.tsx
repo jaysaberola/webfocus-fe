@@ -20,6 +20,7 @@ import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import { formatPeso } from "@/lib/customerPortal/mockData";
 import { consumeOpenProofUpload, clearPaynamicsProofPrompt, dismissPaynamicsProofPrompt, isPaynamicsProofPromptDismissed, paynamicsProofPromptSnoozeRemainingMs } from "@/lib/paynamicsProofPrompt";
 import { customerPlanLabelFromParts } from "@/lib/serviceCategory";
+import { portalBilledAmount } from "@/lib/customerPortal/orderHelpers";
 import { releaseCartQuotationsForTransactionNos } from "@/lib/publicCart";
 import {
   addPortalFunds,
@@ -187,7 +188,9 @@ function sortPortalInvoices(rows: PortalInvoice[], sortBy: InvoiceSortKey) {
       return sortBy === "due-desc" ? right - left : left - right;
     }
     if (sortBy.startsWith("amount")) {
-      const byAmount = sortBy === "amount-desc" ? b.amount - a.amount : a.amount - b.amount;
+      const byAmount = sortBy === "amount-desc"
+        ? portalBilledAmount(b) - portalBilledAmount(a)
+        : portalBilledAmount(a) - portalBilledAmount(b);
       if (byAmount !== 0) return byAmount;
       const left = Date.parse(String(a.createdAt || a.date || "")) || 0;
       const right = Date.parse(String(b.createdAt || b.date || "")) || 0;
@@ -490,7 +493,7 @@ export default function BillingTab() {
       openInvoicePayment({
         invoiceId: inv.id,
         title: invoicePlanLabel(inv),
-        amount: inv.amount,
+        amount: portalBilledAmount(inv),
         canPay: inv.canPay,
         submitLabel: reminder?.invoiceId === inv.id ? reminder.buttonLabel : "Pay Now",
       });
@@ -565,7 +568,7 @@ export default function BillingTab() {
           invoicePlanLabel(inv),
           inv.date,
           inv.due,
-          formatPeso(inv.amount),
+          formatPeso(portalBilledAmount(inv)),
           invoicePaymentDate(inv),
           invoicePaymentMode(inv),
           inv.status,
@@ -975,7 +978,7 @@ export default function BillingTab() {
                         <td data-label="Plan">{invoicePlanLabel(inv)}</td>
                         <td data-label="Issued">{inv.date}</td>
                         <td data-label="Due Date">{inv.due}</td>
-                        <td className={styles.monoBold} data-label="Amount">{formatPeso(inv.amount)}</td>
+                        <td className={styles.monoBold} data-label="Amount">{formatPeso(portalBilledAmount(inv))}</td>
                         <td data-label="Payment Date">{invoicePaymentDate(inv)}</td>
                         <td data-label="Payment Mode">{invoicePaymentMode(inv)}</td>
                         <td data-label="Status">

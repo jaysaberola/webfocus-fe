@@ -38,6 +38,18 @@ export function orderCanCustomize(order: PortalOrder) {
   return order.status === "Pending Payment" || orderCanCheckout(order);
 }
 
+export function portalBilledAmount(row: {
+  grandTotal?: number | string | null;
+  total?: number | string | null;
+  amount?: number | string | null;
+}) {
+  for (const value of [row.grandTotal, row.total, row.amount]) {
+    const amount = Number(value);
+    if (Number.isFinite(amount) && amount > 0) return amount;
+  }
+  return 0;
+}
+
 export function orderPaymentDate(order: PortalOrder) {
   return String(order.paymentDate || "").trim() || null;
 }

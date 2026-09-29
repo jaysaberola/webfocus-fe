@@ -14,6 +14,7 @@ export type PortalInvoice = {
   createdAt?: string | null;
   due: string;
   amount: number;
+  grandTotal?: number;
   status: "Paid" | "Pending Payment" | "Pending Quotation" | "Awaiting Approval" | "Payment Due" | "Overdue" | "Cancelled";
   paymentDate?: string | null;
   paymentMode?: string | null;
@@ -45,6 +46,7 @@ export type PortalOrder = {
   dueDate?: string;
   expiredDate: string;
   total: number;
+  grandTotal?: number;
   adminPriced?: boolean;
   status: "Active Live" | "Pending Request" | "Pending Payment" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
   paymentStatus?: string;

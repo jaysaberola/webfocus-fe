@@ -25,6 +25,7 @@ import {
   orderPaymentMethodLabel,
   orderPlanLabel,
   orderServiceName,
+  portalBilledAmount,
 } from "@/lib/customerPortal/orderHelpers";
 import {
   cancelPortalOrder,
@@ -144,7 +145,9 @@ function sortPortalOrders(rows: PortalOrder[], sortBy: OrderSortKey) {
       return compareText(orderPlanLabel(a), orderPlanLabel(b), sortBy === "plan-desc");
     }
     if (sortBy.startsWith("amount")) {
-      return sortBy === "amount-desc" ? b.total - a.total : a.total - b.total;
+      return sortBy === "amount-desc"
+        ? portalBilledAmount(b) - portalBilledAmount(a)
+        : portalBilledAmount(a) - portalBilledAmount(b);
     }
     if (sortBy.startsWith("gateway")) {
       return compareText(orderPaymentMethodLabel(a), orderPaymentMethodLabel(b), sortBy === "gateway-desc");
@@ -316,7 +319,7 @@ export default function OrdersTab() {
           order.id,
           orderServiceName(order),
           orderPlanLabel(order),
-          formatPeso(order.total),
+          formatPeso(portalBilledAmount(order)),
           orderPaymentMethodLabel(order),
           orderPaymentDate(order) || "—",
           order.date,
@@ -801,7 +804,7 @@ export default function OrdersTab() {
                           </button>
                         </td>
                         <td data-label="Plan">{orderPlanLabel(order)}</td>
-                        <td className={styles.monoBold} data-label="Amount">{formatPeso(order.total)}</td>
+                        <td className={styles.monoBold} data-label="Amount">{formatPeso(portalBilledAmount(order))}</td>
                         <td data-label="Payment Mode">{orderPaymentMethodLabel(order)}</td>
                         <td data-label="Payment Date">{orderPaymentDate(order) || "—"}</td>
                         <td data-label="Date Ordered">{order.date}</td>

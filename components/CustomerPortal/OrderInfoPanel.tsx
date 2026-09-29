@@ -10,6 +10,7 @@ import {
   orderPaymentMethodLabel,
   orderPlanLabel,
   orderServiceName,
+  portalBilledAmount,
 } from "@/lib/customerPortal/orderHelpers";
 import { DEAL_NAME_OPTIONS, DOMAIN_TYPE_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
@@ -383,7 +384,7 @@ export default function OrderInfoPanel({
           </button>
           <div>
             <h2 className={styles.panelTitle}>
-              {serviceName} - {formatPeso(canCustomize ? grandTotal : order.total)}
+              {serviceName} - {formatPeso(canCustomize ? grandTotal : portalBilledAmount(order))}
             </h2>
             <p className={styles.panelSub}>Orders</p>
           </div>
@@ -424,7 +425,7 @@ export default function OrderInfoPanel({
           <ReadField label="Service Name" value={serviceName} />
           <ReadField label="Plan" value={plan || "—"} />
           {order.domain ? <ReadField label="Domain Name" value={order.domain} /> : null}
-          <ReadField label="Amount" value={formatPeso(canCustomize ? grandTotal : order.total)} />
+          <ReadField label="Amount" value={formatPeso(canCustomize ? grandTotal : portalBilledAmount(order))} />
           <ReadField label="Payment Mode" value={orderPaymentMethodLabel(order)} />
           <ReadField label="Payment Date" value={orderPaymentDate(order) || "—"} />
           <ReadField label="Payment Status" value={order.paymentStatus || "—"} />
