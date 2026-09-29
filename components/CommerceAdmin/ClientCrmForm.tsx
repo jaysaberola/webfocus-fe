@@ -21,6 +21,7 @@ import {
   updateCustomerCrmAccount,
   type CustomerRow,
 } from "@/services/customerService";
+import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import ClientTimeline, { type ClientAuditEntry } from "@/components/CommerceAdmin/ClientTimeline";
 import type { ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
@@ -185,6 +186,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   const [billingUsers, setBillingUsers] = useState<CommerceAssignableUser[]>([]);
   const [loading, setLoading] = useState(mode === "edit");
   const [submitting, setSubmitting] = useState(false);
+  const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
   const [existingFiles, setExistingFiles] = useState<Record<string, string | null>>({});
   const [existingFileUrls, setExistingFileUrls] = useState<Record<string, string | null>>({});
   const [audits, setAudits] = useState<ClientAuditEntry[]>([]);
@@ -679,6 +681,22 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     }
   };
 
+  const confirmFormAction = () => {
+    const next = actionIntent;
+    setActionIntent(null);
+    if (next === "cancel") {
+      onBack();
+      return;
+    }
+    if (next === "save-and-new") {
+      void save(true);
+      return;
+    }
+    if (next === "save") {
+      void save(false);
+    }
+  };
+
   if (loading) {
     return <p className={styles.emptyState}>Loading client form...</p>;
   }
@@ -700,13 +718,18 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </div>
         </div>
         <div className={styles.clientCrmActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => setActionIntent("cancel")}
+            disabled={submitting}
+          >
             Cancel
           </button>
           <button
             type="button"
             className={styles.secondaryBtnSm}
-            onClick={() => void save(true)}
+            onClick={() => setActionIntent("save-and-new")}
             disabled={submitting}
           >
             Save and New
@@ -714,7 +737,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           <button
             type="button"
             className={styles.primaryBtnSm}
-            onClick={() => void save(false)}
+            onClick={() => setActionIntent("save")}
             disabled={submitting}
           >
             {submitting ? "Saving..." : "Save"}
@@ -1215,6 +1238,12 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       </section>
         </>
       )}
+      <FormActionConfirmModal
+        intent={actionIntent}
+        entity="client"
+        onConfirm={confirmFormAction}
+        onDismiss={() => setActionIntent(null)}
+      />
     </div>
   );
 });

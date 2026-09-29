@@ -1,4 +1,5 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
 import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, applyDealTaxes, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
@@ -1047,6 +1048,7 @@ export default function ClientOrderForm({
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
   const [newClientName, setNewClientName] = useState("");
   const [manualDateFields, setManualDateFields] = useState<Set<AutoDateKey>>(() => new Set());
 
@@ -1701,9 +1703,10 @@ export default function ClientOrderForm({
     });
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    await saveDeal(false);
+    if (submitting) return;
+    setActionIntent("save");
   };
 
   const saveDeal = async (andNew: boolean) => {
@@ -1897,6 +1900,22 @@ export default function ClientOrderForm({
     }
   };
 
+  const confirmFormAction = () => {
+    const next = actionIntent;
+    setActionIntent(null);
+    if (next === "cancel") {
+      onBack();
+      return;
+    }
+    if (next === "save-and-new") {
+      void saveDeal(true);
+      return;
+    }
+    if (next === "save") {
+      void saveDeal(false);
+    }
+  };
+
   const headerTitle = useMemo(() => {
     if (!isEditing) return pageTitle || "Create Deal";
     const formName = String(form.dealName || "").trim();
@@ -1950,13 +1969,18 @@ export default function ClientOrderForm({
           </div>
         </div>
         <div className={styles.clientCrmActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => setActionIntent("cancel")}
+            disabled={submitting}
+          >
             Cancel
           </button>
           <button
             type="button"
             className={styles.secondaryBtnSm}
-            onClick={() => void saveDeal(true)}
+            onClick={() => setActionIntent("save-and-new")}
             disabled={submitting}
           >
             Save and New
@@ -2607,6 +2631,12 @@ export default function ClientOrderForm({
           />
         </section>
       ) : null}
+      <FormActionConfirmModal
+        intent={actionIntent}
+        entity="deal"
+        onConfirm={confirmFormAction}
+        onDismiss={() => setActionIntent(null)}
+      />
     </form>
   );
 }

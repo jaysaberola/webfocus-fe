@@ -1,4 +1,5 @@
 import { Children, isValidElement, useEffect, useMemo, useState } from "react";
+import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
 import InvoiceItemsPanel from "@/components/CommerceAdmin/InvoiceItemsPanel";
 import { PAYMENT_MODE_OPTIONS, SUBJECT_OPTIONS } from "@/lib/commerceAdmin/clientOrderFormHelpers";
@@ -124,6 +125,7 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
   const [dealTransactions, setDealTransactions] = useState<SalesTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
 
   const setField = <K extends keyof ClientInvoiceFormState>(key: K, value: ClientInvoiceFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -377,6 +379,22 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
     }
   };
 
+  const confirmFormAction = () => {
+    const next = actionIntent;
+    setActionIntent(null);
+    if (next === "cancel") {
+      onBack();
+      return;
+    }
+    if (next === "save-and-new") {
+      void saveInvoice(true);
+      return;
+    }
+    if (next === "save") {
+      void saveInvoice(false);
+    }
+  };
+
   const invoiceTotalsPreview = invoiceTotals(form.items, form.adjustment);
   const headerTitle = isEditing
     ? `${form.subject.trim() || "Invoice"} - ${formatDealAmount(invoiceTotalsPreview.grandTotal)}`
@@ -391,7 +409,8 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
       className={`${styles.clientCrmPage} ${styles.invoiceForm}`}
       onSubmit={(event) => {
         event.preventDefault();
-        void saveInvoice(false);
+        if (submitting) return;
+        setActionIntent("save");
       }}
     >
       <div className={styles.clientCrmTopBar}>
@@ -405,13 +424,18 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
           </div>
         </div>
         <div className={styles.clientCrmActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => setActionIntent("cancel")}
+            disabled={submitting}
+          >
             Cancel
           </button>
           <button
             type="button"
             className={styles.secondaryBtnSm}
-            onClick={() => void saveInvoice(true)}
+            onClick={() => setActionIntent("save-and-new")}
             disabled={submitting}
           >
             Save and New
@@ -684,6 +708,12 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
         adjustment={form.adjustment}
         onItemsChange={(items) => setField("items", items)}
         onAdjustmentChange={(value) => setField("adjustment", value)}
+      />
+      <FormActionConfirmModal
+        intent={actionIntent}
+        entity="invoice"
+        onConfirm={confirmFormAction}
+        onDismiss={() => setActionIntent(null)}
       />
     </form>
   );
