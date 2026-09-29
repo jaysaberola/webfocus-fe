@@ -1052,7 +1052,16 @@ export function clientOrderFormFromTransaction(transaction: {
     domainSubscriptionEndDate: toDateInput(meta?.domainSubscriptionEndDate),
     domainRegistrationStartDate: toDateInput(meta?.domainRegistrationStartDate),
     domainRegistrationExpirationDate: toDateInput(meta?.domainRegistrationExpirationDate),
-    domainRegistrationCost: String(meta?.domainRegistrationCost ?? "").trim(),
+    domainRegistrationCost: (() => {
+      const fromItem = (transaction.items ?? []).reduce((found, item) => {
+        if (found > 0) return found;
+        if (!matchDomainTypeOption(String(item.name ?? ""))) return found;
+        const price = Number(item.price ?? item.total_price);
+        return Number.isFinite(price) && price > 0 ? price : found;
+      }, 0);
+      if (fromItem > 0) return String(fromItem);
+      return String(meta?.domainRegistrationCost ?? "").trim();
+    })(),
   });
 
   const derivedInvoice = deriveInvoiceFields(nextForm, transaction);

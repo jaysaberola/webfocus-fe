@@ -334,6 +334,17 @@ function catalogPriceForProduct(services: any[], productName: string) {
   return null;
 }
 
+function soldPriceForName(transaction: SalesTransaction | null | undefined, name: string) {
+  const needle = String(name ?? "").trim().toLowerCase();
+  if (!needle) return null;
+  const match = (transaction?.items ?? []).find(
+    (item) => String(item.name ?? "").trim().toLowerCase() === needle,
+  );
+  if (!match) return null;
+  const price = Number(match.price ?? match.total_price);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
 function catalogLinesForDealNames(
   services: any[],
   dealName: string,
@@ -346,13 +357,17 @@ function catalogLinesForDealNames(
   return parseDealNames(dealName)
     .filter(isUsableDealName)
     .map((name) => {
+      const sold = soldPriceForName(transaction, name);
       const catalog = catalogPriceForProduct(services, name);
       if (isWebDesignPlan(name)) {
         return {
           name,
-          price: quoted ? quotedAmount || catalog || 0 : 0,
+          price: quoted ? quotedAmount || sold || catalog || 0 : 0,
           needsAmount: false,
         };
+      }
+      if (sold != null) {
+        return { name, price: sold, needsAmount: false };
       }
       if (catalog != null && catalog > 0) {
         return { name, price: catalog, needsAmount: false };
@@ -396,8 +411,11 @@ function buildDealItemPayload(
   const items = names.map((name) => {
     const isDomainType = Boolean(matchDomainTypeOption(name));
     const isWebDesign = isWebDesignPlan(name, form.dealSubType || form.dealType);
+    const sold = soldPriceForName(transaction, name);
     let itemPrice =
-      isDomainType && domainCost > 0 ? domainCost : catalogPriceForProduct(services, name) ?? 0;
+      isDomainType && domainCost > 0
+        ? domainCost
+        : sold ?? catalogPriceForProduct(services, name) ?? 0;
     if (isWebDesign) {
       itemPrice = quoted ? quotedAmount || itemPrice : 0;
     } else if (!(itemPrice > 0)) {
@@ -1314,6 +1332,11 @@ export default function ClientOrderForm({
     const nextCost = String(price);
     setForm((current) => {
       const nextType = matchDomainTypeOption(current.domainType) || type;
+      const existing = Number(current.domainRegistrationCost);
+      if (Number.isFinite(existing) && existing > 0) {
+        if (current.domainType === nextType) return current;
+        return { ...current, domainType: nextType };
+      }
       if (current.domainRegistrationCost === nextCost && current.domainType === nextType) {
         return current;
       }

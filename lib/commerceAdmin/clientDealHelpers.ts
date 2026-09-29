@@ -968,11 +968,10 @@ const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
 };
 
 function catalogDomainCost(domainType: string, typedCost?: unknown) {
-  const type = matchDomainTypeOption(domainType) || domainType;
-  const catalog = DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
-  if (catalog > 0) return catalog;
   const cost = money(typedCost);
-  return cost > 0 ? cost : 0;
+  if (cost > 0) return cost;
+  const type = matchDomainTypeOption(domainType) || domainType;
+  return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
 }
 
 function formatPeriod(start?: string | null, end?: string | null) {
@@ -1036,7 +1035,7 @@ function buildLineItems(
     tax:
       headerTax > 0 && amountSum > 0
         ? Math.round((headerTax * (item.amount / amountSum)) * 100) / 100
-        : vatFromInclusive(item.amount),
+        : 0,
   }));
 
   return attachWebDesignPackageExtras(transaction, appendDomainLineItem(transaction, withTax, domainFallback));
@@ -1098,15 +1097,14 @@ function appendDomainLineItem(
   if (alreadyIncluded) {
     return items.map((item) => {
       if (!isDomainProductLine(item, domainName, domainType)) return item;
-      const amount = cost > 0 ? cost : item.amount;
+      const amount = item.amount > 0 ? item.amount : cost > 0 ? cost : item.listPrice;
       return {
         ...item,
         name: domainType,
         domain: domainName,
         period: period || item.period,
-        listPrice: cost > 0 ? cost : item.listPrice,
+        listPrice: item.listPrice > 0 ? item.listPrice : amount,
         amount,
-        tax: vatFromInclusive(amount),
       };
     });
   }
@@ -1123,7 +1121,7 @@ function appendDomainLineItem(
       quantity: 1,
       amount,
       discount: 0,
-      tax: vatFromInclusive(amount),
+      tax: 0,
     },
   ];
 }
@@ -1186,16 +1184,16 @@ export function withLiveDomainDealLine(
   const items = alreadyIncluded
     ? order.items.map((item) => {
         if (!isDomainProductLine(item, domainName, domainType)) return item;
-        const amount = cost > 0 ? cost : item.amount;
+        const liveAmount = cost > 0 ? cost : item.amount > 0 ? item.amount : item.listPrice;
         return {
           ...item,
           name: domainType,
           domain: domainName,
           period: period || item.period,
-          listPrice: cost > 0 ? cost : item.listPrice,
+          listPrice: liveAmount,
           quantity: 1,
-          amount,
-          tax: vatFromInclusive(amount),
+          amount: liveAmount,
+          tax: order.taxTotal > 0 ? vatFromInclusive(liveAmount) : item.tax,
         };
       })
     : [
@@ -1209,7 +1207,7 @@ export function withLiveDomainDealLine(
           quantity: 1,
           amount: cost,
           discount: 0,
-          tax: vatFromInclusive(cost),
+          tax: order.taxTotal > 0 ? vatFromInclusive(cost) : 0,
         },
       ];
 

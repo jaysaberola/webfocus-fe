@@ -256,11 +256,10 @@ function looksLikeDomainInvoiceName(item: Pick<InvoiceLineItem, "productName" | 
 }
 
 export function domainPriceForType(domainType: string, typedCost?: string | number | null) {
-  const type = matchDomainTypeOption(domainType) || domainType;
-  const catalog = DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
-  if (catalog > 0) return catalog;
   const parsed = Number(typedCost);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  const type = matchDomainTypeOption(domainType) || domainType;
+  return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? 0;
 }
 
 function withCatalogDomainPrices(items: InvoiceLineItem[]): InvoiceLineItem[] {
@@ -268,7 +267,7 @@ function withCatalogDomainPrices(items: InvoiceLineItem[]): InvoiceLineItem[] {
     const type = matchDomainTypeOption(item.productName);
     if (!type) return item;
     const catalog = domainPriceForType(type);
-    if (catalog <= 0 || invoiceMoney(item.listPrice) === catalog) return item;
+    if (catalog <= 0 || invoiceMoney(item.listPrice) > 0) return item;
     return { ...item, listPrice: String(catalog) };
   });
 }
