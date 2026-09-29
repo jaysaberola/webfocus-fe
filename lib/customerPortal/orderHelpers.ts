@@ -34,6 +34,7 @@ export function orderCanCheckout(order: PortalOrder) {
 }
 
 export function orderCanCustomize(order: PortalOrder) {
+  if (order.adminPriced) return false;
   return order.status === "Pending Payment" || orderCanCheckout(order);
 }
 

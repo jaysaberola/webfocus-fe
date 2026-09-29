@@ -537,6 +537,7 @@ export type ClientOrderFormState = {
   dealName: string;
   dealAmounts: Record<string, string>;
   dealDiscounts: Record<string, string>;
+  dealTaxes: Record<string, string>;
   clientId: string;
   contactName: string;
   dealType: string;
@@ -590,6 +591,7 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   dealName: "",
   dealAmounts: {},
   dealDiscounts: {},
+  dealTaxes: {},
   clientId: "",
   contactName: "",
   dealType: "",
@@ -680,6 +682,7 @@ export type DealMeta = {
   dealNames?: string[];
   dealAmounts?: Record<string, string>;
   dealDiscounts?: Record<string, string>;
+  dealTaxes?: Record<string, string>;
   campaignSource?: string;
   stage?: string;
   dealType?: string;
@@ -979,6 +982,7 @@ export function clientOrderFormFromTransaction(transaction: {
   payment_date?: string | null;
   payment_mode?: string | null;
   discount_total?: string | number | null;
+  tax_total?: string | number | null;
   items?: Array<{ name?: string | null; price?: string | number | null; total_price?: string | number | null }>;
 }): ClientOrderFormState {
   const meta = parseDealMeta(transaction.notes);
@@ -1003,11 +1007,19 @@ export function clientOrderFormFromTransaction(transaction: {
     parseDealNames(dealName),
   );
   const namedDeals = parseDealNames(dealName);
-  let dealDiscounts = pruneDealAmounts(parseDealAmounts(meta?.dealDiscounts), namedDeals);
+  const namedKeys = [...namedDeals, matchDomainTypeOption(meta?.domainType)].filter(Boolean);
+  let dealDiscounts = pruneDealAmounts(parseDealAmounts(meta?.dealDiscounts), namedKeys);
   if (!Object.keys(dealDiscounts).length) {
     const headerDiscount = Number(transaction.discount_total);
     if (Number.isFinite(headerDiscount) && headerDiscount > 0 && namedDeals[0]) {
       dealDiscounts = { [namedDeals[0]]: String(headerDiscount) };
+    }
+  }
+  let dealTaxes = pruneDealAmounts(parseDealAmounts(meta?.dealTaxes), namedKeys);
+  if (!Object.keys(dealTaxes).length) {
+    const headerTax = Number(transaction.tax_total);
+    if (Number.isFinite(headerTax) && headerTax > 0 && namedDeals[0]) {
+      dealTaxes = { [namedDeals[0]]: String(headerTax) };
     }
   }
   const revenue = String(meta?.expectedRevenue ?? transaction.grand_total ?? "").trim();
@@ -1022,6 +1034,7 @@ export function clientOrderFormFromTransaction(transaction: {
     dealName,
     dealAmounts,
     dealDiscounts,
+    dealTaxes,
     clientId: transaction.customer_id ? String(transaction.customer_id) : "",
     contactName: String(meta?.contactName ?? "").trim(),
     dealType: matchOption(CLIENT_STATUS_OPTIONS, meta?.dealType),
@@ -1098,6 +1111,10 @@ function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
     dealNames: parseDealNames(form.dealName),
     dealAmounts: pruneDealAmounts(form.dealAmounts, parseDealNames(form.dealName)),
     dealDiscounts: pruneDealAmounts(form.dealDiscounts, [
+      ...parseDealNames(form.dealName),
+      form.domainType,
+    ].filter(Boolean)),
+    dealTaxes: pruneDealAmounts(form.dealTaxes, [
       ...parseDealNames(form.dealName),
       form.domainType,
     ].filter(Boolean)),

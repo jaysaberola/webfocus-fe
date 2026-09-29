@@ -45,6 +45,7 @@ export type PortalOrder = {
   dueDate?: string;
   expiredDate: string;
   total: number;
+  adminPriced?: boolean;
   status: "Active Live" | "Pending Request" | "Pending Payment" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
   paymentStatus?: string;
   gateway: string;

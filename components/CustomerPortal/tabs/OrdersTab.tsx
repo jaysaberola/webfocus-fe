@@ -12,6 +12,7 @@ import {
 } from "@/components/CustomerPortal/PortalSelectCells";
 import ConfirmModal from "@/components/UI/ConfirmModal";
 import CheckoutBillingAddressModal from "@/components/Cart/CheckoutBillingAddressModal";
+import PaynamicsReceiptPromptModal from "@/components/CustomerPortal/PaynamicsReceiptPromptModal";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
@@ -200,6 +201,7 @@ export default function OrdersTab() {
   const [exporting, setExporting] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
+  const [receiptTipOpen, setReceiptTipOpen] = useState(false);
   const [checkoutCustomer, setCheckoutCustomer] = useState<PublicCustomer | null>(null);
   const checkoutOrderRef = useRef<PortalOrder | null>(null);
   const [page, setPage] = useState(1);
@@ -375,6 +377,12 @@ export default function OrdersTab() {
       .catch(() => {});
   }, []);
 
+  const beginOrderCheckout = (order: PortalOrder) => {
+    if (checkingOut || billingOpen || receiptTipOpen) return;
+    checkoutOrderRef.current = order;
+    setReceiptTipOpen(true);
+  };
+
   const openBillingForCheckout = async (order: PortalOrder) => {
     const invoiceId = String(order.invoiceId || order.id || "").trim();
     if (!invoiceId || checkingOut || billingOpen) return;
@@ -478,7 +486,7 @@ export default function OrdersTab() {
 
   const handleOrderAction = (order: PortalOrder, action: string) => {
     if (action === "checkout") {
-      void openBillingForCheckout(order);
+      beginOrderCheckout(order);
       return;
     }
 
@@ -515,12 +523,25 @@ export default function OrdersTab() {
   }
 
   const billingModal = (
-    <CheckoutBillingAddressModal
-      open={billingOpen}
-      customer={checkoutCustomer}
-      onClose={() => setBillingOpen(false)}
-      onSaved={(updated) => void handleBillingAddressSaved(updated)}
-    />
+    <>
+      <CheckoutBillingAddressModal
+        open={billingOpen}
+        customer={checkoutCustomer}
+        onClose={() => setBillingOpen(false)}
+        onSaved={(updated) => void handleBillingAddressSaved(updated)}
+      />
+      <PaynamicsReceiptPromptModal
+        open={receiptTipOpen}
+        mode="before-pay"
+        invoiceId={checkoutOrderRef.current?.invoiceId || checkoutOrderRef.current?.id}
+        onUpload={() => {
+          setReceiptTipOpen(false);
+          const order = checkoutOrderRef.current ?? viewingOrder ?? pendingCheckoutOrders[0];
+          if (order) void openBillingForCheckout(order);
+        }}
+        onLater={() => setReceiptTipOpen(false)}
+      />
+    </>
   );
 
   if (viewingOrder) {
@@ -532,9 +553,7 @@ export default function OrdersTab() {
           onOrderUpdated={setViewingOrder}
           onCheckout={
             orderCanCheckout(viewingOrder)
-              ? () => {
-                  void openBillingForCheckout(viewingOrder);
-                }
+              ? () => beginOrderCheckout(viewingOrder)
               : undefined
           }
           onCancel={orderCanCancel(viewingOrder) ? () => setCancelTarget(viewingOrder) : undefined}
@@ -600,10 +619,10 @@ export default function OrdersTab() {
                 <button
                   type="button"
                   className={styles.pendingPayLink}
-                  disabled={checkingOut || billingOpen}
+                  disabled={checkingOut || billingOpen || receiptTipOpen}
                   onClick={() => {
                     const first = pendingCheckoutOrders[0];
-                    if (first) void openBillingForCheckout(first);
+                    if (first) beginOrderCheckout(first);
                   }}
                 >
                   {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}

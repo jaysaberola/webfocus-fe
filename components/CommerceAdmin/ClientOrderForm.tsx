@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, applyDealTaxes, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -1068,6 +1068,13 @@ export default function ClientOrderForm({
     }));
   };
 
+  const setDealTax = (name: string, value: string) => {
+    setForm((current) => ({
+      ...current,
+      dealTaxes: { ...(current.dealTaxes ?? {}), [name]: value },
+    }));
+  };
+
   const setDateField = (key: AutoDateKey, value: string) => {
     setManualDateFields((current) => {
       const next = new Set(current);
@@ -1318,7 +1325,10 @@ export default function ClientOrderForm({
       const rows = buildClientDealRows(client, [transaction], services);
       const row = rows[0] ?? null;
       if (!row) return null;
-      return applyDealDiscounts(withLiveDomainDealLine(row, liveDomain), form.dealDiscounts);
+      return applyDealTaxes(
+        applyDealDiscounts(withLiveDomainDealLine(row, liveDomain), form.dealDiscounts),
+        form.dealTaxes,
+      );
     }
 
     const catalogItems = catalogLinesForDealNames(
@@ -1338,16 +1348,19 @@ export default function ClientOrderForm({
       tax: 0,
     }));
     if (!catalogItems.length && !domainName) return null;
-    return applyDealDiscounts(
-      withLiveDomainDealLine(
-        buildDraftDealRow({
-          dealName: form.dealName || form.productName,
-          domainName,
-          items: catalogItems,
-        }),
-        liveDomain,
+    return applyDealTaxes(
+      applyDealDiscounts(
+        withLiveDomainDealLine(
+          buildDraftDealRow({
+            dealName: form.dealName || form.productName,
+            domainName,
+            items: catalogItems,
+          }),
+          liveDomain,
+        ),
+        form.dealDiscounts,
       ),
-      form.dealDiscounts,
+      form.dealTaxes,
     );
   }, [
     transaction,
@@ -1358,6 +1371,7 @@ export default function ClientOrderForm({
     form.productName,
     form.dealAmounts,
     form.dealDiscounts,
+    form.dealTaxes,
     form.domainName,
     form.domainType,
     form.domainRegistrationCost,
@@ -1628,12 +1642,14 @@ export default function ClientOrderForm({
     const dealName = joinDealNames(names);
     const primary = names[0] || "";
     const domainType = names.map((name) => matchDomainTypeOption(name)).find(Boolean) || "";
+    const keys = [...names, domainType].filter(Boolean);
     setForm((current) => ({
       ...current,
       dealName,
       productName: dealName,
       dealAmounts: pruneDealAmounts(current.dealAmounts, names),
-      dealDiscounts: pruneDealAmounts(current.dealDiscounts, names),
+      dealDiscounts: pruneDealAmounts(current.dealDiscounts, keys),
+      dealTaxes: pruneDealAmounts(current.dealTaxes, keys),
       productCategory: current.productCategory || subjectForProductName(primary),
       domainType: matchDomainTypeOption(current.domainType) || domainType,
     }));
@@ -1653,6 +1669,7 @@ export default function ClientOrderForm({
         productName: dealName,
         dealAmounts: pruneDealAmounts(current.dealAmounts, kept),
         dealDiscounts: pruneDealAmounts(current.dealDiscounts, kept),
+        dealTaxes: pruneDealAmounts(current.dealTaxes, kept),
       };
     });
   };
@@ -1729,7 +1746,8 @@ export default function ClientOrderForm({
       const price =
         isWebDesignDeal && !isQuotedWebDesign(transaction) ? 0 : Number(form.expectedRevenue || 0);
       const discountTotal = Number(productDeal?.discountTotal || 0);
-      const netTotal = Math.max(0, price - discountTotal);
+      const taxTotal = Number(productDeal?.taxTotal || 0);
+      const netTotal = Math.max(0, price - discountTotal + taxTotal);
       const ownerId = Number(form.dealOwnerId);
 
       if (form.clientId === NEW_CLIENT_VALUE) {
@@ -1766,6 +1784,7 @@ export default function ClientOrderForm({
           customer_email: clientEmail,
           subtotal: price,
           discount_total: discountTotal,
+          tax_total: taxTotal,
           grand_total: netTotal,
           payment_status: toApiPaymentStatus(form.paymentStatus) || transaction.payment_status,
           order_status: toApiOrderStatus(form.salesStatus) || transaction.order_status,
@@ -1822,7 +1841,7 @@ export default function ClientOrderForm({
         client_owner_id: ownerId || undefined,
         subtotal: price,
         discount_total: discountTotal,
-        tax_total: 0,
+        tax_total: taxTotal,
         shipping_total: 0,
         grand_total: netTotal,
         payment_status: toApiPaymentStatus(form.paymentStatus) || "pending",
@@ -1888,19 +1907,31 @@ export default function ClientOrderForm({
       : retained || formName || resolved || "Deal Info";
     const fromForm = Number(form.expectedRevenue);
     const stored = Number(transaction?.grand_total ?? 0);
+    const liveGrand = Number(productDeal?.grandTotal ?? 0);
     const holdWebDesignQuote =
       parseDealNames(dealName).some((name) => isWebDesignPlan(name)) && !isQuotedWebDesign(transaction);
     const amount = holdWebDesignQuote
       ? 0
-      : dealPriceTotal > 0
-        ? dealPriceTotal
-        : Number.isFinite(fromForm) && fromForm > 0
-          ? fromForm
-          : Number.isFinite(stored) && stored > 0
-            ? stored
-            : 0;
+      : productDeal
+        ? liveGrand
+        : dealPriceTotal > 0
+          ? dealPriceTotal
+          : Number.isFinite(fromForm) && fromForm > 0
+            ? fromForm
+            : Number.isFinite(stored) && stored > 0
+              ? stored
+              : 0;
     return `${dealName} - ${formatDealAmount(amount)}`;
-  }, [isEditing, pageTitle, form.dealName, selectedDealNames, form.expectedRevenue, dealPriceTotal, transaction]);
+  }, [
+    isEditing,
+    pageTitle,
+    form.dealName,
+    selectedDealNames,
+    form.expectedRevenue,
+    dealPriceTotal,
+    productDeal,
+    transaction,
+  ]);
 
   if (loading) {
     return <p className={styles.emptyState}>Loading order form...</p>;
@@ -2570,7 +2601,9 @@ export default function ClientOrderForm({
             order={productDeal}
             embedded
             discountValues={form.dealDiscounts}
+            taxValues={form.dealTaxes}
             onDiscountChange={setDealDiscount}
+            onTaxChange={setDealTax}
           />
         </section>
       ) : null}

@@ -1169,11 +1169,30 @@ export function applyDealDiscounts(order: ClientDealRow, discounts?: Record<stri
     return { ...item, discount };
   });
   const discountTotal = items.reduce((sum, item) => sum + item.discount, 0);
-  const grandTotal = Math.max(0, order.subtotal - discountTotal);
+  const grandTotal = Math.max(0, order.subtotal - discountTotal + order.taxTotal);
   return {
     ...order,
     items,
     discountTotal,
+    grandTotal,
+    expectedRevenue: grandTotal,
+    amount: grandTotal,
+  };
+}
+
+export function applyDealTaxes(order: ClientDealRow, taxes?: Record<string, string>): ClientDealRow {
+  const hasTaxes = Boolean(taxes && Object.keys(taxes).length);
+  const items = order.items.map((item) => {
+    if (!hasTaxes) return item;
+    const raw = dealAmountNumber(taxes, item.name) || dealAmountNumber(taxes, item.id);
+    return { ...item, tax: Math.max(0, raw) };
+  });
+  const taxTotal = items.reduce((sum, item) => sum + item.tax, 0);
+  const grandTotal = Math.max(0, order.subtotal - order.discountTotal + taxTotal);
+  return {
+    ...order,
+    items,
+    taxTotal,
     grandTotal,
     expectedRevenue: grandTotal,
     amount: grandTotal,

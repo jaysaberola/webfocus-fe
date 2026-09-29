@@ -4257,6 +4257,13 @@
 
 .orderInfoActions {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.orderInfoActionButtons {
+  display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
@@ -4345,10 +4352,11 @@
 
   .orderInfoActions {
     width: 100%;
+    align-items: stretch;
   }
 
-  .orderInfoActions .primaryBtnSm,
-  .orderInfoActions .secondaryBtnSm {
+  .orderInfoActionButtons .primaryBtnSm,
+  .orderInfoActionButtons .secondaryBtnSm {
     flex: 1 1 auto;
   }
 }

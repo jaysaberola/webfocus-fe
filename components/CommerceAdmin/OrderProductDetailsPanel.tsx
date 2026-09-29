@@ -5,7 +5,9 @@ type Props = {
   order: ClientDealRow;
   embedded?: boolean;
   discountValues?: Record<string, string>;
+  taxValues?: Record<string, string>;
   onDiscountChange?: (itemName: string, value: string) => void;
+  onTaxChange?: (itemName: string, value: string) => void;
   onClose?: () => void;
 };
 
@@ -28,11 +30,14 @@ export default function OrderProductDetailsPanel({
   order,
   embedded = false,
   discountValues,
+  taxValues,
   onDiscountChange,
+  onTaxChange,
   onClose,
 }: Props) {
   const subtitle = [order.dealName || order.subject, order.transactionNo].filter(Boolean).join(" · ");
   const canEditDiscount = Boolean(onDiscountChange);
+  const canEditTax = Boolean(onTaxChange);
 
   return (
     <div className={`${styles.productDetailsPanel}${embedded ? ` ${styles.productDetailsPanelEmbedded}` : ""}`}>
@@ -73,6 +78,7 @@ export default function OrderProductDetailsPanel({
                 const period = splitPeriod(item.period);
                 const discountValue =
                   discountValues?.[item.name] ?? (item.discount ? String(item.discount) : "");
+                const taxValue = taxValues?.[item.name] ?? (item.tax ? String(item.tax) : "");
                 return (
                 <tr key={item.id}>
                   <td data-label="S.NO">{index + 1}</td>
@@ -109,7 +115,23 @@ export default function OrderProductDetailsPanel({
                       moneyCell(item.discount)
                     )}
                   </td>
-                  <td className={styles.dealsAmount} data-label="Tax(₱)">{moneyCell(item.tax)}</td>
+                  <td className={styles.dealsAmount} data-label="Tax(₱)">
+                    {canEditTax ? (
+                      <input
+                        className={`${styles.clientCrmInput} ${styles.productDetailsDiscountInput}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={taxValue}
+                        onChange={(event) => onTaxChange?.(item.name, event.target.value)}
+                        placeholder="0.00"
+                        aria-label={`Tax for ${item.name}`}
+                      />
+                    ) : (
+                      moneyCell(item.tax)
+                    )}
+                  </td>
                 </tr>
                 );
               })

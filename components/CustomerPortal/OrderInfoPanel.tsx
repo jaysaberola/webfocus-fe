@@ -275,8 +275,11 @@ export default function OrderInfoPanel({
         };
       });
     if (!payload.length) {
-      toast.info("Keep at least one item on the order.");
-      return null;
+      if (!items.some((item) => String(item.detail || item.name).trim())) {
+        toast.info("Keep at least one item on the order.");
+        return null;
+      }
+      return order;
     }
     setSaving(true);
     try {
@@ -352,7 +355,7 @@ export default function OrderInfoPanel({
     );
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (!onCheckout) return;
     if (draftItems.some((item) => !String(item.detail || item.name).trim())) {
       toast.info("Choose a service for every item before checkout.");
@@ -362,8 +365,13 @@ export default function OrderInfoPanel({
       window.clearTimeout(saveTimer.current);
       saveTimer.current = null;
     }
-    const saved = await persistItems(draftItems);
-    if (saved || !canCustomize) onCheckout();
+    const persistable = draftItems.some(
+      (item) => item.persistable && String(item.detail || item.name).trim(),
+    );
+    if (canCustomize && persistable) {
+      void persistItems(draftItems);
+    }
+    onCheckout();
   };
 
   return (
@@ -382,21 +390,28 @@ export default function OrderInfoPanel({
         </div>
         {canCheckout || canCancel ? (
           <div className={styles.orderInfoActions}>
-            {canCheckout ? (
-              <button type="button" className={styles.primaryBtnSm} onClick={() => void handleCheckout()} disabled={saving || checkingOut}>
-                {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
-              </button>
-            ) : null}
-            {canCancel ? (
-              <button
-                type="button"
-                className={`${styles.secondaryBtnSm} ${styles.dangerBtnSm}`}
-                onClick={onCancel}
-                disabled={cancelling}
-              >
-                {cancelling ? "Cancelling..." : "Cancel Order"}
-              </button>
-            ) : null}
+            <div className={styles.orderInfoActionButtons}>
+              {canCheckout ? (
+                <button
+                  type="button"
+                  className={styles.primaryBtnSm}
+                  onClick={handleCheckout}
+                  disabled={checkingOut}
+                >
+                  {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
+                </button>
+              ) : null}
+              {canCancel ? (
+                <button
+                  type="button"
+                  className={`${styles.secondaryBtnSm} ${styles.dangerBtnSm}`}
+                  onClick={onCancel}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Cancelling..." : "Cancel Order"}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>
