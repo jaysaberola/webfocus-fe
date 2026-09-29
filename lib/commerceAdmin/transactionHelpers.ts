@@ -118,7 +118,12 @@ export const TX_COLUMN_KEYS = Object.keys(TX_COLUMN_LABELS) as TxColumnKey[];
 
 /** Columns shown in Deals Column Visibility. Deal Name is included. */
 export const TX_COLUMN_VISIBILITY_KEYS = TX_COLUMN_KEYS.filter(
-  (key) => key !== "probability" && key !== "expectedRevenue",
+  (key) =>
+    key !== "probability" &&
+    key !== "expectedRevenue" &&
+    key !== "invoiceSentDate" &&
+    key !== "invoiceReceivedDate" &&
+    key !== "paymentCommitmentDate",
 );
 
 const normalizeItems = (items: SalesTransaction["items"]) =>

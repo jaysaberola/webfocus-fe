@@ -9,6 +9,8 @@ import {
   SUBJECT_OPTIONS,
   subjectForProductName,
   DOMAIN_TYPE_OPTIONS,
+  parseDealAmounts,
+  dealAmountNumber,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
@@ -184,7 +186,13 @@ export const DEAL_COLUMN_KEYS = Object.keys(DEAL_COLUMN_LABELS) as DealColumnKey
 
 /** Fields with Column Visibility = YES. Plan Name stays reserved/off. */
 export const DEAL_COLUMN_VISIBILITY_KEYS = DEAL_COLUMN_KEYS.filter(
-  (key) => key !== "planName" && key !== "probability" && key !== "expectedRevenue",
+  (key) =>
+    key !== "planName" &&
+    key !== "probability" &&
+    key !== "expectedRevenue" &&
+    key !== "invoiceSentDate" &&
+    key !== "invoiceReceivedDate" &&
+    key !== "paymentCommitmentDate",
 );
 
 export function formatDealAmount(amount: number | null) {
@@ -997,6 +1005,7 @@ function buildLineItems(
 ): ClientDealLineItem[] {
   const headerTax = money(transaction.tax_total);
   const period = formatPeriod(transaction.issued_date ?? transaction.transacted_at, transaction.due_date);
+  const discounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealDiscounts);
   const mapped = items.map((item, index) => {
     const quantity = Math.max(1, money(item.quantity) || 1);
     const listPrice = money(item.price);
@@ -1007,6 +1016,7 @@ function buildLineItems(
       formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) || "";
     const isDomainProduct = Boolean(matchDomainTypeOption(itemName) || looksLikeDomain(itemName));
     const domain = extracted || (isDomainProduct ? formatDomain(domainFallback) || "" : "");
+    const discount = Math.min(dealAmountNumber(discounts, itemName), amount);
     return {
       id: String(item.id ?? `${transaction.id}-${index}`),
       name: itemName,
@@ -1015,7 +1025,7 @@ function buildLineItems(
       listPrice,
       quantity,
       amount,
-      discount: 0,
+      discount,
       tax: 0,
     };
   });
@@ -1125,12 +1135,30 @@ function totalsFromItems(items: ClientDealLineItem[], transaction?: SalesTransac
   const headerTax = transaction ? money(transaction.tax_total) : 0;
   const taxTotal = transaction ? headerTax : taxFromItems;
   const headerGrand = transaction ? money(transaction.grand_total) : 0;
-  const itemCount = transaction?.items?.length ?? 0;
+  const computedGrand = Math.max(0, subtotal - discountTotal);
   const grandTotal =
-    headerGrand > 0 && items.length === itemCount && Math.abs(headerGrand - subtotal) < 0.51
+    headerGrand > 0 && Math.abs(headerGrand - computedGrand) < 0.51
       ? headerGrand
-      : Math.max(0, subtotal - discountTotal);
+      : computedGrand;
   return { subtotal, discountTotal, taxTotal, adjustment: 0, grandTotal };
+}
+
+export function applyDealDiscounts(order: ClientDealRow, discounts?: Record<string, string>): ClientDealRow {
+  const items = order.items.map((item) => {
+    const raw = dealAmountNumber(discounts, item.name) || dealAmountNumber(discounts, item.id);
+    const discount = Math.min(Math.max(0, raw), Math.max(0, item.amount));
+    return { ...item, discount };
+  });
+  const discountTotal = items.reduce((sum, item) => sum + item.discount, 0);
+  const grandTotal = Math.max(0, order.subtotal - discountTotal);
+  return {
+    ...order,
+    items,
+    discountTotal,
+    grandTotal,
+    expectedRevenue: grandTotal,
+    amount: grandTotal,
+  };
 }
 
 export function withLiveDomainDealLine(
