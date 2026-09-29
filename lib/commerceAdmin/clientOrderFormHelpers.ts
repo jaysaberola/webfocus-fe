@@ -519,6 +519,14 @@ export function standardizeDealProductName(name?: string | null) {
 
 export const DOMAIN_REGISTRAR_OPTIONS = ["Enom", "Webnic"] as const;
 
+export function matchRegistrarOption(value?: string | null) {
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return "";
+  if (text === "enom") return "Enom";
+  if (text === "webnic") return "Webnic";
+  return DOMAIN_REGISTRAR_OPTIONS.find((option) => option.toLowerCase() === text) ?? "";
+}
+
 export type ClientOrderFormState = {
   dealOwnerId: string;
   campaignSource: string;

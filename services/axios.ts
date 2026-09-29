@@ -38,6 +38,10 @@ axiosInstance.interceptors.response.use(
   (error: AxiosError) => {
       // Global loading overlay disabled: do not call loading.finish()
 
+    if (error.code === "ERR_CANCELED" || error.name === "CanceledError") {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401) {
       // SSR-safe: window/localStorage do not exist on the server
       if (typeof window !== "undefined") {

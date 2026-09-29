@@ -5267,7 +5267,12 @@ select.clientCrmInput {
   text-transform: uppercase;
 }
 
+.clientOrderDomainSuggestItemOk:hover {
+  background: #f0fdf4;
+}
+
 .clientOrderDomainTakenMark,
+.clientOrderDomainAvailableMark,
 .clientOrderDomainCheckHint {
   position: absolute;
   top: calc(var(--ca-control-height) / 2);
@@ -5293,6 +5298,11 @@ select.clientCrmInput {
   color: #fff;
 }
 
+.clientOrderDomainAvailableMark {
+  background: #16a34a;
+  color: #fff;
+}
+
 .clientOrderDomainCheckHint {
   min-width: 0;
   background: #f1f5f9;
@@ -5302,6 +5312,7 @@ select.clientCrmInput {
 }
 
 .clientOrderDomainSuggest:has(.clientOrderDomainTakenMark) input,
+.clientOrderDomainSuggest:has(.clientOrderDomainAvailableMark) input,
 .clientOrderDomainSuggest:has(.clientOrderDomainCheckHint) input {
   padding-right: 5.4rem !important;
 }
@@ -5321,6 +5332,28 @@ select.clientCrmInput {
   font-size: var(--ca-text-xs);
   font-weight: 500;
   color: var(--ca-slate-500);
+}
+
+.clientOrderDomainSuggestStatusOk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.16rem 0.45rem;
+  border-radius: 3px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clientOrderDomainSuggestStatusWait {
+  color: #94a3b8;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .clientOrderField {

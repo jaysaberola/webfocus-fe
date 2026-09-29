@@ -1,6 +1,6 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -63,9 +63,12 @@ import {
 import { getCustomers, getCustomer, updateCustomer, createCustomerCrmAccount, type CustomerRow } from "@/services/customerService";
 import { getServices } from "@/services/serviceService";
 import {
+  cachedResultsForName,
   checkDomainAvailability,
+  mergeDomainCheckResults,
   MORE_TLDS,
   normalizeDomainInput,
+  peekCachedDomainResult,
   PRIMARY_TLDS,
   type DomainCheckResult,
 } from "@/services/domainSearchService";
@@ -518,6 +521,41 @@ function catalogPriceForDomain(services: any[], domainName: string, domainType?:
   return DOMAIN_TYPE_FALLBACK_PRICE[type] ?? null;
 }
 
+function withAutoDomainFields(
+  current: ClientOrderFormState,
+  name: string,
+  services: any[],
+  extras?: { type?: string; price?: number | null; provider?: string | null; keepCost?: boolean },
+) {
+  const type =
+    matchDomainTypeOption(extras?.type) ||
+    domainTypeFromHostname(name) ||
+    matchDomainTypeOption(current.domainType);
+  const registrar =
+    registrarFromHostname(name, extras?.provider ?? peekCachedDomainResult(name)?.provider) ||
+    current.domainRegistrar;
+  const catalogPrice = catalogPriceForDomain(services, name, type);
+  const pickedPrice = extras?.price != null && extras.price > 0 ? extras.price : null;
+  const existingCost = Number(current.domainRegistrationCost);
+  const keepCost =
+    extras?.keepCost !== false &&
+    pickedPrice == null &&
+    Number.isFinite(existingCost) &&
+    existingCost > 0;
+  const nextCost = pickedPrice ?? catalogPrice;
+  return {
+    ...current,
+    domainName: name,
+    domainType: type,
+    domainRegistrar: registrar,
+    domainRegistrationCost: keepCost
+      ? current.domainRegistrationCost
+      : nextCost != null
+        ? String(nextCost)
+        : current.domainRegistrationCost,
+  };
+}
+
 function extractServicesList(payload: any): any[] {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -718,19 +756,53 @@ function FilePick({
 const DEAL_DOMAIN_TLDS = Array.from(
   new Set<string>([...PRIMARY_TLDS, ...MORE_TLDS, ".edu.ph", ".gov.ph"]),
 );
+const PRIMARY_TLD_SET = new Set<string>(PRIMARY_TLDS);
+
+function orderedDealTlds(preferredTld: string | null) {
+  const list: string[] = [];
+  const add = (tld: string) => {
+    const next = String(tld || "").trim().toLowerCase();
+    if (!next || !next.startsWith(".") || list.includes(next)) return;
+    list.push(next);
+  };
+  if (preferredTld) add(preferredTld);
+  PRIMARY_TLDS.forEach(add);
+  DEAL_DOMAIN_TLDS.forEach(add);
+  return list;
+}
+
+function isCanceledError(error: unknown) {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      ("code" in error || "name" in error) &&
+      ((error as { code?: string }).code === "ERR_CANCELED" ||
+        (error as { name?: string }).name === "CanceledError" ||
+        (error as { name?: string }).name === "AbortError"),
+  );
+}
 
 function DomainNameSuggest({
   value,
   onChange,
   onPick,
+  onResolved,
   priceForDomain,
 }: {
   value: string;
   onChange: (value: string) => void;
-  onPick: (domain: string, domainType: string, price?: number) => void;
+  onPick: (domain: string, domainType: string, price?: number, provider?: string | null) => void;
+  onResolved?: (info: {
+    domain: string;
+    provider?: string | null;
+    available: boolean | null;
+    price: number;
+  }) => void;
   priceForDomain?: (domain: string) => number | null;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const onResolvedRef = useRef(onResolved);
+  onResolvedRef.current = onResolved;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<DomainCheckResult[]>([]);
@@ -738,16 +810,15 @@ function DomainNameSuggest({
   const parsed = normalizeDomainInput(value);
   const baseName = parsed.name.replace(/[^a-z0-9-]/g, "");
   const typedDomain = String(value || "").trim().toLowerCase();
+  const tldsToCheck = useMemo(() => orderedDealTlds(parsed.tld), [parsed.tld]);
 
   const suggestions = useMemo(() => {
     if (!baseName || baseName.length < 2) return [];
-    return DEAL_DOMAIN_TLDS.map((tld) => {
+    return tldsToCheck.map((tld) => {
       const domain = `${baseName}${tld}`;
-      const match = results.find(
-        (row) =>
-          String(row.domain || "").toLowerCase() === domain ||
-          `.${String(row.tld || "").replace(/^\./, "").toLowerCase()}` === tld,
-      );
+      const match =
+        results.find((row) => String(row.domain || "").toLowerCase() === domain) ??
+        peekCachedDomainResult(domain);
       return {
         domain,
         tld,
@@ -755,9 +826,10 @@ function DomainNameSuggest({
         available: match?.available ?? null,
         price: match?.price && match.price > 0 ? match.price : priceForDomain?.(domain) ?? 0,
         currency: match?.currency ?? "PHP",
+        provider: match?.provider ?? null,
       };
     });
-  }, [baseName, results, priceForDomain]);
+  }, [baseName, results, priceForDomain, tldsToCheck]);
 
   const enteredDomain = parsed.tld ? `${parsed.name}${parsed.tld}` : typedDomain;
 
@@ -766,7 +838,9 @@ function DomainNameSuggest({
     return (
       suggestions.find((row) => row.domain === enteredDomain) ??
       (() => {
-        const match = results.find((row) => String(row.domain || "").toLowerCase() === enteredDomain);
+        const match =
+          results.find((row) => String(row.domain || "").toLowerCase() === enteredDomain) ??
+          peekCachedDomainResult(enteredDomain);
         return match
           ? {
               domain: enteredDomain,
@@ -775,13 +849,34 @@ function DomainNameSuggest({
               available: match.available,
               price: match.price || 0,
               currency: match.currency ?? "PHP",
+              provider: match.provider ?? null,
             }
           : null;
       })()
     );
   }, [enteredDomain, suggestions, results, parsed.tld]);
 
-  const isUnavailable = Boolean(currentRow?.checked && currentRow.available !== true);
+  const isUnavailable = Boolean(currentRow?.checked && currentRow.available === false);
+  const isAvailable = Boolean(currentRow?.checked && currentRow.available === true);
+  const isCheckingTyped = Boolean(enteredDomain.includes(".") && !currentRow?.checked && (loading || baseName.length >= 2));
+  const pendingCount = suggestions.filter((row) => !row.checked).length;
+
+  useEffect(() => {
+    if (!currentRow?.checked || !enteredDomain.includes(".")) return;
+    onResolvedRef.current?.({
+      domain: currentRow.domain,
+      provider: currentRow.provider,
+      available: currentRow.available,
+      price: currentRow.price,
+    });
+  }, [
+    currentRow?.checked,
+    currentRow?.domain,
+    currentRow?.provider,
+    currentRow?.available,
+    currentRow?.price,
+    enteredDomain,
+  ]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -800,45 +895,61 @@ function DomainNameSuggest({
       return;
     }
 
+    const cached = cachedResultsForName(baseName, tldsToCheck);
+    setResults(cached);
+
+    const missing = tldsToCheck.filter((tld) => !peekCachedDomainResult(`${baseName}${tld}`));
+    if (!missing.length) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
     let cancelled = false;
+    const controller = new AbortController();
+    const applyIncoming = (incoming: DomainCheckResult[]) => {
+      if (cancelled || !incoming.length) return;
+      setResults((prev) => mergeDomainCheckResults(prev, incoming));
+    };
+    const checkChunk = async (chunk: string[]) => {
+      if (!chunk.length || cancelled) return;
+      const response = await checkDomainAvailability(baseName, chunk, {
+        silent: true,
+        signal: controller.signal,
+      });
+      applyIncoming(Array.isArray(response?.results) ? response.results : []);
+    };
+
     const timer = window.setTimeout(async () => {
-      setLoading(true);
       try {
-        const preferredTld = parsed.tld;
-        const orderedTlds = [
-          ...(preferredTld ? [preferredTld] : []),
-          ...DEAL_DOMAIN_TLDS.filter((tld) => tld !== preferredTld),
-        ];
-        const chunks: string[][] = [];
-        for (let index = 0; index < orderedTlds.length; index += 10) {
-          chunks.push(orderedTlds.slice(index, index + 10));
+        const preferred = parsed.tld && missing.includes(parsed.tld) ? [parsed.tld] : [];
+        const primary = missing.filter((tld) => tld !== preferred[0] && PRIMARY_TLD_SET.has(tld));
+        const rest = missing.filter((tld) => tld !== preferred[0] && !PRIMARY_TLD_SET.has(tld));
+
+        if (preferred.length) {
+          await checkChunk(preferred);
         }
-        const responses = await Promise.all(
-          chunks.map((chunk) => checkDomainAvailability(baseName, chunk, { silent: true })),
-        );
-        const merged: DomainCheckResult[] = [];
-        const seen = new Set<string>();
-        responses.forEach((response) => {
-          (Array.isArray(response?.results) ? response.results : []).forEach((row) => {
-            const key = String(row.domain || "").toLowerCase();
-            if (!key || seen.has(key)) return;
-            seen.add(key);
-            merged.push(row);
-          });
-        });
-        if (!cancelled) setResults(merged);
-      } catch {
-        if (!cancelled) setResults([]);
+        const followUps: Promise<void>[] = [];
+        if (primary.length) followUps.push(checkChunk(primary));
+        for (let index = 0; index < rest.length; index += 10) {
+          followUps.push(checkChunk(rest.slice(index, index + 10)));
+        }
+        await Promise.all(followUps);
+      } catch (error) {
+        if (!cancelled && !isCanceledError(error)) {
+          // Keep any cached/partial rows instead of clearing the list.
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 350);
+    }, 140);
 
     return () => {
       cancelled = true;
+      controller.abort();
       window.clearTimeout(timer);
     };
-  }, [baseName, parsed.tld]);
+  }, [baseName, parsed.tld, tldsToCheck]);
 
   return (
     <div className={styles.clientOrderDomainSuggest} ref={wrapRef}>
@@ -863,35 +974,50 @@ function DomainNameSuggest({
       />
       {isUnavailable ? (
         <span className={styles.clientOrderDomainTakenMark}>TAKEN</span>
-      ) : null}
-      {loading && enteredDomain.includes(".") && !isUnavailable ? (
+      ) : isAvailable ? (
+        <span className={styles.clientOrderDomainAvailableMark}>Available</span>
+      ) : isCheckingTyped ? (
         <span className={styles.clientOrderDomainCheckHint}>Checking…</span>
       ) : null}
       {open && suggestions.length ? (
         <div className={styles.clientOrderDomainSuggestPanel} role="listbox">
-          {loading ? <div className={styles.clientOrderDomainSuggestHint}>Checking domains…</div> : null}
+          {pendingCount > 0 ? (
+            <div className={styles.clientOrderDomainSuggestHint}>
+              Checking availability…
+            </div>
+          ) : (
+            <div className={styles.clientOrderDomainSuggestHint}>Select an available domain</div>
+          )}
           {suggestions.map((row) => {
-            const taken = !loading && row.checked && row.available !== true;
+            const taken = row.checked && row.available === false;
+            const available = row.available === true;
+            const checking = !row.checked;
             return (
               <button
                 key={row.domain}
                 type="button"
                 className={`${styles.clientOrderDomainSuggestItem} ${
-                  taken ? styles.clientOrderDomainSuggestItemTaken : ""
+                  taken ? styles.clientOrderDomainSuggestItemTaken : available ? styles.clientOrderDomainSuggestItemOk : ""
                 }`}
                 role="option"
                 disabled={taken}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   if (taken) return;
-                  onPick(row.domain, domainTypeFromHostname(row.domain) || "", row.price);
+                  onPick(row.domain, domainTypeFromHostname(row.domain) || "", row.price, row.provider);
                   setOpen(false);
                 }}
               >
                 <span className={styles.clientOrderDomainSuggestName}>{row.domain}</span>
                 <span className={styles.clientOrderDomainSuggestMeta}>
                   {taken ? null : row.price > 0 ? formatDealAmount(row.price) : ""}
-                  {row.available === true ? "Available" : taken ? "TAKEN" : ""}
+                  {available ? (
+                    <span className={styles.clientOrderDomainSuggestStatusOk}>Available</span>
+                  ) : taken ? (
+                    "TAKEN"
+                  ) : checking ? (
+                    <span className={styles.clientOrderDomainSuggestStatusWait}>Checking…</span>
+                  ) : null}
                 </span>
               </button>
             );
@@ -1328,21 +1454,27 @@ export default function ClientOrderForm({
       return;
     }
     const price = catalogPriceForDomain(services, domainName, type);
-    if (price == null) return;
-    const nextCost = String(price);
+    const registrar = registrarFromHostname(domainName, peekCachedDomainResult(domainName)?.provider);
     setForm((current) => {
       const nextType = matchDomainTypeOption(current.domainType) || type;
+      const nextRegistrar = registrar || current.domainRegistrar;
       const existing = Number(current.domainRegistrationCost);
       if (Number.isFinite(existing) && existing > 0) {
-        if (current.domainType === nextType) return current;
-        return { ...current, domainType: nextType };
+        if (current.domainType === nextType && current.domainRegistrar === nextRegistrar) return current;
+        return { ...current, domainType: nextType, domainRegistrar: nextRegistrar };
       }
-      if (current.domainRegistrationCost === nextCost && current.domainType === nextType) {
+      const nextCost = price == null ? current.domainRegistrationCost : String(price);
+      if (
+        current.domainRegistrationCost === nextCost &&
+        current.domainType === nextType &&
+        current.domainRegistrar === nextRegistrar
+      ) {
         return current;
       }
       return {
         ...current,
         domainType: nextType,
+        domainRegistrar: nextRegistrar,
         domainRegistrationCost: nextCost,
       };
     });
@@ -2234,32 +2366,27 @@ export default function ClientOrderForm({
               value={form.domainName}
               priceForDomain={(domain) => catalogPriceForDomain(services, domain)}
               onChange={(name) => {
-                const type = domainTypeFromHostname(name) || "";
-                setForm((current) => {
-                  const nextType = type || matchDomainTypeOption(current.domainType);
-                  const price = catalogPriceForDomain(services, name, nextType);
-                  return {
-                    ...current,
-                    domainName: name,
-                    domainType: nextType,
-                    domainRegistrationCost:
-                      price != null ? String(price) : current.domainRegistrationCost,
-                  };
-                });
+                setForm((current) => withAutoDomainFields(current, name, services));
               }}
-              onPick={(name, type, price) => {
+              onPick={(name, type, price, provider) => {
+                setForm((current) =>
+                  withAutoDomainFields(current, name, services, {
+                    type,
+                    price,
+                    provider,
+                    keepCost: false,
+                  }),
+                );
+              }}
+              onResolved={({ domain, provider, price }) => {
                 setForm((current) => {
-                  const nextType = matchDomainTypeOption(type) || matchDomainTypeOption(current.domainType);
-                  const catalogPrice = catalogPriceForDomain(services, name, nextType);
-                  const nextCost =
-                    price != null && price > 0 ? price : catalogPrice;
-                  return {
-                    ...current,
-                    domainName: name,
-                    domainType: nextType,
-                    domainRegistrationCost:
-                      nextCost != null ? String(nextCost) : current.domainRegistrationCost,
-                  };
+                  const typed = String(current.domainName || "").trim().toLowerCase();
+                  if (typed !== domain) return current;
+                  return withAutoDomainFields(current, domain, services, {
+                    provider,
+                    price,
+                    keepCost: true,
+                  });
                 });
               }}
             />

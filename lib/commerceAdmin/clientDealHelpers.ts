@@ -3,6 +3,7 @@ import {
   parseDealMeta,
   retainedDealNames,
   matchDomainTypeOption,
+  matchRegistrarOption,
   isUsableDealName,
   normalizeDealNameList,
   standardizeDealProductName,
@@ -401,6 +402,26 @@ export function domainTypeFromHostname(value?: string | null): string | null {
   const tld = host.split(".").pop() || "";
   if (tld.length === 2) return "Country Level Domain";
   return "Top Level Domain";
+}
+
+const WEBNIC_DOMAIN_SUFFIXES = [".com.ph", ".net.ph", ".org.ph", ".edu.ph", ".gov.ph", ".ph"];
+
+export function registrarFromHostname(value?: string | null, provider?: string | null) {
+  const fromProvider = matchRegistrarOption(provider);
+  if (fromProvider) return fromProvider;
+
+  const host =
+    formatDomain(value) ||
+    extractDomain(String(value ?? "")) ||
+    (looksLikeDomain(String(value ?? "").trim()) ? String(value).trim().toLowerCase() : null);
+  if (!host || !host.includes(".")) return "";
+
+  const ranked = [...WEBNIC_DOMAIN_SUFFIXES].sort((a, b) => b.length - a.length);
+  if (ranked.some((suffix) => host === suffix.slice(1) || host.endsWith(suffix))) {
+    return "Webnic";
+  }
+
+  return "Enom";
 }
 
 export function formatDealNamesForDisplay(names: string[]) {

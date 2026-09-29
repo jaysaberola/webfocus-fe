@@ -130,18 +130,100 @@ export function normalizeDomainInput(raw: string) {
   return { name: value, tld: null as string | null };
 }
 
+const DOMAIN_CHECK_CACHE_MS = 10 * 60 * 1000;
+const domainCheckCache = new Map<string, { at: number; result: DomainCheckResult }>();
+
+function domainCacheKey(domain: string) {
+  return domain.trim().toLowerCase();
+}
+
+export function peekCachedDomainResult(domain: string): DomainCheckResult | undefined {
+  const key = domainCacheKey(domain);
+  const entry = domainCheckCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.at > DOMAIN_CHECK_CACHE_MS) {
+    domainCheckCache.delete(key);
+    return undefined;
+  }
+  return entry.result;
+}
+
+export function cachedResultsForName(name: string, tlds: string[]): DomainCheckResult[] {
+  const sld = name.trim().toLowerCase();
+  return tlds
+    .map((tld) => peekCachedDomainResult(`${sld}${tld}`))
+    .filter((row): row is DomainCheckResult => Boolean(row));
+}
+
+function rememberDomainResults(results: DomainCheckResult[]) {
+  const now = Date.now();
+  for (const result of results) {
+    const domain = String(result?.domain || "").trim().toLowerCase();
+    if (!domain) continue;
+    if (result.available !== true && result.available !== false) continue;
+    domainCheckCache.set(domain, { at: now, result });
+  }
+}
+
+export function mergeDomainCheckResults(
+  current: DomainCheckResult[],
+  incoming: DomainCheckResult[],
+): DomainCheckResult[] {
+  const byDomain = new Map<string, DomainCheckResult>();
+  for (const row of current) {
+    const key = String(row.domain || "").toLowerCase();
+    if (key) byDomain.set(key, row);
+  }
+  for (const row of incoming) {
+    const key = String(row.domain || "").toLowerCase();
+    if (key) byDomain.set(key, row);
+  }
+  return Array.from(byDomain.values());
+}
+
 export async function checkDomainAvailability(
   name: string,
   tlds?: string[],
-  options?: { silent?: boolean },
+  options?: { silent?: boolean; signal?: AbortSignal },
 ) {
+  const requestedTlds = tlds?.length ? [...tlds] : undefined;
+  const cached: DomainCheckResult[] = [];
+  let tldsToFetch = requestedTlds;
+
+  if (requestedTlds?.length) {
+    const missing: string[] = [];
+    for (const tld of requestedTlds) {
+      const hit = peekCachedDomainResult(`${name}${tld}`);
+      if (hit) cached.push(hit);
+      else missing.push(tld);
+    }
+    tldsToFetch = missing;
+    if (!missing.length) {
+      return {
+        query: name,
+        results: cached,
+        checked_at: new Date().toISOString(),
+      };
+    }
+  }
+
   const response = await axiosInstance.get<DomainCheckResponse>("/public/domains/check", {
     params: {
       name,
-      ...(tlds?.length ? { tlds } : {}),
+      ...(tldsToFetch?.length ? { tlds: tldsToFetch } : {}),
     },
     headers: options?.silent ? { "X-No-Loading": true } : undefined,
+    signal: options?.signal,
   });
 
-  return response.data;
+  rememberDomainResults(response.data.results || []);
+
+  if (!cached.length) {
+    return response.data;
+  }
+
+  return {
+    ...response.data,
+    results: mergeDomainCheckResults(cached, response.data.results || []),
+  };
 }
