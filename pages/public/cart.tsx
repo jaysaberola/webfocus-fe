@@ -154,6 +154,7 @@ async function submitPendingQuotationItem(
             packagePrice: item.webDesign.packagePrice || 0,
             serviceFeatures: item.webDesign.serviceFeatures || [],
             paymentMethods: item.webDesign.paymentMethods || [],
+            clientNotes: String(item.clientNotes || "").trim(),
           })
         : null,
       "",

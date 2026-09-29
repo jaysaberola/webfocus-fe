@@ -62,6 +62,8 @@ export type PortalOrder = {
     unitPrice?: number;
     total?: number;
     itemType?: string | null;
+    additionalServices?: string[];
+    clientNotes?: string;
   }>;
 };
 

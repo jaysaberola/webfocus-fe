@@ -18,6 +18,7 @@ export type WebDesignCartMeta = {
   templateLabel?: string;
   serviceFeatures: string[];
   paymentMethods?: string[];
+  clientNotes?: string;
 };
 
 export const SERVICE_CHECKLIST_ITEMS = [
@@ -66,6 +67,7 @@ export function formatWebDesignSetupDetail(selection: WebDesignSetupSelection): 
 }
 
 export function buildWebDesignMeta(selection: WebDesignSetupSelection): WebDesignCartMeta {
+  const clientNotes = String(selection.clientNotes ?? "").trim();
   return {
     packageName: selection.packageName,
     packagePrice: selection.packagePrice,
@@ -73,6 +75,7 @@ export function buildWebDesignMeta(selection: WebDesignSetupSelection): WebDesig
     templateLabel: selection.templateLabel,
     serviceFeatures: [...selection.serviceFeatures],
     paymentMethods: [...selection.paymentMethods],
+    ...(clientNotes ? { clientNotes } : {}),
   };
 }
 
@@ -109,6 +112,7 @@ export function parseWebDesignMeta(source?: string | null): WebDesignCartMeta | 
             paymentMethods: Array.isArray(parsed.paymentMethods)
               ? parsed.paymentMethods.map((value) => String(value).trim()).filter(Boolean)
               : [],
+            clientNotes: String(parsed.clientNotes ?? "").trim() || undefined,
           };
         }
       } catch {
@@ -166,4 +170,33 @@ export function webDesignAdditionalServicesLabel(meta: WebDesignCartMeta | null 
   );
   const payments = paymentMethodLabels(meta.paymentMethods);
   return [...features, ...payments].join(", ");
+}
+
+export function webDesignClientNotes(source?: string | null): string {
+  const fromMeta = String(parseWebDesignMeta(source)?.clientNotes ?? "").trim();
+  if (fromMeta) return fromMeta;
+
+  const text = String(source ?? "");
+  const match = text.match(/^Notes:\s*(.*)$/im);
+  if (!match) return "";
+
+  const start = (match.index ?? 0) + match[0].length;
+  const rest = text.slice(start).replace(/^\s+/, "");
+  const collected: string[] = [];
+  const inline = String(match[1] ?? "").trim();
+  if (inline) collected.push(inline);
+
+  for (const line of rest.split(/\r\n|\n|\r/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (collected.length) break;
+      continue;
+    }
+    if (/^(\[WEBDESIGN_META\]|Pricing:|Notify:|Service:|Template:|Additional Services:|Items:|Submitted |Payment |Customer checkout|Web design quotation)/i.test(trimmed)) {
+      break;
+    }
+    collected.push(trimmed);
+  }
+
+  return collected.join("\n").trim();
 }

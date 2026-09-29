@@ -75,6 +75,7 @@ import {
 import {
   parseWebDesignMeta,
   webDesignAdditionalServicesLabel,
+  webDesignClientNotes,
 } from "@/lib/webDesignSetup";
 import {
   applyWebDesignPriceToItems,
@@ -1423,6 +1424,10 @@ export default function CommerceTransactionsTab() {
                       value={
                         webDesignAdditionalServicesLabel(parseWebDesignMeta(selected.notes)) || "—"
                       }
+                    />
+                    <DetailField
+                      label="Notes"
+                      value={webDesignClientNotes(selected.notes) || "—"}
                     />
                     {(selected.items ?? []).map((item, index) => (
                       <DetailField

@@ -32,6 +32,8 @@ type DraftItem = {
   unitPrice: number;
   itemType?: string | null;
   persistable: boolean;
+  additionalServices?: string[];
+  clientNotes?: string;
 };
 
 type CatalogService = {
@@ -53,6 +55,19 @@ function ReadField({ label, value }: { label: string; value: string }) {
       <span className={styles.orderInfoLabel}>{label}</span>
       <input className={styles.orderInfoInput} value={value} readOnly />
     </label>
+  );
+}
+
+function ItemExtras({ notes }: { extras?: string[]; notes?: string }) {
+  const note = String(notes || "").trim();
+  if (!note) return null;
+  return (
+    <div className={styles.orderInfoItemExtras}>
+      <div className={styles.orderInfoItemNote}>
+        <span className={styles.orderInfoItemExtrasLabel}>Notes</span>
+        <p>{note}</p>
+      </div>
+    </div>
   );
 }
 
@@ -119,10 +134,14 @@ function draftsFromOrder(order: PortalOrder): DraftItem[] {
     const rawId = item.id;
     const numericId = typeof rawId === "number" ? rawId : Number(rawId);
     const recordId = Number.isFinite(numericId) && numericId > 0 ? numericId : undefined;
+    const itemType = String(item.itemType ?? "").toLowerCase();
     const synthetic =
       !recordId &&
       (String(rawId ?? "").startsWith("domain-") ||
-        String(item.itemType ?? "").toLowerCase() === "domain" ||
+        String(rawId ?? "").startsWith("web-addon-") ||
+        itemType === "domain" ||
+        itemType === "web_design_addon" ||
+        itemType === "webdesign_addon" ||
         isDomainTypeName(detail) ||
         isDomainTypeName(item.name));
     return {
@@ -135,6 +154,10 @@ function draftsFromOrder(order: PortalOrder): DraftItem[] {
       unitPrice,
       itemType: item.itemType,
       persistable: !synthetic,
+      additionalServices: Array.isArray(item.additionalServices)
+        ? item.additionalServices.filter((value) => String(value || "").trim())
+        : [],
+      clientNotes: String(item.clientNotes || "").trim() || undefined,
     };
   });
 }
@@ -447,6 +470,7 @@ export default function OrderInfoPanel({
                             <i className="fa-solid fa-chevron-down" />
                           </span>
                         </div>
+                        <ItemExtras extras={item.additionalServices} notes={item.clientNotes} />
                       </td>
                       <td data-label="Quantity">
                         <input
@@ -510,7 +534,12 @@ export default function OrderInfoPanel({
                 {order.items.map((item, index) => (
                   <tr key={`${item.name}-${index}`}>
                     <td data-label="Item">{item.name || "—"}</td>
-                    <td data-label="Detail">{item.detail || "—"}</td>
+                    <td data-label="Detail">
+                      <div className={styles.orderInfoItemDetail}>
+                        <span>{item.detail || "—"}</span>
+                        <ItemExtras extras={item.additionalServices} notes={item.clientNotes} />
+                      </div>
+                    </td>
                     <td className={styles.monoBold} data-label="Amount">{formatPeso(item.price)}</td>
                   </tr>
                 ))}
