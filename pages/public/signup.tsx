@@ -33,13 +33,15 @@ function CustomerSignupPage() {
     toast.info(`${provider === "facebook" ? "Facebook" : "Google"} sign up is coming soon.`);
   };
 
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  const usernameValid = form.username.trim().length > 0;
+  const passwordValid = form.password.length >= 8;
+  const mobileValid = !phMobileError(form.mobile, true);
+  const canCreate = emailValid && usernameValid && passwordValid && mobileValid;
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const mobileError = phMobileError(form.mobile, true);
-    if (mobileError) {
-      toast.error(mobileError);
-      return;
-    }
+    if (!canCreate) return;
     try {
       setLoading(true);
       const company = form.clientName.trim();
@@ -184,7 +186,7 @@ function CustomerSignupPage() {
               </p>
             </div>
 
-            <button type="submit" className={styles.primaryBtn} disabled={loading}>
+            <button type="submit" className={styles.primaryBtn} disabled={loading || !canCreate}>
               {loading ? "Creating..." : "Create Account"}
             </button>
           </form>
