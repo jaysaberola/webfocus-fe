@@ -47,6 +47,9 @@ export type PortalOrder = {
   expiredDate: string;
   total: number;
   grandTotal?: number;
+  subtotal?: number;
+  discountTotal?: number;
+  taxTotal?: number;
   adminPriced?: boolean;
   status: "Active Live" | "Pending Request" | "Pending Payment" | "Awaiting Approval" | "Provisioning" | "Expired" | "Cancelled";
   paymentStatus?: string;
@@ -64,6 +67,8 @@ export type PortalOrder = {
     quantity?: number;
     unitPrice?: number;
     total?: number;
+    discount?: number;
+    tax?: number;
     itemType?: string | null;
     additionalServices?: string[];
     clientNotes?: string;

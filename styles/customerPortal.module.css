@@ -4432,18 +4432,61 @@
 
 .orderInfoItemsTable th:nth-child(2),
 .orderInfoItemsTable td:nth-child(2) {
-  width: 54%;
+  width: 38%;
 }
 
 .orderInfoItemsTable th:nth-child(3),
-.orderInfoItemsTable td:nth-child(3) {
-  width: 20%;
+.orderInfoItemsTable td:nth-child(3),
+.orderInfoItemsTable th:nth-child(4),
+.orderInfoItemsTable td:nth-child(4),
+.orderInfoItemsTable th:nth-child(5),
+.orderInfoItemsTable td:nth-child(5) {
+  width: 12%;
   text-align: right;
   white-space: nowrap;
 }
 
 .orderInfoItemsTable tr:last-child td {
   border-bottom: 0;
+}
+
+.orderInfoTotals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.75rem;
+  background: var(--cp-slate-50);
+}
+
+.orderInfoTotals div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--cp-slate-600);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+}
+
+.orderInfoTotals strong {
+  color: var(--cp-slate-900);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.orderInfoGrand {
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--cp-slate-200);
+  color: var(--cp-slate-900);
+  font-size: 0.95rem;
+}
+
+.orderInfoGrand span,
+.orderInfoGrand strong {
+  color: var(--cp-navy);
+  font-weight: 800;
 }
 
 .orderInfoItemDetail {
@@ -4839,6 +4882,10 @@
   .orderInfoItemsTable td:nth-child(2),
   .orderInfoItemsTable th:nth-child(3),
   .orderInfoItemsTable td:nth-child(3),
+  .orderInfoItemsTable th:nth-child(4),
+  .orderInfoItemsTable td:nth-child(4),
+  .orderInfoItemsTable th:nth-child(5),
+  .orderInfoItemsTable td:nth-child(5),
   .orderCustomizeTable tbody,
   .orderCustomizeTable tr,
   .orderCustomizeTable td {

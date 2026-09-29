@@ -192,6 +192,18 @@ export default function OrderInfoPanel({
   const canCustomize = orderCanCustomize(order) && Boolean(order.recordId);
   const canCheckout = orderCanCheckout(order) && Boolean(onCheckout);
   const canCancel = orderCanCancel(order) && Boolean(onCancel);
+  const billedTotal = portalBilledAmount(order);
+  const itemSubtotal = useMemo(
+    () => order.items.reduce((sum, item) => sum + Number(item.price ?? item.total ?? 0), 0),
+    [order.items],
+  );
+  const discountTotal =
+    Number(order.discountTotal ?? 0) ||
+    order.items.reduce((sum, item) => sum + Number(item.discount ?? 0), 0);
+  const taxTotal =
+    Number(order.taxTotal ?? 0) ||
+    order.items.reduce((sum, item) => sum + Number(item.tax ?? 0), 0);
+  const subtotal = Number(order.subtotal ?? 0) || itemSubtotal;
   const [draftItems, setDraftItems] = useState<DraftItem[]>(() => draftsFromOrder(order));
   const [saving, setSaving] = useState(false);
   const [catalog, setCatalog] = useState<CatalogService[]>([]);
@@ -384,7 +396,7 @@ export default function OrderInfoPanel({
           </button>
           <div>
             <h2 className={styles.panelTitle}>
-              {serviceName} - {formatPeso(canCustomize ? grandTotal : portalBilledAmount(order))}
+              {serviceName} - {formatPeso(canCustomize ? grandTotal : billedTotal)}
             </h2>
             <p className={styles.panelSub}>Orders</p>
           </div>
@@ -425,7 +437,7 @@ export default function OrderInfoPanel({
           <ReadField label="Service Name" value={serviceName} />
           <ReadField label="Plan" value={plan || "—"} />
           {order.domain ? <ReadField label="Domain Name" value={order.domain} /> : null}
-          <ReadField label="Amount" value={formatPeso(canCustomize ? grandTotal : portalBilledAmount(order))} />
+          <ReadField label="Amount" value={formatPeso(canCustomize ? grandTotal : billedTotal)} />
           <ReadField label="Payment Mode" value={orderPaymentMethodLabel(order)} />
           <ReadField label="Payment Date" value={orderPaymentDate(order) || "—"} />
           <ReadField label="Payment Status" value={order.paymentStatus || "—"} />
@@ -545,6 +557,8 @@ export default function OrderInfoPanel({
                   <th>Item</th>
                   <th>Detail</th>
                   <th>Amount</th>
+                  <th>Discount</th>
+                  <th>Tax</th>
                 </tr>
               </thead>
               <tbody>
@@ -558,10 +572,30 @@ export default function OrderInfoPanel({
                       </div>
                     </td>
                     <td className={styles.monoBold} data-label="Amount">{formatPeso(item.price)}</td>
+                    <td className={styles.monoBold} data-label="Discount">{formatPeso(Number(item.discount ?? 0))}</td>
+                    <td className={styles.monoBold} data-label="Tax">{formatPeso(Number(item.tax ?? 0))}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className={styles.orderInfoTotals}>
+            <div>
+              <span>Sub Total</span>
+              <strong>{formatPeso(subtotal)}</strong>
+            </div>
+            <div>
+              <span>Discount</span>
+              <strong>{formatPeso(discountTotal)}</strong>
+            </div>
+            <div>
+              <span>Tax</span>
+              <strong>{formatPeso(taxTotal)}</strong>
+            </div>
+            <div className={styles.orderInfoGrand}>
+              <span>Grand Total</span>
+              <strong>{formatPeso(billedTotal || Math.max(0, subtotal - discountTotal + taxTotal))}</strong>
+            </div>
           </div>
         </div>
       ) : null}
