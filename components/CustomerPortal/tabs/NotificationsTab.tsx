@@ -7,6 +7,7 @@ import {
   markAllPortalNotificationsRead,
   markPortalNotificationRead,
   notifyPortalNotificationsUpdated,
+  uploadPortalSignedProposal,
 } from "@/services/customerPortalService";
 import type { PortalNotification, PortalNotificationAttachment } from "@/lib/customerPortal/types";
 import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
@@ -474,6 +475,7 @@ export default function NotificationsTab() {
             item={opened}
             greetingName={greetingName}
             onOpenRelated={() => openRelated(opened)}
+            onProposalUploaded={() => loadNotifications()}
           />
         ) : notifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications yet.</p>
@@ -611,10 +613,12 @@ function InboxMessageView({
   item,
   greetingName,
   onOpenRelated,
+  onProposalUploaded,
 }: {
   item: PortalNotification;
   greetingName?: string;
   onOpenRelated: () => void;
+  onProposalUploaded: () => Promise<void> | void;
 }) {
   const fromName = item.fromName || "WebFocus";
   const fromEmail = item.fromEmail || "";
@@ -622,6 +626,22 @@ function InboxMessageView({
   const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
   const intro = String(item.intro || item.desc || "").trim();
   const helloName = String(greetingName || "").trim();
+  const proposalSign = item.proposalSign;
+  const [uploadingSigned, setUploadingSigned] = useState(false);
+
+  const uploadSignedCopy = async (file: File | null) => {
+    if (!file || !proposalSign?.invoiceId || uploadingSigned) return;
+    setUploadingSigned(true);
+    try {
+      await uploadPortalSignedProposal({ invoiceId: proposalSign.invoiceId, file });
+      toast.success(proposalSign.signed ? "Signed copy re-uploaded." : "Signed copy uploaded.");
+      await onProposalUploaded();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not upload the signed copy.");
+    } finally {
+      setUploadingSigned(false);
+    }
+  };
 
   return (
     <article className={styles.inboxMessage}>
@@ -687,11 +707,33 @@ function InboxMessageView({
           </div>
         ) : null}
 
-        {item.actionUrl ? (
+        {item.actionUrl || proposalSign?.canUpload ? (
           <div className={styles.inboxMessageActions}>
-            <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
-              {actionLabel(item)}
-            </button>
+            {proposalSign?.canUpload ? (
+              <label className={styles.primaryBtnSm}>
+                {uploadingSigned
+                  ? "Uploading..."
+                  : proposalSign.signed
+                    ? "Re-upload signed copy"
+                    : "Upload signed copy"}
+                <input
+                  className={styles.inboxSignInput}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                  disabled={uploadingSigned}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    event.target.value = "";
+                    void uploadSignedCopy(file);
+                  }}
+                />
+              </label>
+            ) : null}
+            {item.actionUrl ? (
+              <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
+                {actionLabel(item)}
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

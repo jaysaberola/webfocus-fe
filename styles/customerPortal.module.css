@@ -2357,6 +2357,10 @@
   gap: 0.65rem;
 }
 
+.inboxSignInput {
+  display: none;
+}
+
 @media (max-width: 640px) {
   .inboxMessageCard {
     padding: 1rem 0.25rem 1.25rem;

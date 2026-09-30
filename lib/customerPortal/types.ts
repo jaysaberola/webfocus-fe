@@ -110,6 +110,11 @@ export type PortalNotification = {
   fromEmail?: string | null;
   attachments?: PortalNotificationAttachment[];
   details?: PortalNotificationDetail[];
+  proposalSign?: {
+    invoiceId: string;
+    canUpload: boolean;
+    signed: boolean;
+  } | null;
 };
 
 export type PortalPaymentProof = {
