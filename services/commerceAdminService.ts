@@ -137,6 +137,11 @@ export type CommerceNotificationAdminRow = {
   intro?: string | null;
   actionLabel?: string | null;
   referenceId?: number | null;
+  quotationActions?: {
+    uploadProposal?: boolean;
+    setPrice?: boolean;
+    proceedPayment?: boolean;
+  } | null;
 };
 
 export type CommerceNotificationsPayload = {

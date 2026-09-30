@@ -4525,6 +4525,32 @@
   white-space: pre-wrap;
 }
 
+.orderInfoIncludedRow td {
+  background: #f8fafc;
+}
+
+.orderInfoIncludedName {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-left: 0.2rem;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.orderInfoIncludedName::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  margin-top: -0.22rem;
+  border-left: 2px solid #cbd5e1;
+  border-bottom: 2px solid #cbd5e1;
+  border-radius: 0 0 0 0.12rem;
+}
+
 .orderCustomizeWrap {
   overflow-x: auto;
   margin-top: 0.15rem;

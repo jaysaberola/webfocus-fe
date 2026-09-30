@@ -1,5 +1,6 @@
 import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { looksLikeDomain } from "@/lib/serviceCategory";
+import { SERVICE_CHECKLIST_ITEMS, WEBDESIGN_PAYMENT_METHODS, webDesignIncludedServices } from "@/lib/webDesignSetup";
 
 export const DEAL_STAGE_OPTIONS = [
   "Qualification",
@@ -579,6 +580,7 @@ export type ClientOrderFormState = {
   domainRegistrationStartDate: string;
   domainRegistrationExpirationDate: string;
   domainRegistrationCost: string;
+  salesNotes: string;
 };
 
 export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): ClientOrderFormState => ({
@@ -633,6 +635,7 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   domainRegistrationStartDate: "",
   domainRegistrationExpirationDate: "",
   domainRegistrationCost: "",
+  salesNotes: "",
   ...defaults,
 });
 
@@ -754,6 +757,22 @@ export function pruneDealAmounts(amounts: Record<string, string> | undefined, na
     if (allowed.has(name)) next[name] = amount;
   }
   return next;
+}
+
+export function dealLineAdjustmentKeys(
+  dealName: string,
+  extras?: {
+    domainType?: string | null;
+    notes?: string | null;
+  },
+) {
+  return uniqueDealNames([
+    ...parseDealNames(dealName),
+    String(extras?.domainType ?? "").trim(),
+    ...webDesignIncludedServices(extras?.notes),
+    ...SERVICE_CHECKLIST_ITEMS,
+    ...WEBDESIGN_PAYMENT_METHODS.map((method) => method.label),
+  ].filter(Boolean));
 }
 
 export function dealAmountNumber(amounts: Record<string, string> | undefined, name: string) {
@@ -1002,12 +1021,15 @@ export function clientOrderFormFromTransaction(transaction: {
     if (!Number.isFinite(price) || price <= 0) continue;
     fromItems[name] = String(price);
   }
+  const namedDeals = parseDealNames(dealName);
+  const namedKeys = dealLineAdjustmentKeys(dealName, {
+    domainType: meta?.domainType,
+    notes: transaction.notes,
+  });
   const dealAmounts = pruneDealAmounts(
     { ...fromItems, ...parseDealAmounts(meta?.dealAmounts) },
-    parseDealNames(dealName),
+    namedKeys,
   );
-  const namedDeals = parseDealNames(dealName);
-  const namedKeys = [...namedDeals, matchDomainTypeOption(meta?.domainType)].filter(Boolean);
   let dealDiscounts = pruneDealAmounts(parseDealAmounts(meta?.dealDiscounts), namedKeys);
   if (!Object.keys(dealDiscounts).length) {
     const headerDiscount = Number(transaction.discount_total);
@@ -1105,19 +1127,22 @@ export function clientOrderFormFromTransaction(transaction: {
   };
 }
 
-function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
+function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | null): DealMeta {
+  const adjustmentKeys = uniqueDealNames([
+    ...dealLineAdjustmentKeys(form.dealName, {
+      domainType: form.domainType,
+      notes: existingNotes,
+    }),
+    ...Object.keys(form.dealAmounts ?? {}),
+    ...Object.keys(form.dealDiscounts ?? {}),
+    ...Object.keys(form.dealTaxes ?? {}),
+  ]);
   return {
     dealName: form.dealName.trim(),
     dealNames: parseDealNames(form.dealName),
-    dealAmounts: pruneDealAmounts(form.dealAmounts, parseDealNames(form.dealName)),
-    dealDiscounts: pruneDealAmounts(form.dealDiscounts, [
-      ...parseDealNames(form.dealName),
-      form.domainType,
-    ].filter(Boolean)),
-    dealTaxes: pruneDealAmounts(form.dealTaxes, [
-      ...parseDealNames(form.dealName),
-      form.domainType,
-    ].filter(Boolean)),
+    dealAmounts: pruneDealAmounts(form.dealAmounts, adjustmentKeys),
+    dealDiscounts: pruneDealAmounts(form.dealDiscounts, adjustmentKeys),
+    dealTaxes: pruneDealAmounts(form.dealTaxes, adjustmentKeys),
     campaignSource: form.campaignSource.trim(),
     stage: form.stage,
     dealType: form.dealType,
@@ -1167,7 +1192,7 @@ function dealMetaFromForm(form: ClientOrderFormState): DealMeta {
 }
 
 export function mergeDealMetaIntoNotes(existingNotes: string | null | undefined, form: ClientOrderFormState) {
-  const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(dealMetaFromForm(form))}`;
+  const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(dealMetaFromForm(form, existingNotes))}`;
   const text = String(existingNotes ?? "");
   const marker = text.indexOf(DEAL_META_PREFIX);
   if (marker < 0) return [metaLine, text].filter(Boolean).join("\n");

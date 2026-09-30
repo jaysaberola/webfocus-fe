@@ -35,6 +35,8 @@ type DraftItem = {
   persistable: boolean;
   additionalServices?: string[];
   clientNotes?: string;
+  salesNotes?: string;
+  included?: boolean;
 };
 
 type CatalogService = {
@@ -59,16 +61,18 @@ function ReadField({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ItemExtras({ extras, notes }: { extras?: string[]; notes?: string }) {
+function ItemExtras({ extras, notes, salesNotes }: { extras?: string[]; notes?: string; salesNotes?: string }) {
   const services = (extras ?? []).map((value) => String(value || "").trim()).filter(Boolean);
   const note = String(notes || "").trim();
-  if (!services.length && !note) return null;
+  const reply = String(salesNotes || "").trim();
+  if (!services.length && !note && !reply) return null;
   return (
     <div className={styles.orderInfoItemExtras}>
       {services.length ? (
         <p className={styles.orderInfoItemServices}>{services.join(" · ")}</p>
       ) : null}
       {note ? <p className={styles.orderInfoItemNote}>Notes: {note}</p> : null}
+      {reply ? <p className={styles.orderInfoItemNote}>Sales reply: {reply}</p> : null}
     </div>
   );
 }
@@ -160,12 +164,23 @@ function draftsFromOrder(order: PortalOrder): DraftItem[] {
         ? item.additionalServices.filter((value) => String(value || "").trim())
         : [],
       clientNotes: String(item.clientNotes || "").trim() || undefined,
+      salesNotes: String(item.salesNotes || "").trim() || undefined,
+      included: Boolean(item.included),
     };
   });
 }
 
 function lineTotal(item: DraftItem) {
   return Math.round(item.unitPrice * item.quantity * 100) / 100;
+}
+
+function withItemSerial<T extends { included?: boolean }>(items: T[]) {
+  let serial = 0;
+  return items.map((item) => {
+    const included = Boolean(item.included);
+    if (!included) serial += 1;
+    return { item, included, serial };
+  });
 }
 
 type OrderInfoPanelProps = {
@@ -468,38 +483,49 @@ export default function OrderInfoPanel({
                 </tr>
               </thead>
               <tbody>
-                {draftItems.map((item, index) => {
+                {withItemSerial(draftItems).map(({ item, included, serial }) => {
                   const selected = item.detail || item.name;
                   const options = uniqueServiceNames([selected, ...serviceOptions]);
                   return (
-                    <tr key={item.key}>
+                    <tr
+                      key={item.key}
+                      className={included ? styles.orderInfoIncludedRow : undefined}
+                    >
                       <td className={styles.orderCustomizeActionCell} data-label="Remove">
-                        <button
-                          type="button"
-                          className={styles.orderCustomizeRemove}
-                          title="Remove row"
-                          aria-label="Remove row"
-                          onClick={() => handleRemove(item.key)}
-                        >
-                          <i className="fa-regular fa-trash-can" aria-hidden="true" />
-                        </button>
+                        {included ? null : (
+                          <button
+                            type="button"
+                            className={styles.orderCustomizeRemove}
+                            title="Remove row"
+                            aria-label="Remove row"
+                            onClick={() => handleRemove(item.key)}
+                          >
+                            <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                          </button>
+                        )}
                       </td>
-                      <td className={styles.orderCustomizeSno} data-label="S.NO">{index + 1}</td>
+                      <td className={styles.orderCustomizeSno} data-label="S.NO">{included ? "" : serial}</td>
                       <td data-label="Item">
-                        <div className={styles.orderCustomizeDealSelect}>
-                          <PortalPickSelect
-                            className={styles.orderCustomizeInput}
-                            value={selected}
-                            placeholder="-None-"
-                            options={options.map((option) => ({ value: option, label: option }))}
-                            onChange={(name) => handleServiceChange(item.key, name)}
-                            ariaLabel="Service"
-                          />
-                          <span className={styles.orderCustomizeDealChevron} aria-hidden="true">
-                            <i className="fa-solid fa-chevron-down" />
-                          </span>
-                        </div>
-                        <ItemExtras extras={item.additionalServices} notes={item.clientNotes} />
+                        {included ? (
+                          <span className={styles.orderInfoIncludedName}>{item.name}</span>
+                        ) : (
+                          <>
+                            <div className={styles.orderCustomizeDealSelect}>
+                              <PortalPickSelect
+                                className={styles.orderCustomizeInput}
+                                value={selected}
+                                placeholder="-None-"
+                                options={options.map((option) => ({ value: option, label: option }))}
+                                onChange={(name) => handleServiceChange(item.key, name)}
+                                ariaLabel="Service"
+                              />
+                              <span className={styles.orderCustomizeDealChevron} aria-hidden="true">
+                                <i className="fa-solid fa-chevron-down" />
+                              </span>
+                            </div>
+                            <ItemExtras extras={item.additionalServices} notes={item.clientNotes} salesNotes={item.salesNotes} />
+                          </>
+                        )}
                       </td>
                       <td data-label="Quantity">
                         <input
@@ -562,20 +588,36 @@ export default function OrderInfoPanel({
                 </tr>
               </thead>
               <tbody>
-                {order.items.map((item, index) => (
-                  <tr key={`${item.name}-${index}`}>
-                    <td data-label="Item">{item.name || "—"}</td>
+                {order.items.map((item, index) => {
+                  const included = Boolean(item.included);
+                  return (
+                  <tr
+                    key={`${item.name}-${index}`}
+                    className={included ? styles.orderInfoIncludedRow : undefined}
+                  >
+                    <td data-label="Item">
+                      {included ? (
+                        <span className={styles.orderInfoIncludedName}>{item.name || "—"}</span>
+                      ) : (
+                        item.name || "—"
+                      )}
+                    </td>
                     <td data-label="Detail">
                       <div className={styles.orderInfoItemDetail}>
-                        <span className={styles.orderInfoItemPackage}>{item.detail || "—"}</span>
-                        <ItemExtras extras={item.additionalServices} notes={item.clientNotes} />
+                        {included ? null : (
+                          <span className={styles.orderInfoItemPackage}>{item.detail || "—"}</span>
+                        )}
+                        {included ? null : (
+                          <ItemExtras extras={item.additionalServices} notes={item.clientNotes} salesNotes={item.salesNotes} />
+                        )}
                       </div>
                     </td>
                     <td className={styles.monoBold} data-label="Amount">{formatPeso(item.price)}</td>
                     <td className={styles.monoBold} data-label="Discount">{formatPeso(Number(item.discount ?? 0))}</td>
                     <td className={styles.monoBold} data-label="Tax">{formatPeso(Number(item.tax ?? 0))}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

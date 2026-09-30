@@ -644,8 +644,8 @@ function InboxMessageView({
 
         {details.length > 0 ? (
           <dl className={styles.inboxMessageDetails}>
-            {details.map((row) => (
-              <div key={`${row.label}-${row.value}`} className={styles.inboxMessageDetail}>
+            {details.map((row, index) => (
+              <div key={`${row.label}-${index}`} className={styles.inboxMessageDetail}>
                 <dt>{row.label}</dt>
                 <dd>{row.value}</dd>
               </div>

@@ -19,6 +19,7 @@ export type WebDesignCartMeta = {
   serviceFeatures: string[];
   paymentMethods?: string[];
   clientNotes?: string;
+  salesNotes?: string;
 };
 
 export const SERVICE_CHECKLIST_ITEMS = [
@@ -113,6 +114,7 @@ export function parseWebDesignMeta(source?: string | null): WebDesignCartMeta | 
               ? parsed.paymentMethods.map((value) => String(value).trim()).filter(Boolean)
               : [],
             clientNotes: String(parsed.clientNotes ?? "").trim() || undefined,
+            salesNotes: String(parsed.salesNotes ?? "").trim() || undefined,
           };
         }
       } catch {
@@ -219,11 +221,75 @@ export function webDesignClientNotes(source?: string | null): string {
       if (collected.length) break;
       continue;
     }
-    if (/^(\[WEBDESIGN_META\]|Pricing:|Notify:|Service:|Template:|Additional Services:|Items:|Submitted |Payment |Customer checkout|Web design quotation)/i.test(trimmed)) {
+    if (/^(\[WEBDESIGN_META\]|Pricing:|Notify:|Service:|Template:|Additional Services:|Items:|Submitted |Payment |Customer checkout|Web design quotation|Sales reply:)/i.test(trimmed)) {
       break;
     }
     collected.push(trimmed);
   }
 
   return collected.join("\n").trim();
+}
+
+export function webDesignSalesNotes(source?: string | null): string {
+  const fromMeta = String(parseWebDesignMeta(source)?.salesNotes ?? "").trim();
+  if (fromMeta) return fromMeta;
+
+  const text = String(source ?? "");
+  const match = text.match(/^Sales reply:\s*(.*)$/im);
+  if (!match) return "";
+
+  const start = (match.index ?? 0) + match[0].length;
+  const rest = text.slice(start).replace(/^\s+/, "");
+  const collected: string[] = [];
+  const inline = String(match[1] ?? "").trim();
+  if (inline) collected.push(inline);
+
+  for (const line of rest.split(/\r\n|\n|\r/)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (collected.length) break;
+      continue;
+    }
+    if (/^(\[WEBDESIGN_META\]|\[DEAL_META\]|Pricing:|Notify:|Service:|Template:|Additional Services:|Items:|Submitted |Payment |Notes:)/i.test(trimmed)) {
+      break;
+    }
+    collected.push(trimmed);
+  }
+
+  return collected.join("\n").trim();
+}
+
+export function mergeWebDesignSalesNotes(source: string | null | undefined, salesNotes: string) {
+  const text = String(source ?? "");
+  const marker = text.indexOf(WEBDESIGN_META_PREFIX);
+  let parsed: Record<string, unknown> = {};
+  let before = text.trim();
+  let after = "";
+
+  if (marker >= 0) {
+    before = text.slice(0, marker).trim();
+    const afterMarker = text.slice(marker + WEBDESIGN_META_PREFIX.length);
+    const newline = afterMarker.indexOf("\n");
+    const jsonLine = (newline >= 0 ? afterMarker.slice(0, newline) : afterMarker).trim();
+    after = newline >= 0 ? afterMarker.slice(newline + 1).trim() : "";
+    if (jsonLine.startsWith("{")) {
+      try {
+        const decoded = JSON.parse(jsonLine);
+        if (decoded && typeof decoded === "object") parsed = decoded as Record<string, unknown>;
+      } catch {
+        parsed = {};
+      }
+    }
+  }
+
+  const next = { ...parsed };
+  const reply = String(salesNotes ?? "").trim();
+  if (reply) next.salesNotes = reply;
+  else delete next.salesNotes;
+
+  if (!Object.keys(next).length) {
+    return [before, after].filter(Boolean).join("\n");
+  }
+
+  return [before, `${WEBDESIGN_META_PREFIX}${JSON.stringify(next)}`, after].filter(Boolean).join("\n");
 }

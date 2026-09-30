@@ -8,6 +8,9 @@ import {
   transactionPaymentMode,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import { matchDomainTypeOption, parseDealMeta, parseDealNames, toApiOrderStatus, toApiPaymentStatus, normalizePaymentMode } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { isPendingQuotationTransaction } from "@/lib/commerceAdmin/webDesignPricing";
+import { isWebDesignPlan } from "@/lib/serviceCategory";
+import { webDesignIncludedServices } from "@/lib/webDesignSetup";
 import { clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { regionForProvince } from "@/lib/commerceAdmin/phAddressCatalog";
 import { paymentStatusLabel } from "@/lib/commerceAdmin/transactionHelpers";
@@ -307,23 +310,47 @@ export function domainInvoiceLineFromNotes(notes?: string | null): InvoiceLineIt
 
 export function withDomainInvoiceLine(items: InvoiceLineItem[], notes?: string | null): InvoiceLineItem[] {
   const line = domainInvoiceLineFromNotes(notes);
-  if (!line) return withCatalogDomainPrices(items);
+  if (!line) return withWebDesignIncludedInvoiceLines(withCatalogDomainPrices(items), notes);
   if (invoiceHasDomainLine(items, line.description, line.productName)) {
-    return withCatalogDomainPrices(
-      items.map((item) => {
-        if (!invoiceHasDomainLine([item], line.description, line.productName)) return item;
-        return {
-          ...item,
-          productName: item.productName.trim() || line.productName,
-          description: item.description.trim() || line.description,
-          listPrice: line.listPrice || item.listPrice,
-        };
-      }),
+    return withWebDesignIncludedInvoiceLines(
+      withCatalogDomainPrices(
+        items.map((item) => {
+          if (!invoiceHasDomainLine([item], line.description, line.productName)) return item;
+          return {
+            ...item,
+            productName: item.productName.trim() || line.productName,
+            description: item.description.trim() || line.description,
+            listPrice: line.listPrice || item.listPrice,
+          };
+        }),
+      ),
+      notes,
     );
   }
   const named = items.filter((item) => item.productName.trim());
   const blanks = items.filter((item) => !item.productName.trim());
-  return withCatalogDomainPrices([...named, line, ...blanks]);
+  return withWebDesignIncludedInvoiceLines(withCatalogDomainPrices([...named, line, ...blanks]), notes);
+}
+
+function withWebDesignIncludedInvoiceLines(items: InvoiceLineItem[], notes?: string | null): InvoiceLineItem[] {
+  const extras = webDesignIncludedServices(notes);
+  if (!extras.length) return items;
+  const existing = new Set(items.map((item) => item.productName.trim().toLowerCase()));
+  const extraLines = extras
+    .filter((label) => !existing.has(label.toLowerCase()))
+    .map((label, index) => ({
+      id: `inv-addon-${index}`,
+      productName: label,
+      description: "Included service",
+      listPrice: "",
+      quantity: "1",
+      discount: "0",
+      tax: "0",
+    }));
+  if (!extraLines.length) return items;
+  const packageIndex = items.findIndex((item) => isWebDesignPlan(item.productName));
+  const target = packageIndex >= 0 ? packageIndex + 1 : items.length;
+  return [...items.slice(0, target), ...extraLines, ...items.slice(target)];
 }
 
 export function withDomainInvoiceLineFromDeals(
@@ -355,6 +382,9 @@ export function withDomainInvoiceLineFromDeals(
 }
 
 function invoiceComputedGrandTotal(transaction: SalesTransaction) {
+  if (isPendingQuotationTransaction(transaction)) {
+    return Number(transaction.grand_total) || 0;
+  }
   const stored = Number(transaction.grand_total) || 0;
   const fromItems = withDomainInvoiceLine(
     (transaction.items ?? []).map((item, index) =>
@@ -539,6 +569,7 @@ function assignedStaffName(transaction: SalesTransaction) {
 }
 
 function invoiceStatus(transaction: SalesTransaction, metaStatus?: string | null) {
+  if (isPendingQuotationTransaction(transaction)) return "Pending Quotation";
   const fromMeta = String(metaStatus ?? "").trim();
   if (fromMeta) return fromMeta;
   const payment = String(transaction.payment_status ?? "").toLowerCase();
@@ -738,7 +769,12 @@ export function customerRowFromTransaction(transaction: SalesTransaction): Custo
 
 export function buildGlobalInvoiceRows(transactions: SalesTransaction[]): ClientInvoiceRow[] {
   const invoiceTagged = transactions.filter((transaction) => hasInvoiceMeta(transaction.notes));
-  const source = invoiceTagged.length > 0 ? invoiceTagged : transactions;
+  const pendingQuotations = transactions.filter((transaction) => isPendingQuotationTransaction(transaction));
+  const byId = new Map<number, SalesTransaction>();
+  for (const transaction of [...invoiceTagged, ...pendingQuotations]) {
+    byId.set(transaction.id, transaction);
+  }
+  const source = byId.size > 0 ? Array.from(byId.values()) : transactions;
 
   const sorted = [...source].sort((a, b) => {
     const byDate =

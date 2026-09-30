@@ -37,6 +37,8 @@ export type ClientDealLineItem = {
   amount: number;
   discount: number;
   tax: number;
+  included?: boolean;
+  parentId?: string;
   additionalServices?: string[];
 };
 
@@ -1065,16 +1067,48 @@ function buildLineItems(
 function attachWebDesignPackageExtras(transaction: SalesTransaction, items: ClientDealLineItem[]): ClientDealLineItem[] {
   const extras = webDesignIncludedServices(transaction.notes);
   const extraKeys = new Set(extras.map((value) => value.toLowerCase()));
-  const folded = items.filter((item) => {
-    const name = String(item.name ?? "").trim().toLowerCase();
-    return name !== "additional service" && !extraKeys.has(name);
-  });
-  if (!extras.length || !folded.length) return folded;
+  const amounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealAmounts);
+  const discounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealDiscounts);
+  const taxes = parseDealAmounts(parseDealMeta(transaction.notes)?.dealTaxes);
+  const extraItems = new Map<string, ClientDealLineItem>();
+  const folded: ClientDealLineItem[] = [];
+
+  for (const item of items) {
+    const name = String(item.name ?? "").trim();
+    const key = name.toLowerCase();
+    if (key === "additional service" || extraKeys.has(key)) {
+      extraItems.set(key === "additional service" ? key : key, item);
+      continue;
+    }
+    folded.push(item);
+  }
+
+  if (!extras.length || !folded.length) return folded.length ? folded : items;
 
   const packageIndex = folded.findIndex((item) => isWebDesignPlan(item.name));
   const target = packageIndex >= 0 ? packageIndex : 0;
-  folded[target] = { ...folded[target], additionalServices: extras };
-  return folded;
+  const parent = folded[target];
+  const children = extras.map((label, index) => {
+    const existing = extraItems.get(label.toLowerCase());
+    const quantity = Math.max(1, existing?.quantity || 1);
+    const priced = existing?.amount || dealAmountNumber(amounts, label);
+    const listPrice = existing?.listPrice || priced;
+    return {
+      id: existing?.id ?? `${parent.id}-addon-${index}`,
+      name: label,
+      domain: "",
+      period: parent.period,
+      listPrice,
+      quantity,
+      amount: priced,
+      discount: Math.min(dealAmountNumber(discounts, label), Math.max(0, priced)),
+      tax: dealAmountNumber(taxes, label),
+      included: true,
+      parentId: parent.id,
+    } satisfies ClientDealLineItem;
+  });
+
+  return [...folded.slice(0, target + 1), ...children, ...folded.slice(target + 1)];
 }
 
 function isDomainProductLine(item: ClientDealLineItem, domainName: string, domainType: string) {
@@ -1160,6 +1194,31 @@ function totalsFromItems(items: ClientDealLineItem[], transaction?: SalesTransac
       ? headerGrand
       : computedGrand;
   return { subtotal, discountTotal, taxTotal, adjustment: 0, grandTotal };
+}
+
+export function applyDealAmounts(order: ClientDealRow, amounts?: Record<string, string>): ClientDealRow {
+  const hasAmounts = Boolean(amounts && Object.keys(amounts).length);
+  if (!hasAmounts) return order;
+
+  const items = order.items.map((item) => {
+    const raw = dealAmountNumber(amounts, item.name) || dealAmountNumber(amounts, item.id);
+    if (!(raw > 0)) return item;
+    return {
+      ...item,
+      listPrice: item.listPrice > 0 ? item.listPrice : raw,
+      amount: raw,
+    };
+  });
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+  const grandTotal = Math.max(0, subtotal - order.discountTotal + order.taxTotal);
+  return {
+    ...order,
+    items,
+    subtotal,
+    grandTotal,
+    expectedRevenue: grandTotal,
+    amount: grandTotal,
+  };
 }
 
 export function applyDealDiscounts(order: ClientDealRow, discounts?: Record<string, string>): ClientDealRow {
@@ -1402,6 +1461,7 @@ export function buildClientDealRows(
       "";
 
     for (const item of lineItems) {
+      if (item.included) continue;
       const itemName = String(item.name ?? "").trim();
       const amount = Number(item.amount);
       const domain = formatDomain(item.domain) || dealDomain || clientDomainValue || "—";

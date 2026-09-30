@@ -76,6 +76,7 @@ import {
   parseWebDesignMeta,
   webDesignAdditionalServicesLabel,
   webDesignClientNotes,
+  webDesignSalesNotes,
 } from "@/lib/webDesignSetup";
 import {
   applyWebDesignPriceToItems,
@@ -85,10 +86,12 @@ import {
   isProposalSubmittedTransaction,
   isWebDesignTransaction,
   transactionAmountLabel,
+  WEB_DESIGN_PROPOSAL_SUBMITTED_MARKER,
 } from "@/lib/commerceAdmin/webDesignPricing";
+import { takeOpenDealFromInbox } from "@/lib/commerceAdmin/openDealFromInbox";
 import { toast } from "@/lib/toast";
 import { readStoredCurrentUser } from "@/lib/currentUser";
-import { canAssignSalesTransactions, isSalesRoleUser, isSalesStaffUser } from "@/lib/userRoles";
+import { canAssignSalesTransactions, isAdminLikeUser, isSalesRoleUser, isSalesStaffUser } from "@/lib/userRoles";
 import {
   deleteSalesTransaction,
   getSalesTransactions,
@@ -161,6 +164,7 @@ function isAssignedSalesForRow(row: SalesTransaction, currentUser: unknown) {
 }
 
 function canManageWebDesignOrder(row: SalesTransaction, currentUser: unknown) {
+  if (isAdminLikeUser(currentUser)) return true;
   if (isSalesRoleUser(currentUser) && !isSalesStaffUser(currentUser)) return true;
   if (isAssignedSalesForRow(row, currentUser)) return true;
   const assignedId = Number(row.user_id || row.user?.id || row.client_owner_id || row.client_owner?.id);
@@ -210,6 +214,7 @@ export default function CommerceTransactionsTab() {
     email?: string | null;
   } | null>(null);
   const [dealInfo, setDealInfo] = useState<SalesTransaction | null>(null);
+  const [focusProductDetails, setFocusProductDetails] = useState(false);
   const [clientFilter, setClientFilter] = useState<{ id?: number; name?: string; email?: string } | null>(
     null,
   );
@@ -221,14 +226,13 @@ export default function CommerceTransactionsTab() {
   const [webDesignPriceTarget, setWebDesignPriceTarget] = useState<SalesTransaction | null>(null);
   const [proposalTarget, setProposalTarget] = useState<SalesTransaction | null>(null);
   const [uploadingProposal, setUploadingProposal] = useState(false);
-  const [neededOpen, setNeededOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<SalesTransaction | null>(null);
   const [form, setForm] = useState<any>(emptyForm);
   const [exporting, setExporting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
-  const neededShownRef = useRef(false);
+  const inboxDealIntentRef = useRef(false);
   const currentUser = readStoredCurrentUser();
   const canAssign = canAssignSalesTransactions(currentUser);
   const [seenDealIds, setSeenDealIds] = useState<Set<number>>(() => new Set());
@@ -389,31 +393,6 @@ export default function CommerceTransactionsTab() {
     );
   }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
-  const neededActions = useMemo(() => {
-    return rows
-      .filter((row) => {
-        if (!isWebDesignTransaction(row) || !isPendingQuotationTransaction(row)) return false;
-        if (!canManageWebDesignOrder(row, currentUser)) return false;
-        if (!isProposalSubmittedTransaction(row)) return true;
-        return isProposalSignedTransaction(row);
-      })
-      .map((row) => {
-        if (!isProposalSubmittedTransaction(row)) {
-          return { row, action: "upload" as const };
-        }
-        if (Number(row.grand_total || 0) <= 0) {
-          return { row, action: "set-price" as const };
-        }
-        return { row, action: "proceed" as const };
-      });
-  }, [rows, currentUser]);
-
-  useEffect(() => {
-    if (loading || neededShownRef.current || neededActions.length === 0) return;
-    neededShownRef.current = true;
-    setNeededOpen(true);
-  }, [loading, neededActions.length]);
-
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
     const start = (page - 1) * PAGE_SIZE;
@@ -452,8 +431,9 @@ export default function CommerceTransactionsTab() {
     />
   );
 
-  const openDealInfo = (row: SalesTransaction) => {
+  const openDealInfo = (row: SalesTransaction, opts?: { focusProductDetails?: boolean }) => {
     markDealSeen(row.id);
+    setFocusProductDetails(Boolean(opts?.focusProductDetails));
     setDealInfo(row);
     setView("deal");
   };
@@ -554,9 +534,47 @@ export default function CommerceTransactionsTab() {
       });
       toast.success(`Web design price set for ${row.transaction_no}.`);
       setWebDesignPriceTarget(null);
+      setDealInfo((current) =>
+        current && current.id === row.id
+          ? {
+              ...current,
+              items,
+              notes,
+              subtotal: amount,
+              discount_total: 0,
+              tax_total: 0,
+              shipping_total: 0,
+              grand_total: amount,
+            }
+          : current,
+      );
       loadRows();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to set web design price.");
+    }
+  };
+
+  const handleProposalUpload = async (file: File) => {
+    if (!proposalTarget) return;
+    try {
+      setUploadingProposal(true);
+      await uploadWebDesignProposal(proposalTarget.id, file);
+      toast.success("Proposal quotation uploaded. The client can now download and sign it.");
+      const uploadedId = proposalTarget.id;
+      setProposalTarget(null);
+      setDealInfo((current) =>
+        current && current.id === uploadedId
+          ? {
+              ...current,
+              notes: [current.notes, WEB_DESIGN_PROPOSAL_SUBMITTED_MARKER].filter(Boolean).join("\n"),
+            }
+          : current,
+      );
+      loadRows();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to upload proposal.");
+    } finally {
+      setUploadingProposal(false);
     }
   };
 
@@ -577,6 +595,10 @@ export default function CommerceTransactionsTab() {
       try {
         await proceedWebDesignPayment(row.id);
         toast.success(`Payment requested for ${row.transaction_no}. The client was notified to upload proof of payment.`);
+        if (view === "deal") {
+          setView("list");
+          setDealInfo(null);
+        }
         loadRows();
       } catch (err: any) {
         toast.error(err?.response?.data?.message || "Failed to proceed to payment.");
@@ -592,6 +614,39 @@ export default function CommerceTransactionsTab() {
       });
     }
   };
+
+  useEffect(() => {
+    if (loading || inboxDealIntentRef.current) return;
+    const intent = takeOpenDealFromInbox();
+    if (!intent) {
+      inboxDealIntentRef.current = true;
+      return;
+    }
+
+    inboxDealIntentRef.current = true;
+
+    const row = rows.find((item) => Number(item.id) === intent.id);
+    if (!row) {
+      toast.error("Could not open this pending quotation.");
+      return;
+    }
+
+    markDealSeen(row.id);
+    if (row.transaction_no) setSearch(row.transaction_no);
+
+    if (intent.action === "upload-proposal") {
+      openDealInfo(row, { focusProductDetails: true });
+      setProposalTarget(row);
+      return;
+    }
+    if (intent.action === "proceed-payment") {
+      openDealInfo(row, { focusProductDetails: true });
+      void handleAction(row, "webdesign:proceed-payment");
+      return;
+    }
+
+    openDealInfo(row, { focusProductDetails: true });
+  }, [loading, rows]);
 
   const confirmReject = async () => {
     if (!rejectTarget) return;
@@ -750,18 +805,50 @@ export default function CommerceTransactionsTab() {
   };
 
   if (view === "deal" && dealInfo) {
+    const canManage = canManageWebDesignOrder(dealInfo, currentUser);
+    const pending = isPendingQuotationTransaction(dealInfo);
+    const proposalSubmitted = isProposalSubmittedTransaction(dealInfo);
+    const proposalSigned = isProposalSignedTransaction(dealInfo);
+
     return (
       <section className={styles.panel}>
         <ClientOrderForm
           transaction={dealInfo}
           pageTitle="Deal Info"
           pageSubtitle="Deals"
+          focusProductDetails={focusProductDetails}
+          toolbarActions={
+            canManage && pending ? (
+              <>
+                {!proposalSubmitted ? (
+                  <button
+                    type="button"
+                    className={styles.primaryBtnSm}
+                    onClick={() => setProposalTarget(dealInfo)}
+                  >
+                    Upload Proposal
+                  </button>
+                ) : null}
+                {proposalSigned ? (
+                  <button
+                    type="button"
+                    className={styles.primaryBtnSm}
+                    onClick={() => void handleAction(dealInfo, "webdesign:proceed-payment")}
+                  >
+                    Proceed Payment
+                  </button>
+                ) : null}
+              </>
+            ) : null
+          }
           onBack={() => {
             setView("list");
             setDealInfo(null);
+            setFocusProductDetails(false);
           }}
           onSaved={(opts) => {
             loadRows();
+            setFocusProductDetails(false);
             if (opts?.andNew) {
               setCreateCustomerId(dealInfo.customer_id ?? null);
               setDealInfo(null);
@@ -771,6 +858,22 @@ export default function CommerceTransactionsTab() {
             setView("list");
             setDealInfo(null);
           }}
+        />
+        <SetWebDesignPriceModal
+          open={!!webDesignPriceTarget}
+          transaction={webDesignPriceTarget}
+          onClose={() => setWebDesignPriceTarget(null)}
+          onSave={(amount) => {
+            if (!webDesignPriceTarget) return;
+            void applyWebDesignPrice(webDesignPriceTarget, amount);
+          }}
+        />
+        <UploadProposalModal
+          open={!!proposalTarget}
+          transaction={proposalTarget}
+          uploading={uploadingProposal}
+          onClose={() => setProposalTarget(null)}
+          onUpload={(file) => void handleProposalUpload(file)}
         />
       </section>
     );
@@ -1288,96 +1391,8 @@ export default function CommerceTransactionsTab() {
         transaction={proposalTarget}
         uploading={uploadingProposal}
         onClose={() => setProposalTarget(null)}
-        onUpload={async (file) => {
-          if (!proposalTarget) return;
-          try {
-            setUploadingProposal(true);
-            await uploadWebDesignProposal(proposalTarget.id, file);
-            toast.success("Proposal quotation uploaded. The client can now download and sign it.");
-            setProposalTarget(null);
-            loadRows();
-          } catch (err: any) {
-            toast.error(err?.response?.data?.message || "Failed to upload proposal.");
-          } finally {
-            setUploadingProposal(false);
-          }
-        }}
+        onUpload={(file) => void handleProposalUpload(file)}
       />
-
-      {neededOpen && neededActions.length > 0 ? (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true">
-          <div className={styles.modalCardWide}>
-            <div className={styles.modalHeader}>
-              <div>
-                <h3 className={styles.modalTitle}>Needed actions</h3>
-                <p className={styles.panelSubtitle}>Latest web design requests assigned to you.</p>
-              </div>
-              <button type="button" className={styles.modalCloseBtn} onClick={() => setNeededOpen(false)} aria-label="Close">
-                <i className="fa-solid fa-xmark" aria-hidden="true" />
-              </button>
-            </div>
-            <ResizableTableFrame
-              storageKey="commerceAdmin:neededActions"
-              columns={["invoice", "client", "needed", "action"]}
-              labels={{
-                invoice: "Invoice",
-                client: "Client",
-                needed: "Needed Action",
-                action: "Action",
-              }}
-              stackOnMobile
-              className={styles.tableWrap}
-            >
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Invoice</th>
-                    <th>Client</th>
-                    <th>Needed Action</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {neededActions.map((item) => (
-                    <tr key={item.row.id}>
-                      <td data-label="Invoice">{item.row.transaction_no}</td>
-                      <td data-label="Client">{item.row.customer_name || "—"}</td>
-                      <td data-label="Needed Action">
-                        {item.action === "upload"
-                          ? "Upload Proposal Quotation"
-                          : item.action === "set-price"
-                            ? "Set package price before Proceed Payment"
-                            : "Proceed Payment — signed proposal received"}
-                      </td>
-                      <td data-label="Action">
-                        <button
-                          type="button"
-                          className={styles.primaryBtnSm}
-                          onClick={() => {
-                            setNeededOpen(false);
-                            if (item.action === "upload") setProposalTarget(item.row);
-                            else if (item.action === "set-price") {
-                              void handleAction(item.row, "webdesign:set-price");
-                            } else {
-                              void handleAction(item.row, "webdesign:proceed-payment");
-                            }
-                          }}
-                        >
-                          {item.action === "upload"
-                            ? "Upload"
-                            : item.action === "set-price"
-                              ? "Set Price"
-                              : "Proceed"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </ResizableTableFrame>
-          </div>
-        </div>
-      ) : null}
 
       {modalMode ? (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true">
@@ -1428,6 +1443,10 @@ export default function CommerceTransactionsTab() {
                     <DetailField
                       label="Notes"
                       value={webDesignClientNotes(selected.notes) || "—"}
+                    />
+                    <DetailField
+                      label="Sales reply"
+                      value={webDesignSalesNotes(selected.notes) || "—"}
                     />
                     {(selected.items ?? []).map((item, index) => (
                       <DetailField

@@ -72,6 +72,9 @@ export type PortalOrder = {
     itemType?: string | null;
     additionalServices?: string[];
     clientNotes?: string;
+    salesNotes?: string;
+    included?: boolean;
+    parentId?: number | string | null;
   }>;
 };
 

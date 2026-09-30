@@ -15,6 +15,7 @@ import {
 } from "@/services/commerceAdminService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import { stashOpenDealFromInbox, type OpenDealInboxAction } from "@/lib/commerceAdmin/openDealFromInbox";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -145,7 +146,19 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
   if (tab === "approvals") return "Open Approvals";
   if (tab === "helpdesk") return "Open Helpdesk";
   if (tab === "billing") return "Open Billing";
+  if (row.kind === "web_design_quotation") return "Open Pending Quotation";
   return "Open Deals";
+}
+
+function quotationDealId(row: CommerceNotificationAdminRow) {
+  if (row.kind !== "web_design_quotation") return null;
+  const referenceId = Number(row.referenceId || 0);
+  if (referenceId > 0) return referenceId;
+  if (row.manageable === false) {
+    const id = Number(row.id || 0);
+    return id > 0 ? id : null;
+  }
+  return null;
 }
 
 export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: Props) {
@@ -265,7 +278,9 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
     });
   };
 
-  const openAlert = (row: CommerceNotificationAdminRow) => {
+  const openAlert = (row: CommerceNotificationAdminRow, action: OpenDealInboxAction = "view") => {
+    const dealId = quotationDealId(row);
+    if (dealId) stashOpenDealFromInbox({ id: dealId, action });
     const tab = alertActionTab(row);
     if (onTabChange) {
       onTabChange(tab);
@@ -598,6 +613,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
           item={opened}
           busy={busyKey === rowKey(opened)}
           onOpenRelated={() => openAlert(opened)}
+          onOpenQuotation={(action) => openAlert(opened, action)}
           onConfirm={() => void handleReviewDecision(opened, "confirm")}
           onDecline={() => void handleReviewDecision(opened, "decline")}
         />
@@ -688,12 +704,14 @@ function InboxMessageView({
   item,
   busy = false,
   onOpenRelated,
+  onOpenQuotation,
   onConfirm,
   onDecline,
 }: {
   item: CommerceNotificationAdminRow;
   busy?: boolean;
   onOpenRelated: () => void;
+  onOpenQuotation?: (action: OpenDealInboxAction) => void;
   onConfirm: () => void;
   onDecline: () => void;
 }) {
@@ -705,6 +723,9 @@ function InboxMessageView({
   const reviewable = canReviewFromInbox(item);
   const confirmLabel = item.kind === "profile_change" ? "Confirm Profile" : "Confirm Receipt";
   const declineLabel = "Decline";
+  const quotationDeal = quotationDealId(item) != null;
+  const quotationActions = item.quotationActions ?? null;
+  const showQuotationActions = quotationDeal && Boolean(onOpenQuotation);
 
   return (
     <article className={styles.inboxMessage}>
@@ -727,8 +748,8 @@ function InboxMessageView({
 
         {details.length > 0 ? (
           <dl className={styles.inboxMessageDetails}>
-            {details.map((row) => (
-              <div key={`${row.label}-${row.value}`} className={styles.inboxMessageDetail}>
+            {details.map((row, index) => (
+              <div key={`${row.label}-${index}`} className={styles.inboxMessageDetail}>
                 <dt>{row.label}</dt>
                 <dd>{row.value}</dd>
               </div>
@@ -781,9 +802,48 @@ function InboxMessageView({
               </button>
             </>
           ) : null}
-          <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
-            {alertActionLabel(item)}
-          </button>
+          {showQuotationActions ? (
+            <>
+              {quotationActions?.setPrice ? (
+                <button
+                  type="button"
+                  className={styles.secondaryBtnSm}
+                  onClick={() => onOpenQuotation?.("set-price")}
+                >
+                  Set Price
+                </button>
+              ) : null}
+              {quotationActions?.uploadProposal ? (
+                <button
+                  type="button"
+                  className={styles.primaryBtnSm}
+                  onClick={() => onOpenQuotation?.("upload-proposal")}
+                >
+                  Upload Proposal
+                </button>
+              ) : null}
+              {quotationActions?.proceedPayment ? (
+                <button
+                  type="button"
+                  className={styles.primaryBtnSm}
+                  onClick={() => onOpenQuotation?.("proceed-payment")}
+                >
+                  Proceed Payment
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className={styles.secondaryBtnSm}
+                onClick={() => onOpenQuotation?.("view")}
+              >
+                {alertActionLabel(item)}
+              </button>
+            </>
+          ) : (
+            <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
+              {alertActionLabel(item)}
+            </button>
+          )}
         </div>
       </div>
     </article>

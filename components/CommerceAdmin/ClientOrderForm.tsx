@@ -1,7 +1,7 @@
-import { Children, isValidElement, useEffect, useMemo, useRef, useState } from "react";
+import { Children, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
-import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealDiscounts, applyDealTaxes, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
+import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealAmounts, applyDealDiscounts, applyDealTaxes, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
   buildDealNotes,
@@ -14,6 +14,7 @@ import {
   dealNameBelongsToCategory,
   dealNamesForCategory,
   dealAmountNumber,
+  dealLineAdjustmentKeys,
   pruneDealAmounts,
   parseDealNames,
   joinDealNames,
@@ -45,11 +46,13 @@ import { clientDisplayName, assignablePersonLabel, clientDealStatusFromCustomer,
 import { isWebDesignPlan, looksLikeDomain } from "@/lib/serviceCategory";
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
+import { mergeWebDesignSalesNotes, webDesignClientNotes, webDesignIncludedServices, webDesignSalesNotes } from "@/lib/webDesignSetup";
 import {
   isQuotedWebDesign,
   isWebDesignTransaction,
   quotedWebDesignAmount,
   WEB_DESIGN_PENDING_QUOTATION_MARKER,
+  buildWebDesignPricedNotes,
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { readStoredCurrentUser } from "@/lib/currentUser";
 import { toast } from "@/lib/toast";
@@ -80,6 +83,8 @@ type Props = {
   transaction?: SalesTransaction | null;
   pageTitle?: string;
   pageSubtitle?: string;
+  toolbarActions?: ReactNode;
+  focusProductDetails?: boolean;
   onBack: () => void;
   onSaved: (options?: { andNew?: boolean }) => void;
 };
@@ -363,9 +368,10 @@ function catalogLinesForDealNames(
       const sold = soldPriceForName(transaction, name);
       const catalog = catalogPriceForProduct(services, name);
       if (isWebDesignPlan(name)) {
+        const typed = dealAmountNumber(amounts, name);
         return {
           name,
-          price: quoted ? quotedAmount || sold || catalog || 0 : 0,
+          price: quoted ? quotedAmount || sold || typed || catalog || 0 : typed,
           needsAmount: false,
         };
       }
@@ -420,7 +426,8 @@ function buildDealItemPayload(
         ? domainCost
         : sold ?? catalogPriceForProduct(services, name) ?? 0;
     if (isWebDesign) {
-      itemPrice = quoted ? quotedAmount || itemPrice : 0;
+      const typed = dealAmountNumber(form.dealAmounts, name);
+      itemPrice = quoted ? quotedAmount || typed || itemPrice : typed;
     } else if (!(itemPrice > 0)) {
       itemPrice = dealAmountNumber(form.dealAmounts, name);
     }
@@ -444,6 +451,18 @@ function buildDealItemPayload(
       price: domainCost,
       quantity: 1,
       total_price: domainCost,
+    });
+  }
+  const extraNames = webDesignIncludedServices(transaction?.notes);
+  for (const extra of extraNames) {
+    if (items.some((item) => item.name.toLowerCase() === extra.toLowerCase())) continue;
+    const extraPrice = dealAmountNumber(form.dealAmounts, extra);
+    items.push({
+      name: extra,
+      item_type: "web_design_addon",
+      price: extraPrice,
+      quantity: 1,
+      total_price: extraPrice,
     });
   }
   return items;
@@ -1037,6 +1056,8 @@ export default function ClientOrderForm({
   transaction = null,
   pageTitle,
   pageSubtitle = "Deals",
+  toolbarActions,
+  focusProductDetails = false,
   onBack,
   onSaved,
 }: Props) {
@@ -1170,6 +1191,7 @@ export default function ClientOrderForm({
               clientDealStatusFromCustomer(linkedClient) ||
               nextForm.dealType ||
               "New Client",
+            salesNotes: webDesignSalesNotes(transaction.notes),
           });
           return;
         }
@@ -1328,7 +1350,10 @@ export default function ClientOrderForm({
       const row = rows[0] ?? null;
       if (!row) return null;
       return applyDealTaxes(
-        applyDealDiscounts(withLiveDomainDealLine(row, liveDomain), form.dealDiscounts),
+        applyDealDiscounts(
+          applyDealAmounts(withLiveDomainDealLine(row, liveDomain), form.dealAmounts),
+          form.dealDiscounts,
+        ),
         form.dealTaxes,
       );
     }
@@ -1352,13 +1377,16 @@ export default function ClientOrderForm({
     if (!catalogItems.length && !domainName) return null;
     return applyDealTaxes(
       applyDealDiscounts(
-        withLiveDomainDealLine(
-          buildDraftDealRow({
-            dealName: form.dealName || form.productName,
-            domainName,
-            items: catalogItems,
-          }),
-          liveDomain,
+        applyDealAmounts(
+          withLiveDomainDealLine(
+            buildDraftDealRow({
+              dealName: form.dealName || form.productName,
+              domainName,
+              items: catalogItems,
+            }),
+            liveDomain,
+          ),
+          form.dealAmounts,
         ),
         form.dealDiscounts,
       ),
@@ -1382,6 +1410,13 @@ export default function ClientOrderForm({
     form.domainSubscriptionEndDate,
     form.domainRegistrationExpirationDate,
   ]);
+
+  useEffect(() => {
+    if (!focusProductDetails || loading || !productDeal) return;
+    const node = document.getElementById("deal-product-details");
+    if (!node) return;
+    node.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [focusProductDetails, loading, productDeal]);
 
   const dealPriceLines = useMemo(() => {
     const lines = catalogLinesForDealNames(
@@ -1644,12 +1679,15 @@ export default function ClientOrderForm({
     const dealName = joinDealNames(names);
     const primary = names[0] || "";
     const domainType = names.map((name) => matchDomainTypeOption(name)).find(Boolean) || "";
-    const keys = [...names, domainType].filter(Boolean);
+    const keys = dealLineAdjustmentKeys(dealName, {
+      domainType,
+      notes: transaction?.notes,
+    });
     setForm((current) => ({
       ...current,
       dealName,
       productName: dealName,
-      dealAmounts: pruneDealAmounts(current.dealAmounts, names),
+      dealAmounts: pruneDealAmounts(current.dealAmounts, keys),
       dealDiscounts: pruneDealAmounts(current.dealDiscounts, keys),
       dealTaxes: pruneDealAmounts(current.dealTaxes, keys),
       productCategory: current.productCategory || subjectForProductName(primary),
@@ -1664,14 +1702,18 @@ export default function ClientOrderForm({
         category ? dealNameBelongsToCategory(name, category) : false,
       );
       const dealName = joinDealNames(kept);
+      const keys = dealLineAdjustmentKeys(dealName, {
+        domainType: current.domainType,
+        notes: transaction?.notes,
+      });
       return {
         ...current,
         productCategory: category,
         dealName,
         productName: dealName,
-        dealAmounts: pruneDealAmounts(current.dealAmounts, kept),
-        dealDiscounts: pruneDealAmounts(current.dealDiscounts, kept),
-        dealTaxes: pruneDealAmounts(current.dealTaxes, kept),
+        dealAmounts: pruneDealAmounts(current.dealAmounts, keys),
+        dealDiscounts: pruneDealAmounts(current.dealDiscounts, keys),
+        dealTaxes: pruneDealAmounts(current.dealTaxes, keys),
       };
     });
   };
@@ -1746,11 +1788,17 @@ export default function ClientOrderForm({
         ? clientDisplayName(selectedClient)
         : String(transaction?.customer_name ?? "").trim();
       let clientEmail = selectedClient?.email ?? transaction?.customer_email ?? "";
-      const price =
-        isWebDesignDeal && !isQuotedWebDesign(transaction) ? 0 : Number(form.expectedRevenue || 0);
       const discountTotal = Number(productDeal?.discountTotal || 0);
       const taxTotal = Number(productDeal?.taxTotal || 0);
-      const netTotal = Math.max(0, price - discountTotal + taxTotal);
+      const liveSubtotal = Number(productDeal?.subtotal || 0);
+      const liveGrand = Number(productDeal?.grandTotal || 0);
+      const pendingWebQuote = isWebDesignDeal && !isQuotedWebDesign(transaction) && liveSubtotal > 0;
+      const price = isWebDesignDeal && !isQuotedWebDesign(transaction) && liveSubtotal <= 0
+        ? 0
+        : isWebDesignDeal
+          ? liveSubtotal || Number(form.expectedRevenue || 0)
+          : Number(form.expectedRevenue || 0);
+      const netTotal = isWebDesignDeal ? liveGrand || Math.max(0, price - discountTotal + taxTotal) : Math.max(0, price - discountTotal + taxTotal);
       const ownerId = Number(form.dealOwnerId);
 
       if (form.clientId === NEW_CLIENT_VALUE) {
@@ -1781,6 +1829,13 @@ export default function ClientOrderForm({
 
       if (transaction) {
         const itemPayload = buildDealItemPayload(services, form, transaction);
+        let notes = mergeDealMetaIntoNotes(transaction.notes, form);
+        if (isWebDesignDeal) {
+          notes = mergeWebDesignSalesNotes(notes, form.salesNotes);
+        }
+        if (pendingWebQuote) {
+          notes = buildWebDesignPricedNotes(notes, netTotal);
+        }
         await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
           customer_name: clientName || transaction.customer_name,
@@ -1791,7 +1846,7 @@ export default function ClientOrderForm({
           grand_total: netTotal,
           payment_status: toApiPaymentStatus(form.paymentStatus) || transaction.payment_status,
           order_status: toApiOrderStatus(form.salesStatus) || transaction.order_status,
-          notes: mergeDealMetaIntoNotes(transaction.notes, form),
+          notes,
           transacted_at: form.closingDate || transaction.transacted_at,
           client_owner_id: ownerId || null,
           ...(itemPayload.length ? { items: itemPayload } : {}),
@@ -1837,6 +1892,9 @@ export default function ClientOrderForm({
         return;
       }
 
+      const createdNotes = isWebDesignDeal
+        ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
+        : buildDealNotes(form);
       const created = await createSalesTransaction({
         customer_id: clientId,
         customer_name: clientName,
@@ -1849,9 +1907,7 @@ export default function ClientOrderForm({
         grand_total: netTotal,
         payment_status: toApiPaymentStatus(form.paymentStatus) || "pending",
         order_status: toApiOrderStatus(form.salesStatus) || "pending",
-        notes: isWebDesignDeal
-          ? `${WEB_DESIGN_PENDING_QUOTATION_MARKER}\n${buildDealNotes(form)}`
-          : buildDealNotes(form),
+        notes: mergeWebDesignSalesNotes(createdNotes, form.salesNotes),
         transacted_at: form.closingDate || undefined,
         items: buildDealItemPayload(services, form, transaction),
       });
@@ -1927,19 +1983,15 @@ export default function ClientOrderForm({
     const fromForm = Number(form.expectedRevenue);
     const stored = Number(transaction?.grand_total ?? 0);
     const liveGrand = Number(productDeal?.grandTotal ?? 0);
-    const holdWebDesignQuote =
-      parseDealNames(dealName).some((name) => isWebDesignPlan(name)) && !isQuotedWebDesign(transaction);
-    const amount = holdWebDesignQuote
-      ? 0
-      : productDeal
-        ? liveGrand
-        : dealPriceTotal > 0
-          ? dealPriceTotal
-          : Number.isFinite(fromForm) && fromForm > 0
-            ? fromForm
-            : Number.isFinite(stored) && stored > 0
-              ? stored
-              : 0;
+    const amount = productDeal
+      ? liveGrand
+      : dealPriceTotal > 0
+        ? dealPriceTotal
+        : Number.isFinite(fromForm) && fromForm > 0
+          ? fromForm
+          : Number.isFinite(stored) && stored > 0
+            ? stored
+            : 0;
     return `${dealName} - ${formatDealAmount(amount)}`;
   }, [
     isEditing,
@@ -1957,7 +2009,10 @@ export default function ClientOrderForm({
   }
 
   return (
-    <form className={styles.clientCrmPage} onSubmit={handleSubmit}>
+    <form
+      className={`${styles.clientCrmPage}${focusProductDetails ? ` ${styles.clientCrmPageFocusProducts}` : ""}`}
+      onSubmit={handleSubmit}
+    >
       <div className={styles.clientCrmTopBar}>
         <div className={styles.clientCrmTitleBlock}>
           <button type="button" className={styles.secondaryBtnSm} onClick={onBack}>
@@ -1969,6 +2024,7 @@ export default function ClientOrderForm({
           </div>
         </div>
         <div className={styles.clientCrmActions}>
+          {productDeal ? null : toolbarActions}
           <button
             type="button"
             className={styles.secondaryBtnSm}
@@ -2620,14 +2676,23 @@ export default function ClientOrderForm({
       </section>
 
       {productDeal ? (
-        <section className={styles.clientCrmSection}>
+        <section
+          id="deal-product-details"
+          className={`${styles.clientCrmSection} ${styles.clientCrmProductSection} ${styles.clientEditScrollTarget}`}
+        >
           <OrderProductDetailsPanel
             order={productDeal}
             embedded
+            amountValues={form.dealAmounts}
             discountValues={form.dealDiscounts}
             taxValues={form.dealTaxes}
+            onAmountChange={setDealAmount}
             onDiscountChange={setDealDiscount}
             onTaxChange={setDealTax}
+            clientNotes={isWebDesignDeal ? webDesignClientNotes(transaction?.notes) : undefined}
+            salesNotes={isWebDesignDeal ? form.salesNotes : undefined}
+            onSalesNotesChange={isWebDesignDeal ? (value) => setField("salesNotes", value) : undefined}
+            actions={toolbarActions}
           />
         </section>
       ) : null}
