@@ -42,7 +42,7 @@ export default function ConfirmModal({
   return (
     <div
       className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(15, 23, 42, 0.55)", backdropFilter: "blur(2px)", zIndex: 1060 }}
+      style={{ background: "rgba(15, 23, 42, 0.55)", backdropFilter: "blur(2px)", zIndex: 1300 }}
       role="dialog"
       aria-modal="true"
       aria-label={title}

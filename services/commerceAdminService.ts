@@ -72,6 +72,89 @@ export type CommercePaymentProofRow = {
   expiredDate?: string;
   alreadyPaid?: boolean;
   invoiceStatus?: string | null;
+  salesTransactionId?: number | null;
+  proofStatus?: string | null;
+  provisioning?: {
+    status: string;
+    timeline: string;
+    countdown?: {
+      started?: boolean;
+      startedAt?: string | null;
+      endsAt?: string | null;
+      durationHours?: number | null;
+      durationDays?: number | null;
+      startedBy?: string | null;
+      label?: string | null;
+    } | null;
+    webdevCountdown?: {
+      started?: boolean;
+      startedAt?: string | null;
+      endsAt?: string | null;
+      durationHours?: number | null;
+      durationDays?: number | null;
+      startedBy?: string | null;
+      label?: string | null;
+    } | null;
+    progress?: {
+      settled: number;
+      total: number;
+    };
+  } | null;
+};
+
+export type ProvisioningActionRow = {
+  id: number;
+  serviceName: string;
+  description: string;
+  status: string;
+  statusKey: string;
+  checkpointHours: number;
+  assignee?: string | null;
+  createdBy?: string | null;
+  dueAt?: string | null;
+  doneAt?: string | null;
+  completedAt?: string | null;
+  validatedAt?: string | null;
+};
+
+export type ProvisioningEventRow = {
+  id: number;
+  event: string;
+  summary: string;
+  actor?: string | null;
+  createdAt?: string | null;
+  changes?: Array<{ label: string; from?: string; to?: string }>;
+};
+
+export type ProvisioningDetail = {
+  salesTransactionId: number;
+  transactionNo?: string | null;
+  orderStatus: string;
+  displayStatus: string;
+  timeline: string;
+  order?: {
+    transactionNo?: string | null;
+    invoiceId?: string | null;
+    client?: string | null;
+    email?: string | null;
+    plan?: string | null;
+    amount?: number | null;
+    paymentStatus?: string | null;
+    issuedDate?: string | null;
+    dueDate?: string | null;
+    approvedAt?: string | null;
+  } | null;
+  countdown?: NonNullable<CommercePaymentProofRow["provisioning"]>["countdown"];
+  webdevCountdown?: NonNullable<CommercePaymentProofRow["provisioning"]>["webdevCountdown"];
+  canManageActions: boolean;
+  canStartWebdev: boolean;
+  services: Array<{
+    name: string;
+    kind: string;
+    checkpointHours: number;
+    actions: ProvisioningActionRow[];
+  }>;
+  events: ProvisioningEventRow[];
 };
 
 export type CommerceTicketAdminRow = {
@@ -192,7 +275,40 @@ export async function rejectCommerceProfileChange(id: number, reason?: string) {
 
 export async function verifyCommercePaymentProof(id: number) {
   const res = await axiosInstance.patch(`/commerce-admin/payment-proofs/${id}/verify`);
-  return res.data;
+  return res.data as { message?: string; data?: CommercePaymentProofRow };
+}
+
+export async function fetchProvisioning(salesTransactionId: number) {
+  const res = await axiosInstance.get(`/commerce-admin/sales-transactions/${salesTransactionId}/provisioning`, {
+    headers: { "X-No-Loading": true },
+  });
+  return res.data.data as ProvisioningDetail;
+}
+
+export async function addProvisioningAction(salesTransactionId: number, payload: {
+  service_name: string;
+  description: string;
+  assigned_to?: number | null;
+  checkpoint_hours?: number;
+}) {
+  const res = await axiosInstance.post(
+    `/commerce-admin/sales-transactions/${salesTransactionId}/provisioning/actions`,
+    payload,
+  );
+  return res.data.data as ProvisioningDetail;
+}
+
+export async function markProvisioningActionDone(actionId: number) {
+  const res = await axiosInstance.patch(`/commerce-admin/provisioning-actions/${actionId}/done`);
+  return res.data.data as ProvisioningDetail;
+}
+
+export async function startWebDevCountdown(salesTransactionId: number, days: number) {
+  const res = await axiosInstance.post(
+    `/commerce-admin/sales-transactions/${salesTransactionId}/provisioning/webdev-countdown`,
+    { days },
+  );
+  return res.data.data as ProvisioningDetail;
 }
 
 export async function rejectCommercePaymentProof(id: number, reason?: string) {

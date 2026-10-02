@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   approveCommerceProfileChange,
@@ -8,6 +9,8 @@ import {
   verifyCommercePaymentProof,
   type CommercePaymentProofRow,
 } from "@/services/commerceAdminService";
+import { provisioningCountdownCopy } from "@/lib/customerPortal/orderHelpers";
+import ProvisioningPanel from "@/components/CommerceAdmin/ProvisioningPanel";
 import {
   approvalAmountLabel,
   approvalDueDate,
@@ -52,6 +55,73 @@ import styles from "@/styles/commerceAdmin.module.css";
 
 const PAGE_SIZE = 10;
 
+function ApprovalStatusBadge({ row, now }: { row: CommercePaymentProofRow; now: number }) {
+  const [open, setOpen] = useState(false);
+  const [tipPos, setTipPos] = useState({ top: 0, left: 0, place: "top" as "top" | "bottom" });
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const provisioning = row.status === "Provisioning";
+  const copy = provisioning ? provisioningCountdownCopy(row, now) : null;
+
+  useEffect(() => {
+    if (!open || !wrapRef.current) return;
+
+    const placeTip = () => {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const place = rect.top > 88 ? "top" : "bottom";
+      setTipPos({
+        top: place === "top" ? rect.top - 8 : rect.bottom + 8,
+        left: rect.left + rect.width / 2,
+        place,
+      });
+    };
+
+    placeTip();
+    window.addEventListener("scroll", placeTip, true);
+    window.addEventListener("resize", placeTip);
+    return () => {
+      window.removeEventListener("scroll", placeTip, true);
+      window.removeEventListener("resize", placeTip);
+    };
+  }, [open]);
+
+  if (!provisioning || !copy) {
+    return <span className={styles.badgePending}>{row.status || "Pending Review"}</span>;
+  }
+
+  return (
+    <span
+      ref={wrapRef}
+      className={styles.statusTipWrap}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      <span className={styles.badgeProvisioning} tabIndex={0}>
+        {row.status}
+      </span>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              className={styles.statusTip}
+              role="tooltip"
+              style={{
+                top: tipPos.top,
+                left: tipPos.left,
+                transform: tipPos.place === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+              }}
+            >
+              <strong>{copy.headline}</strong>
+              <em>{copy.detail}</em>
+            </span>,
+            document.body,
+          )
+        : null}
+    </span>
+  );
+}
+
 const APPROVAL_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "kind", label: "Queue Type" },
   { id: "status", label: "Status" },
@@ -76,6 +146,8 @@ export default function CommerceApprovalsTab() {
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [page, setPage] = useState(1);
   const [reviewTarget, setReviewTarget] = useState<CommercePaymentProofRow | null>(null);
+  const [provisionTarget, setProvisionTarget] = useState<{ id: number; service?: string } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [exporting, setExporting] = useState(false);
 
   const getFilterValue = useCallback((row: CommercePaymentProofRow, fieldId: string) => {
@@ -112,6 +184,12 @@ export default function CommerceApprovalsTab() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (!rows.some((row) => row.status === "Provisioning")) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [rows]);
 
   useEffect(() => {
     setPage(1);
@@ -171,8 +249,12 @@ export default function CommerceApprovalsTab() {
         await approveCommerceProfileChange(row.id);
         toast.success(`Approved profile change ${row.proofNo}. Customer profile updated.`);
       } else {
-        await verifyCommercePaymentProof(row.id);
-        toast.success(`Verified ${row.proofNo}. Customer billing updated.`);
+        const result = await verifyCommercePaymentProof(row.id);
+        toast.success(
+          result?.data?.provisioning?.timeline === "webdev"
+            ? `Approved ${row.proofNo}. It stays in Approvals while Sales starts the WebDev countdown.`
+            : `Approved ${row.proofNo}. Status is now Provisioning.`,
+        );
       }
       setReviewTarget((current) => (current?.id === row.id ? null : current));
       load();
@@ -207,6 +289,10 @@ export default function CommerceApprovalsTab() {
 
   const handleAction = async (row: CommercePaymentProofRow, action: string) => {
     if (action === "view") {
+      if (row.kind !== "profile_change" && row.salesTransactionId && row.status === "Provisioning") {
+        setProvisionTarget({ id: row.salesTransactionId, service: approvalServiceLabel(row) });
+        return;
+      }
       setReviewTarget(row);
       return;
     }
@@ -221,6 +307,9 @@ export default function CommerceApprovalsTab() {
     if (action === "pay") {
       await handleVerify(row);
       return;
+    }
+    if (action === "provision" && row.salesTransactionId) {
+      setProvisionTarget({ id: row.salesTransactionId, service: approvalServiceLabel(row) });
     }
     if (action === "file") {
       if (row.fileUrl) {
@@ -271,13 +360,20 @@ export default function CommerceApprovalsTab() {
         {row.kind === "profile_change" ? "View Profile Changes" : "View Service Details"}
       </option>
       <option value="edit">Edit</option>
-      <option value="pay">
-        {row.kind === "profile_change" ? "Approve Profile Change" : "Approve Order"}
-      </option>
-      {row.fileUrl ? <option value="file">Attached File</option> : null}
-      <option value="reject">
-        {row.kind === "profile_change" ? "Reject Profile Change" : "Reject Purchase"}
-      </option>
+      {row.status === "Provisioning" ? (
+        <option value="provision">Provisioning actions</option>
+      ) : (
+        <>
+          <option value="pay">
+            {row.kind === "profile_change" ? "Approve Profile Change" : "Approve Order"}
+          </option>
+          {row.fileUrl ? <option value="file">Attached File</option> : null}
+          <option value="reject">
+            {row.kind === "profile_change" ? "Reject Profile Change" : "Reject Purchase"}
+          </option>
+        </>
+      )}
+      {row.status === "Provisioning" && row.fileUrl ? <option value="file">Attached File</option> : null}
     </select>
   );
 
@@ -304,16 +400,32 @@ export default function CommerceApprovalsTab() {
     }
   };
 
+  const renderStatus = (row: CommercePaymentProofRow) => <ApprovalStatusBadge row={row} now={now} />;
+
+  const openProvisioning = (row: CommercePaymentProofRow) => {
+    if (!row.salesTransactionId || row.kind === "profile_change") return;
+    setProvisionTarget({ id: row.salesTransactionId, service: approvalServiceLabel(row) });
+  };
+
+  const renderServiceName = (row: CommercePaymentProofRow) => {
+    const label = approvalServiceLabel(row);
+    if (!row.salesTransactionId || row.kind === "profile_change") return label;
+    return (
+      <button type="button" className={styles.tableCellLink} onClick={() => openProvisioning(row)}>
+        {label}
+      </button>
+    );
+  };
   const renderApprovalGridCard = (row: CommercePaymentProofRow) => (
     <article key={row.id} className={styles.txGridCard}>
       <div className={styles.txGridCardTop}>
         <span className={styles.txGridTitleText}>{row.invoiceId || row.proofNo}</span>
-        <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
+        {renderStatus(row)}
       </div>
       <div className={styles.txGridFields}>
         <div>
           <div className={styles.txGridLabel}>Service</div>
-          <div className={styles.txGridValue}>{approvalServiceLabel(row)}</div>
+          <div className={styles.txGridValue}>{renderServiceName(row)}</div>
         </div>
         <div>
           <div className={styles.txGridLabel}>Plan</div>
@@ -346,6 +458,21 @@ export default function CommerceApprovalsTab() {
       <div>{renderActionSelect(row)}</div>
     </article>
   );
+
+  if (provisionTarget) {
+    const source = rows.find((row) => row.salesTransactionId === provisionTarget.id);
+    return (
+      <section className={styles.panel}>
+        <ProvisioningPanel
+          salesTransactionId={provisionTarget.id}
+          focusService={provisionTarget.service}
+          contextLabel={source ? `${source.invoiceId || source.proofNo} · ${source.client}` : null}
+          onClose={() => setProvisionTarget(null)}
+          onChanged={load}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className={styles.panel}>
@@ -506,7 +633,7 @@ export default function CommerceApprovalsTab() {
                               {row.invoiceId || row.proofNo}
                             </button>
                           </td>
-                          <td className={styles.txServiceCell} data-label="Service Name">{approvalServiceLabel(row)}</td>
+                          <td className={styles.txServiceCell} data-label="Service Name">{renderServiceName(row)}</td>
                           <td className={styles.txPlanCell} data-label="Plan">
                             <strong>{approvalPlanLabel(row)}</strong>
                           </td>
@@ -515,7 +642,7 @@ export default function CommerceApprovalsTab() {
                           <td data-label="Due Date">{approvalDueDate(row)}</td>
                           <td className={styles.amountCell} data-label="Amount">{approvalAmountLabel(row)}</td>
                           <td className={styles.statusCell} data-label="Status">
-                            <span className={styles.badgePending}>{row.status || "Pending Review"}</span>
+                            {renderStatus(row)}
                           </td>
                           <td className={styles.tableActionCell} data-label="Action">{renderActionSelect(row)}</td>
                         </tr>

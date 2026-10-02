@@ -22,10 +22,10 @@ export default function OrderStatusBadge({ order }: Props) {
   const wrapRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (order.status !== "Provisioning" || !open) return;
+    if (order.status !== "Provisioning") return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [open, order.status]);
+  }, [order.status]);
 
   useEffect(() => {
     if (!open || !wrapRef.current) return;

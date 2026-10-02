@@ -57,9 +57,36 @@ export function orderPaymentDate(order: PortalOrder) {
 export const PROVISIONING_MIN_HOURS = 24;
 export const PROVISIONING_MAX_HOURS = 48;
 
-export function orderProvisioningStartedAt(
-  order: Pick<PortalOrder, "approvedAt">,
-) {
+export type ProvisioningCountdown = {
+  started?: boolean;
+  startedAt?: string | null;
+  endsAt?: string | null;
+  durationHours?: number | null;
+  durationDays?: number | null;
+  startedBy?: string | null;
+  label?: string | null;
+};
+
+export type ProvisioningCountdownCopy = {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  clock: string;
+  headline: string;
+  detail: string;
+};
+
+type CountdownSource = {
+  approvedAt?: string | null;
+  provisioning?: {
+    countdown?: ProvisioningCountdown | null;
+    timeline?: string | null;
+  } | null;
+};
+
+export function orderProvisioningStartedAt(order: CountdownSource) {
+  const fromWindow = Date.parse(String(order.provisioning?.countdown?.startedAt || ""));
+  if (Number.isFinite(fromWindow)) return fromWindow;
   const parsed = Date.parse(String(order.approvedAt || ""));
   return Number.isFinite(parsed) ? parsed : null;
 }
@@ -70,10 +97,50 @@ function formatCountdownClock(hours: number, minutes: number, seconds: number) {
   return `${hours}h ${mm}m ${ss}s`;
 }
 
-export function provisioningCountdownCopy(
-  order: Pick<PortalOrder, "approvedAt">,
-  now = Date.now(),
-) {
+function formatDayClock(remainingMs: number) {
+  const days = Math.floor(remainingMs / 864e5);
+  const hours = Math.floor((remainingMs % 864e5) / 36e5);
+  const minutes = Math.floor((remainingMs % 36e5) / 6e4);
+  return `${days}d ${hours}h ${minutes}m`;
+}
+
+function copyFromWindow(window: ProvisioningCountdown, now: number): ProvisioningCountdownCopy | null {
+  if (window.started === false) {
+    return {
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      clock: "Not started",
+      headline: "Countdown not started",
+      detail: window.label || "Waiting to start",
+    };
+  }
+
+  const endsAt = Date.parse(String(window.endsAt || ""));
+  if (!Number.isFinite(endsAt)) return null;
+
+  const remainingMs = Math.max(0, endsAt - now);
+  const useDays = (window.durationDays ?? 0) > 0 || (window.durationHours ?? 0) >= 72;
+  const totalHours = Math.floor(remainingMs / 36e5);
+  const minutes = Math.floor((remainingMs % 36e5) / 6e4);
+  const seconds = Math.floor((remainingMs % 6e4) / 1000);
+  const clock = useDays ? formatDayClock(remainingMs) : formatCountdownClock(totalHours, minutes, seconds);
+  const elapsed = remainingMs <= 0;
+
+  return {
+    hours: totalHours,
+    minutes,
+    seconds,
+    clock,
+    headline: elapsed ? "Countdown finished" : `${clock} left`,
+    detail: window.label || (useDays ? "Provisioning window" : "Provisioning window"),
+  };
+}
+
+export function provisioningCountdownCopy(order: CountdownSource, now = Date.now()): ProvisioningCountdownCopy {
+  const windowCopy = order.provisioning?.countdown ? copyFromWindow(order.provisioning.countdown, now) : null;
+  if (windowCopy) return windowCopy;
+
   const startedAt = orderProvisioningStartedAt(order);
   if (startedAt == null) {
     const clock = formatCountdownClock(PROVISIONING_MAX_HOURS, 0, 0);
@@ -101,8 +168,8 @@ export function provisioningCountdownCopy(
       minutes: 0,
       seconds: 0,
       clock,
-      headline: `${clock} left`,
-      detail: "Past 48 hours (2 days)",
+      headline: "Countdown finished",
+      detail: "48-hour provisioning window",
     };
   }
 
@@ -112,7 +179,7 @@ export function provisioningCountdownCopy(
     seconds,
     clock,
     headline: `${clock} left`,
-    detail: "24–48 hours (2 days)",
+    detail: "48-hour provisioning window",
   };
 }
 

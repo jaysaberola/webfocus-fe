@@ -467,6 +467,20 @@ export default function OrderInfoPanel({
         </div>
       </div>
 
+      {order.status === "Provisioning" && (order.provisioning?.tasks?.length ?? 0) > 0 ? (
+        <div className={styles.orderInfoSection}>
+          <h3 className={styles.orderInfoSectionTitle}>Provisioning progress</h3>
+          <ul className={styles.provisionTaskList}>
+            {order.provisioning?.tasks?.map((task) => (
+              <li key={task.id}>
+                <strong>{task.serviceName}</strong>
+                <em className={task.status === "Completed" ? styles.provisionTaskDone : undefined}>{task.status}</em>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {canCustomize ? (
         <div className={styles.orderInfoSection}>
           <h3 className={styles.orderInfoSectionTitle}>Items</h3>

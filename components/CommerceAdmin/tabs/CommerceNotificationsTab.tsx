@@ -33,6 +33,7 @@ const KIND_LABEL: Record<string, string> = {
   support_ticket: "Support",
   web_design_quotation: "Quotations",
   order: "Orders",
+  provisioning_action: "Provisioning",
   broadcast: "Advisory",
   general: "Advisory",
 };
@@ -44,6 +45,7 @@ const KIND_FILTERS = [
   { value: "support_ticket", label: "Support" },
   { value: "web_design_quotation", label: "Quotations" },
   { value: "order", label: "Orders" },
+  { value: "provisioning_action", label: "Provisioning" },
   { value: "general", label: "Advisory" },
 ];
 
@@ -142,6 +144,7 @@ function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
 
 function alertActionLabel(row: CommerceNotificationAdminRow) {
   if (row.actionLabel) return row.actionLabel;
+  if (row.kind === "provisioning_action") return "Open Provisioning";
   const tab = alertActionTab(row);
   if (tab === "approvals") return "Open Approvals";
   if (tab === "helpdesk") return "Open Helpdesk";

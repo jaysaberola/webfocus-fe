@@ -56,6 +56,25 @@ export type PortalOrder = {
   gateway: string;
   paymentDate?: string | null;
   approvedAt?: string | null;
+  provisioning?: {
+    status: string;
+    timeline: string;
+    countdown?: {
+      started?: boolean;
+      startedAt?: string | null;
+      endsAt?: string | null;
+      durationHours?: number | null;
+      durationDays?: number | null;
+      startedBy?: string | null;
+      label?: string | null;
+    } | null;
+    tasks?: Array<{
+      id: number;
+      serviceName: string;
+      status: string;
+      doneAt?: string | null;
+    }>;
+  } | null;
   paymentMode?: string | null;
   canCheckout?: boolean;
   canCancel?: boolean;
