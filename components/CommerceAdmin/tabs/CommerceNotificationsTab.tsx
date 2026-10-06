@@ -703,6 +703,112 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   );
 }
 
+function detailValue(details: CommerceNotificationAdminRow["details"], label: string) {
+  return String(details?.find((row) => row.label === label)?.value || "").trim();
+}
+
+function splitQuoteLine(value: string) {
+  const parts = value.split(/\s+[—–-]\s+/);
+  if (parts.length < 2) return { name: value, price: "" };
+  return { name: parts.slice(0, -1).join(" — "), price: parts[parts.length - 1] };
+}
+
+function QuotationNotice({
+  item,
+  details,
+}: {
+  item: CommerceNotificationAdminRow;
+  details: NonNullable<CommerceNotificationAdminRow["details"]>;
+}) {
+  const client = detailValue(details, "Client");
+  const email = detailValue(details, "Email");
+  const orderNo = detailValue(details, "Order No");
+  const amount = detailValue(details, "Amount");
+  const status = detailValue(details, "Status") || item.status || "";
+  const submitted = detailValue(details, "Submitted");
+  const notes = detailValue(details, "Notes");
+  const reply = detailValue(details, "Sales reply");
+  const lines = details.filter((row) => row.label === "Items" || row.label === "Included service");
+  const statusClass = /await|pending|review/i.test(status)
+    ? styles.badgePending
+    : /sign|complete|paid|active/i.test(status)
+      ? styles.badgePaid
+      : styles.badgeProvisioning;
+
+  return (
+    <div className={styles.quoteNotice}>
+      <div className={styles.quoteNoticeHead}>
+        <div>
+          <p className={styles.quoteNoticeKicker}>Quotation</p>
+          <h2>{item.title}</h2>
+          <p>
+            {client || "The client"}
+            {orderNo ? ` · ${orderNo}` : ""} has a saved quotation amount.
+          </p>
+        </div>
+        <div className={styles.quoteNoticeTotal}>
+          <span>Grand total</span>
+          <strong>{amount || "—"}</strong>
+          {status ? <em className={statusClass}>{status}</em> : null}
+        </div>
+      </div>
+
+      <dl className={styles.quoteNoticeMeta}>
+        <div>
+          <dt>Client</dt>
+          <dd>{client || "—"}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{email || "—"}</dd>
+        </div>
+        <div>
+          <dt>Order</dt>
+          <dd>{orderNo || "—"}</dd>
+        </div>
+        <div>
+          <dt>Submitted</dt>
+          <dd>{submitted || "—"}</dd>
+        </div>
+      </dl>
+
+      {lines.length > 0 ? (
+        <section className={styles.quoteNoticeLines}>
+          <h3>Services</h3>
+          <ul>
+            {lines.map((row, index) => {
+              const line = splitQuoteLine(String(row.value || ""));
+              return (
+                <li key={`${row.label}-${index}`}>
+                  <span>{line.name}</span>
+                  {line.price ? <strong>{line.price}</strong> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {notes || reply ? (
+        <div className={styles.quoteNoticeNotes}>
+          {notes ? (
+            <p>
+              <span>Notes</span>
+              {notes}
+            </p>
+          ) : null}
+          {reply ? (
+            <p>
+              <span>Sales reply</span>
+              {reply}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function InboxMessageView({
   item,
   busy = false,
@@ -729,6 +835,7 @@ function InboxMessageView({
   const quotationDeal = quotationDealId(item) != null;
   const quotationActions = item.quotationActions ?? null;
   const showQuotationActions = quotationDeal && Boolean(onOpenQuotation);
+  const quotation = item.kind === "web_design_quotation";
 
   return (
     <article className={styles.inboxMessage}>
@@ -745,20 +852,26 @@ function InboxMessageView({
           <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
         </div>
 
-        <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
-        <p className={styles.inboxMessageGreeting}>Hello,</p>
-        {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
+        {quotation ? (
+          <QuotationNotice item={item} details={details} />
+        ) : (
+          <>
+            <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
+            <p className={styles.inboxMessageGreeting}>Hello,</p>
+            {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
 
-        {details.length > 0 ? (
-          <dl className={styles.inboxMessageDetails}>
-            {details.map((row, index) => (
-              <div key={`${row.label}-${index}`} className={styles.inboxMessageDetail}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
+            {details.length > 0 ? (
+              <dl className={styles.inboxMessageDetails}>
+                {details.map((row, index) => (
+                  <div key={`${row.label}-${index}`} className={styles.inboxMessageDetail}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+          </>
+        )}
 
         {attachments.length > 0 ? (
           <div className={styles.inboxAttachments}>
@@ -836,7 +949,7 @@ function InboxMessageView({
               ) : null}
               <button
                 type="button"
-                className={styles.secondaryBtnSm}
+                className={quotation ? styles.primaryBtnSm : styles.secondaryBtnSm}
                 onClick={() => onOpenQuotation?.("view")}
               >
                 {alertActionLabel(item)}
