@@ -23,6 +23,10 @@
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
   overflow: hidden;
   animation: agreementDialogIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: #334155;
 }
 
 @keyframes agreementOverlayIn {
@@ -62,24 +66,22 @@
   margin: 0 0 0.4rem;
   color: #2563eb;
   font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .title {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(1.25rem, 2.4vw, 1.5rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .subtitle {
   margin: 0.5rem 0 0;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
   line-height: 1.5;
 }
 
@@ -119,22 +121,23 @@
 
 .sectionNumber {
   color: #2563eb;
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .sectionTitle {
   margin: 0;
   color: #0f172a;
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .sectionText {
   margin: 0 0 0.65rem;
   color: #475569;
-  font-size: 0.875rem;
-  line-height: 1.7;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 .sectionText:last-child {
@@ -151,9 +154,9 @@
 .summaryLead {
   margin: 0 0 0.85rem;
   color: #0f172a;
-  font-size: 0.9375rem;
-  font-weight: 700;
-  line-height: 1.45;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
 }
 
 .summaryBlock {
@@ -177,16 +180,14 @@
 .summaryBlockTitle {
   margin: 0;
   color: #334155;
-  font-size: 0.8125rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.6875rem;
+  font-weight: 700;
 }
 
 .summaryBlockPrice {
   color: #0f172a;
-  font-size: 0.9375rem;
-  font-weight: 800;
+  font-size: 0.8125rem;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -277,9 +278,9 @@
 
 .checkboxLabel {
   color: #334155;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-weight: 500;
 }
 
 .scrollHint {
@@ -292,7 +293,7 @@
   margin: 0.75rem 0 0;
   color: #059669;
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .footer {
@@ -305,14 +306,14 @@
 
 .continueBtn {
   min-width: 210px;
-  min-height: 2.85rem;
+  min-height: 2.125rem;
   border: 0;
   border-radius: 0.5rem;
   background: #bfdbfe;
   color: #ffffff;
-  font-size: 0.875rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
   cursor: not-allowed;
 }
 
@@ -345,17 +346,17 @@
 
   .kicker {
     margin-bottom: 0.2rem;
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
   }
 
   .title {
-    font-size: 1rem;
+    font-size: 1.125rem;
   }
 
   .subtitle {
     margin-top: 0.25rem;
-    font-size: 0.72rem;
-    line-height: 1.4;
+    font-size: 0.8125rem;
+    line-height: 1.5;
   }
 
   .closeBtn {
@@ -377,12 +378,12 @@
 
   .sectionNumber,
   .sectionTitle {
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
   }
 
   .sectionText {
     margin-bottom: 0.4rem;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.5;
   }
 
@@ -392,7 +393,7 @@
 
   .summaryLead {
     margin-bottom: 0.55rem;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
   }
 
   .summaryBlock {
@@ -419,14 +420,14 @@
   }
 
   .checkboxLabel {
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: 0.8125rem;
+    line-height: 1.5;
   }
 
   .scrollHint,
   .scrollHintReady {
     margin-top: 0.5rem;
-    font-size: 0.72rem;
+    font-size: 0.8125rem;
   }
 
   .footer {

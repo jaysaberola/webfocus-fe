@@ -1167,12 +1167,21 @@
 }
 
 .proofPopup {
+  --cp-text-base: 0.875rem;
+  --cp-text-sm: 0.8125rem;
+  --cp-text-xs: 0.75rem;
+  --cp-text-label: 0.6875rem;
+  --cp-text-title: 1.125rem;
+  --cp-control-height: 2.125rem;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1 1 auto;
   padding: 1.5rem 1.35rem 1.25rem;
   text-align: center;
+  font-family: inherit;
+  font-size: var(--cp-text-sm);
+  line-height: 1.5;
 }
 
 .proofPopupScroll {
@@ -1213,15 +1222,16 @@
 
 .proofPopupTitle {
   margin: 0 0 0.5rem;
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: var(--cp-text-title);
+  font-weight: 600;
   color: #0f172a;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .proofPopupLead {
   margin: 0 0 1rem;
-  font-size: 0.875rem;
+  font-size: var(--cp-text-sm);
+  font-weight: 400;
   line-height: 1.5;
   color: #334155;
 }
@@ -1244,8 +1254,9 @@
   border-radius: 0.85rem;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  font-size: 0.8125rem;
-  line-height: 1.45;
+  font-size: var(--cp-text-sm);
+  font-weight: 400;
+  line-height: 1.5;
   color: #1e293b;
 }
 
@@ -1256,8 +1267,8 @@
   border-radius: 999px;
   background: #2563eb;
   color: #fff;
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--cp-text-xs);
+  font-weight: 600;
   display: grid;
   place-items: center;
   margin-top: 0.05rem;
@@ -1265,8 +1276,9 @@
 
 .proofPopupNote {
   margin: 0 0 1rem;
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: var(--cp-text-sm);
+  font-weight: 400;
+  line-height: 1.5;
   color: #b45309;
   background: #fffbeb;
   border: 1px solid #fde68a;
@@ -1298,8 +1310,9 @@
   border-radius: 0.85rem;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: var(--cp-text-sm);
+  font-weight: 400;
+  line-height: 1.5;
   color: #1e3a8a;
   text-align: left;
 }
@@ -1326,9 +1339,9 @@
   border: 1px solid #fdba74;
   background: #fff7ed;
   border-radius: 0.85rem;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  font-weight: 700;
+  font-size: var(--cp-text-sm);
+  line-height: 1.5;
+  font-weight: 600;
   color: #9a3412;
   cursor: pointer;
 }
@@ -1352,11 +1365,11 @@
 .proofPopupPrimary,
 .proofPopupSecondary {
   width: 100%;
-  min-height: 2.75rem;
+  min-height: var(--cp-control-height);
   border-radius: 0.75rem;
   font: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1418,13 +1431,13 @@
 
   .proofPopupTitle {
     margin-bottom: 0.3rem;
-    font-size: 0.98rem;
+    font-size: var(--cp-text-title);
   }
 
   .proofPopupLead {
     margin-bottom: 0.65rem;
-    font-size: 0.75rem;
-    line-height: 1.4;
+    font-size: var(--cp-text-sm);
+    line-height: 1.5;
   }
 
   .proofPopupSteps {
@@ -1436,22 +1449,22 @@
     gap: 0.5rem;
     padding: 0.5rem 0.55rem;
     border-radius: 0.6rem;
-    font-size: 0.72rem;
-    line-height: 1.4;
+    font-size: var(--cp-text-sm);
+    line-height: 1.5;
   }
 
   .proofPopupStepNum {
     width: 1.15rem;
     height: 1.15rem;
-    font-size: 0.65rem;
+    font-size: var(--cp-text-xs);
   }
 
   .proofPopupNote {
     margin-bottom: 0;
     padding: 0.5rem 0.6rem;
     border-radius: 0.55rem;
-    font-size: 0.68rem;
-    line-height: 1.4;
+    font-size: var(--cp-text-sm);
+    line-height: 1.5;
   }
 
   .proofPopupNote strong {
@@ -1467,13 +1480,13 @@
     margin-bottom: 0.65rem;
     padding: 0.5rem 0.6rem;
     border-radius: 0.55rem;
-    font-size: 0.68rem;
+    font-size: var(--cp-text-sm);
   }
 
   .proofPopupAck {
     padding: 0.55rem 0.6rem;
     border-radius: 0.6rem;
-    font-size: 0.72rem;
+    font-size: var(--cp-text-sm);
   }
 
   .proofPopupActions {
@@ -1486,7 +1499,7 @@
   .proofPopupSecondary {
     min-height: 2.3rem;
     border-radius: 0.6rem;
-    font-size: 0.8125rem;
+    font-size: var(--cp-text-sm);
   }
 }
 
