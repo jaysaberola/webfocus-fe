@@ -809,6 +809,113 @@ function QuotationNotice({
   );
 }
 
+function ReceiptNotice({
+  item,
+  details,
+  attachments,
+}: {
+  item: CommerceNotificationAdminRow;
+  details: NonNullable<CommerceNotificationAdminRow["details"]>;
+  attachments: CommerceNotificationAttachment[];
+}) {
+  const client = detailValue(details, "Client");
+  const email = detailValue(details, "Email");
+  const invoice = detailValue(details, "Invoice");
+  const proofNo = detailValue(details, "Proof No");
+  const amount = detailValue(details, "Amount");
+  const service = detailValue(details, "Service");
+  const plan = detailValue(details, "Plan");
+  const invoiceStatus = detailValue(details, "Invoice Status");
+  const proofStatus = detailValue(details, "Proof Status") || item.status || "";
+  const submitted = detailValue(details, "Submitted");
+  const notes = detailValue(details, "Notes");
+  const statusClass = /verified|credited|paid/i.test(proofStatus)
+    ? styles.badgePaid
+    : /pending|review|await/i.test(proofStatus)
+      ? styles.badgePending
+      : styles.badgeProvisioning;
+  const intro = String(item.intro || item.desc || "").trim();
+
+  return (
+    <div className={styles.quoteNotice}>
+      <div className={styles.quoteNoticeHead}>
+        <div>
+          <p className={styles.quoteNoticeKicker}>Payment receipt</p>
+          <h2>{item.title}</h2>
+          {intro ? <p>{intro}</p> : null}
+        </div>
+        <div className={styles.quoteNoticeTotal}>
+          <span>Amount</span>
+          <strong>{amount || "—"}</strong>
+          {proofStatus ? <em className={statusClass}>{proofStatus}</em> : null}
+        </div>
+      </div>
+
+      <dl className={styles.quoteNoticeMeta}>
+        <div>
+          <dt>Client</dt>
+          <dd>{client || "—"}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{email || "—"}</dd>
+        </div>
+        <div>
+          <dt>Invoice</dt>
+          <dd>{invoice || "—"}</dd>
+        </div>
+        <div>
+          <dt>Proof No</dt>
+          <dd>{proofNo || "—"}</dd>
+        </div>
+        <div>
+          <dt>Invoice status</dt>
+          <dd>{invoiceStatus || "—"}</dd>
+        </div>
+        <div>
+          <dt>Submitted</dt>
+          <dd>{submitted || "—"}</dd>
+        </div>
+        <div>
+          <dt>Service</dt>
+          <dd>{service || "—"}</dd>
+        </div>
+        <div>
+          <dt>Plan</dt>
+          <dd>{plan || "—"}</dd>
+        </div>
+      </dl>
+
+      {notes ? (
+        <div className={styles.quoteNoticeNotes}>
+          <p>
+            <span>Notes</span>
+            {notes}
+          </p>
+        </div>
+      ) : null}
+
+      {attachments.length > 0 ? (
+        <div className={styles.quoteNoticeFiles}>
+          <h3>{attachments.length === 1 ? "Attachment" : "Attachments"}</h3>
+          <div>
+            {attachments.map((attachment) => {
+              const url = attachmentUrl(attachment);
+              const image = isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
+              return (
+                <a key={`${attachment.name}-${url}`} href={url} target="_blank" rel="noreferrer">
+                  {image ? <img src={url} alt={attachment.name} /> : <i className="fa-regular fa-file" aria-hidden="true" />}
+                  <span>{attachment.name}</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function InboxMessageView({
   item,
   busy = false,
@@ -836,6 +943,7 @@ function InboxMessageView({
   const quotationActions = item.quotationActions ?? null;
   const showQuotationActions = quotationDeal && Boolean(onOpenQuotation);
   const quotation = item.kind === "web_design_quotation";
+  const receipt = item.kind === "payment_proof";
 
   return (
     <article className={styles.inboxMessage}>
@@ -854,6 +962,8 @@ function InboxMessageView({
 
         {quotation ? (
           <QuotationNotice item={item} details={details} />
+        ) : receipt ? (
+          <ReceiptNotice item={item} details={details} attachments={attachments} />
         ) : (
           <>
             <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
@@ -873,7 +983,7 @@ function InboxMessageView({
           </>
         )}
 
-        {attachments.length > 0 ? (
+        {attachments.length > 0 && !receipt ? (
           <div className={styles.inboxAttachments}>
             <p>
               {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
@@ -956,7 +1066,7 @@ function InboxMessageView({
               </button>
             </>
           ) : (
-            <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
+            <button type="button" className={receipt ? styles.primaryBtnSm : styles.secondaryBtnSm} onClick={onOpenRelated}>
               {alertActionLabel(item)}
             </button>
           )}
