@@ -666,7 +666,6 @@ function ActiveCountdown({ endsAt }: { endsAt: string }) {
     <div className={styles.quoteNoticeTotal}>
       <span>Active in</span>
       <strong className={styles.quoteNoticeClock}>{formatActiveCountdown(remaining)}</strong>
-      <em className={styles.badgeGreen}>Active</em>
     </div>
   );
 }
