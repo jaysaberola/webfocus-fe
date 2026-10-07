@@ -10,8 +10,6 @@ import {
   uploadPortalSignedProposal,
 } from "@/services/customerPortalService";
 import type { PortalNotification, PortalNotificationAttachment } from "@/lib/customerPortal/types";
-import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
-import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import {
   getWebsiteSettingsCached,
@@ -112,7 +110,6 @@ function actionLabel(item: PortalNotification) {
 
 export default function NotificationsTab() {
   const router = useRouter();
-  const { customer } = useCustomerPortalAuth();
   const [notifications, setNotifications] = useState<PortalNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -123,8 +120,6 @@ export default function NotificationsTab() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [openedId, setOpenedId] = useState<number | null>(null);
-
-  const greetingName = customerDisplayName(customer?.fname, customer?.lname);
 
   const loadNotifications = () =>
     fetchPortalNotifications()
@@ -473,7 +468,6 @@ export default function NotificationsTab() {
         {opened ? (
           <InboxMessageView
             item={opened}
-            greetingName={greetingName}
             onOpenRelated={() => openRelated(opened)}
             onProposalUploaded={() => loadNotifications()}
           />
@@ -609,14 +603,151 @@ function WebFocusInboxAvatar() {
   );
 }
 
+function detailValue(details: PortalNotification["details"], label: string) {
+  return String(details?.find((row) => row.label === label)?.value || "").trim();
+}
+
+function splitQuoteLine(value: string) {
+  const parts = value.split(/\s+[—–-]\s+/);
+  if (parts.length < 2) return { name: value, price: "" };
+  return { name: parts.slice(0, -1).join(" — "), price: parts[parts.length - 1] };
+}
+
+function noticeStatusClass(status: string) {
+  if (/verified|credited|paid|active|signed|complete/i.test(status)) return styles.badgeGreen;
+  if (/pending|review|await|unpaid/i.test(status)) return styles.badgeAmber;
+  if (/declin|reject|cancel|expired|fail/i.test(status)) return styles.badgeRed;
+  return styles.badgeBlue;
+}
+
+function isReadState(value: string) {
+  return /^(read|unread)$/i.test(value.trim());
+}
+
+function formatNoticeStatus(value: string) {
+  const text = value.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!text) return "";
+  return text.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+const NOTE_LABELS = new Set(["Notes", "Sales reply", "Message", "Summary", "Details"]);
+const LINE_LABELS = new Set(["Items", "Included service"]);
+const STATUS_LABELS = ["Proof Status", "Payment Status", "Status", "Order Status"];
+
+function CustomerNotice({
+  item,
+  details,
+  attachments,
+}: {
+  item: PortalNotification;
+  details: NonNullable<PortalNotification["details"]>;
+  attachments: PortalNotificationAttachment[];
+}) {
+  const intro = String(item.intro || item.desc || "").trim();
+  const amount = detailValue(details, "Amount");
+  const statusLabel =
+    STATUS_LABELS.find((label) => {
+      const value = detailValue(details, label);
+      return value !== "" && !isReadState(value);
+    }) || "";
+  const status = statusLabel ? detailValue(details, statusLabel) : "";
+  const lines = details.filter((row) => LINE_LABELS.has(row.label));
+  const notes = details.filter((row) => {
+    if (!NOTE_LABELS.has(row.label)) return false;
+    const value = String(row.value || "").trim();
+    return value !== "" && value !== intro;
+  });
+  const meta = details.filter((row) => {
+    if (row.label === "Amount" || row.label === statusLabel) return false;
+    if (STATUS_LABELS.includes(row.label) && isReadState(String(row.value || ""))) return false;
+    if (LINE_LABELS.has(row.label) || NOTE_LABELS.has(row.label)) return false;
+    return true;
+  });
+
+  return (
+    <div className={styles.quoteNotice}>
+      <div className={styles.quoteNoticeHead}>
+        <div>
+          <p className={styles.quoteNoticeKicker}>{senderLabel(item)}</p>
+          <h2>{item.title}</h2>
+          {intro ? <p>{intro}</p> : null}
+        </div>
+        {amount || status ? (
+          <div className={styles.quoteNoticeTotal}>
+            <span>{amount ? "Amount" : "Status"}</span>
+            <strong>{amount || formatNoticeStatus(status)}</strong>
+            {amount && status ? <em className={noticeStatusClass(status)}>{formatNoticeStatus(status)}</em> : null}
+          </div>
+        ) : null}
+      </div>
+
+      {meta.length > 0 ? (
+        <dl className={styles.quoteNoticeMeta}>
+          {meta.map((row, index) => (
+            <div key={`${row.label}-${index}`}>
+              <dt>{row.label}</dt>
+              <dd>{/status/i.test(row.label) ? formatNoticeStatus(row.value) : row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {lines.length > 0 ? (
+        <section className={styles.quoteNoticeLines}>
+          <h3>Services</h3>
+          <ul>
+            {lines.map((row, index) => {
+              const line = splitQuoteLine(String(row.value || ""));
+              return (
+                <li key={`${row.label}-${index}`}>
+                  <span>{line.name}</span>
+                  {line.price ? <strong>{line.price}</strong> : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {notes.length > 0 ? (
+        <div className={styles.quoteNoticeNotes}>
+          {notes.map((row, index) => (
+            <p key={`${row.label}-${index}`}>
+              <span>{row.label}</span>
+              {row.value}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
+      {attachments.length > 0 ? (
+        <div className={styles.quoteNoticeFiles}>
+          <h3>{attachments.length === 1 ? "Attachment" : "Attachments"}</h3>
+          <div>
+            {attachments.map((attachment) => {
+              const url = attachmentUrl(attachment);
+              const image =
+                isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
+              return (
+                <a key={`${attachment.name}-${url}`} href={url} target="_blank" rel="noreferrer">
+                  {image ? <img src={url} alt={attachment.name} /> : <i className="fa-regular fa-file" aria-hidden="true" />}
+                  <span>{attachment.name}</span>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function InboxMessageView({
   item,
-  greetingName,
   onOpenRelated,
   onProposalUploaded,
 }: {
   item: PortalNotification;
-  greetingName?: string;
   onOpenRelated: () => void;
   onProposalUploaded: () => Promise<void> | void;
 }) {
@@ -624,8 +755,6 @@ function InboxMessageView({
   const fromEmail = item.fromEmail || "";
   const attachments = item.attachments ?? [];
   const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
-  const intro = String(item.intro || item.desc || "").trim();
-  const helloName = String(greetingName || "").trim();
   const proposalSign = item.proposalSign;
   const [uploadingSigned, setUploadingSigned] = useState(false);
 
@@ -656,56 +785,7 @@ function InboxMessageView({
           <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
         </div>
 
-        <h2 className={styles.inboxMessageSubject}>{item.title}</h2>
-        <p className={styles.inboxMessageGreeting}>
-          {helloName ? `Hello, ${helloName},` : "Hello,"}
-        </p>
-        {intro ? <p className={styles.inboxMessageIntro}>{intro}</p> : null}
-
-        {details.length > 0 ? (
-          <dl className={styles.inboxMessageDetails}>
-            {details.map((row, index) => (
-              <div key={`${row.label}-${index}`} className={styles.inboxMessageDetail}>
-                <dt>{row.label}</dt>
-                <dd>{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : null}
-
-        {attachments.length > 0 ? (
-          <div className={styles.inboxAttachments}>
-            <p>
-              {attachments.length} {attachments.length === 1 ? "Attachment" : "Attachments"}
-            </p>
-            <div className={styles.inboxAttachmentGrid}>
-              {attachments.map((attachment) => {
-                const url = attachmentUrl(attachment);
-                const image =
-                  isImageAttachment(attachment) || !/\.[a-z0-9]+$/i.test(String(attachment.name || ""));
-
-                return (
-                  <a
-                    key={`${attachment.name}-${url}`}
-                    href={url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={styles.inboxAttachment}
-                  >
-                    {image ? (
-                      <img src={url} alt={attachment.name} />
-                    ) : (
-                      <span className={styles.inboxAttachmentFile}>
-                        <i className="fa-regular fa-file" aria-hidden="true" />
-                      </span>
-                    )}
-                    <span className={styles.inboxAttachmentName}>{attachment.name}</span>
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+        <CustomerNotice item={item} details={details} attachments={attachments} />
 
         {item.actionUrl || proposalSign?.canUpload ? (
           <div className={styles.inboxMessageActions}>
@@ -730,7 +810,7 @@ function InboxMessageView({
               </label>
             ) : null}
             {item.actionUrl ? (
-              <button type="button" className={styles.secondaryBtnSm} onClick={onOpenRelated}>
+              <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
                 {actionLabel(item)}
               </button>
             ) : null}

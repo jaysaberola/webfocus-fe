@@ -713,6 +713,12 @@ function splitQuoteLine(value: string) {
   return { name: parts.slice(0, -1).join(" — "), price: parts[parts.length - 1] };
 }
 
+function formatNoticeStatus(value: string) {
+  const text = value.trim().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  if (!text) return "";
+  return text.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function QuotationNotice({
   item,
   details,
@@ -749,7 +755,7 @@ function QuotationNotice({
         <div className={styles.quoteNoticeTotal}>
           <span>Grand total</span>
           <strong>{amount || "—"}</strong>
-          {status ? <em className={statusClass}>{status}</em> : null}
+          {status ? <em className={statusClass}>{formatNoticeStatus(status)}</em> : null}
         </div>
       </div>
 
@@ -847,7 +853,7 @@ function ReceiptNotice({
         <div className={styles.quoteNoticeTotal}>
           <span>Amount</span>
           <strong>{amount || "—"}</strong>
-          {proofStatus ? <em className={statusClass}>{proofStatus}</em> : null}
+          {proofStatus ? <em className={statusClass}>{formatNoticeStatus(proofStatus)}</em> : null}
         </div>
       </div>
 
@@ -870,7 +876,7 @@ function ReceiptNotice({
         </div>
         <div>
           <dt>Invoice status</dt>
-          <dd>{invoiceStatus || "—"}</dd>
+          <dd>{invoiceStatus ? formatNoticeStatus(invoiceStatus) : "—"}</dd>
         </div>
         <div>
           <dt>Submitted</dt>
