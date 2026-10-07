@@ -172,7 +172,7 @@ export type PortalServiceStatus = {
   renewLabel: "Renews" | "Renewal Schedule";
   renewDate?: string;
   renewNote: string;
-  status: "Active" | "Active Live" | "Provisioning" | "Pending Request" | "Awaiting Approval" | "Expired";
+  status: "Active" | "Active Live" | "Provisioning" | "Pending Request" | "Pending Payment" | "Awaiting Approval" | "Expired";
 };
 
 export type PortalOverviewAlert = {

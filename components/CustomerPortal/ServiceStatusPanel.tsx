@@ -10,7 +10,7 @@ type FilterValue = (typeof PORTAL_SERVICE_FILTERS)[number];
 function serviceStatusClass(status: PortalServiceStatus["status"]) {
   if (status === "Active" || status === "Active Live") return styles.serviceBadgeActive;
   if (status === "Expired") return styles.serviceBadgeExpired;
-  if (status === "Pending Request" || status === "Awaiting Approval") return styles.serviceBadgePending;
+  if (status === "Pending Request" || status === "Pending Payment" || status === "Awaiting Approval") return styles.serviceBadgePending;
   return styles.serviceBadgeProvisioning;
 }
 
