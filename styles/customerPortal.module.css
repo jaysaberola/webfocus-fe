@@ -2577,6 +2577,11 @@
   font-weight: 600;
 }
 
+.quoteNoticeClock {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .quoteNoticeTotal em {
   margin-top: 0.2rem;
   font-style: normal;

@@ -634,6 +634,43 @@ const NOTE_LABELS = new Set(["Notes", "Sales reply", "Message", "Summary", "Deta
 const LINE_LABELS = new Set(["Items", "Included service"]);
 const STATUS_LABELS = ["Proof Status", "Payment Status", "Status", "Order Status"];
 
+function formatActiveCountdown(remainingMs: number) {
+  const totalHours = Math.floor(remainingMs / 36e5);
+  const minutes = Math.floor((remainingMs % 36e5) / 6e4);
+  const seconds = Math.floor((remainingMs % 6e4) / 1000);
+  return `${totalHours}h ${String(minutes).padStart(2, "0")}m ${String(seconds).padStart(2, "0")}s`;
+}
+
+function ActiveCountdown({ endsAt }: { endsAt: string }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const end = Date.parse(endsAt);
+  if (!Number.isFinite(end)) return null;
+  const remaining = Math.max(0, end - now);
+
+  if (remaining <= 0) {
+    return (
+      <div className={styles.quoteNoticeTotal}>
+        <span>Status</span>
+        <strong>Active</strong>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.quoteNoticeTotal}>
+      <span>Active in</span>
+      <strong className={styles.quoteNoticeClock}>{formatActiveCountdown(remaining)}</strong>
+      <em className={styles.badgeGreen}>Active</em>
+    </div>
+  );
+}
+
 function CustomerNotice({
   item,
   details,
@@ -646,6 +683,7 @@ function CustomerNotice({
   const intro = String(item.intro || item.desc || "").trim();
   const amount = detailValue(details, "Amount");
   const checkpoint = detailValue(details, "Checkpoint");
+  const checkpointEnds = detailValue(details, "Checkpoint ends");
   const nextStatus = detailValue(details, "Next status");
   const statusLabel =
     STATUS_LABELS.find((label) => {
@@ -659,10 +697,11 @@ function CustomerNotice({
     const value = String(row.value || "").trim();
     return value !== "" && value !== intro;
   });
-  const showCheckpoint = checkpoint !== "" && amount === "";
+  const showCountdown = checkpointEnds !== "" && amount === "";
+  const showCheckpoint = !showCountdown && checkpoint !== "" && amount === "";
   const meta = details.filter((row) => {
-    if (row.label === "Amount" || row.label === statusLabel) return false;
-    if (showCheckpoint && (row.label === "Checkpoint" || row.label === "Next status")) return false;
+    if (row.label === "Amount" || row.label === statusLabel || row.label === "Checkpoint ends") return false;
+    if ((showCheckpoint || showCountdown) && (row.label === "Checkpoint" || row.label === "Next status")) return false;
     if (STATUS_LABELS.includes(row.label) && isReadState(String(row.value || ""))) return false;
     if (LINE_LABELS.has(row.label) || NOTE_LABELS.has(row.label)) return false;
     return true;
@@ -676,7 +715,9 @@ function CustomerNotice({
           <h2>{item.title}</h2>
           {intro ? <p>{intro}</p> : null}
         </div>
-        {amount || showCheckpoint || status ? (
+        {showCountdown ? (
+          <ActiveCountdown endsAt={checkpointEnds} />
+        ) : amount || showCheckpoint || status ? (
           <div className={styles.quoteNoticeTotal}>
             <span>{amount ? "Amount" : showCheckpoint ? "Checkpoint" : "Status"}</span>
             <strong>{amount || (showCheckpoint ? checkpoint : formatNoticeStatus(status))}</strong>
