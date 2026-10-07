@@ -645,6 +645,8 @@ function CustomerNotice({
 }) {
   const intro = String(item.intro || item.desc || "").trim();
   const amount = detailValue(details, "Amount");
+  const checkpoint = detailValue(details, "Checkpoint");
+  const nextStatus = detailValue(details, "Next status");
   const statusLabel =
     STATUS_LABELS.find((label) => {
       const value = detailValue(details, label);
@@ -657,8 +659,10 @@ function CustomerNotice({
     const value = String(row.value || "").trim();
     return value !== "" && value !== intro;
   });
+  const showCheckpoint = checkpoint !== "" && amount === "";
   const meta = details.filter((row) => {
     if (row.label === "Amount" || row.label === statusLabel) return false;
+    if (showCheckpoint && (row.label === "Checkpoint" || row.label === "Next status")) return false;
     if (STATUS_LABELS.includes(row.label) && isReadState(String(row.value || ""))) return false;
     if (LINE_LABELS.has(row.label) || NOTE_LABELS.has(row.label)) return false;
     return true;
@@ -672,11 +676,14 @@ function CustomerNotice({
           <h2>{item.title}</h2>
           {intro ? <p>{intro}</p> : null}
         </div>
-        {amount || status ? (
+        {amount || showCheckpoint || status ? (
           <div className={styles.quoteNoticeTotal}>
-            <span>{amount ? "Amount" : "Status"}</span>
-            <strong>{amount || formatNoticeStatus(status)}</strong>
+            <span>{amount ? "Amount" : showCheckpoint ? "Checkpoint" : "Status"}</span>
+            <strong>{amount || (showCheckpoint ? checkpoint : formatNoticeStatus(status))}</strong>
             {amount && status ? <em className={noticeStatusClass(status)}>{formatNoticeStatus(status)}</em> : null}
+            {showCheckpoint && nextStatus ? (
+              <em className={noticeStatusClass(nextStatus)}>{formatNoticeStatus(nextStatus)}</em>
+            ) : null}
           </div>
         ) : null}
       </div>
