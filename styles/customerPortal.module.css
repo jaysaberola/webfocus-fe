@@ -1639,6 +1639,51 @@
   font-weight: 600;
 }
 
+.statusTipProgress {
+  min-width: 14rem;
+  max-width: 18rem;
+  text-align: left;
+  white-space: normal;
+}
+
+.statusTipList {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0 0;
+  list-style: none;
+  border-top: 1px solid rgba(248, 250, 252, 0.16);
+}
+
+.statusTipList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.statusTipList span {
+  min-width: 0;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusTipList em {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.statusTipList em.statusTipDone {
+  color: #6ee7b7;
+}
+
+.statusTipList em.statusTipWait {
+  color: #93c5fd;
+}
+
 .provisionClock {
   display: block;
   font-size: 0.72rem;
@@ -1647,41 +1692,85 @@
   font-variant-numeric: tabular-nums;
 }
 
-.provisionTaskList {
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.provisionTaskList li {
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.7rem 0.85rem;
+.provisionProgress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 1rem;
   border: 1px solid #dbeafe;
-  border-radius: 0.85rem;
+  border-radius: 0.9rem;
   background: #f8fbff;
 }
 
-.provisionTaskList strong {
-  font-size: 0.82rem;
+.provisionProgressHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
-.provisionTaskList span {
-  color: #334155;
-  font-size: 0.82rem;
-}
-
-.provisionTaskList em {
-  font-style: normal;
-  font-size: 0.72rem;
+.provisionProgressHead h3 {
+  margin: 0;
+  color: var(--cp-slate-900);
+  font-size: var(--cp-text-sm);
   font-weight: 700;
-  color: #1d4ed8;
 }
 
-.provisionTaskList em.provisionTaskDone {
-  color: #047857;
+.provisionProgressHead span {
+  color: var(--cp-slate-500);
+  font-size: var(--cp-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.provisionProgressTrack {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.provisionProgressTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #047857;
+}
+
+.provisionProgressList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  border: 1px solid var(--cp-slate-200);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.provisionProgressList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--cp-slate-200);
+}
+
+.provisionProgressList li:last-child {
+  border-bottom: 0;
+}
+
+.provisionProgressList strong {
+  min-width: 0;
+  color: var(--cp-slate-900);
+  font-size: var(--cp-text-sm);
+  font-weight: 600;
+}
+
+.provisionProgressList em {
+  flex: 0 0 auto;
+  font-style: normal;
 }
 
 .orderCards {

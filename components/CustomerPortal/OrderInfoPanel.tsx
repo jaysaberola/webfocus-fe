@@ -77,6 +77,46 @@ function ItemExtras({ extras, notes, salesNotes }: { extras?: string[]; notes?: 
   );
 }
 
+function taskSettled(status: string) {
+  return status === "Active" || status === "Completed";
+}
+
+function taskStatusClass(status: string) {
+  return taskSettled(status) ? styles.badgeGreen : styles.badgeBlue;
+}
+
+function ProvisioningProgress({
+  tasks,
+}: {
+  tasks: Array<{ id: number; serviceName: string; status: string }>;
+}) {
+  const settled = tasks.filter((task) => taskSettled(task.status)).length;
+  const total = tasks.length;
+  const percent = total === 0 ? 0 : Math.round((settled / total) * 100);
+
+  return (
+    <section className={styles.provisionProgress} aria-label="Provisioning progress">
+      <div className={styles.provisionProgressHead}>
+        <h3>Provisioning progress</h3>
+        <span>
+          {settled} of {total} complete
+        </span>
+      </div>
+      <div className={styles.provisionProgressTrack} role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100}>
+        <span style={{ width: `${percent}%` }} />
+      </div>
+      <ul className={styles.provisionProgressList}>
+        {tasks.map((task) => (
+          <li key={task.id}>
+            <strong>{task.serviceName}</strong>
+            <em className={taskStatusClass(task.status)}>{task.status}</em>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function moneyText(value: number) {
   return Number(value || 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -444,6 +484,10 @@ export default function OrderInfoPanel({
         ) : null}
       </div>
 
+      {order.status === "Provisioning" && (order.provisioning?.tasks?.length ?? 0) > 0 ? (
+        <ProvisioningProgress tasks={order.provisioning?.tasks ?? []} />
+      ) : null}
+
       <div className={styles.orderInfoSection}>
         <h3 className={styles.orderInfoSectionTitle}>Order Information</h3>
         <div className={styles.orderInfoGrid}>
@@ -466,20 +510,6 @@ export default function OrderInfoPanel({
           </label>
         </div>
       </div>
-
-      {order.status === "Provisioning" && (order.provisioning?.tasks?.length ?? 0) > 0 ? (
-        <div className={styles.orderInfoSection}>
-          <h3 className={styles.orderInfoSectionTitle}>Provisioning progress</h3>
-          <ul className={styles.provisionTaskList}>
-            {order.provisioning?.tasks?.map((task) => (
-              <li key={task.id}>
-                <strong>{task.serviceName}</strong>
-                <em className={task.status === "Completed" ? styles.provisionTaskDone : undefined}>{task.status}</em>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
 
       {canCustomize ? (
         <div className={styles.orderInfoSection}>

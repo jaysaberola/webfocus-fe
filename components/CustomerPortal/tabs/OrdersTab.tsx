@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import OrderInfoPanel from "@/components/CustomerPortal/OrderInfoPanel";
 import OrderStatusBadge from "@/components/CustomerPortal/OrderStatusBadge";
@@ -187,6 +188,94 @@ function orderSortDirection(sortBy: OrderSortKey, column: OrderColumnKey): "asc"
   if (sortBy === ORDER_SORT_ASC[column]) return "asc";
   if (sortBy === ORDER_SORT_DESC[column]) return "desc";
   return null;
+}
+
+function ServiceNameLink({
+  order,
+  onOpen,
+}: {
+  order: PortalOrder;
+  onOpen: () => void;
+}) {
+  const tasks = order.status === "Provisioning" ? order.provisioning?.tasks ?? [] : [];
+  const [open, setOpen] = useState(false);
+  const [tipPos, setTipPos] = useState({ top: 0, left: 0, place: "top" as "top" | "bottom" });
+  const wrapRef = useRef<HTMLSpanElement>(null);
+  const settled = tasks.filter((task) => task.status === "Active" || task.status === "Completed").length;
+
+  useEffect(() => {
+    if (!open || !wrapRef.current) return;
+
+    const placeTip = () => {
+      const rect = wrapRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const place = rect.top > 140 ? "top" : "bottom";
+      setTipPos({
+        top: place === "top" ? rect.top - 8 : rect.bottom + 8,
+        left: rect.left + rect.width / 2,
+        place,
+      });
+    };
+
+    placeTip();
+    window.addEventListener("scroll", placeTip, true);
+    window.addEventListener("resize", placeTip);
+    return () => {
+      window.removeEventListener("scroll", placeTip, true);
+      window.removeEventListener("resize", placeTip);
+    };
+  }, [open]);
+
+  const button = (
+    <button type="button" className={styles.tableCellLink} onClick={onOpen}>
+      {orderServiceName(order)}
+    </button>
+  );
+
+  if (tasks.length === 0) return button;
+
+  return (
+    <span
+      ref={wrapRef}
+      className={styles.statusTipWrap}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {button}
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <span
+              className={`${styles.statusTip} ${styles.statusTipProgress}`}
+              role="tooltip"
+              style={{
+                top: tipPos.top,
+                left: tipPos.left,
+                transform: tipPos.place === "top" ? "translate(-50%, -100%)" : "translate(-50%, 0)",
+              }}
+            >
+              <strong>Provisioning progress</strong>
+              <em>
+                {settled} of {tasks.length} complete
+              </em>
+              <ul className={styles.statusTipList}>
+                {tasks.map((task) => {
+                  const done = task.status === "Active" || task.status === "Completed";
+                  return (
+                    <li key={task.id}>
+                      <span>{task.serviceName}</span>
+                      <em className={done ? styles.statusTipDone : styles.statusTipWait}>{task.status}</em>
+                    </li>
+                  );
+                })}
+              </ul>
+            </span>,
+            document.body,
+          )
+        : null}
+    </span>
+  );
 }
 
 export default function OrdersTab() {
@@ -795,13 +884,7 @@ export default function OrdersTab() {
                           </button>
                         </td>
                         <td className={styles.serviceNameBold} data-label="Service Name">
-                          <button
-                            type="button"
-                            className={styles.tableCellLink}
-                            onClick={() => handleOrderAction(order, "details")}
-                          >
-                            {orderServiceName(order)}
-                          </button>
+                          <ServiceNameLink order={order} onOpen={() => handleOrderAction(order, "details")} />
                         </td>
                         <td data-label="Plan">{orderPlanLabel(order)}</td>
                         <td className={styles.monoBold} data-label="Amount">{formatPeso(portalBilledAmount(order))}</td>
