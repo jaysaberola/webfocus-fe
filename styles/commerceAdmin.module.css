@@ -8338,14 +8338,54 @@ select.clientCrmInput {
   font-weight: 700;
 }
 
-.provisionAdd label {
+.provisionAdd label,
+.provisionServiceField {
   display: grid;
   gap: 0.35rem;
+  grid-column: 1 / -1;
   margin: 0;
   min-width: 0;
   color: #334155;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.provisionServicePick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.provisionServicePick label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.4rem;
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.7rem;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.provisionServicePick label:has(input:checked) {
+  border-color: #2563eb;
+  background: #f8fbff;
+}
+
+.provisionServicePick input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #2563eb;
+  flex: 0 0 auto;
 }
 
 .provisionAdd select,
@@ -8479,6 +8519,7 @@ select.clientCrmInput {
 }
 
 .modalCardWide .provisionAdd {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0;
   padding: 0;
   border: 0;
@@ -8513,6 +8554,11 @@ select.clientCrmInput {
   .provisionReadField input {
     min-height: 2rem;
     height: 2rem;
+  }
+
+  .provisionServicePick,
+  .modalCardWide .provisionAdd {
+    grid-template-columns: 1fr;
   }
 }
 

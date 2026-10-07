@@ -63,11 +63,12 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [days, setDays] = useState(45);
-  const [addingService, setAddingService] = useState<string | null>(focusService ?? null);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "timeline">("overview");
-  const [drafts, setDrafts] = useState<Record<string, { description: string; assignedTo: string; checkpoint: string }>>({});
+  const [form, setForm] = useState({ description: "", assignedTo: "", checkpoint: "12" });
   const [pendingConfirm, setPendingConfirm] = useState<
-    { kind: "save"; serviceName: string } | { kind: "done"; actionId: number } | null
+    { kind: "save"; serviceNames: string[] } | { kind: "done"; actionId: number } | null
   >(null);
 
   useEffect(() => {
@@ -107,8 +108,20 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
     [detail, now],
   );
 
-  const draftFor = (serviceName: string, checkpoint: number) =>
-    drafts[serviceName] ?? { description: "", assignedTo: "", checkpoint: String(checkpoint) };
+  const openAssignee = () => {
+    const names = detail?.services.map((service) => service.name).filter(Boolean) ?? [];
+    const initial = focusService && names.includes(focusService) ? [focusService] : names.slice(0, 1);
+    const checkpoint = detail?.services.find((service) => service.name === initial[0])?.checkpointHours ?? 12;
+    setSelectedServices(initial);
+    setForm({ description: "", assignedTo: "", checkpoint: String(checkpoint) });
+    setAssigneeOpen(true);
+  };
+
+  const toggleService = (name: string) => {
+    setSelectedServices((current) =>
+      current.includes(name) ? current.filter((item) => item !== name) : [...current, name],
+    );
+  };
 
   const handleStart = async () => {
     try {
@@ -124,30 +137,31 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
     }
   };
 
-  const handleAdd = async (serviceName: string) => {
-    const draft = draftFor(serviceName, detail?.services.find((service) => service.name === serviceName)?.checkpointHours ?? 12);
-    if (!draft.description.trim()) {
+  const handleAdd = async (serviceNames: string[]) => {
+    if (serviceNames.length === 0) {
+      toast.error("Choose at least one service on this order.");
+      return;
+    }
+    if (!form.description.trim()) {
       toast.error("Describe the provisioning action.");
       return;
     }
     try {
       setBusy(true);
       const next = await addProvisioningAction(salesTransactionId, {
-        service_name: serviceName,
-        description: draft.description.trim(),
-        assigned_to: draft.assignedTo ? Number(draft.assignedTo) : null,
-        checkpoint_hours: Number(draft.checkpoint) === 24 ? 24 : 12,
+        service_names: serviceNames,
+        description: form.description.trim(),
+        assigned_to: form.assignedTo ? Number(form.assignedTo) : null,
+        checkpoint_hours: Number(form.checkpoint) === 24 ? 24 : 12,
       });
       setDetail(next);
-      setDrafts((current) => ({
-        ...current,
-        [serviceName]: { description: "", assignedTo: "", checkpoint: draft.checkpoint },
-      }));
-      setAddingService(null);
-      toast.success("Provisioning action added.");
+      setForm({ description: "", assignedTo: "", checkpoint: form.checkpoint });
+      setAssigneeOpen(false);
+      toast.success(serviceNames.length === 1 ? "Provisioning action added." : "Provisioning actions added.");
       onChanged?.();
     } catch (err: any) {
       const message = err?.response?.data?.errors?.description?.[0]
+        || err?.response?.data?.errors?.service_names?.[0]
         || err?.response?.data?.errors?.service_name?.[0]
         || err?.response?.data?.message
         || "Unable to add the action.";
@@ -157,13 +171,16 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
     }
   };
 
-  const requestAdd = (serviceName: string) => {
-    const draft = draftFor(serviceName, detail?.services.find((service) => service.name === serviceName)?.checkpointHours ?? 12);
-    if (!draft.description.trim()) {
+  const requestAdd = () => {
+    if (selectedServices.length === 0) {
+      toast.error("Choose at least one service on this order.");
+      return;
+    }
+    if (!form.description.trim()) {
       toast.error("Describe the provisioning action.");
       return;
     }
-    setPendingConfirm({ kind: "save", serviceName });
+    setPendingConfirm({ kind: "save", serviceNames: selectedServices });
   };
 
   const handleDone = async (actionId: number) => {
@@ -307,7 +324,7 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
                   <button
                     type="button"
                     className={styles.primaryBtnSm}
-                    onClick={() => setAddingService(focusService || detail.services[0]?.name || "")}
+                    onClick={openAssignee}
                   >
                     Assignee
                   </button>
@@ -372,40 +389,39 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
           )}
         </>
       ) : null}
-      {detail?.canManageActions && addingService ? (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={() => setAddingService(null)}>
+      {detail?.canManageActions && assigneeOpen ? (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={() => setAssigneeOpen(false)}>
           <div className={styles.modalCardWide} onClick={(event) => event.stopPropagation()} role="document">
             <div className={styles.modalHeader}>
               <div>
                 <h3 className={styles.modalTitle}>Assignee</h3>
-                <p className={styles.panelSubtitle}>Create a provisioning action for this order.</p>
+                <p className={styles.panelSubtitle}>Assign one or more services on this order to Technical Support.</p>
               </div>
-              <button type="button" className={styles.modalCloseBtn} onClick={() => setAddingService(null)} aria-label="Close">
+              <button type="button" className={styles.modalCloseBtn} onClick={() => setAssigneeOpen(false)} aria-label="Close">
                 <i className="fa-solid fa-xmark" aria-hidden="true" />
               </button>
             </div>
             <div className={styles.provisionAdd}>
-              <label>
+              <div className={styles.provisionServiceField}>
                 <span>Service</span>
-                <select value={addingService} onChange={(event) => setAddingService(event.target.value)}>
+                <div className={styles.provisionServicePick}>
                   {detail.services.map((service) => (
-                    <option key={service.name} value={service.name}>
+                    <label key={service.name}>
+                      <input
+                        type="checkbox"
+                        checked={selectedServices.includes(service.name)}
+                        onChange={() => toggleService(service.name)}
+                      />
                       {service.name}
-                    </option>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
               <label>
                 <span>Assigned to</span>
                 <select
-                  value={draftFor(addingService, 12).assignedTo}
-                  onChange={(event) => {
-                    const draft = draftFor(addingService, 12);
-                    setDrafts((current) => ({
-                      ...current,
-                      [addingService]: { ...draft, assignedTo: event.target.value },
-                    }));
-                  }}
+                  value={form.assignedTo}
+                  onChange={(event) => setForm((current) => ({ ...current, assignedTo: event.target.value }))}
                 >
                   <option value="">Unassigned</option>
                   {staff.map((person) => (
@@ -418,14 +434,8 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
               <label>
                 <span>Checkpoint</span>
                 <select
-                  value={draftFor(addingService, detail.services.find((service) => service.name === addingService)?.checkpointHours ?? 12).checkpoint}
-                  onChange={(event) => {
-                    const draft = draftFor(addingService, 12);
-                    setDrafts((current) => ({
-                      ...current,
-                      [addingService]: { ...draft, checkpoint: event.target.value },
-                    }));
-                  }}
+                  value={form.checkpoint}
+                  onChange={(event) => setForm((current) => ({ ...current, checkpoint: event.target.value }))}
                 >
                   <option value="12">12-hour checkpoint</option>
                   <option value="24">24-hour checkpoint</option>
@@ -436,21 +446,15 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
                 <textarea
                   rows={3}
                   placeholder="What needs to be done?"
-                  value={draftFor(addingService, detail.services.find((service) => service.name === addingService)?.checkpointHours ?? 12).description}
-                  onChange={(event) => {
-                    const draft = draftFor(addingService, 12);
-                    setDrafts((current) => ({
-                      ...current,
-                      [addingService]: { ...draft, description: event.target.value },
-                    }));
-                  }}
+                  value={form.description}
+                  onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                 />
               </label>
               <div className={styles.provisionAddActions}>
-                <button type="button" className={styles.secondaryBtnSm} onClick={() => setAddingService(null)}>
+                <button type="button" className={styles.secondaryBtnSm} onClick={() => setAssigneeOpen(false)}>
                   Cancel
                 </button>
-                <button type="button" className={styles.primaryBtnSm} disabled={busy} onClick={() => requestAdd(addingService)}>
+                <button type="button" className={styles.primaryBtnSm} disabled={busy} onClick={requestAdd}>
                   Save
                 </button>
               </div>
@@ -461,15 +465,19 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
       <ConfirmModal
         show={pendingConfirm?.kind === "save"}
         title="Save this action?"
-        message="Save this provisioning action now? You can still mark it done later."
+        message={
+          pendingConfirm?.kind === "save" && pendingConfirm.serviceNames.length > 1
+            ? `Save this action for ${pendingConfirm.serviceNames.length} services and assign them to the same Technical Support?`
+            : "Save this provisioning action now? You can still mark it done later."
+        }
         confirmLabel={busy ? "Saving..." : "Yes, save"}
         cancelLabel="Go back"
         danger={false}
         onConfirm={() => {
           if (busy || pendingConfirm?.kind !== "save") return;
-          const serviceName = pendingConfirm.serviceName;
+          const serviceNames = pendingConfirm.serviceNames;
           setPendingConfirm(null);
-          void handleAdd(serviceName);
+          void handleAdd(serviceNames);
         }}
         onCancel={() => {
           if (!busy) setPendingConfirm(null);

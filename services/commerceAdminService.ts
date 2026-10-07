@@ -286,7 +286,7 @@ export async function fetchProvisioning(salesTransactionId: number) {
 }
 
 export async function addProvisioningAction(salesTransactionId: number, payload: {
-  service_name: string;
+  service_names: string[];
   description: string;
   assigned_to?: number | null;
   checkpoint_hours?: number;
