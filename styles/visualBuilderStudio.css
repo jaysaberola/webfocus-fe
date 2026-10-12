@@ -313,6 +313,10 @@ body.cms-visual-studio-open .cms-admin-main {
   background: #e8eaed !important;
 }
 
+.cms-grapes-shell--app.cms-grapes-shell--dragging .gjs-cv-canvas {
+  user-select: none;
+}
+
 .cms-grapes-shell--app .gjs-cv-canvas__frames,
 .cms-grapes-shell--app .gjs-frames {
   display: block !important;

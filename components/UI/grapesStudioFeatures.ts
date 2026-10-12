@@ -21,8 +21,22 @@ export function getComponentBreadcrumb(component: any): string {
   return parts.join(" › ");
 }
 
+function canvasHasVisibleContent(editor: any): boolean {
+  try {
+    const wrapperEl = editor.getWrapper?.()?.getEl?.() as HTMLElement | undefined;
+    if (!wrapperEl) return false;
+    const text = String(wrapperEl.innerText || "").replace(/\s+/g, "");
+    if (text) return true;
+    return Boolean(wrapperEl.querySelector("img, video, iframe, svg, canvas, input, textarea, button, table"));
+  } catch {
+    return false;
+  }
+}
+
 export function isEditorCanvasEmpty(editor: any): boolean {
   try {
+    if (!canvasHasVisibleContent(editor)) return true;
+
     const wrapper = editor.getWrapper?.();
     const components = wrapper?.components?.();
     if (!components) return true;
@@ -158,28 +172,57 @@ function appendSectionToPageBottom(editor: any, root: any) {
   }
 }
 
-function scrollCanvasToComponent(editor: any, root: any) {
-  const run = () => {
-    try {
-      unlockCanvasPageScroll(editor);
-      const el = root?.getEl?.() as HTMLElement | undefined;
-      el?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
-    } catch {
-      // ignore scroll errors
-    }
-  };
+type CanvasViewport = {
+  scrollTop: number;
+  scrollLeft: number;
+  viewHeight: number;
+};
 
-  run();
-  [40, 140, 280].forEach((ms) => window.setTimeout(run, ms));
+function snapshotCanvasViewport(editor: any, override?: Partial<CanvasViewport>): CanvasViewport {
+  const canvasEl = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
+  return {
+    scrollTop: override?.scrollTop ?? canvasEl?.scrollTop ?? 0,
+    scrollLeft: override?.scrollLeft ?? canvasEl?.scrollLeft ?? 0,
+    viewHeight: override?.viewHeight ?? Math.max(canvasEl?.clientHeight || 0, 560),
+  };
+}
+
+function restoreCanvasViewport(editor: any, viewport: CanvasViewport) {
+  const canvasEl = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
+  if (!canvasEl) return;
+  canvasEl.scrollTop = viewport.scrollTop;
+  canvasEl.scrollLeft = viewport.scrollLeft;
+}
+
+function scrollCanvasToComponent(editor: any, root: any, viewport?: CanvasViewport) {
+  try {
+    const canvas = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
+    const el = root?.getEl?.() as HTMLElement | undefined;
+    if (!canvas || !el) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const pad = 24;
+    if (elRect.top >= canvasRect.top + pad && elRect.bottom <= canvasRect.bottom - pad) {
+      if (viewport) restoreCanvasViewport(editor, viewport);
+      return;
+    }
+
+    const delta = elRect.top - canvasRect.top - pad;
+    canvas.scrollTop = Math.max(0, canvas.scrollTop + delta);
+  } catch {
+    // ignore scroll errors
+  }
 }
 
 /**
  * Page sections stack at the bottom of the page.
  * Smaller elements stay centered in the current view.
  */
-export function centerComponentOnCanvas(editor: any, component: any) {
+export function centerComponentOnCanvas(editor: any, component: any, viewport?: CanvasViewport) {
   const root = resolveDroppedRoot(component);
   if (!editor || !root) return;
+  const frozen = viewport || snapshotCanvasViewport(editor);
 
   try {
     const wrapper = editor.getWrapper?.();
@@ -209,7 +252,8 @@ export function centerComponentOnCanvas(editor: any, component: any) {
 
       applyComponentLayout(root.getEl?.(), nextStyle);
       editor.select?.(root);
-      scrollCanvasToComponent(editor, root);
+      restoreCanvasViewport(editor, frozen);
+      scrollCanvasToComponent(editor, root, frozen);
       return;
     }
 
@@ -227,13 +271,13 @@ export function centerComponentOnCanvas(editor: any, component: any) {
 
     const frameEl = editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
     const body = frameEl?.contentDocument?.body as HTMLElement | undefined;
-    const canvasEl = editor.Canvas?.getElement?.() as HTMLElement | undefined;
     if (!body) return;
 
     // Center on the white page (frame body), not the outer editor chrome.
     const pageWidth = Math.max(body.clientWidth || 0, 960);
-    const viewHeight = Math.max(canvasEl?.clientHeight || 0, 560);
-    const scrollTop = body.ownerDocument?.defaultView?.scrollY || canvasEl?.scrollTop || 0;
+    const viewHeight = frozen.viewHeight;
+    const wrapperCount = wrapper.components?.()?.length ?? 0;
+    const scrollTop = wrapperCount <= 1 ? 0 : frozen.scrollTop;
 
     const el = root.getEl?.() as HTMLElement | null | undefined;
     let width = el?.offsetWidth || 0;
@@ -253,7 +297,9 @@ export function centerComponentOnCanvas(editor: any, component: any) {
     }
 
     const left = Math.max(0, Math.round((pageWidth - width) / 2));
-    const top = Math.max(32, Math.round(scrollTop + (viewHeight - height) / 2));
+    const desiredTop = Math.round(scrollTop + Math.max(32, (viewHeight - height) / 2));
+    const maxTop = Math.max(32, Math.round(scrollTop + viewHeight - height - 32));
+    const top = Math.max(32, Math.min(desiredTop, maxTop));
 
     const nextStyle: Record<string, string> = compact
       ? {
@@ -283,19 +329,21 @@ export function centerComponentOnCanvas(editor: any, component: any) {
     root.addStyle?.(nextStyle);
     applyComponentLayout(el, nextStyle);
     editor.select?.(root);
+    restoreCanvasViewport(editor, { ...frozen, scrollTop });
   } catch {
     // ignore centering errors
   }
 }
 
 /** Re-apply center a couple of times so Grapes mouse-drop coords cannot win the race. */
-export function scheduleCenterComponentOnCanvas(editor: any, component: any) {
+export function scheduleCenterComponentOnCanvas(editor: any, component: any, viewport?: CanvasViewport) {
   if (!editor || !component) return;
+  const frozen = viewport || snapshotCanvasViewport(editor);
   cancelPendingCanvasCenters();
   [0, 24, 80].forEach((ms) => {
     const id = window.setTimeout(() => {
       pendingCenterTimers.delete(id);
-      centerComponentOnCanvas(editor, component);
+      centerComponentOnCanvas(editor, component, frozen);
     }, ms);
     pendingCenterTimers.add(id);
   });
@@ -775,8 +823,64 @@ export function installStudioContextMenu(editor: any) {
   });
 }
 
+function disableGrapesAutoscroll(editor: any) {
+  if (!editor) return;
+  const noop = () => {};
+  const patch = () => {
+    try {
+      const canvas = editor.Canvas;
+      if (canvas) {
+        canvas.startAutoscroll = noop;
+        canvas.stopAutoscroll = noop;
+      }
+      const current = editor.em?.getCurrentFrame?.() || canvas?.getFrame?.();
+      if (current) {
+        current.startAutoscroll = noop;
+        current.stopAutoscroll = noop;
+        current.autoScroller?.stop?.();
+      }
+      const frames = canvas?.getFrames?.();
+      const list = frames?.models || frames || [];
+      (Array.isArray(list) ? list : []).forEach((frame: any) => {
+        const view = frame?.view || frame;
+        view.startAutoscroll = noop;
+        view.stopAutoscroll = noop;
+        view.autoScroller?.stop?.();
+      });
+    } catch {
+      // ignore patch errors
+    }
+  };
+
+  patch();
+  if (editor.__cmsAutoscrollDisabled) return;
+  editor.__cmsAutoscrollDisabled = true;
+  editor.on("canvas:frame:load", patch);
+  editor.on("canvas:frame:load:body", patch);
+}
+
+const PAGE_BOTTOM_PAD = 280;
+const DRAG_EDGE = 64;
+const DRAG_SCROLL_SPEED = 16;
+
+function collapseEmptyStretchElements(root: HTMLElement | null, canvasHeight: number) {
+  if (!root) return;
+  const nodes = Array.from(root.querySelectorAll("main, section, header, footer, article, div")) as HTMLElement[];
+  nodes.forEach((node) => {
+    const text = String(node.innerText || "").replace(/\s+/g, "");
+    const hasMedia = node.querySelector("img, video, iframe, svg, canvas, input, textarea, button, table");
+    if (text || hasMedia) return;
+    const inlineMin = `${node.style.minHeight || node.getAttribute("style") || ""}`.toLowerCase();
+    const stretched = inlineMin.includes("vh") || node.offsetHeight > Math.max(400, canvasHeight * 0.6);
+    if (!stretched) return;
+    node.style.setProperty("min-height", "0px", "important");
+    node.style.setProperty("height", "auto", "important");
+  });
+}
+
 export function unlockCanvasPageScroll(editor: any) {
   try {
+    disableGrapesAutoscroll(editor);
     const frame = editor?.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
     const canvas = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
     const doc = frame?.contentDocument;
@@ -785,13 +889,17 @@ export function unlockCanvasPageScroll(editor: any) {
     const body = doc?.body;
     if (!frame || !canvas || !doc || !win || !html || !body) return;
 
-    html.style.setProperty("height", "100%", "important");
-    html.style.setProperty("min-height", "100%", "important");
-    html.style.setProperty("overflow", "visible", "important");
-    body.style.setProperty("height", "auto", "important");
-    body.style.setProperty("min-height", "100%", "important");
-    body.style.setProperty("overflow", "visible", "important");
-    body.style.setProperty("padding-bottom", "0", "important");
+    const applyBaseStyles = () => {
+      html.style.setProperty("height", "auto", "important");
+      html.style.setProperty("min-height", "0", "important");
+      html.style.setProperty("overflow", "visible", "important");
+      body.style.setProperty("height", "auto", "important");
+      body.style.setProperty("min-height", "0", "important");
+      body.style.setProperty("overflow", "visible", "important");
+      body.style.setProperty("padding-bottom", "0", "important");
+    };
+
+    applyBaseStyles();
 
     const wrapper = (
       body.matches?.('[data-gjs-type="wrapper"]')
@@ -799,42 +907,59 @@ export function unlockCanvasPageScroll(editor: any) {
         : body.querySelector('[data-gjs-type="wrapper"]')
     ) as HTMLElement | null;
     wrapper?.style.setProperty("height", "auto", "important");
-    wrapper?.style.setProperty("min-height", "100%", "important");
+    wrapper?.style.setProperty("min-height", "0", "important");
     wrapper?.style.setProperty("overflow", "visible", "important");
-    wrapper?.style.setProperty("padding-bottom", "0", "important");
+    wrapper?.style.setProperty("padding-bottom", `${PAGE_BOTTOM_PAD}px`, "important");
 
     const measureContentHeight = () => {
       const source = wrapper || body;
-      const kids = Array.from(source.children) as HTMLElement[];
-      if (!kids.length) return canvas.clientHeight || 640;
+      const minCanvas = canvas.clientHeight || 640;
+      collapseEmptyStretchElements(source, minCanvas);
+      source.style.setProperty("padding-bottom", `${PAGE_BOTTOM_PAD}px`, "important");
 
       let bottom = 0;
-      kids.forEach((el) => {
-        if (!(el instanceof HTMLElement)) return;
-        if (el.style.display === "none") return;
+      Array.from(source.children).forEach((el) => {
+        if (!(el instanceof HTMLElement) || el.style.display === "none") return;
         bottom = Math.max(bottom, el.offsetTop + el.offsetHeight);
       });
-      return Math.max(bottom, 1);
+
+      if (!canvasHasVisibleContent(editor)) return minCanvas;
+      return Math.max(bottom + PAGE_BOTTOM_PAD, minCanvas);
     };
 
+    let sizing = false;
     const sizeToContent = () => {
-      const wrapEl = frame.parentElement as HTMLElement | null;
-      const framesEl = canvas.querySelector(".gjs-cv-canvas__frames") as HTMLElement | null;
-      const contentHeight = measureContentHeight();
-      const nextHeight = Math.max(contentHeight, canvas.clientHeight || 0);
-      const currentHeight = parseFloat(frame.style.height) || 0;
-      if (Math.abs(currentHeight - nextHeight) < 2) return;
+      if (sizing) return;
+      if (canvas.closest(".cms-grapes-shell--dragging")) return;
 
-      const next = `${nextHeight}px`;
-      frame.style.setProperty("height", next, "important");
-      frame.style.setProperty("min-height", "0", "important");
-      wrapEl?.style.setProperty("height", next, "important");
-      wrapEl?.style.setProperty("min-height", "0", "important");
-      wrapEl?.style.setProperty("overflow", "visible", "important");
-      framesEl?.style.setProperty("height", "auto", "important");
-      framesEl?.style.setProperty("min-height", "0", "important");
-      canvas.style.setProperty("overflow-x", "hidden", "important");
-      canvas.style.setProperty("overflow-y", "auto", "important");
+      sizing = true;
+      try {
+        const wrapEl = frame.parentElement as HTMLElement | null;
+        const framesEl = canvas.querySelector(".gjs-cv-canvas__frames") as HTMLElement | null;
+        const minCanvas = canvas.clientHeight || 0;
+        const contentHeight = measureContentHeight();
+        const nextHeight = Math.max(contentHeight, minCanvas);
+        const currentHeight = parseFloat(frame.style.height) || 0;
+
+        if (Math.abs(currentHeight - nextHeight) >= 2) {
+          const next = `${nextHeight}px`;
+          frame.style.setProperty("height", next, "important");
+          frame.style.setProperty("min-height", "0", "important");
+          wrapEl?.style.setProperty("height", next, "important");
+          wrapEl?.style.setProperty("min-height", "0", "important");
+          wrapEl?.style.setProperty("overflow", "visible", "important");
+          framesEl?.style.setProperty("height", "auto", "important");
+          framesEl?.style.setProperty("min-height", "0", "important");
+        }
+
+        canvas.style.setProperty("overflow-x", "hidden", "important");
+        canvas.style.setProperty("overflow-y", "auto", "important");
+        const maxScroll = Math.max(0, canvas.scrollHeight - canvas.clientHeight);
+        if (maxScroll <= 1 || !canvasHasVisibleContent(editor)) canvas.scrollTop = 0;
+        else if (canvas.scrollTop > maxScroll) canvas.scrollTop = maxScroll;
+      } finally {
+        sizing = false;
+      }
     };
 
     sizeToContent();
@@ -843,7 +968,15 @@ export function unlockCanvasPageScroll(editor: any) {
     if (frame.dataset.cmsPageScroll === "1") return;
     frame.dataset.cmsPageScroll = "1";
 
-    const observer = new ResizeObserver(() => sizeToContent());
+    let raf = 0;
+    const observer = new ResizeObserver(() => {
+      if (sizing || canvas.closest(".cms-grapes-shell--dragging")) return;
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        sizeToContent();
+      });
+    });
     observer.observe(body);
     if (wrapper) observer.observe(wrapper);
 
@@ -904,21 +1037,76 @@ export function installCanvasInteractionGuards(
   let pendingBlock: any = null;
   let countAtDragStart = 0;
   let pointerOverCanvas = false;
+  let pinnedScrollTop = 0;
+  let pinnedScrollLeft = 0;
+  let pinnedFrameHeight = "";
+  let pinRaf = 0;
 
   const getCanvasElement = () => editor.Canvas?.getElement?.() as HTMLElement | undefined;
 
-  const pinCanvasScroll = () => {
-    if (!isEditorAlive() || !dragging || blockDragActive) return;
+  disableGrapesAutoscroll(editor);
 
+  let lastPointerY = 0;
+
+  const freezeFrameHeight = () => {
     try {
-      const canvas = getCanvasElement();
-      if (canvas && (canvas.scrollTop !== 0 || canvas.scrollLeft !== 0)) {
-        canvas.scrollTop = 0;
-        canvas.scrollLeft = 0;
+      disableGrapesAutoscroll(editor);
+      const frame = editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
+      if (frame && pinnedFrameHeight) {
+        frame.style.setProperty("height", pinnedFrameHeight, "important");
+        frame.parentElement?.style.setProperty("height", pinnedFrameHeight, "important");
       }
     } catch {
-      // ignore scroll pin errors
+      // ignore iframe access errors
     }
+  };
+
+  const capturePinnedScroll = () => {
+    const canvas = getCanvasElement();
+    const frame = editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
+    pinnedScrollTop = canvas?.scrollTop || 0;
+    pinnedScrollLeft = canvas?.scrollLeft || 0;
+    pinnedFrameHeight = frame?.style.height || `${canvas?.clientHeight || 0}px`;
+  };
+
+  const scrollCanvasFromPointer = () => {
+    const canvas = getCanvasElement();
+    if (!canvas) return;
+    canvas.style.setProperty("overflow-x", "hidden", "important");
+    canvas.style.setProperty("overflow-y", "auto", "important");
+    const rect = canvas.getBoundingClientRect();
+    const maxScroll = Math.max(0, canvas.scrollHeight - canvas.clientHeight);
+    if (maxScroll <= 1) return;
+    if (lastPointerY > rect.bottom - DRAG_EDGE) {
+      canvas.scrollTop = Math.min(maxScroll, canvas.scrollTop + DRAG_SCROLL_SPEED);
+    } else if (lastPointerY > 0 && lastPointerY < rect.top + DRAG_EDGE) {
+      canvas.scrollTop = Math.max(0, canvas.scrollTop - DRAG_SCROLL_SPEED);
+    }
+  };
+
+  const pinCanvasScroll = () => {
+    if (!isEditorAlive() || !dragging) return;
+    freezeFrameHeight();
+    scrollCanvasFromPointer();
+  };
+
+  const stopPinLoop = () => {
+    if (!pinRaf) return;
+    window.cancelAnimationFrame(pinRaf);
+    pinRaf = 0;
+  };
+
+  const startPinLoop = () => {
+    if (pinRaf) return;
+    const tick = () => {
+      if (!dragging) {
+        pinRaf = 0;
+        return;
+      }
+      pinCanvasScroll();
+      pinRaf = window.requestAnimationFrame(tick);
+    };
+    pinRaf = window.requestAnimationFrame(tick);
   };
 
   const getFrameDoc = () => {
@@ -933,10 +1121,15 @@ export function installCanvasInteractionGuards(
   let canvasElForDrop: HTMLElement | undefined;
 
   const onCanvasScroll = () => {
-    if (dragging) pinCanvasScroll();
+    if (dragging) freezeFrameHeight();
+  };
+
+  const onPointerMove = (event: DragEvent | MouseEvent) => {
+    lastPointerY = event.clientY;
   };
 
   const onPointerOverCanvas = (event: DragEvent | MouseEvent) => {
+    onPointerMove(event);
     if (event.type === "dragover") {
       event.preventDefault();
       try {
@@ -986,20 +1179,51 @@ export function installCanvasInteractionGuards(
     canvasElForDrop = undefined;
   };
 
-  const onDragStart = () => {
+  const finishDrag = () => {
+    stopPinLoop();
+    document.removeEventListener("dragend", onDragEnd);
+    document.removeEventListener("dragover", onPointerMove);
+    document.removeEventListener("pointermove", onPointerMove);
+    dragging = false;
+    lastPointerY = 0;
+    shellEl?.classList.remove("cms-grapes-shell--dragging");
+    const canvas = getCanvasElement();
+    if (canvas) {
+      canvas.style.setProperty("overflow-x", "hidden", "important");
+      canvas.style.setProperty("overflow-y", "auto", "important");
+    }
+    unlockCanvasPageScroll(editor);
+  };
+
+  const onDragEnd = () => {
+    if (blockDragActive) return;
+    finishDrag();
+  };
+
+  const beginDrag = () => {
     if (!isEditorAlive()) return;
     cancelPendingCanvasCenters();
+    const alreadyDragging = dragging;
+    if (!alreadyDragging) capturePinnedScroll();
     dragging = true;
     shellEl?.classList.add("cms-grapes-shell--dragging");
-    unlockComponentLayout(editor.getSelected?.());
+    freezeFrameHeight();
     pinCanvasScroll();
+    startPinLoop();
+    if (!alreadyDragging) {
+      document.addEventListener("dragend", onDragEnd);
+      document.addEventListener("dragover", onPointerMove);
+      document.addEventListener("pointermove", onPointerMove);
+    }
+  };
+
+  const onDragStart = () => {
+    beginDrag();
+    unlockComponentLayout(editor.getSelected?.());
   };
 
   const onComponentMoveStart = () => {
-    if (!isEditorAlive()) return;
-    cancelPendingCanvasCenters();
-    dragging = true;
-    shellEl?.classList.add("cms-grapes-shell--dragging");
+    beginDrag();
     unlockComponentLayout(editor.getSelected?.());
   };
 
@@ -1008,21 +1232,18 @@ export function installCanvasInteractionGuards(
     countAtDragStart = wrapperComponentCount(editor);
     pointerOverCanvas = false;
     blockDragActive = true;
-    dragging = true;
-    cancelPendingCanvasCenters();
-    shellEl?.classList.add("cms-grapes-shell--dragging");
+    beginDrag();
     bindPointerTracking();
   };
 
-  const onDragEnd = () => {
-    dragging = false;
-    shellEl?.classList.remove("cms-grapes-shell--dragging");
-  };
+  const frozenDropViewport = (): CanvasViewport => snapshotCanvasViewport(editor);
 
   const centerDropped = (component: any) => {
     const dropped = resolveDroppedRoot(component) || editor.getSelected?.();
     if (!dropped) return;
-    scheduleCenterComponentOnCanvas(editor, dropped);
+    const frozen = frozenDropViewport();
+    centerComponentOnCanvas(editor, dropped, frozen);
+    scheduleCenterComponentOnCanvas(editor, dropped, frozen);
   };
 
   const placePendingBlock = () => {
@@ -1037,8 +1258,6 @@ export function installCanvasInteractionGuards(
 
   const onBlockDragStop = (component: any) => {
     unbindPointerTracking();
-    blockDragActive = false;
-    onDragEnd();
 
     let dropped = resolveDroppedRoot(component) || resolveDroppedRoot(editor.get?.("dragResult"));
     if (!dropped && pointerOverCanvas && pendingBlock) {
@@ -1051,6 +1270,9 @@ export function installCanvasInteractionGuards(
     pendingBlock = null;
     pointerOverCanvas = false;
     if (dropped) centerDropped(dropped);
+
+    blockDragActive = false;
+    finishDrag();
   };
 
   const onCanvasDrop = (_dataTransfer: unknown, model: any) => {
@@ -1059,6 +1281,11 @@ export function installCanvasInteractionGuards(
 
   const preventCanvasPan = () => {
     if (dragging) pinCanvasScroll();
+  };
+
+  const onCanvasDragHover = () => {
+    if (!dragging) beginDrag();
+    pinCanvasScroll();
   };
 
   const onComponentSelected = (component: any) => {
@@ -1092,6 +1319,9 @@ export function installCanvasInteractionGuards(
   editor.on("block:drag:start", onBlockDragStart);
   editor.on("block:drag:stop", onBlockDragStop);
   editor.on("canvas:drop", onCanvasDrop);
+  editor.on("canvas:dragenter", onCanvasDragHover);
+  editor.on("canvas:dragover", onCanvasDragHover);
+  editor.on("canvas:dragend", onDragEnd);
   editor.on("canvas:move", preventCanvasPan);
   editor.on("canvas:move:end", preventCanvasPan);
   editor.on("run:tlb-move", onComponentMoveStart);
@@ -1109,14 +1339,17 @@ export function installCanvasInteractionGuards(
     cleanup: () => {
       unbindPointerTracking();
       pendingBlock = null;
-      onDragEnd();
       blockDragActive = false;
+      finishDrag();
       detachCanvasListeners();
       editor.off("sorter:drag:start", onDragStart);
       editor.off("sorter:drag:end", onDragEnd);
       editor.off("block:drag:start", onBlockDragStart);
       editor.off("block:drag:stop", onBlockDragStop);
       editor.off("canvas:drop", onCanvasDrop);
+      editor.off("canvas:dragenter", onCanvasDragHover);
+      editor.off("canvas:dragover", onCanvasDragHover);
+      editor.off("canvas:dragend", onDragEnd);
       editor.off("canvas:move", preventCanvasPan);
       editor.off("canvas:move:end", preventCanvasPan);
       editor.off("run:tlb-move", onComponentMoveStart);

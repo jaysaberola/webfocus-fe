@@ -14,8 +14,8 @@ export const cmsStudioCanvasCss = `
   }
 
   html {
-    height: 100% !important;
-    min-height: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
     overflow: visible !important;
   }
 
@@ -34,7 +34,7 @@ export const cmsStudioCanvasCss = `
     line-height: 1.5;
     position: relative;
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 0 !important;
     overflow: visible !important;
     padding-bottom: 0 !important;
   }
@@ -42,7 +42,7 @@ export const cmsStudioCanvasCss = `
   [data-gjs-type="wrapper"] {
     width: 100% !important;
     min-width: 100%;
-    min-height: 100% !important;
+    min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
     padding-bottom: 0 !important;

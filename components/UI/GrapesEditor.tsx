@@ -718,8 +718,8 @@ const registerCmsBlocks = (editor: any) => {
 };
 
 const DEFAULT_STUDIO_MARKUP = `
-  <main style="min-height:100vh;background:#ffffff;color:#111827;">
-    <section style="min-height:72vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;">
+  <main style="background:#ffffff;color:#111827;">
+    <section style="display:flex;align-items:center;justify-content:center;padding:80px 24px;">
       <div style="max-width:720px;text-align:center;">
         <p style="margin:0 0 12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#4f46e5;font-weight:800;">Visual builder</p>
         <h1 style="margin:0 0 14px;font-size:52px;line-height:1.05;">Design this page visually.</h1>
@@ -2213,13 +2213,14 @@ export default function GrapesEditor({
 
       const fitCanvas = () => {
         if (!editorAlive) return;
+        if (canvasInteractionGuards.isDragging()) {
+          canvasInteractionGuards.pinViewport();
+          return;
+        }
         try {
           editor.refresh?.({ tools: true });
           editor.Canvas?.setCoords?.(0, 0);
           canvasInteractionGuards.rememberViewport();
-          if (canvasInteractionGuards.isDragging()) {
-            canvasInteractionGuards.pinViewport();
-          }
           applyStudioDeviceFrameWidth(editor);
           unlockCanvasPageScroll(editor);
         } catch {
