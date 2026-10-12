@@ -12,6 +12,8 @@ import {
   normalizeStudioCategory,
   registerAdvancedCmsBlocks,
 } from "./grapesStudio";
+import { registerCanvasWebsiteTemplates } from "./grapesWebsiteTemplates";
+import { CANVAS7_CANVAS_STYLES } from "@/lib/canvasTemplateCatalog";
 import {
   filterBlockPanel,
   isEditorCanvasEmpty,
@@ -717,18 +719,6 @@ const registerCmsBlocks = (editor: any) => {
   });
 };
 
-const DEFAULT_STUDIO_MARKUP = `
-  <main style="background:#ffffff;color:#111827;">
-    <section style="display:flex;align-items:center;justify-content:center;padding:80px 24px;">
-      <div style="max-width:720px;text-align:center;">
-        <p style="margin:0 0 12px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#4f46e5;font-weight:800;">Visual builder</p>
-        <h1 style="margin:0 0 14px;font-size:52px;line-height:1.05;">Design this page visually.</h1>
-        <p style="margin:0;font-size:18px;line-height:1.7;color:#64748b;">Drag a section from the left, then click any element to move, resize, and style it.</p>
-      </div>
-    </section>
-  </main>
-`;
-
 export default function GrapesEditor({
   value = "",
   onChange,
@@ -876,7 +866,7 @@ export default function GrapesEditor({
         ],
       },
       canvas: {
-        styles: ["/css/cms-studio-buttons.css"],
+        styles: ["/css/cms-studio-buttons.css", ...CANVAS7_CANVAS_STYLES],
         scrollableCanvas: true,
         infiniteCanvas: false,
       },
@@ -970,7 +960,7 @@ export default function GrapesEditor({
             appendTo: rightTraitsRef.current,
           }
         : undefined,
-      components: body || DEFAULT_STUDIO_MARKUP,
+      components: body || "",
       style: css,
     });
 
@@ -1327,6 +1317,7 @@ export default function GrapesEditor({
     };
 
     registerCmsBlocks(editor);
+    registerCanvasWebsiteTemplates(editor);
     registerAdvancedCmsBlocks(editor);
     registerDesignedStudioBlocks(editor);
     registerCmsButtonType(editor);

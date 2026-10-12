@@ -1,4 +1,5 @@
 import { resolveBlockThumb } from "./grapesBlockThumbs";
+import { CMS_TEMPLATES_CATEGORY } from "./grapesWebsiteTemplates";
 
 export const CMS_STUDIO_BLOCK_COUNT = 30;
 
@@ -24,10 +25,13 @@ export const cmsStudioCanvasCss = `
     width: 100% !important;
     min-width: 100%;
     background: #ffffff;
-    color: #0f172a;
-    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  :where(html, body) {
+    color: #0f172a;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
 
   body {
@@ -55,29 +59,29 @@ export const cmsStudioCanvasCss = `
   /* Keep structural tags free for Grapes absolute dragMode.
      Nested widgets (carousels, overlays) set their own position. */
 
-  h1, h2, h3, h4, h5, h6 {
+  :where(h1, h2, h3, h4, h5, h6) {
     margin: 0 0 0.5em;
     line-height: 1.2;
-    color: #0f172a;
+    color: inherit;
   }
 
-  h1 { font-size: 2.5rem; }
-  h2 { font-size: 2rem; }
-  h3 { font-size: 1.5rem; }
-  h4 { font-size: 1.25rem; }
+  :where(h1) { font-size: 2.5rem; }
+  :where(h2) { font-size: 2rem; }
+  :where(h3) { font-size: 1.5rem; }
+  :where(h4) { font-size: 1.25rem; }
 
-  p {
+  :where(p) {
     margin: 0 0 1em;
-    color: #475569;
+    color: inherit;
     line-height: 1.7;
   }
 
-  a {
+  :where(a) {
     color: #2563eb;
     text-decoration: none;
   }
 
-  a:hover {
+  :where(a):hover {
     text-decoration: underline;
     filter: brightness(1.05);
   }
@@ -279,6 +283,7 @@ export const configureStudioCategories = (editor: any) => {
   if (!categories) return;
 
   const order = [
+    CMS_TEMPLATES_CATEGORY,
     CMS_ELEMENTS_CATEGORY,
     CMS_BUTTONS_CATEGORY,
     CMS_LAYOUT_CATEGORY,
@@ -297,8 +302,8 @@ export const configureStudioCategories = (editor: any) => {
 
   const apply = (category: any) => {
     const label = normalizeStudioCategory(String(category?.get?.("id") || category?.get?.("label") || ""));
-    category?.set?.("open", label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === "Basic");
-    if (label === CMS_PRESETS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_LAYOUT_CATEGORY) {
+    category?.set?.("open", label === CMS_TEMPLATES_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === "Basic");
+    if (label === CMS_TEMPLATES_CATEGORY || label === CMS_PRESETS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_LAYOUT_CATEGORY) {
       category?.set?.("id", label);
       category?.set?.("label", label);
     }

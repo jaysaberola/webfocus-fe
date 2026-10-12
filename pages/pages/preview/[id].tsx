@@ -1,6 +1,7 @@
 import Head from "next/head";
 import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { ensureClientPreviewAccess, requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
+import { CANVAS7_CANVAS_STYLES, htmlNeedsCanvas7Assets } from "@/lib/canvasTemplateCatalog";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
 import { activateCmsPageAnimations } from "@/lib/publicPageScripts";
 import { getPageById } from "@/services/pageService";
@@ -127,6 +128,18 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
     });
   }, [pageData]);
 
+  const usesCanvas7 = htmlNeedsCanvas7Assets(htmlContent);
+
+  useEffect(() => {
+    if (!usesCanvas7) return;
+    document.documentElement.classList.add("stretched");
+    document.body.classList.add("stretched");
+    return () => {
+      document.documentElement.classList.remove("stretched");
+      document.body.classList.remove("stretched");
+    };
+  }, [usesCanvas7]);
+
   useEffect(() => {
     return activateCmsPageAnimations(contentRef.current);
   }, [htmlContent]);
@@ -201,6 +214,9 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
       <Head>
         <meta name="robots" content="noindex,nofollow,noarchive" />
         <title>{pageData?.title || "Page Preview"}</title>
+        {usesCanvas7
+          ? CANVAS7_CANVAS_STYLES.map((href) => <link key={href} rel="stylesheet" href={href} />)
+          : null}
       </Head>
 
       {access === "checking" || loading ? (

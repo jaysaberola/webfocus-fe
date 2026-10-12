@@ -1,4 +1,10 @@
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import {
+  getCanvas7PreviewBootstrap,
+  getCanvas7StylesheetMarkup,
+  htmlNeedsCanvas7Assets,
+} from "@/lib/canvasTemplateCatalog";
+import { prefetchSiteTemplateAssets } from "./grapesWebsiteTemplates";
 
 type BuildContentFn = (editor: any) => string;
 
@@ -33,8 +39,18 @@ function canvasHasVisibleContent(editor: any): boolean {
   }
 }
 
+function isPlaceholderStudioContent(editor: any) {
+  try {
+    const html = String(editor?.getHtml?.() || "");
+    return /Design this page visually/i.test(html);
+  } catch {
+    return false;
+  }
+}
+
 export function isEditorCanvasEmpty(editor: any): boolean {
   try {
+    if (isPlaceholderStudioContent(editor)) return true;
     if (!canvasHasVisibleContent(editor)) return true;
 
     const wrapper = editor.getWrapper?.();
@@ -62,9 +78,16 @@ export function isEditorCanvasEmpty(editor: any): boolean {
 
 function resolveDroppedRoot(component: any) {
   if (!component) return null;
-  if (Array.isArray(component)) return component[0] || null;
-  if (component.models?.length) return component.models[0] || null;
-  return component;
+  let root = component;
+  if (Array.isArray(component)) root = component[0] || null;
+  else if (component.models?.length) root = component.models[0] || null;
+  if (!root) return null;
+  if (isSiteTemplateRoot(root)) return root;
+  const parent = root.parent?.();
+  if (parent && isSiteTemplateRoot(parent)) return parent;
+  const first = root.components?.()?.at?.(0) || root.components?.()?.models?.[0];
+  if (first && isSiteTemplateRoot(first)) return first;
+  return root;
 }
 
 const LAYOUT_STYLE_PROPS = ["position", "left", "top", "right", "bottom", "width", "max-width", "margin", "transform"];
@@ -124,7 +147,41 @@ function isCompactCanvasElement(component: any) {
   return /^<(a|button)\b/i.test(html);
 }
 
+function isSiteTemplateRoot(component: any) {
+  if (!component) return false;
+  if (String(component.get?.("type") || "") === "cms-site-template") return true;
+  const attrs = component.getAttributes?.() || {};
+  if (String(attrs["data-cms-site-template"] || "") === "1") return true;
+  return /data-cms-site-template/.test(String(component.toHTML?.() || ""));
+}
+
+function applyCanvas7Frame(editor: any) {
+  try {
+    const doc = editor?.Canvas?.getDocument?.() as Document | undefined;
+    doc?.documentElement?.classList?.add("stretched");
+    doc?.body?.classList?.add("stretched");
+  } catch {
+    // keep editing if the iframe document is not ready
+  }
+}
+
+function replaceCanvasWithTemplate(editor: any, root: any) {
+  const wrapper = editor.getWrapper?.();
+  if (!wrapper || !root) return;
+  const models = [...(wrapper.components?.()?.models || [])];
+  models.forEach((model: any) => {
+    if (model === root) return;
+    try {
+      model.remove?.();
+    } catch {
+      // keep the dropped template
+    }
+  });
+  applyCanvas7Frame(editor);
+}
+
 function isStackedPageSection(component: any) {
+  if (isSiteTemplateRoot(component)) return true;
   const tag = String(component?.get?.("tagName") || "").toLowerCase();
   if (["section", "header", "footer", "main", "nav"].includes(tag)) return true;
 
@@ -143,19 +200,21 @@ function isStackedPageSection(component: any) {
   return /section|hero|footer|header|navbar|showcase|pricing|faq|testimonial|gallery|cta/i.test(name);
 }
 
-function appendSectionToPageBottom(editor: any, root: any) {
+function moveRootOnWrapper(editor: any, root: any, at: number) {
   const wrapper = editor.getWrapper?.();
   if (!wrapper || !root) return;
 
   try {
     if (root.parent?.() !== wrapper) {
-      wrapper.append?.(root);
+      wrapper.append?.(root, { at });
+      return;
     }
   } catch {
     try {
-      root.move?.(wrapper, { at: wrapper.components?.()?.length ?? 0 });
+      root.move?.(wrapper, { at });
+      return;
     } catch {
-      // keep current parent if move is blocked
+      return;
     }
   }
 
@@ -163,12 +222,33 @@ function appendSectionToPageBottom(editor: any, root: any) {
     const collection = wrapper.components?.();
     const models = collection?.models || [];
     const currentIndex = typeof collection?.indexOf === "function" ? collection.indexOf(root) : models.indexOf(root);
-    const lastIndex = Math.max(0, (collection?.length ?? models.length) - 1);
-    if (currentIndex >= 0 && currentIndex !== lastIndex) {
-      root.move?.(wrapper, { at: lastIndex });
+    if (currentIndex >= 0 && currentIndex !== at) {
+      root.move?.(wrapper, { at });
     }
   } catch {
     // ignore reorder errors
+  }
+}
+
+function appendSectionToPageBottom(editor: any, root: any) {
+  const wrapper = editor.getWrapper?.();
+  const lastIndex = Math.max(0, (wrapper?.components?.()?.length ?? 1) - 1);
+  moveRootOnWrapper(editor, root, lastIndex);
+}
+
+function pinSectionAtPageTop(editor: any, root: any) {
+  moveRootOnWrapper(editor, root, 0);
+}
+
+function scrollCanvasToTop(editor: any) {
+  try {
+    const canvas = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
+    if (canvas) canvas.scrollTop = 0;
+    const frame = editor?.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
+    const win = frame?.contentWindow;
+    if (win) win.scrollTo?.(0, 0);
+  } catch {
+    // ignore iframe access errors
   }
 }
 
@@ -229,12 +309,21 @@ export function centerComponentOnCanvas(editor: any, component: any, viewport?: 
     if (!wrapper) return;
 
     if (isStackedPageSection(root)) {
-      appendSectionToPageBottom(editor, root);
+      const siteTemplate = isSiteTemplateRoot(root);
+      const siblingCount = Math.max(0, (wrapper.components?.()?.length ?? 1) - 1);
+      const emptyPage = siblingCount <= 0 || isPlaceholderStudioContent(editor);
+
+      if (siteTemplate || emptyPage) {
+        replaceCanvasWithTemplate(editor, root);
+        pinSectionAtPageTop(editor, root);
+      } else {
+        appendSectionToPageBottom(editor, root);
+      }
 
       const nextStyle: Record<string, string> = {
         position: "relative",
-        left: "auto",
-        top: "auto",
+        left: "0",
+        top: "0",
         right: "auto",
         bottom: "auto",
         width: "100%",
@@ -252,8 +341,13 @@ export function centerComponentOnCanvas(editor: any, component: any, viewport?: 
 
       applyComponentLayout(root.getEl?.(), nextStyle);
       editor.select?.(root);
-      restoreCanvasViewport(editor, frozen);
-      scrollCanvasToComponent(editor, root, frozen);
+      if (siteTemplate || emptyPage) {
+        restoreCanvasViewport(editor, { ...frozen, scrollTop: 0 });
+        scrollCanvasToTop(editor);
+      } else {
+        restoreCanvasViewport(editor, frozen);
+        scrollCanvasToComponent(editor, root, frozen);
+      }
       return;
     }
 
@@ -598,7 +692,13 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
 
   const previewPage = () => {
     const packed = String(buildContent(editor) || "");
-    const rawHtml = String(editor.getHtml?.() || packed).trim();
+    let rawHtml = String(editor.getHtml?.() || packed).trim();
+    try {
+      const painted = editor.Canvas?.getDocument?.()?.querySelector?.("[data-cms-site-template]") as HTMLElement | null;
+      if (painted?.outerHTML) rawHtml = painted.outerHTML;
+    } catch {
+      // keep Grapes HTML if the canvas document is not ready
+    }
     const rawCss = String(editor.getCss?.() || "");
     const scriptMatch = packed.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i);
     const js = String(scriptMatch?.[1] || "").trim();
@@ -606,8 +706,11 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
     const imageMap = snapshotCanvasImageUrls(editor);
     const html = rewritePreviewAssets(rawHtml, origin, imageMap);
     const css = rewritePreviewAssets(rawCss, origin, imageMap);
+    const usesCanvas7 = htmlNeedsCanvas7Assets(html);
+    const canvas7Links = usesCanvas7 ? getCanvas7StylesheetMarkup() : "";
+    const canvas7Boot = usesCanvas7 ? getCanvas7PreviewBootstrap() : "";
     const documentHtml = `<!DOCTYPE html>
-<html lang="en">
+<html lang="en"${usesCanvas7 ? ' class="stretched"' : ""}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -615,12 +718,15 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
   <title>Page Preview</title>
   <link rel="stylesheet" href="${origin}/css/cms-studio-buttons.css">
   <style>
-    html, body { margin: 0; background: #fff; color: #0f172a; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
-    img, video, iframe { max-width: 100%; height: auto; }
+    html, body { margin: 0; }
+    ${usesCanvas7 ? "" : `html, body { background: #fff; color: #0f172a; font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+    img, video, iframe { max-width: 100%; height: auto; }`}
     ${css}
   </style>
+  ${canvas7Links}
 </head>
-<body>
+<body${usesCanvas7 ? ' class="stretched"' : ""}>
+${canvas7Boot}
 ${html || "<p style=\"padding:24px;color:#64748b;\">This page is empty.</p>"}
 ${js ? `<script>${js.replace(/<\/script/gi, "<\\/script")}</script>` : ""}
 </body>
@@ -863,12 +969,27 @@ const PAGE_BOTTOM_PAD = 280;
 const DRAG_EDGE = 64;
 const DRAG_SCROLL_SPEED = 16;
 
+function pinViewportHeightUnits(root: HTMLElement | null, viewportHeight: number) {
+  if (!root || viewportHeight < 200) return;
+  const nodes = Array.from(root.querySelectorAll("[class*='vh'], [style*='vh']")) as HTMLElement[];
+  nodes.forEach((node) => {
+    const cls = String(node.className || "");
+    const style = String(node.getAttribute("style") || "");
+    const classPcts = [...cls.matchAll(/\b(?:min-)?vh(?:-md|-sm|-lg)?-(\d+)\b/g)].map((match) => Number(match[1]));
+    const stylePct = style.match(/min-height\s*:\s*([\d.]+)vh/i);
+    const pct = Math.max(0, ...classPcts, stylePct ? Number(stylePct[1]) : 0);
+    if (!pct) return;
+    node.style.setProperty("min-height", `${Math.round((viewportHeight * pct) / 100)}px`, "important");
+  });
+}
+
 function collapseEmptyStretchElements(root: HTMLElement | null, canvasHeight: number) {
   if (!root) return;
   const nodes = Array.from(root.querySelectorAll("main, section, header, footer, article, div")) as HTMLElement[];
   nodes.forEach((node) => {
     const text = String(node.innerText || "").replace(/\s+/g, "");
     const hasMedia = node.querySelector("img, video, iframe, svg, canvas, input, textarea, button, table");
+    if (node.hasAttribute("data-cms-site-template")) return;
     if (text || hasMedia) return;
     const inlineMin = `${node.style.minHeight || node.getAttribute("style") || ""}`.toLowerCase();
     const stretched = inlineMin.includes("vh") || node.offsetHeight > Math.max(400, canvasHeight * 0.6);
@@ -888,6 +1009,10 @@ export function unlockCanvasPageScroll(editor: any) {
     const html = doc?.documentElement;
     const body = doc?.body;
     if (!frame || !canvas || !doc || !win || !html || !body) return;
+
+    if (doc.querySelector("[data-cms-site-template]")) {
+      applyCanvas7Frame(editor);
+    }
 
     const applyBaseStyles = () => {
       html.style.setProperty("height", "auto", "important");
@@ -914,6 +1039,7 @@ export function unlockCanvasPageScroll(editor: any) {
     const measureContentHeight = () => {
       const source = wrapper || body;
       const minCanvas = canvas.clientHeight || 640;
+      pinViewportHeightUnits(source, minCanvas);
       collapseEmptyStretchElements(source, minCanvas);
       source.style.setProperty("padding-bottom", `${PAGE_BOTTOM_PAD}px`, "important");
 
@@ -1193,6 +1319,7 @@ export function installCanvasInteractionGuards(
       canvas.style.setProperty("overflow-y", "auto", "important");
     }
     unlockCanvasPageScroll(editor);
+    if (isSiteTemplateRoot(editor.getSelected?.())) scrollCanvasToTop(editor);
   };
 
   const onDragEnd = () => {
@@ -1232,6 +1359,7 @@ export function installCanvasInteractionGuards(
     countAtDragStart = wrapperComponentCount(editor);
     pointerOverCanvas = false;
     blockDragActive = true;
+    prefetchSiteTemplateAssets(block);
     beginDrag();
     bindPointerTracking();
   };
@@ -1363,6 +1491,24 @@ export function installCanvasInteractionGuards(
 /** Keep home portfolio cards as image tiles, not GrapesJS form buttons labeled "Send". */
 export function registerHomePortfolioComponents(editor: any) {
   try {
+    editor.DomComponents.addType("canvas7-button", {
+      isComponent: (el: HTMLElement) => {
+        if (!el || String(el.tagName || "").toLowerCase() !== "button") return false;
+        const className = String(el.className || "");
+        return (
+          className.includes("button") ||
+          className.includes("cnvs-hamburger") ||
+          Boolean(el.closest?.("[data-cms-site-template]"))
+        );
+      },
+      model: {
+        defaults: {
+          tagName: "button",
+          droppable: true,
+          editable: true,
+        },
+      },
+    });
     editor.DomComponents.addType("wsi-portfolio-zoom", {
       isComponent: (el: HTMLElement) => Boolean(el?.classList?.contains("wsi-portfolio-zoom")),
       model: {

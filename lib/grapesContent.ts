@@ -1,3 +1,9 @@
+import {
+  getCanvas7PreviewBootstrap,
+  getCanvas7StylesheetMarkup,
+  htmlNeedsCanvas7Assets,
+} from "@/lib/canvasTemplateCatalog";
+
 export type EditorContentType = "tiny" | "grapes";
 
 export type GrapesParts = {
@@ -78,6 +84,9 @@ export const composeContentFromGrapes = (parts: Partial<GrapesParts>) => {
 
   const cssTag = css ? `\n<style>${css}</style>` : "";
   const jsTag = js ? `\n<script>${js}</script>` : "";
+  const canvas7Tag = htmlNeedsCanvas7Assets(html)
+    ? `\n${getCanvas7StylesheetMarkup()}\n${getCanvas7PreviewBootstrap()}`
+    : "";
 
-  return normalizeLineEndings(`${html}${cssTag}${jsTag}`.trim());
+  return normalizeLineEndings(`${canvas7Tag}${html}${cssTag}${jsTag}`.trim());
 };
