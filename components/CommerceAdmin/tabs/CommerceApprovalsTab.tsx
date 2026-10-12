@@ -86,7 +86,12 @@ function ApprovalStatusBadge({ row, now }: { row: CommercePaymentProofRow; now: 
   }, [open]);
 
   if (!provisioning || !copy) {
-    return <span className={styles.badgePending}>{row.status || "Pending Review"}</span>;
+    const active = row.status === "Active";
+    return (
+      <span className={active ? styles.badgePaid : styles.badgePending}>
+        {row.status || "Pending Review"}
+      </span>
+    );
   }
 
   return (

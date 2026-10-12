@@ -1374,7 +1374,7 @@ export function buildDraftDealRow(input: {
 
 function resolveDealStatus(transaction: SalesTransaction, serviceStatus?: string | null) {
   const service = String(serviceStatus ?? "").toLowerCase();
-  if (service === "active") return "Active";
+  if (service === "active" || service === "active live") return "Active";
 
   const order = String(transaction.order_status ?? "").toLowerCase();
   const payment = String(transaction.payment_status ?? "").toLowerCase();

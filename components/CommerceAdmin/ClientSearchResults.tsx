@@ -63,7 +63,7 @@ function staffName(transaction: SalesTransaction) {
 function dealStage(transaction: SalesTransaction) {
   const order = String(transaction.order_status ?? "").toLowerCase();
   const payment = String(transaction.payment_status ?? "").toLowerCase();
-  if (["paid", "completed", "success"].includes(payment) || ["completed", "delivered", "closed won"].includes(order)) {
+  if (["paid", "completed", "success"].includes(payment) || ["completed", "delivered", "closed won", "active", "live"].includes(order)) {
     return "Closed Won";
   }
   if (["cancelled", "canceled", "failed"].includes(order)) return "Closed Lost";

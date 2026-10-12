@@ -5,7 +5,7 @@ import { provisioningCountdownCopy } from "@/lib/customerPortal/orderHelpers";
 import styles from "@/styles/customerPortal.module.css";
 
 function orderStatusClass(status: PortalOrder["status"]) {
-  if (status === "Active Live") return styles.badgeGreen;
+  if (status === "Active Live" || status === "Active") return styles.badgeGreen;
   if (status === "Provisioning") return styles.badgeBlue;
   if (status === "Cancelled" || status === "Expired") return styles.badgeRed;
   return styles.badgeAmber;

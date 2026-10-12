@@ -36,8 +36,7 @@ function formatWhen(value?: string | null) {
 }
 
 function statusClass(status: string) {
-  if (status === "Completed") return styles.badgePaid;
-  if (status === "Active") return styles.badgeProvisioning;
+  if (status === "Completed" || status === "Active") return styles.badgePaid;
   return styles.badgePending;
 }
 
@@ -51,7 +50,7 @@ function ReadField({ label, value }: { label: string; value: string }) {
 }
 
 function orderStatusClass(status: string) {
-  if (status === "Completed") return styles.badgePaid;
+  if (status === "Completed" || status === "Active") return styles.badgePaid;
   if (status === "Provisioning") return styles.badgeProvisioning;
   return styles.badgePending;
 }
@@ -157,7 +156,11 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
       setDetail(next);
       setForm({ description: "", assignedTo: "", checkpoint: form.checkpoint });
       setAssigneeOpen(false);
-      toast.success(serviceNames.length === 1 ? "Provisioning action added." : "Provisioning actions added.");
+      toast.success(
+        serviceNames.length === 1
+          ? "Provisioning action added. The assignee was notified to mark it done before the countdown ends."
+          : "Provisioning actions added. Assignees were notified to mark them done before the countdown ends.",
+      );
       onChanged?.();
     } catch (err: any) {
       const message = err?.response?.data?.errors?.description?.[0]
@@ -468,7 +471,7 @@ export default function ProvisioningPanel({ salesTransactionId, focusService, co
         message={
           pendingConfirm?.kind === "save" && pendingConfirm.serviceNames.length > 1
             ? `Save this action for ${pendingConfirm.serviceNames.length} services and assign them to the same Technical Support?`
-            : "Save this provisioning action now? You can still mark it done later."
+            : "Save this provisioning action now? The assignee will be notified to mark it done before the countdown ends."
         }
         confirmLabel={busy ? "Saving..." : "Yes, save"}
         cancelLabel="Go back"

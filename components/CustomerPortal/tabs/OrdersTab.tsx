@@ -201,7 +201,7 @@ function ServiceNameLink({
   const [open, setOpen] = useState(false);
   const [tipPos, setTipPos] = useState({ top: 0, left: 0, place: "top" as "top" | "bottom" });
   const wrapRef = useRef<HTMLSpanElement>(null);
-  const settled = tasks.filter((task) => task.status === "Active" || task.status === "Completed").length;
+  const settled = tasks.filter((task) => task.status === "Active" || task.status === "Completed" || task.status === "Done").length;
 
   useEffect(() => {
     if (!open || !wrapRef.current) return;
@@ -261,7 +261,7 @@ function ServiceNameLink({
               </em>
               <ul className={styles.statusTipList}>
                 {tasks.map((task) => {
-                  const done = task.status === "Active" || task.status === "Completed";
+                  const done = task.status === "Active" || task.status === "Completed" || task.status === "Done";
                   return (
                     <li key={task.id}>
                       <span>{task.serviceName}</span>
