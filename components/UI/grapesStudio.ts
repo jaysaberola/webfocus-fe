@@ -302,7 +302,7 @@ export const configureStudioCategories = (editor: any) => {
 
   const apply = (category: any) => {
     const label = normalizeStudioCategory(String(category?.get?.("id") || category?.get?.("label") || ""));
-    category?.set?.("open", label === CMS_TEMPLATES_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === "Basic");
+    category?.set?.("open", false);
     if (label === CMS_TEMPLATES_CATEGORY || label === CMS_PRESETS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_LAYOUT_CATEGORY) {
       category?.set?.("id", label);
       category?.set?.("label", label);

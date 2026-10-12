@@ -1326,7 +1326,7 @@ export default function GrapesEditor({
 
     const blockSearchRef = blockSearchQueryRef;
 
-    const syncBlockCategories = () => {
+    const collapseStudioAccordions = () => {
       try {
         configureStudioCategories(editor);
 
@@ -1334,8 +1334,16 @@ export default function GrapesEditor({
         blockRoot?.querySelectorAll?.(".gjs-block-category")?.forEach((el) => {
           el.classList.remove("gjs-open");
         });
+
+        const sectors = editor.StyleManager?.getSectors?.({ array: true }) || [];
+        sectors.forEach((sector: any) => {
+          sector?.set?.("open", false);
+        });
+        rightStylesRef.current?.querySelectorAll?.(".gjs-sm-sector")?.forEach((el) => {
+          el.classList.remove("gjs-sm-open");
+        });
       } catch {
-        // ignore category collapse sync errors
+        // ignore accordion collapse sync errors
       }
     };
 
@@ -1368,6 +1376,7 @@ export default function GrapesEditor({
         renderInto(leftBlocksRef.current, safeRender(() => editor.BlockManager.render()));
       }
       suppressNativeStyleColorInputs();
+      collapseStudioAccordions();
       filterBlockPanel(leftBlocksRef.current, blockSearchRef.current);
       leftBlocksRef.current?.querySelectorAll(".gjs-block").forEach((node) => {
         (node as HTMLElement).removeAttribute("title");
@@ -1385,9 +1394,9 @@ export default function GrapesEditor({
       }
     };
 
-    syncBlockCategories();
-    requestAnimationFrame(syncBlockCategories);
-    setTimeout(syncBlockCategories, 120);
+    collapseStudioAccordions();
+    requestAnimationFrame(collapseStudioAccordions);
+    setTimeout(collapseStudioAccordions, 120);
 
     const applyProductShowcaseTopSpacing = () => {
       const wrapper = editor.getWrapper?.();
@@ -2236,7 +2245,7 @@ export default function GrapesEditor({
       applyProductShowcaseTopSpacing();
       queueCanvasLayoutRefresh();
       mountStudioPanels();
-      syncBlockCategories();
+      collapseStudioAccordions();
     };
 
     const syncStudioDefaults = () => {
@@ -2251,7 +2260,7 @@ export default function GrapesEditor({
         hideLegacyViewsUi();
         queueCanvasLayoutRefresh();
         mountStudioPanels();
-        syncBlockCategories();
+        collapseStudioAccordions();
         syncStudioDeviceState();
       } catch {
         // ignore default sync errors
@@ -2422,7 +2431,6 @@ export default function GrapesEditor({
       if (!isWrapper) {
         const tagName = String(component?.get?.("tagName") || "").toLowerCase();
         setActiveRightPanel(["a", "button", "video", "iframe"].includes(tagName) ? "settings" : "styles");
-        setIsRightSidebarHidden(false);
       }
       handleTextComponentSelected(component);
     });
@@ -4439,7 +4447,7 @@ export default function GrapesEditor({
         }
 
         .cms-grapes-shell .gjs-block-category .gjs-title {
-          padding: 16px 14px 8px;
+          padding: 12px 14px;
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.12em;
@@ -4447,13 +4455,18 @@ export default function GrapesEditor({
           color: #64748b;
           background: transparent;
           border-bottom: 0;
+          cursor: pointer;
         }
 
         .cms-grapes-shell .gjs-block-category .gjs-blocks-c {
-          display: grid;
+          display: none;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 10px;
           padding: 0 10px 16px;
+        }
+
+        .cms-grapes-shell .gjs-block-category.gjs-open .gjs-blocks-c {
+          display: grid;
         }
 
         .cms-grapes-shell .gjs-block {
@@ -5203,11 +5216,13 @@ export default function GrapesEditor({
         }
 
         .cms-grapes-shell .gjs-sm-properties {
+          display: none;
           padding: 12px 4px 4px;
           transform-origin: top center;
         }
 
         .cms-grapes-shell .gjs-sm-sector.gjs-sm-open .gjs-sm-properties {
+          display: block;
           animation: cms-style-sector-open 240ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 

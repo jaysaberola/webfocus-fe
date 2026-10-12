@@ -462,6 +462,8 @@ export function filterBlockPanel(root: HTMLElement | null, query: string) {
     });
 
     category.style.display = visibleCount > 0 ? "" : "none";
+    if (normalized && visibleCount > 0) category.classList.add("gjs-open");
+    else if (!normalized) category.classList.remove("gjs-open");
   });
 }
 
