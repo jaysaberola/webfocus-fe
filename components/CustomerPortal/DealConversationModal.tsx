@@ -61,6 +61,19 @@ function isImageFile(name?: string | null, url?: string | null) {
   return /\.(png|jpe?g|gif|webp)$/i.test(`${name || ""} ${url || ""}`);
 }
 
+function peerInitial(name?: string | null) {
+  const trimmed = String(name || "").trim();
+  return (trimmed.charAt(0) || "C").toUpperCase();
+}
+
+function PeerMark({ name, className }: { name?: string | null; className?: string }) {
+  return (
+    <span className={[styles.chatBrandMark, styles.chatPeerMark, className].filter(Boolean).join(" ")} aria-hidden="true">
+      {peerInitial(name)}
+    </span>
+  );
+}
+
 type DealConversationModalProps = {
   open: boolean;
   recordId?: number | null;
@@ -344,7 +357,11 @@ export default function DealConversationModal({
         lockScroll={false}
       >
         <div className={styles.chatHead}>
-          <WebFocusBrandMark variant="badge" className={styles.chatHeadMark} />
+          {salesView ? (
+            <PeerMark name={peerName || title} className={styles.chatHeadMark} />
+          ) : (
+            <WebFocusBrandMark variant="badge" className={styles.chatHeadMark} />
+          )}
           <div className={styles.chatHeadText}>
             <h3 id="deal-conversation-title">{salesView ? title : "WebFocus Solutions, Inc."}</h3>
             <p>{salesView ? subtitle : "Typically replies within a few minutes"}</p>
@@ -381,7 +398,11 @@ export default function DealConversationModal({
                   key={`${message.from}-${index}-${message.text.slice(0, 12)}`}
                   className={mine ? styles.chatRowMine : styles.chatRowTheirs}
                 >
-                  {mine ? null : <WebFocusBrandMark variant="badge" className={styles.chatBubbleMark} />}
+                  {mine ? null : salesView ? (
+                    <PeerMark name={peerName || title} className={styles.chatBubbleMark} />
+                  ) : (
+                    <WebFocusBrandMark variant="badge" className={styles.chatBubbleMark} />
+                  )}
                   <div
                     className={[
                       mine ? styles.chatBubbleMine : styles.chatBubbleTheirs,

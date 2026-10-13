@@ -19,7 +19,7 @@ type AnchorRect = {
   width: number;
 };
 
-const INBOX_WIDTH = 320;
+const INBOX_WIDTH = 420;
 
 let id = 0;
 

@@ -1087,7 +1087,7 @@ export default function ClientOrderForm({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
-  const [chatOpen, setChatOpen] = useState(Boolean(transaction?.id));
+  const [chatOpen, setChatOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [liveNotes, setLiveNotes] = useState(transaction?.notes || "");
   const [newClientName, setNewClientName] = useState("");

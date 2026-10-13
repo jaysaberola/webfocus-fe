@@ -5010,7 +5010,7 @@
 .chatWidget {
   pointer-events: auto;
   margin: 0;
-  width: min(22.5rem, calc(100vw - 1.5rem));
+  width: min(26.5rem, calc(100vw - 1.5rem));
   height: min(34rem, calc(100dvh - 7.5rem));
   max-height: min(34rem, calc(100dvh - 7.5rem));
   border-radius: 0.85rem;
@@ -5123,6 +5123,14 @@
 .chatBrandMarkFallback {
   background: #ea580c;
   color: #fff;
+}
+
+.chatPeerMark {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .chatLauncher {

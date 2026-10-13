@@ -963,7 +963,7 @@ function InboxMessageView({
   const quotation = item.kind === "web_design_quotation" || item.kind === "deal_reply";
   const receipt = item.kind === "payment_proof";
   const canReply = Boolean((item.canReply || item.kind === "deal_reply") && (item.recordId || item.referenceId));
-  const [replyOpen, setReplyOpen] = useState(canReply);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   return (
     <article className={styles.inboxMessage}>
