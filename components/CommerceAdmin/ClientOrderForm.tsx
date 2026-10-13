@@ -2831,7 +2831,8 @@ export default function ClientOrderForm({
           conversation={dealConversationThread(effectiveNotes)}
           isWebDesign={isWebDesignTransaction(transaction)}
           viewer="sales"
-          peerName={transaction.customer_name || "Customer"}
+          peerName={transaction.customer_name || selectedClient?.mname || "Customer"}
+          peerAvatarUrl={selectedClient?.avatar}
           placement="right"
           showLauncher
           quotedPrice={dealQuotedPrice(effectiveNotes, Number(transaction.grand_total || 0))}

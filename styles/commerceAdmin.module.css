@@ -7303,11 +7303,19 @@ select.clientCrmInput {
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
+  overflow: hidden;
   border-radius: 999px;
   background: #1a73e8;
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.inboxMessageAvatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .inboxMessageFrom {

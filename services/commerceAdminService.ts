@@ -215,6 +215,7 @@ export type CommerceNotificationAdminRow = {
   manageable?: boolean;
   fromName?: string | null;
   fromEmail?: string | null;
+  fromAvatarUrl?: string | null;
   attachments?: CommerceNotificationAttachment[];
   details?: CommerceNotificationDetail[];
   intro?: string | null;

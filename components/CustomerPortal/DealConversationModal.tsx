@@ -66,10 +66,26 @@ function peerInitial(name?: string | null) {
   return (trimmed.charAt(0) || "C").toUpperCase();
 }
 
-function PeerMark({ name, className }: { name?: string | null; className?: string }) {
+function PeerMark({
+  name,
+  avatarUrl,
+  className,
+}: {
+  name?: string | null;
+  avatarUrl?: string | null;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const resolved = resolveStorageAssetUrl(avatarUrl) || avatarUrl || undefined;
+  const showPhoto = Boolean(resolved && !failed);
+
   return (
     <span className={[styles.chatBrandMark, styles.chatPeerMark, className].filter(Boolean).join(" ")} aria-hidden="true">
-      {peerInitial(name)}
+      {showPhoto ? (
+        <img src={resolved} alt="" onError={() => setFailed(true)} />
+      ) : (
+        peerInitial(name)
+      )}
     </span>
   );
 }
@@ -84,6 +100,7 @@ type DealConversationModalProps = {
   isWebDesign?: boolean;
   viewer?: "customer" | "sales";
   peerName?: string;
+  peerAvatarUrl?: string | null;
   placement?: "center" | "right";
   showLauncher?: boolean;
   quotedPrice?: number | null;
@@ -104,6 +121,7 @@ export default function DealConversationModal({
   isWebDesign = false,
   viewer = "customer",
   peerName,
+  peerAvatarUrl,
   placement = "right",
   showLauncher = true,
   quotedPrice = 0,
@@ -358,7 +376,7 @@ export default function DealConversationModal({
       >
         <div className={styles.chatHead}>
           {salesView ? (
-            <PeerMark name={peerName || title} className={styles.chatHeadMark} />
+            <PeerMark name={peerName || title} avatarUrl={peerAvatarUrl} className={styles.chatHeadMark} />
           ) : (
             <WebFocusBrandMark variant="badge" className={styles.chatHeadMark} />
           )}
@@ -399,7 +417,11 @@ export default function DealConversationModal({
                   className={mine ? styles.chatRowMine : styles.chatRowTheirs}
                 >
                   {mine ? null : salesView ? (
-                    <PeerMark name={peerName || title} className={styles.chatBubbleMark} />
+                    <PeerMark
+                      name={peerName || title}
+                      avatarUrl={peerAvatarUrl}
+                      className={styles.chatBubbleMark}
+                    />
                   ) : (
                     <WebFocusBrandMark variant="badge" className={styles.chatBubbleMark} />
                   )}

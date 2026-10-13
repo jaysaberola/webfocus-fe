@@ -4991,7 +4991,7 @@
 }
 
 .chatDialog {
-  width: min(100%, 24.5rem);
+  width: min(100%, 30rem);
   max-height: min(calc(100dvh - 2rem), 38rem);
   overflow: hidden;
 }
@@ -5010,7 +5010,7 @@
 .chatWidget {
   pointer-events: auto;
   margin: 0;
-  width: min(26.5rem, calc(100vw - 1.5rem));
+  width: min(30rem, calc(100vw - 1.5rem));
   height: min(34rem, calc(100dvh - 7.5rem));
   max-height: min(34rem, calc(100dvh - 7.5rem));
   border-radius: 0.85rem;

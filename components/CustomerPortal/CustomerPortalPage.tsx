@@ -3,6 +3,8 @@ import { useRouter } from "next/router";
 import type { CustomerPortalTab } from "@/lib/customerPortal/types";
 import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
+import { PORTAL_NOTIFICATIONS_UPDATED_EVENT } from "@/services/customerPortalService";
+import { fetchCurrentCustomer } from "@/services/publicCustomerService";
 import LiveInboxHost from "@/components/LiveInboxHost";
 import CustomerPortalTabs from "./CustomerPortalTabs";
 import OverviewTab from "./tabs/OverviewTab";
@@ -44,6 +46,23 @@ export default function CustomerPortalPage() {
   }, [router.isReady, router.query.tab]);
 
   const unreadCount = usePortalUnreadCount(Boolean(customer));
+
+  useEffect(() => {
+    if (!customer) return;
+
+    const refreshCustomer = () => {
+      fetchCurrentCustomer({ silent: true, force: true })
+        .then((fresh) => setCustomer(fresh))
+        .catch(() => {});
+    };
+
+    window.addEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refreshCustomer);
+    window.addEventListener("focus", refreshCustomer);
+    return () => {
+      window.removeEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refreshCustomer);
+      window.removeEventListener("focus", refreshCustomer);
+    };
+  }, [customer?.id, setCustomer]);
 
   const switchTab = useCallback(
     (tab: CustomerPortalTab, extraQuery?: Record<string, string>) => {

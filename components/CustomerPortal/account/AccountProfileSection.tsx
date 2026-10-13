@@ -7,6 +7,7 @@ import type { PortalProfileApproval } from "@/lib/customerPortal/types";
 import { resolveAvatarUrl } from "@/lib/currentUser";
 import {
   fetchPendingProfileChangeRequest,
+  PORTAL_NOTIFICATIONS_UPDATED_EVENT,
   submitPortalProfileChange,
 } from "@/services/customerPortalService";
 import {
@@ -122,23 +123,30 @@ export default function AccountProfileSection({ customer, onCustomerUpdate }: Pr
 
   useEffect(() => {
     if (!customer) return;
-    fetchCurrentCustomer({ silent: true, force: true })
-      .then((fresh) => onCustomerUpdate?.(fresh))
-      .catch(() => {});
-  }, [customer?.id, onCustomerUpdate]);
 
-  useEffect(() => {
-    if (!customer) return;
-    fetchPendingProfileChangeRequest()
-      .then((data) => {
-        setPendingApproval(data ? mapPendingApproval(data) : null);
-        setPendingAvatarUrl(data?.pendingAvatarUrl ?? null);
-      })
-      .catch(() => {
-        setPendingApproval(null);
-        setPendingAvatarUrl(null);
-      });
-  }, [customer]);
+    const refreshProfile = () => {
+      fetchCurrentCustomer({ silent: true, force: true })
+        .then((fresh) => onCustomerUpdate?.(fresh))
+        .catch(() => {});
+      fetchPendingProfileChangeRequest()
+        .then((data) => {
+          setPendingApproval(data ? mapPendingApproval(data) : null);
+          setPendingAvatarUrl(data?.pendingAvatarUrl ?? null);
+        })
+        .catch(() => {
+          setPendingApproval(null);
+          setPendingAvatarUrl(null);
+        });
+    };
+
+    refreshProfile();
+    window.addEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refreshProfile);
+    window.addEventListener("focus", refreshProfile);
+    return () => {
+      window.removeEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refreshProfile);
+      window.removeEventListener("focus", refreshProfile);
+    };
+  }, [customer?.id, onCustomerUpdate]);
 
   useEffect(() => {
     return () => {

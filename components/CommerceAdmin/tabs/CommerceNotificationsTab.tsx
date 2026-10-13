@@ -948,6 +948,8 @@ function InboxMessageView({
 }) {
   const fromName = item.fromName || item.audience || senderLabel(item);
   const fromEmail = item.fromEmail || item.email || "";
+  const fromAvatarUrl = resolveStorageAssetUrl(item.fromAvatarUrl) || item.fromAvatarUrl || "";
+  const [avatarFailed, setAvatarFailed] = useState(false);
   const attachments = item.attachments ?? [];
   const details = (item.details ?? []).filter((row) => {
     const value = String(row.value || "").trim();
@@ -970,7 +972,11 @@ function InboxMessageView({
       <div className={styles.inboxMessageCard}>
         <div className={styles.inboxMessageMeta}>
           <span className={styles.inboxMessageAvatar} aria-hidden="true">
-            {senderInitial(fromName)}
+            {fromAvatarUrl && !avatarFailed ? (
+              <img src={fromAvatarUrl} alt="" onError={() => setAvatarFailed(true)} />
+            ) : (
+              senderInitial(fromName)
+            )}
           </span>
           <div className={styles.inboxMessageFrom}>
             <strong>{fromName}</strong>
@@ -1027,12 +1033,19 @@ function InboxMessageView({
                     className={styles.inboxAttachment}
                   >
                     {image ? (
-                      <img src={url} alt={attachment.name} />
-                    ) : (
-                      <span className={styles.inboxAttachmentFile}>
-                        <i className="fa-regular fa-file" aria-hidden="true" />
-                      </span>
-                    )}
+                      <img
+                        src={url}
+                        alt={attachment.name}
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                          const fallback = event.currentTarget.nextElementSibling;
+                          if (fallback instanceof HTMLElement) fallback.hidden = false;
+                        }}
+                      />
+                    ) : null}
+                    <span className={styles.inboxAttachmentFile} hidden={image}>
+                      <i className="fa-regular fa-file" aria-hidden="true" />
+                    </span>
                     <span className={styles.inboxAttachmentName}>{attachment.name}</span>
                   </a>
                 );
@@ -1102,6 +1115,7 @@ function InboxMessageView({
         isWebDesign={quotation}
         viewer="sales"
         peerName={item.fromName || item.audience || "Customer"}
+        peerAvatarUrl={item.fromAvatarUrl}
         placement="right"
         showLauncher
         quotedPrice={item.quotedPrice}
