@@ -12,16 +12,22 @@ const defaultTypeClass: Record<ToastType, string> = {
 function cleanInboxBody(title: string, body: string) {
   let detail = String(body || "").trim();
   const heading = String(title || "").trim();
-  if (!detail) return "";
+  if (!detail) return { detail: "", extraUnread: 0 };
   if (heading && detail.toLowerCase().startsWith(heading.toLowerCase())) {
     detail = detail.slice(heading.length).replace(/^[\s:.\-–—]+/, "").trim();
   }
-  if (detail.length > 140) {
-    const clipped = detail.slice(0, 140);
-    const lastSpace = clipped.lastIndexOf(" ");
-    detail = `${(lastSpace > 80 ? clipped.slice(0, lastSpace) : clipped).trim()}…`;
+  let extraUnread = 0;
+  const extraMatch = detail.match(/(?:·|\|)\s*(\d+)\s+more unread\s*$/i);
+  if (extraMatch) {
+    extraUnread = Number(extraMatch[1]) || 0;
+    detail = detail.replace(/(?:·|\|)\s*\d+\s+more unread\s*$/i, "").trim();
   }
-  return detail;
+  if (detail.length > 150) {
+    const clipped = detail.slice(0, 150);
+    const lastSpace = clipped.lastIndexOf(" ");
+    detail = `${(lastSpace > 90 ? clipped.slice(0, lastSpace) : clipped).trim()}…`;
+  }
+  return { detail, extraUnread };
 }
 
 export default function Toast({
@@ -52,7 +58,8 @@ export default function Toast({
 
   if (variant === "inbox") {
     const heading = title || "New notification";
-    const detail = cleanInboxBody(heading, body || (title ? "" : message));
+    const { detail, extraUnread } = cleanInboxBody(heading, body || (title ? "" : message));
+    const unreadLabel = extraUnread > 0 ? `${extraUnread + 1} unread` : "New";
     return (
       <div className={styles.inboxToast} role="status" aria-live="polite">
         <button
@@ -64,12 +71,18 @@ export default function Toast({
           }}
         >
           <div className={styles.inboxToastIcon} aria-hidden="true">
-            <i className="fa-regular fa-bell" />
+            <i className="fa-solid fa-bell" />
           </div>
           <div className={styles.inboxToastText}>
+            <span className={styles.inboxToastEyebrow}>{unreadLabel}</span>
             <strong>{heading}</strong>
             {detail ? <p>{detail}</p> : null}
-            <span className={styles.inboxToastAction}>Open notifications</span>
+            {extraUnread > 0 ? (
+              <span className={styles.inboxToastMeta}>+{extraUnread} more unread in your inbox</span>
+            ) : null}
+            <span className={styles.inboxToastAction}>
+              Open notifications <i className="fa-solid fa-arrow-right" aria-hidden="true" />
+            </span>
           </div>
         </button>
         <button

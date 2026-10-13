@@ -4,8 +4,8 @@
   z-index: 10050;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-width: min(24rem, calc(100vw - 2rem));
+  gap: 12px;
+  max-width: min(28rem, calc(100vw - 1.5rem));
   pointer-events: none;
 }
 
@@ -14,20 +14,24 @@
 }
 
 .toastHostInbox {
-  right: 0.85rem;
+  right: 0.75rem;
 }
 
 .inboxToast {
-  width: min(22.5rem, calc(100vw - 2rem));
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.9rem;
-  box-shadow: 0 18px 40px -16px rgba(15, 23, 42, 0.35);
-  padding: 0.75rem 0.8rem;
+  width: min(26rem, calc(100vw - 1.5rem));
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #bfdbfe;
+  border-left: 5px solid #2563eb;
+  border-radius: 1rem;
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.08),
+    0 22px 50px -14px rgba(15, 23, 42, 0.45),
+    0 10px 20px -12px rgba(37, 99, 235, 0.35);
+  padding: 0.95rem 0.95rem 0.95rem 0.85rem;
   display: flex;
   align-items: flex-start;
-  gap: 0.35rem;
-  animation: toastSlideIn 0.28s ease;
+  gap: 0.4rem;
+  animation: inboxPopIn 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .inboxToastMain {
@@ -35,69 +39,121 @@
   min-width: 0;
   display: flex;
   align-items: flex-start;
-  gap: 0.7rem;
+  gap: 0.85rem;
   border: none;
   background: transparent;
-  padding: 0.15rem;
+  padding: 0.1rem;
   text-align: left;
   cursor: pointer;
 }
 
+.inboxToastMain:hover .inboxToastAction {
+  background: #1d4ed8;
+}
+
 .inboxToastIcon {
-  width: 2.15rem;
-  height: 2.15rem;
+  width: 2.55rem;
+  height: 2.55rem;
   border-radius: 999px;
-  background: #eff6ff;
-  color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
+  box-shadow: 0 8px 16px -8px rgba(37, 99, 235, 0.8);
 }
 
 .inboxToastText {
   min-width: 0;
 }
 
+.inboxToastEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.28rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .inboxToastText strong {
   display: block;
   color: #0f172a;
-  font-size: 0.84rem;
-  font-weight: 700;
-  line-height: 1.35;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
 }
 
 .inboxToastText p {
-  margin: 0.25rem 0 0;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 500;
+  margin: 0.35rem 0 0;
+  color: #1e293b;
+  font-size: 0.86rem;
+  font-weight: 550;
   line-height: 1.45;
   word-break: break-word;
 }
 
-.inboxToastAction {
-  display: inline-block;
-  margin-top: 0.45rem;
-  color: #2563eb;
-  font-size: 0.74rem;
+.inboxToastMeta {
+  display: block;
+  margin-top: 0.35rem;
+  color: #334155;
+  font-size: 0.78rem;
   font-weight: 700;
+}
+
+.inboxToastAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.7rem;
+  padding: 0.42rem 0.75rem;
+  border-radius: 0.55rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 750;
+  box-shadow: 0 8px 16px -10px rgba(37, 99, 235, 0.9);
 }
 
 .inboxToastClose {
   border: none;
-  background: transparent;
-  color: #94a3b8;
+  background: #f1f5f9;
+  color: #64748b;
   cursor: pointer;
-  padding: 0.2rem;
-  font-size: 0.9rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0.85rem;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .inboxToastClose:hover {
-  color: #475569;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+@keyframes inboxPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .cartToast {

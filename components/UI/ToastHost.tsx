@@ -52,7 +52,7 @@ export default function ToastHost() {
     <div
       className={`${styles.toastHost}${hasInboxToast ? ` ${styles.toastHostInbox}` : ""}`}
       style={{
-        top: hasCartToast || hasInboxToast ? "4.75rem" : "20px",
+        top: hasCartToast || hasInboxToast ? "5.1rem" : "20px",
       }}
     >
       {toasts.map((t) => (
