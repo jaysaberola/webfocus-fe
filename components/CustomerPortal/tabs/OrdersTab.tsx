@@ -338,7 +338,7 @@ export default function OrdersTab() {
     let rows = orders.filter((order) => {
       if (!rowMatchesDateRange(order.date, dateRange)) return false;
 
-      const item = order.items[0];
+      const item = order.items?.[0];
       return rowMatchesSearch(
         [order.id, order.invoiceId, orderServiceName(order), item?.name, item?.detail, order.plan, order.domain, orderPaymentMethodLabel(order), orderPaymentDate(order), order.status],
         search,
@@ -422,9 +422,21 @@ export default function OrdersTab() {
     }
   };
 
-  const applyOrderUpdate = (updated: PortalOrder) => {
-    setOrders((rows) => rows.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
-    setViewingOrder((current) => (current && current.id === updated.id ? { ...current, ...updated } : current));
+  const applyOrderUpdate = (updated: Partial<PortalOrder> & { id?: string; recordId?: number }) => {
+    const mergeOrder = (current: PortalOrder): PortalOrder => {
+      const sameOrder =
+        (updated.id && current.id === updated.id) ||
+        (updated.recordId && current.recordId === updated.recordId);
+      if (!sameOrder) return current;
+      const next = { ...current, ...updated } as PortalOrder;
+      // Chat/conversation replies are partial — never wipe line items or identity.
+      if (!Array.isArray(updated.items)) next.items = current.items ?? [];
+      if (!updated.id) next.id = current.id;
+      if (updated.recordId == null) next.recordId = current.recordId;
+      return next;
+    };
+    setOrders((rows) => rows.map(mergeOrder));
+    setViewingOrder((current) => (current ? mergeOrder(current) : current));
   };
 
   const handleCancelOrder = async () => {

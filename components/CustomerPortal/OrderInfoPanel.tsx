@@ -16,7 +16,6 @@ import { DEAL_NAME_OPTIONS, DOMAIN_TYPE_OPTIONS } from "@/lib/commerceAdmin/clie
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { fetchPublicProducts } from "@/services/publicProductService";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
-import { getServices } from "@/services/serviceService";
 import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
 import { updatePortalOrderItems } from "@/services/customerPortalService";
 import PortalPickSelect from "@/components/CustomerPortal/PortalPickSelect";
@@ -261,16 +260,17 @@ export default function OrderInfoPanel({
   const billedTotal = portalBilledAmount(order);
   const isWebDesignQuote = String(order.status || "").toLowerCase().includes("quotation")
     || String(order.serviceName || "").toLowerCase().includes("web");
+  const orderItems = order.items ?? [];
   const itemSubtotal = useMemo(
-    () => order.items.reduce((sum, item) => sum + Number(item.price ?? item.total ?? 0), 0),
-    [order.items],
+    () => orderItems.reduce((sum, item) => sum + Number(item.price ?? item.total ?? 0), 0),
+    [orderItems],
   );
   const discountTotal =
     Number(order.discountTotal ?? 0) ||
-    order.items.reduce((sum, item) => sum + Number(item.discount ?? 0), 0);
+    orderItems.reduce((sum, item) => sum + Number(item.discount ?? 0), 0);
   const taxTotal =
     Number(order.taxTotal ?? 0) ||
-    order.items.reduce((sum, item) => sum + Number(item.tax ?? 0), 0);
+    orderItems.reduce((sum, item) => sum + Number(item.tax ?? 0), 0);
   const subtotal = Number(order.subtotal ?? 0) || itemSubtotal;
   const [draftItems, setDraftItems] = useState<DraftItem[]>(() => draftsFromOrder(order));
   const [saving, setSaving] = useState(false);
@@ -289,16 +289,15 @@ export default function OrderInfoPanel({
 
   useEffect(() => {
     let cancelled = false;
+    // Customers cannot call staff /services (403). Use public catalogs + static fallbacks only.
     Promise.all([
       fetchPublicProducts().catch(() => []),
       getAllPublicHostingAddons().catch(() => []),
-      getServices({ per_page: 1000 }, { silent: true }).catch(() => null),
-    ]).then(([products, addons, services]) => {
+    ]).then(([products, addons]) => {
       if (cancelled) return;
       setCatalog([
         ...readCatalogRows(products),
         ...readCatalogRows(addons),
-        ...readCatalogRows(services),
         ...HOSTING_PLANS.map((plan) => ({ name: plan.name, price: plan.price })),
         ...WEBDESIGN_PACKAGES.map((pkg) => ({ name: pkg.name, price: pkg.price })),
         ...UNIVERSAL_HOSTING_ADDONS.map((addon) => ({ name: addon.name, price: addon.price })),
@@ -740,7 +739,16 @@ export default function OrderInfoPanel({
         quotedPrice={order.quotedPrice}
         onOpen={() => setReplyOpen(true)}
         onClose={() => setReplyOpen(false)}
-        onReplied={(next) => onOrderUpdated?.(next as PortalOrder)}
+        onReplied={(next) => {
+          if (!onOrderUpdated) return;
+          onOrderUpdated({
+            ...order,
+            ...next,
+            id: order.id,
+            recordId: order.recordId ?? next.recordId,
+            items: order.items ?? [],
+          } as PortalOrder);
+        }}
       />
     </section>
   );

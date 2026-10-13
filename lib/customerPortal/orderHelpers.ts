@@ -15,7 +15,7 @@ export function orderPlanLabel(order: PortalOrder) {
 }
 
 export function orderServiceName(order: PortalOrder) {
-  return order.serviceName ?? order.items[0]?.name ?? "Order";
+  return order.serviceName ?? order.items?.[0]?.name ?? "Order";
 }
 
 export function orderCanCancel(order: PortalOrder) {
