@@ -58,6 +58,21 @@ async function loadInbox(audience: Audience): Promise<LiveInboxItem[]> {
   return asStaffItems(await fetchCommerceNotifications());
 }
 
+function popupUnread(items: LiveInboxItem[], onOpenInbox?: () => void) {
+  if (!items.length) return;
+  const sorted = [...items].sort((a, b) => b.id - a.id);
+  const latest = sorted[0];
+  const extra = sorted.length - 1;
+  toast.inbox({
+    title: latest.title,
+    body:
+      extra > 0
+        ? `${latest.body || "You have unread notifications."}${latest.body ? " " : ""}(+${extra} more)`
+        : latest.body || "You have an unread notification.",
+    onClick: onOpenInbox,
+  });
+}
+
 export default function LiveInboxHost({
   audience,
   enabled = true,
@@ -69,6 +84,7 @@ export default function LiveInboxHost({
   const lastUnread = useRef(0);
   const toasting = useRef(false);
   const onOpenInboxRef = useRef(onOpenInbox);
+  const lastOpenPopupAt = useRef(0);
 
   useEffect(() => {
     onOpenInboxRef.current = onOpenInbox;
@@ -81,9 +97,20 @@ export default function LiveInboxHost({
     primed.current = false;
     seenIds.current = new Set();
     lastUnread.current = 0;
+    lastOpenPopupAt.current = 0;
 
-    const refresh = async () => {
-      if (cancelled || toasting.current) return;
+    const showPopup = (items: LiveInboxItem[]) => {
+      if (!items.length || toasting.current) return;
+      toasting.current = true;
+      popupUnread(items, () => onOpenInboxRef.current?.());
+      lastOpenPopupAt.current = Date.now();
+      window.setTimeout(() => {
+        toasting.current = false;
+      }, 500);
+    };
+
+    const refresh = async (reason: "poll" | "open" | "focus" = "poll") => {
+      if (cancelled) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
 
       try {
@@ -94,10 +121,14 @@ export default function LiveInboxHost({
         const unreadCount = unreadItems.length;
         const ids = new Set(items.map((item) => item.id).filter((id) => Number.isFinite(id) && id > 0));
 
+        // Login / first portal open: always popup current unread notifications.
         if (!primed.current) {
           primed.current = true;
           seenIds.current = ids;
           lastUnread.current = unreadCount;
+          if (audience === "customer") notifyPortalNotificationsUpdated();
+          else notifyCommerceNotificationsUpdated();
+          showPopup(unreadItems);
           return;
         }
 
@@ -109,42 +140,39 @@ export default function LiveInboxHost({
         lastUnread.current = unreadCount;
         seenIds.current = new Set([...seenIds.current, ...ids]);
 
+        // Returning to the tab / window: remind about remaining unread (throttled).
+        if ((reason === "open" || reason === "focus") && unreadItems.length) {
+          const elapsed = Date.now() - lastOpenPopupAt.current;
+          if (elapsed > 15000) {
+            if (audience === "customer") notifyPortalNotificationsUpdated();
+            else notifyCommerceNotificationsUpdated();
+            showPopup(unreadItems);
+            return;
+          }
+        }
+
         if (!freshUnread.length && !grew) return;
 
         if (audience === "customer") notifyPortalNotificationsUpdated();
         else notifyCommerceNotificationsUpdated();
 
         if (!freshUnread.length) return;
-
-        toasting.current = true;
-        const latest = freshUnread[0];
-        const extra = freshUnread.length - 1;
-        toast.inbox({
-          title: latest.title,
-          body:
-            extra > 0
-              ? `${latest.body || "You have a new message."}${latest.body ? " " : ""}(+${extra} more)`
-              : latest.body || "You have a new message.",
-          onClick: () => onOpenInboxRef.current?.(),
-        });
-        window.setTimeout(() => {
-          toasting.current = false;
-        }, 400);
+        showPopup(freshUnread);
       } catch {
         // Keep polling quietly; offline/auth blips should not spam the UI.
       }
     };
 
-    void refresh();
+    void refresh("open");
     const interval = window.setInterval(() => {
-      void refresh();
+      void refresh("poll");
     }, Math.max(4000, pollMs));
 
     const onFocus = () => {
-      void refresh();
+      void refresh("focus");
     };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible") void refresh("open");
     };
 
     window.addEventListener("focus", onFocus);

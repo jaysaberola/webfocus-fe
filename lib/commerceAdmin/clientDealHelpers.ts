@@ -551,10 +551,13 @@ export function transactionDomainName(transaction: SalesTransaction) {
   const fromMeta = formatDomain(meta?.domainName);
   if (fromMeta) return fromMeta;
   const rawMeta = String(meta?.domainName ?? "").trim();
-  if (rawMeta && rawMeta !== "—") return rawMeta;
+  if (rawMeta && rawMeta !== "—" && !isDealChatAttachmentLabel(rawMeta) && looksLikeDomain(rawMeta)) {
+    return rawMeta;
+  }
   const items = transaction.items ?? [];
   for (const item of items) {
     const name = String(item.name ?? "").trim();
+    if (isDealChatAttachmentLabel(name)) continue;
     const fromItem = formatDomain(looksLikeDomain(name) ? name : extractDomain(name));
     if (fromItem) return fromItem;
   }
@@ -677,6 +680,39 @@ function isNumericOrPrice(value: string) {
   return /^(?:₱\s*)?\d+(?:[.,]\d+)?$/.test(String(value ?? "").trim());
 }
 
+const FILE_LIKE_DOMAIN_TLDS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "bmp",
+  "svg",
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "zip",
+  "rar",
+  "7z",
+  "txt",
+  "csv",
+  "json",
+  "xml",
+  "mp4",
+  "mov",
+  "avi",
+  "html",
+  "htm",
+  "css",
+  "js",
+  "ts",
+  "php",
+]);
+
 function looksLikeDomain(value: string) {
   const input = String(value ?? "")
     .trim()
@@ -685,22 +721,28 @@ function looksLikeDomain(value: string) {
     ?.trim()
     .replace(/\.$/, "");
   if (!input || isNumericOrPrice(input) || /^[\d.]+$/.test(input)) return false;
+  if (isDealChatAttachmentLabel(input)) return false;
+  const tld = input.split(".").pop()?.toLowerCase() || "";
+  if (FILE_LIKE_DOMAIN_TLDS.has(tld)) return false;
   if (!/\.[a-z]{2,}$/i.test(input)) return false;
   return /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(input);
 }
 
 function formatDomain(value?: string | null): string | null {
   let input = String(value ?? "").trim();
-  if (!input || input === "—" || isNumericOrPrice(input)) return null;
+  if (!input || input === "—" || isNumericOrPrice(input) || isDealChatAttachmentLabel(input)) return null;
   input = input.replace(/^https?:\/\//i, "");
   input = input.split("/")[0]?.trim() ?? "";
-  if (!input || input === "—") return null;
+  if (!input || input === "—" || isDealChatAttachmentLabel(input)) return null;
   if (looksLikeDomain(input)) return input.toLowerCase();
   return extractDomain(input);
 }
 
 function extractDomain(text: string): string | null {
-  const source = String(text ?? "").replace(/\[DEAL_META\]\{[\s\S]*?\}(?:\n|$)/g, " ");
+  const source = String(text ?? "")
+    .replace(/\[DEAL_META\]\{[\s\S]*?\}(?:\n|$)/g, " ")
+    .replace(/\[WEBDESIGN_META\]\{[\s\S]*?\}(?:\n|$)/g, " ")
+    .replace(/\b(?:sent an (?:attachment|proposal quotation|signed proposal)|uploaded (?:a proposal quotation|the signed proposal)):\s*[^\n]+/gi, " ");
   const matches = source.match(/[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/gi) ?? [];
   for (const match of matches) {
     if (looksLikeDomain(match)) return match.toLowerCase();
@@ -1296,7 +1338,7 @@ export function withLiveDomainDealLine(
   },
 ): ClientDealRow {
   const domainName = formatDomain(domain.domainName) || String(domain.domainName ?? "").trim();
-  if (!domainName || domainName === "—") return order;
+  if (!domainName || domainName === "—" || isDealChatAttachmentLabel(domainName)) return order;
 
   const domainType =
     matchDomainTypeOption(domain.domainType) ||

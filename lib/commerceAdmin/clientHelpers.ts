@@ -209,6 +209,39 @@ export function clientPlanName(client: CustomerRow) {
   return String(client.plan_name ?? "").trim() || "—";
 }
 
+const FILE_LIKE_DOMAIN_TLDS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "gif",
+  "webp",
+  "bmp",
+  "svg",
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "zip",
+  "rar",
+  "7z",
+  "txt",
+  "csv",
+  "json",
+  "xml",
+  "mp4",
+  "mov",
+  "avi",
+  "html",
+  "htm",
+  "css",
+  "js",
+  "ts",
+  "php",
+]);
+
 function extractDomainLike(text: string): string | null {
   const input = String(text ?? "").trim();
   if (!input) return null;
@@ -218,6 +251,9 @@ function extractDomainLike(text: string): string | null {
   const domain = matches.find((value) => {
     const token = String(value ?? "").trim();
     if (!token || /^(?:₱\s*)?\d+(?:[.,]\d+)?$/.test(token) || /^[\d.]+$/.test(token)) return false;
+    if (/\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|xlsx?|pptx?|zip|rar|7z)$/i.test(token)) return false;
+    const tld = token.split(".").pop()?.toLowerCase() || "";
+    if (FILE_LIKE_DOMAIN_TLDS.has(tld)) return false;
     return /\.[a-z]{2,}$/i.test(token);
   });
   return domain ? String(domain).trim() : null;

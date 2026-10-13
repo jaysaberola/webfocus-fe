@@ -167,11 +167,17 @@ export function resolveWebDesignCartMeta(item: {
   };
 }
 
-/** Chat uploads and filenames must never become deal line items or included services. */
+/** Chat uploads and filenames must never become deal line items, domains, or included services. */
 export function isDealChatAttachmentLabel(value?: string | null) {
   const text = String(value ?? "").trim();
   if (!text) return false;
-  if (/^sent an (attachment|proposal quotation|signed proposal):/i.test(text)) return true;
+  if (
+    /^(?:sent an (?:attachment|proposal quotation|signed proposal)|uploaded (?:a proposal quotation|the signed proposal)):/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
   if (/\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|xlsx?|pptx?|zip|rar|7z)$/i.test(text)) return true;
   return false;
 }

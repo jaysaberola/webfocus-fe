@@ -1249,7 +1249,10 @@ export function clientOrderFormFromTransaction(transaction: {
     salesNotes: String(meta?.salesNotes ?? "").trim(),
     totalEstimatedCost: String(meta?.totalEstimatedCost ?? "").trim(),
     expectedDiscount: String(meta?.expectedDiscount ?? "").trim(),
-    domainName: String(meta?.domainName ?? "").trim(),
+    domainName: (() => {
+      const raw = String(meta?.domainName ?? "").trim();
+      return isDealChatAttachmentLabel(raw) ? "" : raw;
+    })(),
     domainType: matchDomainTypeOption(meta?.domainType) || matchDomainTypeOption(dealName),
     domainRegistrar: matchOption(DOMAIN_REGISTRAR_OPTIONS, meta?.domainRegistrar),
     domainSubscriptionStartDate: toDateInput(meta?.domainSubscriptionStartDate),
@@ -1345,7 +1348,7 @@ function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | n
     cancellationDocumentName: form.cancellationDocumentName,
     totalEstimatedCost: form.totalEstimatedCost,
     expectedDiscount: form.expectedDiscount,
-    domainName: form.domainName.trim(),
+    domainName: isDealChatAttachmentLabel(form.domainName) ? "" : form.domainName.trim(),
     domainType: form.domainType,
     domainRegistrar: form.domainRegistrar,
     domainSubscriptionStartDate: managed.domainSubscriptionStartDate,

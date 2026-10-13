@@ -1,4 +1,5 @@
 import { formatDealAmount, type ClientDealRow } from "@/lib/commerceAdmin/clientDealHelpers";
+import { isDealChatAttachmentLabel } from "@/lib/webDesignSetup";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -112,10 +113,14 @@ export default function OrderProductDetailsPanel({
                       )}
                       {!included && item.additionalServices?.length ? (
                         <span className={styles.productIncludedServices}>
-                          {item.additionalServices.join(" · ")}
+                          {item.additionalServices
+                            .filter((value) => !isDealChatAttachmentLabel(value))
+                            .join(" · ")}
                         </span>
                       ) : null}
-                      {item.domain ? <span>{item.domain}</span> : null}
+                      {item.domain && !isDealChatAttachmentLabel(item.domain) ? (
+                        <span>{item.domain}</span>
+                      ) : null}
                     </div>
                   </td>
                   <td className={styles.dealsNowrap} data-label="Start Date">{period.start}</td>
