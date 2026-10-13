@@ -1,6 +1,13 @@
 import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { looksLikeDomain } from "@/lib/serviceCategory";
-import { SERVICE_CHECKLIST_ITEMS, WEBDESIGN_PAYMENT_METHODS, webDesignIncludedServices } from "@/lib/webDesignSetup";
+import {
+  isDealChatAttachmentLabel,
+  SERVICE_CHECKLIST_ITEMS,
+  WEBDESIGN_PAYMENT_METHODS,
+  webDesignClientNotes,
+  webDesignIncludedServices,
+  webDesignSalesNotes,
+} from "@/lib/webDesignSetup";
 
 export const DEAL_STAGE_OPTIONS = [
   "Qualification",
@@ -347,6 +354,7 @@ export function isUsableDealName(value?: string | null) {
   const text = String(value ?? "").trim();
   if (!text || text === "—" || text === "-None-") return false;
   if (looksLikeDomain(text)) return false;
+  if (isDealChatAttachmentLabel(text)) return false;
   return true;
 }
 
@@ -546,7 +554,9 @@ export type ClientOrderFormState = {
   productCategory: string;
   productName: string;
   salesStatus: string;
-  statusTriggerDate: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  expirationStartDate: string;
   joNumber: string;
   billingInCharge: string;
   dealStatus: string;
@@ -579,6 +589,7 @@ export type ClientOrderFormState = {
   domainSubscriptionEndDate: string;
   domainRegistrationStartDate: string;
   domainRegistrationExpirationDate: string;
+  sslWildcardExpirationDate: string;
   domainRegistrationCost: string;
   salesNotes: string;
 };
@@ -601,7 +612,9 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   productCategory: "",
   productName: "",
   salesStatus: "",
-  statusTriggerDate: "",
+  subscriptionStartDate: "",
+  subscriptionEndDate: "",
+  expirationStartDate: "",
   joNumber: "",
   billingInCharge: "",
   dealStatus: "",
@@ -634,6 +647,7 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   domainSubscriptionEndDate: "",
   domainRegistrationStartDate: "",
   domainRegistrationExpirationDate: "",
+  sslWildcardExpirationDate: "",
   domainRegistrationCost: "",
   salesNotes: "",
   ...defaults,
@@ -651,17 +665,25 @@ export function probabilityForStage(stage: string) {
   return "10";
 }
 
+export function hasSelectedDomain(form: Pick<ClientOrderFormState, "domainName">) {
+  return Boolean(String(form.domainName ?? "").trim());
+}
+
 export function validateClientOrderForm(
   form: ClientOrderFormState,
   options?: { requireCrmFields?: boolean },
 ) {
+  const domainSelected = hasSelectedDomain(form);
   if (!form.stage) return "Stage is required.";
-  if (!form.dealName.trim()) return "Deal Name is required.";
+  if (!form.dealName.trim() && !domainSelected) return "Deal Name is required.";
   if (!form.clientId) return "Client Name is required.";
+  if (requiresPreorderJoNumber(form) && !form.joNumber.trim()) {
+    return "JO Number is required for Dedicated Server and Bare Metal pre-orders.";
+  }
   if (options?.requireCrmFields === false) return null;
   if (!form.dealType) return "Client Status is required.";
   if (!form.dealSubType) return "Product Status is required.";
-  if (!form.productCategory) return "Product Category is required.";
+  if (!form.productCategory && !domainSelected) return "Product Category is required.";
   if (!form.salesStatus) return "Sales Status is required.";
   return null;
 }
@@ -698,6 +720,9 @@ export type DealMeta = {
   closingDate?: string;
   contactName?: string;
   joNumber?: string;
+  subscriptionStartDate?: string;
+  subscriptionEndDate?: string;
+  expirationStartDate?: string;
   billingInCharge?: string;
   dealStatus?: string;
   paymentTerms?: string;
@@ -710,7 +735,6 @@ export type DealMeta = {
   paymentDate?: string;
   paymentMode?: string;
   collectionNote?: string;
-  statusTriggerDate?: string;
   contractStatus?: string;
   contractSentDate?: string;
   contractServiceStartDate?: string;
@@ -730,7 +754,12 @@ export type DealMeta = {
   domainSubscriptionEndDate?: string;
   domainRegistrationStartDate?: string;
   domainRegistrationExpirationDate?: string;
+  sslWildcardExpirationDate?: string;
   domainRegistrationCost?: string;
+  clientNotes?: string;
+  salesNotes?: string;
+  quotedPrice?: number;
+  conversation?: Array<{ from?: string; text?: string; at?: string; file?: { name?: string; url?: string; kind?: string } }>;
 };
 
 const DEAL_META_PREFIX = "[DEAL_META]";
@@ -840,6 +869,131 @@ function addMonthsToDateInput(value: string, months: number) {
   return formatDateInput(date);
 }
 
+/** Backend-owned registration and wildcard SSL term. */
+export const REGISTRATION_EXPIRATION_YEARS = 9;
+/** Backend-owned wildcard SSL term. */
+export const SSL_WILDCARD_EXPIRATION_YEARS = 9;
+/** Sales enters the start date. The subscription runs for this many years. */
+export const DOMAIN_SUBSCRIPTION_YEARS = 10;
+
+export function addYearsToDateInput(value: string, years: number) {
+  const text = toDateInput(value);
+  if (!text || !years) return "";
+  const [year, month, day] = text.split("-").map(Number);
+  if (!year || !month || !day) return "";
+  const date = new Date(year + years, month - 1, day);
+  if (date.getMonth() !== month - 1) date.setDate(0);
+  return formatDateInput(date);
+}
+
+export function selectionIncludesWildcardSsl(...values: Array<string | null | undefined>) {
+  return values.some((value) => /wildcard\s*ssl/i.test(String(value ?? "")));
+}
+
+function isAddonLabel(value?: string | null) {
+  return /\badd[\s-]*ons?\b/i.test(String(value ?? ""));
+}
+
+export function isBareMetalSelection(category?: string | null, dealName?: string | null) {
+  const categoryText = String(category ?? "").toLowerCase();
+  if (categoryText.includes("bare metal") || categoryText.includes("baremetal")) return true;
+  if (isAddonLabel(category) || isAddonLabel(dealName)) return false;
+  const names = String(dealName ?? "").toLowerCase();
+  return names.includes("bare metal") || names.includes("baremetal");
+}
+
+export function isDedicatedServerSelection(category?: string | null, dealName?: string | null) {
+  if (isBareMetalSelection(category, dealName)) return false;
+  const categoryText = String(category ?? "").toLowerCase();
+  if (categoryText.includes("dedicated")) return true;
+  if (isAddonLabel(category) || isAddonLabel(dealName)) return false;
+  return /\bdedicated\b/i.test(String(dealName ?? ""));
+}
+
+export function requiresPreorderJoNumber(
+  form: Pick<ClientOrderFormState, "productCategory" | "dealName">,
+) {
+  return (
+    isBareMetalSelection(form.productCategory, form.dealName) ||
+    isDedicatedServerSelection(form.productCategory, form.dealName)
+  );
+}
+
+export function preorderJoHint(form: Pick<ClientOrderFormState, "productCategory" | "dealName">) {
+  if (isBareMetalSelection(form.productCategory, form.dealName)) {
+    return "Required for bare metal pre-orders. Bare metal is excluded from the 48-hour technical turnaround.";
+  }
+  if (isDedicatedServerSelection(form.productCategory, form.dealName)) {
+    return "Required for dedicated server pre-orders. Technical turnaround is 48 hours.";
+  }
+  return "Job order number if already issued";
+}
+
+function usesDomainSubscription(
+  form: Pick<ClientOrderFormState, "productCategory" | "domainSubscriptionStartDate">,
+) {
+  return (
+    form.productCategory === "Domain Registration" ||
+    Boolean(toDateInput(form.domainSubscriptionStartDate))
+  );
+}
+
+export function withManagedDealDates<T extends ClientOrderFormState>(form: T): T {
+  const wildcard = selectionIncludesWildcardSsl(form.dealName, form.productName, form.productCategory);
+  const registrationStart =
+    toDateInput(form.domainRegistrationStartDate) || toDateInput(form.expirationStartDate);
+  const domainRegistrationExpirationDate = registrationStart
+    ? addYearsToDateInput(registrationStart, REGISTRATION_EXPIRATION_YEARS)
+    : toDateInput(form.domainRegistrationExpirationDate);
+
+  const sslStart =
+    toDateInput(form.expirationStartDate) ||
+    toDateInput(form.domainRegistrationStartDate) ||
+    toDateInput(form.subscriptionStartDate);
+  const sslWildcardExpirationDate =
+    wildcard && sslStart
+      ? addYearsToDateInput(sslStart, SSL_WILDCARD_EXPIRATION_YEARS)
+      : wildcard
+        ? toDateInput(form.sslWildcardExpirationDate)
+        : "";
+
+  const domainStart = toDateInput(form.domainSubscriptionStartDate);
+  const domainSubscriptionEndDate = domainStart
+    ? addYearsToDateInput(domainStart, DOMAIN_SUBSCRIPTION_YEARS)
+    : "";
+
+  const subscriptionStart = toDateInput(form.subscriptionStartDate) || domainStart;
+  let subscriptionEndDate = toDateInput(form.subscriptionEndDate);
+  if (subscriptionStart && usesDomainSubscription(form)) {
+    subscriptionEndDate = addYearsToDateInput(subscriptionStart, DOMAIN_SUBSCRIPTION_YEARS);
+  } else if (subscriptionStart) {
+    const months = paymentTermMonths(form.paymentTerms);
+    subscriptionEndDate = months ? addMonthsToDateInput(subscriptionStart, months) : subscriptionEndDate;
+  } else {
+    subscriptionEndDate = "";
+  }
+
+  return {
+    ...form,
+    domainRegistrationExpirationDate,
+    sslWildcardExpirationDate,
+    domainSubscriptionEndDate,
+    subscriptionEndDate,
+  };
+}
+
+export function subscriptionEndIsComputed(
+  form: Pick<
+    ClientOrderFormState,
+    "productCategory" | "domainSubscriptionStartDate" | "subscriptionStartDate" | "paymentTerms"
+  >,
+) {
+  const subscriptionStart = toDateInput(form.subscriptionStartDate) || toDateInput(form.domainSubscriptionStartDate);
+  if (!subscriptionStart) return false;
+  if (usesDomainSubscription(form)) return true;
+  return paymentTermMonths(form.paymentTerms) != null;
+}
+
 export function deriveContractFields(
   form: Pick<
     ClientOrderFormState,
@@ -857,6 +1011,8 @@ export function deriveContractFields(
     | "paymentTerms"
     | "domainSubscriptionStartDate"
     | "domainSubscriptionEndDate"
+    | "subscriptionStartDate"
+    | "subscriptionEndDate"
     | "domainRegistrationStartDate"
     | "domainRegistrationExpirationDate"
   >,
@@ -889,6 +1045,7 @@ export function deriveContractFields(
 
   const contractServiceStartDate =
     toDateInput(form.domainSubscriptionStartDate) ||
+    toDateInput(form.subscriptionStartDate) ||
     toDateInput(form.domainRegistrationStartDate) ||
     toDateInput(form.closingDate) ||
     toDateInput(transaction?.issued_date) ||
@@ -897,6 +1054,7 @@ export function deriveContractFields(
   const months = paymentTermMonths(form.paymentTerms);
   const contractServiceEndDate =
     toDateInput(form.domainSubscriptionEndDate) ||
+    toDateInput(form.subscriptionEndDate) ||
     toDateInput(form.domainRegistrationExpirationDate) ||
     toDateInput(transaction?.due_date) ||
     (months && contractServiceStartDate ? addMonthsToDateInput(contractServiceStartDate, months) : "");
@@ -1066,7 +1224,9 @@ export function clientOrderFormFromTransaction(transaction: {
       subjectForProductName(parseDealNames(dealName)[0] || dealName),
     productName: String(meta?.productName ?? "").trim() || dealName,
     salesStatus: matchOption(SALES_STATUS_OPTIONS, meta?.salesStatus),
-    statusTriggerDate: toDateInput(meta?.statusTriggerDate),
+    subscriptionStartDate: toDateInput(meta?.subscriptionStartDate),
+    subscriptionEndDate: toDateInput(meta?.subscriptionEndDate),
+    expirationStartDate: toDateInput(meta?.expirationStartDate),
     joNumber: String(meta?.joNumber ?? "").trim(),
     billingInCharge: String(meta?.billingInCharge ?? "").trim(),
     dealStatus: matchOption(DEAL_STATUS_OPTIONS, meta?.dealStatus),
@@ -1086,6 +1246,7 @@ export function clientOrderFormFromTransaction(transaction: {
     proofToProceedJoName: String(meta?.proofToProceedJoName ?? "").trim(),
     contractFileName: String(meta?.contractFileName ?? "").trim(),
     cancellationDocumentName: String(meta?.cancellationDocumentName ?? "").trim(),
+    salesNotes: String(meta?.salesNotes ?? "").trim(),
     totalEstimatedCost: String(meta?.totalEstimatedCost ?? "").trim(),
     expectedDiscount: String(meta?.expectedDiscount ?? "").trim(),
     domainName: String(meta?.domainName ?? "").trim(),
@@ -1095,6 +1256,7 @@ export function clientOrderFormFromTransaction(transaction: {
     domainSubscriptionEndDate: toDateInput(meta?.domainSubscriptionEndDate),
     domainRegistrationStartDate: toDateInput(meta?.domainRegistrationStartDate),
     domainRegistrationExpirationDate: toDateInput(meta?.domainRegistrationExpirationDate),
+    sslWildcardExpirationDate: toDateInput(meta?.sslWildcardExpirationDate),
     domainRegistrationCost: (() => {
       const fromItem = (transaction.items ?? []).reduce((found, item) => {
         if (found > 0) return found;
@@ -1116,7 +1278,7 @@ export function clientOrderFormFromTransaction(transaction: {
   };
   const derivedContract = deriveContractFields(withInvoice, transaction);
 
-  return {
+  return withManagedDealDates({
     ...withInvoice,
     ...derivedContract,
     contractSentDate: toDateInput(meta?.contractSentDate) || derivedContract.contractSentDate,
@@ -1124,10 +1286,11 @@ export function clientOrderFormFromTransaction(transaction: {
       toDateInput(meta?.contractServiceStartDate) || derivedContract.contractServiceStartDate,
     contractServiceEndDate:
       toDateInput(meta?.contractServiceEndDate) || derivedContract.contractServiceEndDate,
-  };
+  });
 }
 
 function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | null): DealMeta {
+  const managed = withManagedDealDates(form);
   const adjustmentKeys = uniqueDealNames([
     ...dealLineAdjustmentKeys(form.dealName, {
       domainType: form.domainType,
@@ -1155,6 +1318,9 @@ function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | n
     closingDate: form.closingDate,
     contactName: form.contactName.trim(),
     joNumber: form.joNumber.trim(),
+    subscriptionStartDate: managed.subscriptionStartDate,
+    subscriptionEndDate: managed.subscriptionEndDate,
+    expirationStartDate: managed.expirationStartDate,
     billingInCharge: form.billingInCharge,
     dealStatus: form.dealStatus,
     paymentTerms: form.paymentTerms,
@@ -1167,7 +1333,6 @@ function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | n
     paymentDate: form.paymentDate,
     paymentMode: form.paymentMode,
     collectionNote: form.collectionNote,
-    statusTriggerDate: form.statusTriggerDate,
     contractStatus: form.contractStatus,
     contractSentDate: form.contractSentDate,
     contractServiceStartDate: form.contractServiceStartDate,
@@ -1183,11 +1348,62 @@ function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | n
     domainName: form.domainName.trim(),
     domainType: form.domainType,
     domainRegistrar: form.domainRegistrar,
-    domainSubscriptionStartDate: form.domainSubscriptionStartDate,
-    domainSubscriptionEndDate: form.domainSubscriptionEndDate,
-    domainRegistrationStartDate: form.domainRegistrationStartDate,
-    domainRegistrationExpirationDate: form.domainRegistrationExpirationDate,
+    domainSubscriptionStartDate: managed.domainSubscriptionStartDate,
+    domainSubscriptionEndDate: managed.domainSubscriptionEndDate,
+    domainRegistrationStartDate: managed.domainRegistrationStartDate,
+    domainRegistrationExpirationDate: managed.domainRegistrationExpirationDate,
+    sslWildcardExpirationDate: managed.sslWildcardExpirationDate,
     domainRegistrationCost: form.domainRegistrationCost,
+    clientNotes: String(parseDealMeta(existingNotes)?.clientNotes ?? "").trim(),
+    salesNotes: String(parseDealMeta(existingNotes)?.salesNotes ?? "").trim(),
+    quotedPrice: Number(parseDealMeta(existingNotes)?.quotedPrice ?? 0) || undefined,
+    conversation: parseDealMeta(existingNotes)?.conversation,
+  };
+}
+
+export function dealConversationNotes(notes?: string | null) {
+  const meta = parseDealMeta(notes);
+  return {
+    clientNotes: String(meta?.clientNotes ?? "").trim() || webDesignClientNotes(notes),
+    salesNotes: String(meta?.salesNotes ?? "").trim() || webDesignSalesNotes(notes),
+  };
+}
+
+export function dealQuotedPrice(notes?: string | null, fallback = 0) {
+  const stored = Number(parseDealMeta(notes)?.quotedPrice ?? 0);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+  return Number.isFinite(fallback) && fallback > 0 ? fallback : 0;
+}
+
+export function dealConversationThread(notes?: string | null) {
+  const raw = parseDealMeta(notes)?.conversation;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((row): row is { from: "client" | "sales"; text: string; at?: string; file?: { name: string; url: string; kind?: "file" | "proposal" | "signed" } } => {
+      if (!row || typeof row !== "object") return false;
+      const text = String(row.text ?? "").trim();
+      return text !== "" && (row.from === "client" || row.from === "sales");
+    })
+    .map((row) => ({
+      from: row.from === "sales" ? ("sales" as const) : ("client" as const),
+      text: String(row.text ?? "").trim(),
+      at: row.at,
+      file: row.file,
+    }));
+}
+
+export function withDomainDealSelection<T extends ClientOrderFormState>(form: T): T {
+  const domainName = String(form.domainName ?? "").trim();
+  const type = matchDomainTypeOption(form.domainType);
+  if (!domainName) return form;
+  const names = parseDealNames(form.dealName);
+  const nextNames = type && !names.some((name) => name === type) ? [...names, type] : names;
+  const dealName = joinDealNames(nextNames);
+  return {
+    ...form,
+    productCategory: form.productCategory || "Domain Registration",
+    dealName,
+    productName: dealName || form.productName,
   };
 }
 

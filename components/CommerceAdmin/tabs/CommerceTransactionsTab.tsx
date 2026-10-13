@@ -18,6 +18,7 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
+import { dealConversationNotes } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
   formatDealNamesForDisplay,
   orderAdminColumnValue,
@@ -807,7 +808,6 @@ export default function CommerceTransactionsTab() {
   if (view === "deal" && dealInfo) {
     const canManage = canManageWebDesignOrder(dealInfo, currentUser);
     const pending = isPendingQuotationTransaction(dealInfo);
-    const proposalSubmitted = isProposalSubmittedTransaction(dealInfo);
     const proposalSigned = isProposalSignedTransaction(dealInfo);
 
     return (
@@ -818,27 +818,14 @@ export default function CommerceTransactionsTab() {
           pageSubtitle="Deals"
           focusProductDetails={focusProductDetails}
           toolbarActions={
-            canManage && pending ? (
-              <>
-                {!proposalSubmitted ? (
-                  <button
-                    type="button"
-                    className={styles.primaryBtnSm}
-                    onClick={() => setProposalTarget(dealInfo)}
-                  >
-                    Upload Proposal
-                  </button>
-                ) : null}
-                {proposalSigned ? (
-                  <button
-                    type="button"
-                    className={styles.primaryBtnSm}
-                    onClick={() => void handleAction(dealInfo, "webdesign:proceed-payment")}
-                  >
-                    Proceed Payment
-                  </button>
-                ) : null}
-              </>
+            canManage && pending && proposalSigned ? (
+              <button
+                type="button"
+                className={styles.primaryBtnSm}
+                onClick={() => void handleAction(dealInfo, "webdesign:proceed-payment")}
+              >
+                Proceed Payment
+              </button>
             ) : null
           }
           onBack={() => {
@@ -1225,21 +1212,12 @@ export default function CommerceTransactionsTab() {
                         if (canManage && pending && !proposalSubmitted) {
                           return (
                             <div className={styles.txGridFooterActions}>
-                              {!priced ? (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryBtnSm}
-                                  onClick={() => void handleAction(row, "webdesign:set-price")}
-                                >
-                                  Set Price
-                                </button>
-                              ) : null}
                               <button
                                 type="button"
-                                className={styles.primaryBtnSm}
-                                onClick={() => setProposalTarget(row)}
+                                className={styles.secondaryBtnSm}
+                                onClick={() => void handleAction(row, "webdesign:set-price")}
                               >
-                                Upload Proposal
+                                {priced ? "Update Price" : "Set Price"}
                               </button>
                             </div>
                           );
@@ -1248,15 +1226,13 @@ export default function CommerceTransactionsTab() {
                         if (canManage && pending && proposalSubmitted && !proposalSigned) {
                           return (
                             <div className={styles.txGridFooterActions}>
-                              {!priced ? (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryBtnSm}
-                                  onClick={() => void handleAction(row, "webdesign:set-price")}
-                                >
-                                  Set Price
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                className={styles.secondaryBtnSm}
+                                onClick={() => void handleAction(row, "webdesign:set-price")}
+                              >
+                                {priced ? "Update Price" : "Set Price"}
+                              </button>
                               <span className={styles.badgePending}>Awaiting Client Signature</span>
                             </div>
                           );
@@ -1265,15 +1241,13 @@ export default function CommerceTransactionsTab() {
                         if (canManage && pending && proposalSigned) {
                           return (
                             <div className={styles.txGridFooterActions}>
-                              {!priced ? (
-                                <button
-                                  type="button"
-                                  className={styles.secondaryBtnSm}
-                                  onClick={() => void handleAction(row, "webdesign:set-price")}
-                                >
-                                  Set Price
-                                </button>
-                              ) : null}
+                              <button
+                                type="button"
+                                className={styles.secondaryBtnSm}
+                                onClick={() => void handleAction(row, "webdesign:set-price")}
+                              >
+                                {priced ? "Update Price" : "Set Price"}
+                              </button>
                               <button
                                 type="button"
                                 className={styles.primaryBtnSm}
@@ -1442,11 +1416,11 @@ export default function CommerceTransactionsTab() {
                     />
                     <DetailField
                       label="Notes"
-                      value={webDesignClientNotes(selected.notes) || "—"}
+                      value={dealConversationNotes(selected.notes).clientNotes || webDesignClientNotes(selected.notes) || "—"}
                     />
                     <DetailField
                       label="Sales reply"
-                      value={webDesignSalesNotes(selected.notes) || "—"}
+                      value={dealConversationNotes(selected.notes).salesNotes || webDesignSalesNotes(selected.notes) || "—"}
                     />
                     {(selected.items ?? []).map((item, index) => (
                       <DetailField

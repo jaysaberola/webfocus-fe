@@ -78,6 +78,10 @@ export type PortalOrder = {
   paymentMode?: string | null;
   canCheckout?: boolean;
   canCancel?: boolean;
+  clientNotes?: string;
+  salesNotes?: string;
+  conversation?: PortalConversationMessage[];
+  quotedPrice?: number;
   items: Array<{
     id?: number | string;
     name: string;
@@ -95,6 +99,20 @@ export type PortalOrder = {
     included?: boolean;
     parentId?: number | string | null;
   }>;
+};
+
+export type PortalConversationFile = {
+  name: string;
+  url: string;
+  path?: string;
+  kind?: "file" | "proposal" | "signed";
+};
+
+export type PortalConversationMessage = {
+  from: "client" | "sales";
+  text: string;
+  at?: string;
+  file?: PortalConversationFile;
 };
 
 export type PortalTicket = {
@@ -134,6 +152,12 @@ export type PortalNotification = {
     canUpload: boolean;
     signed: boolean;
   } | null;
+  canReply?: boolean;
+  recordId?: number | null;
+  clientNotes?: string | null;
+  salesNotes?: string | null;
+  conversation?: PortalConversationMessage[];
+  quotedPrice?: number;
 };
 
 export type PortalPaymentProof = {

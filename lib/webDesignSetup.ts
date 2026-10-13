@@ -108,7 +108,9 @@ export function parseWebDesignMeta(source?: string | null): WebDesignCartMeta | 
             templateId: parsed.templateId,
             templateLabel: String(parsed.templateLabel ?? "").trim() || undefined,
             serviceFeatures: Array.isArray(parsed.serviceFeatures)
-              ? parsed.serviceFeatures.map((value) => String(value).trim()).filter(Boolean)
+              ? parsed.serviceFeatures
+                  .map((value) => String(value).trim())
+                  .filter((value) => Boolean(value) && !isDealChatAttachmentLabel(value))
               : [],
             paymentMethods: Array.isArray(parsed.paymentMethods)
               ? parsed.paymentMethods.map((value) => String(value).trim()).filter(Boolean)
@@ -165,6 +167,15 @@ export function resolveWebDesignCartMeta(item: {
   };
 }
 
+/** Chat uploads and filenames must never become deal line items or included services. */
+export function isDealChatAttachmentLabel(value?: string | null) {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+  if (/^sent an (attachment|proposal quotation|signed proposal):/i.test(text)) return true;
+  if (/\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|xlsx?|pptx?|zip|rar|7z)$/i.test(text)) return true;
+  return false;
+}
+
 export function webDesignAdditionalServicesLabel(meta: WebDesignCartMeta | null | undefined) {
   if (!meta) return "";
   const features = (meta.serviceFeatures ?? []).filter(
@@ -182,7 +193,7 @@ export function webDesignIncludedServices(source?: string | null): string[] {
   ];
   if (fromMeta.length) return uniqueServiceLabels(fromMeta);
 
-  const match = String(source ?? "").match(/Additional Services:\s*(.+)/i);
+  const match = String(source ?? "").match(/^Additional Services:\s*(.+)$/im);
   if (!match) return [];
   return uniqueServiceLabels(String(match[1]).split(","));
 }
@@ -192,7 +203,7 @@ function uniqueServiceLabels(values: Array<string | null | undefined>) {
   const labels: string[] = [];
   for (const value of values) {
     const label = String(value ?? "").trim();
-    if (!label || label.toLowerCase() === "none selected") continue;
+    if (!label || label.toLowerCase() === "none selected" || isDealChatAttachmentLabel(label)) continue;
     const key = label.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);

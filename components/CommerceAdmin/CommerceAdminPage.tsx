@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { resolveCommerceTab } from "@/lib/navPermissions";
 import { prefetchCommerceAdmin } from "@/lib/commerceAdmin/prefetchCommerceAdmin";
 import { useCommerceAdminAuth } from "@/lib/commerceAdmin/useCommerceAdminAuth";
+import LiveInboxHost from "@/components/LiveInboxHost";
 import CommerceAdminShell from "./CommerceAdminShell";
 import CommerceAdminContent from "./CommerceAdminContent";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -42,14 +43,21 @@ export default function CommerceAdminPage() {
     }
   }, [router.isReady, router.query.tab, loading, user]);
 
-  const switchTab = (tab: CommerceAdminTab) => {
-    setActiveTab(tab);
-    router.replace(
-      { pathname: COMMERCE_ADMIN_PATH, query: tab === "dashboard" ? {} : { tab } },
-      undefined,
-      { shallow: true }
-    );
-  };
+  const switchTab = useCallback(
+    (tab: CommerceAdminTab) => {
+      setActiveTab(tab);
+      router.replace(
+        { pathname: COMMERCE_ADMIN_PATH, query: tab === "dashboard" ? {} : { tab } },
+        undefined,
+        { shallow: true },
+      );
+    },
+    [router],
+  );
+
+  const openInbox = useCallback(() => {
+    switchTab("notifications");
+  }, [switchTab]);
 
   if (loading && !user) {
     return <div className={styles.loadingState}>Loading commerce control center...</div>;
@@ -57,6 +65,7 @@ export default function CommerceAdminPage() {
 
   return (
     <div className={styles.page}>
+      <LiveInboxHost audience="staff" enabled={Boolean(user)} onOpenInbox={openInbox} />
       <CommerceAdminShell
         activeTab={activeTab}
         onTabChange={switchTab}

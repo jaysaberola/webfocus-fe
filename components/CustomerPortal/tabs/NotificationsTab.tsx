@@ -1,12 +1,14 @@
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
+import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
 import {
   deletePortalNotification,
   fetchPortalNotifications,
   markAllPortalNotificationsRead,
   markPortalNotificationRead,
   notifyPortalNotificationsUpdated,
+  PORTAL_NOTIFICATIONS_UPDATED_EVENT,
   uploadPortalSignedProposal,
 } from "@/services/customerPortalService";
 import type { PortalNotification, PortalNotificationAttachment } from "@/lib/customerPortal/types";
@@ -128,6 +130,20 @@ export default function NotificationsTab() {
 
   useEffect(() => {
     loadNotifications().finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadNotifications();
+    };
+    window.addEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    const interval = window.setInterval(refresh, 8000);
+    return () => {
+      window.removeEventListener(PORTAL_NOTIFICATIONS_UPDATED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(interval);
+    };
   }, []);
 
   useEffect(() => {
@@ -467,9 +483,11 @@ export default function NotificationsTab() {
 
         {opened ? (
           <InboxMessageView
+            key={opened.id}
             item={opened}
             onOpenRelated={() => openRelated(opened)}
             onProposalUploaded={() => loadNotifications()}
+            onReplied={() => loadNotifications()}
           />
         ) : notifications.length === 0 ? (
           <p className={styles.inboxEmpty}>No notifications yet.</p>
@@ -630,7 +648,8 @@ function formatNoticeStatus(value: string) {
   return text.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-const NOTE_LABELS = new Set(["Notes", "Sales reply", "Message", "Summary", "Details"]);
+const NOTE_LABELS = new Set(["Message", "Summary", "Details"]);
+const HIDDEN_DETAIL_LABELS = new Set(["Notes", "Sales reply"]);
 const LINE_LABELS = new Set(["Items", "Included service"]);
 const STATUS_LABELS = ["Proof Status", "Payment Status", "Status", "Order Status"];
 
@@ -674,10 +693,12 @@ function CustomerNotice({
   item,
   details,
   attachments,
+  onOpenChat,
 }: {
   item: PortalNotification;
   details: NonNullable<PortalNotification["details"]>;
   attachments: PortalNotificationAttachment[];
+  onOpenChat?: () => void;
 }) {
   const intro = String(item.intro || item.desc || "").trim();
   const amount = detailValue(details, "Amount");
@@ -702,7 +723,7 @@ function CustomerNotice({
     if (row.label === "Amount" || row.label === statusLabel || row.label === "Checkpoint ends") return false;
     if ((showCheckpoint || showCountdown) && (row.label === "Checkpoint" || row.label === "Next status")) return false;
     if (STATUS_LABELS.includes(row.label) && isReadState(String(row.value || ""))) return false;
-    if (LINE_LABELS.has(row.label) || NOTE_LABELS.has(row.label)) return false;
+    if (LINE_LABELS.has(row.label) || NOTE_LABELS.has(row.label) || HIDDEN_DETAIL_LABELS.has(row.label)) return false;
     return true;
   });
 
@@ -747,7 +768,13 @@ function CustomerNotice({
               const line = splitQuoteLine(String(row.value || ""));
               return (
                 <li key={`${row.label}-${index}`}>
-                  <span>{line.name}</span>
+                  {onOpenChat ? (
+                    <button type="button" className={styles.quoteNoticeLineBtn} onClick={onOpenChat}>
+                      {line.name}
+                    </button>
+                  ) : (
+                    <span>{line.name}</span>
+                  )}
                   {line.price ? <strong>{line.price}</strong> : null}
                 </li>
               );
@@ -793,17 +820,25 @@ function InboxMessageView({
   item,
   onOpenRelated,
   onProposalUploaded,
+  onReplied,
 }: {
   item: PortalNotification;
   onOpenRelated: () => void;
   onProposalUploaded: () => Promise<void> | void;
+  onReplied: () => Promise<void> | void;
 }) {
   const fromName = item.fromName || "WebFocus";
   const fromEmail = item.fromEmail || "";
   const attachments = item.attachments ?? [];
-  const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
+  const details = (item.details ?? []).filter((row) => {
+    const value = String(row.value || "").trim();
+    return value !== "" && !HIDDEN_DETAIL_LABELS.has(row.label);
+  });
   const proposalSign = item.proposalSign;
   const [uploadingSigned, setUploadingSigned] = useState(false);
+  const canReply = Boolean(item.canReply && item.recordId);
+  const [replyOpen, setReplyOpen] = useState(canReply);
+  const isWebDesign = /quotation|web design|proposal/i.test(`${item.title} ${item.desc} ${item.actionLabel}`);
 
   const uploadSignedCopy = async (file: File | null) => {
     if (!file || !proposalSign?.invoiceId || uploadingSigned) return;
@@ -832,9 +867,14 @@ function InboxMessageView({
           <time className={styles.inboxMessageDate}>{formatMessageDate(item)}</time>
         </div>
 
-        <CustomerNotice item={item} details={details} attachments={attachments} />
+        <CustomerNotice
+          item={item}
+          details={details}
+          attachments={attachments}
+          onOpenChat={canReply ? () => setReplyOpen(true) : undefined}
+        />
 
-        {item.actionUrl || proposalSign?.canUpload ? (
+        {item.actionUrl || proposalSign?.canUpload || canReply ? (
           <div className={styles.inboxMessageActions}>
             {proposalSign?.canUpload ? (
               <label className={styles.primaryBtnSm}>
@@ -856,14 +896,34 @@ function InboxMessageView({
                 />
               </label>
             ) : null}
+            {canReply ? (
+              <button type="button" className={styles.primaryBtnSm} onClick={() => setReplyOpen(true)}>
+                Reply
+              </button>
+            ) : null}
             {item.actionUrl ? (
-              <button type="button" className={styles.primaryBtnSm} onClick={onOpenRelated}>
+              <button type="button" className={canReply ? styles.secondaryBtnSm : styles.primaryBtnSm} onClick={onOpenRelated}>
                 {actionLabel(item)}
               </button>
             ) : null}
           </div>
         ) : null}
       </div>
+      <DealConversationModal
+        open={replyOpen}
+        recordId={item.recordId}
+        orderNo={detailValue(item.details, "Order No")}
+        clientNotes={item.clientNotes}
+        salesNotes={item.salesNotes}
+        conversation={item.conversation}
+        isWebDesign={isWebDesign}
+        placement="right"
+        showLauncher
+        quotedPrice={item.quotedPrice}
+        onOpen={() => setReplyOpen(true)}
+        onClose={() => setReplyOpen(false)}
+        onReplied={() => onReplied()}
+      />
     </article>
   );
 }

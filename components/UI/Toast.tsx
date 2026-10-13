@@ -13,18 +13,52 @@ export default function Toast({
   message,
   type,
   variant = "default",
+  title,
+  body,
+  onClick,
   onClose,
 }: {
   message: string;
   type: ToastType;
   variant?: ToastVariant;
+  title?: string;
+  body?: string;
+  onClick?: () => void;
   onClose: () => void;
 }) {
   useEffect(() => {
-    const duration = variant === "cart" ? 4000 : 3000;
+    const duration = variant === "inbox" ? 7000 : variant === "cart" ? 4000 : 3000;
     const timer = setTimeout(onClose, duration);
     return () => clearTimeout(timer);
   }, [onClose, variant]);
+
+  if (variant === "inbox") {
+    const heading = title || "New notification";
+    const detail = body || (title ? "" : message);
+    return (
+      <div className={styles.inboxToast} role="status" aria-live="polite">
+        <button
+          type="button"
+          className={styles.inboxToastMain}
+          onClick={() => {
+            onClick?.();
+            onClose();
+          }}
+        >
+          <div className={styles.inboxToastIcon} aria-hidden="true">
+            <i className="fa-regular fa-bell" />
+          </div>
+          <div className={styles.inboxToastText}>
+            <strong>{heading}</strong>
+            {detail ? <p>{detail}</p> : null}
+          </div>
+        </button>
+        <button type="button" className={styles.inboxToastClose} onClick={onClose} aria-label="Dismiss">
+          <i className="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+      </div>
+    );
+  }
 
   if (variant === "cart") {
     return (

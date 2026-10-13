@@ -1,6 +1,8 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
+import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
+import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
 import { buildClientDealRows, buildDraftDealRow, domainTypeFromHostname, formatDealAmount, applyDealAmounts, applyDealDiscounts, applyDealTaxes, registrarFromHostname, transactionClientName, transactionDealName, transactionDomainName, withLiveDomainDealLine } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   AUTOMATIC_STAGE_OPTIONS,
@@ -40,14 +42,26 @@ import {
   toApiOrderStatus,
   toApiPaymentStatus,
   validateClientOrderForm,
+  dealConversationNotes,
+  dealConversationThread,
+  dealQuotedPrice,
+  hasSelectedDomain,
+  preorderJoHint,
+  requiresPreorderJoNumber,
+  selectionIncludesWildcardSsl,
+  subscriptionEndIsComputed,
+  withDomainDealSelection,
+  withManagedDealDates,
   type ClientOrderFormState,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientDisplayName, assignablePersonLabel, clientDealStatusFromCustomer, resolveAssignableSelectValue, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
 import { isWebDesignPlan, looksLikeDomain } from "@/lib/serviceCategory";
 import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
-import { mergeWebDesignSalesNotes, webDesignClientNotes, webDesignIncludedServices, webDesignSalesNotes } from "@/lib/webDesignSetup";
+import { isDealChatAttachmentLabel, webDesignIncludedServices } from "@/lib/webDesignSetup";
 import {
+  applyWebDesignPriceToItems,
+  isPendingQuotationTransaction,
   isQuotedWebDesign,
   isWebDesignTransaction,
   quotedWebDesignAmount,
@@ -404,6 +418,7 @@ function buildDealItemPayload(
   services: any[],
   form: ClientOrderFormState,
   transaction?: SalesTransaction | null,
+  notesSource?: string | null,
 ) {
   const names = parseDealNames(form.dealName).filter(isUsableDealName);
   const domainName = form.domainName.trim();
@@ -453,7 +468,9 @@ function buildDealItemPayload(
       total_price: domainCost,
     });
   }
-  const extraNames = webDesignIncludedServices(transaction?.notes);
+  const extraNames = webDesignIncludedServices(notesSource ?? transaction?.notes).filter(
+    (extra) => !isDealChatAttachmentLabel(extra),
+  );
   for (const extra of extraNames) {
     if (items.some((item) => item.name.toLowerCase() === extra.toLowerCase())) continue;
     const extraPrice = dealAmountNumber(form.dealAmounts, extra);
@@ -562,7 +579,7 @@ function withAutoDomainFields(
     Number.isFinite(existingCost) &&
     existingCost > 0;
   const nextCost = pickedPrice ?? catalogPrice;
-  return {
+  return withDomainDealSelection({
     ...current,
     domainName: name,
     domainType: type,
@@ -572,7 +589,7 @@ function withAutoDomainFields(
       : nextCost != null
         ? String(nextCost)
         : current.domainRegistrationCost,
-  };
+  });
 }
 
 function extractServicesList(payload: any): any[] {
@@ -1070,8 +1087,17 @@ export default function ClientOrderForm({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
+  const [chatOpen, setChatOpen] = useState(Boolean(transaction?.id));
+  const [priceOpen, setPriceOpen] = useState(false);
+  const [liveNotes, setLiveNotes] = useState(transaction?.notes || "");
   const [newClientName, setNewClientName] = useState("");
   const [manualDateFields, setManualDateFields] = useState<Set<AutoDateKey>>(() => new Set());
+
+  useEffect(() => {
+    setLiveNotes(transaction?.notes || "");
+  }, [transaction?.id, transaction?.notes]);
+
+  const effectiveNotes = liveNotes || transaction?.notes || "";
 
   const setField = <K extends keyof ClientOrderFormState>(key: K, value: ClientOrderFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -1191,8 +1217,10 @@ export default function ClientOrderForm({
               clientDealStatusFromCustomer(linkedClient) ||
               nextForm.dealType ||
               "New Client",
-            salesNotes: webDesignSalesNotes(transaction.notes),
+            salesNotes: dealConversationNotes(transaction.notes).salesNotes,
           });
+          setLiveNotes(transaction.notes || "");
+          setChatOpen(true);
           return;
         }
 
@@ -1332,8 +1360,16 @@ export default function ClientOrderForm({
       domainName,
       domainType,
       cost: domainCost,
-      startDate: form.domainSubscriptionStartDate || form.domainRegistrationStartDate,
-      endDate: form.domainSubscriptionEndDate || form.domainRegistrationExpirationDate,
+      startDate:
+        form.expirationStartDate ||
+        form.domainRegistrationStartDate ||
+        form.subscriptionStartDate ||
+        form.domainSubscriptionStartDate,
+      endDate:
+        form.domainRegistrationExpirationDate ||
+        form.sslWildcardExpirationDate ||
+        form.subscriptionEndDate ||
+        form.domainSubscriptionEndDate,
     };
 
     if (transaction) {
@@ -1346,7 +1382,11 @@ export default function ClientOrderForm({
           company: fallbackName === "—" ? "" : fallbackName,
           email: transaction.customer_email ?? "",
         } as CustomerRow);
-      const rows = buildClientDealRows(client, [transaction], services);
+      const rows = buildClientDealRows(
+        client,
+        [{ ...transaction, notes: effectiveNotes }],
+        services,
+      );
       const row = rows[0] ?? null;
       if (!row) return null;
       return applyDealTaxes(
@@ -1394,6 +1434,7 @@ export default function ClientOrderForm({
     );
   }, [
     transaction,
+    effectiveNotes,
     selectedClient,
     clients,
     services,
@@ -1409,6 +1450,10 @@ export default function ClientOrderForm({
     form.domainRegistrationStartDate,
     form.domainSubscriptionEndDate,
     form.domainRegistrationExpirationDate,
+    form.expirationStartDate,
+    form.subscriptionStartDate,
+    form.subscriptionEndDate,
+    form.sslWildcardExpirationDate,
   ]);
 
   useEffect(() => {
@@ -1510,8 +1555,10 @@ export default function ClientOrderForm({
       const nextRegistrar = registrar || current.domainRegistrar;
       const existing = Number(current.domainRegistrationCost);
       if (Number.isFinite(existing) && existing > 0) {
-        if (current.domainType === nextType && current.domainRegistrar === nextRegistrar) return current;
-        return { ...current, domainType: nextType, domainRegistrar: nextRegistrar };
+        if (current.domainType === nextType && current.domainRegistrar === nextRegistrar) {
+          return withDomainDealSelection(current);
+        }
+        return withDomainDealSelection({ ...current, domainType: nextType, domainRegistrar: nextRegistrar });
       }
       const nextCost = price == null ? current.domainRegistrationCost : String(price);
       if (
@@ -1519,14 +1566,14 @@ export default function ClientOrderForm({
         current.domainType === nextType &&
         current.domainRegistrar === nextRegistrar
       ) {
-        return current;
+        return withDomainDealSelection(current);
       }
-      return {
+      return withDomainDealSelection({
         ...current,
         domainType: nextType,
         domainRegistrar: nextRegistrar,
         domainRegistrationCost: nextCost,
-      };
+      });
     });
   }, [form.domainName, form.domainType, services]);
 
@@ -1621,10 +1668,40 @@ export default function ClientOrderForm({
     form.paymentTerms,
     form.domainSubscriptionStartDate,
     form.domainSubscriptionEndDate,
+    form.subscriptionStartDate,
+    form.subscriptionEndDate,
     form.domainRegistrationStartDate,
     form.domainRegistrationExpirationDate,
     manualDateFields,
     transaction,
+  ]);
+
+  useEffect(() => {
+    setForm((current) => {
+      const next = withManagedDealDates(current);
+      if (
+        next.domainRegistrationExpirationDate === current.domainRegistrationExpirationDate &&
+        next.sslWildcardExpirationDate === current.sslWildcardExpirationDate &&
+        next.domainSubscriptionEndDate === current.domainSubscriptionEndDate &&
+        next.subscriptionEndDate === current.subscriptionEndDate
+      ) {
+        return current;
+      }
+      return next;
+    });
+  }, [
+    form.domainRegistrationStartDate,
+    form.expirationStartDate,
+    form.subscriptionStartDate,
+    form.domainSubscriptionStartDate,
+    form.productCategory,
+    form.dealName,
+    form.productName,
+    form.paymentTerms,
+    form.domainRegistrationExpirationDate,
+    form.sslWildcardExpirationDate,
+    form.domainSubscriptionEndDate,
+    form.subscriptionEndDate,
   ]);
 
   const applyClientDefaults = (clientId: string, client?: CustomerRow | null) => {
@@ -1763,8 +1840,8 @@ export default function ClientOrderForm({
       return;
     }
 
-    if (!form.clientId || !form.dealName) {
-      toast.error("Please select a client and deal name.");
+    if (!form.clientId || (!form.dealName.trim() && !hasSelectedDomain(form))) {
+      toast.error("Please select a client and a deal name or domain.");
       return;
     }
 
@@ -1828,11 +1905,8 @@ export default function ClientOrderForm({
       }
 
       if (transaction) {
-        const itemPayload = buildDealItemPayload(services, form, transaction);
-        let notes = mergeDealMetaIntoNotes(transaction.notes, form);
-        if (isWebDesignDeal) {
-          notes = mergeWebDesignSalesNotes(notes, form.salesNotes);
-        }
+        const itemPayload = buildDealItemPayload(services, form, transaction, effectiveNotes);
+        let notes = mergeDealMetaIntoNotes(effectiveNotes, form);
         if (pendingWebQuote) {
           notes = buildWebDesignPricedNotes(notes, netTotal);
         }
@@ -1907,7 +1981,7 @@ export default function ClientOrderForm({
         grand_total: netTotal,
         payment_status: toApiPaymentStatus(form.paymentStatus) || "pending",
         order_status: toApiOrderStatus(form.salesStatus) || "pending",
-        notes: mergeWebDesignSalesNotes(createdNotes, form.salesNotes),
+        notes: createdNotes,
         transacted_at: form.closingDate || undefined,
         items: buildDealItemPayload(services, form, transaction),
       });
@@ -2161,15 +2235,15 @@ export default function ClientOrderForm({
           <div className={styles.clientOrderGrid}>
             <Field
               label="Product Category"
-              required={!isEditing}
+              required={!isEditing && !hasSelectedDomain(form)}
               wide
-              hint="Choose the category first. Deal Name will list matching products"
+              hint="Choose the category first. A selected domain also adds Domain Registration to this deal"
             >
               <select
-                className={inputClass(!isEditing)}
+                className={inputClass(!isEditing && !hasSelectedDomain(form))}
                 value={form.productCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                required={!isEditing}
+                required={!isEditing && !hasSelectedDomain(form)}
               >
                 <option value="">-None-</option>
                 {withExtraOption(SUBJECT_OPTIONS, form.productCategory).map((option) => (
@@ -2181,15 +2255,19 @@ export default function ClientOrderForm({
             </Field>
             <Field
               label="Deal Name"
-              required
+              required={!hasSelectedDomain(form)}
               wide
-              hint="Select one or more deal names in the chosen product category"
+              hint="Select deal names, or pick a domain below to add Domain Registration automatically"
             >
               <DealNameMultiSelect
                 key={form.productCategory || "no-category"}
-                required
-                disabled={!form.productCategory}
-                placeholder={form.productCategory ? "-None-" : "Select a product category first"}
+                required={!hasSelectedDomain(form)}
+                disabled={!form.productCategory && !hasSelectedDomain(form)}
+                placeholder={
+                  form.productCategory || hasSelectedDomain(form)
+                    ? "-None-"
+                    : "Select a product category first"
+                }
                 emptyText="No deal names for this category"
                 selected={selectedDealNames}
                 options={dealNameOptions}
@@ -2264,19 +2342,46 @@ export default function ClientOrderForm({
                 ))}
               </select>
             </Field>
-            <Field label="Status Trigger Date" hint="Date this status took effect">
+            <Field label="Subscription Start Date" hint="When this subscription starts. Sales enters the domain subscription start separately.">
               <input
                 className={inputClass()}
                 type="date"
-                value={form.statusTriggerDate}
-                onChange={(e) => setField("statusTriggerDate", e.target.value)}
+                value={form.subscriptionStartDate}
+                onChange={(e) => setField("subscriptionStartDate", e.target.value)}
               />
             </Field>
-            <Field label="JO Number" hint="Job order number if already issued">
+            <Field
+              label="Subscription End Date"
+              hint={
+                subscriptionEndIsComputed(form)
+                  ? "Filled from the subscription period. Domain subscriptions run for 10 years."
+                  : "End of the subscription period"
+              }
+              icon={subscriptionEndIsComputed(form) ? "fa-solid fa-lock" : undefined}
+            >
               <input
                 className={inputClass()}
+                type="date"
+                value={form.subscriptionEndDate}
+                onChange={(e) => setField("subscriptionEndDate", e.target.value)}
+                readOnly={subscriptionEndIsComputed(form)}
+              />
+            </Field>
+            <Field label="Expiration Start Date" hint="Start date finance uses for expiration tracking">
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.expirationStartDate}
+                onChange={(e) => setField("expirationStartDate", e.target.value)}
+              />
+            </Field>
+            <Field label="JO Number" hint={preorderJoHint(form)}>
+              <input
+                className={inputClass(requiresPreorderJoNumber(form))}
                 value={form.joNumber}
                 onChange={(e) => setField("joNumber", e.target.value)}
+                required={requiresPreorderJoNumber(form)}
+                placeholder={requiresPreorderJoNumber(form) ? "Required for pre-order" : ""}
               />
             </Field>
             <Field label="Campaign Source" hint="Where this deal originated" icon="fa-solid fa-bullhorn">
@@ -2505,12 +2610,12 @@ export default function ClientOrderForm({
                 const type = matchDomainTypeOption(e.target.value);
                 setForm((current) => {
                   const price = catalogPriceForDomain(services, current.domainName, type);
-                  return {
+                  return withDomainDealSelection({
                     ...current,
                     domainType: type,
                     domainRegistrationCost:
                       price != null ? String(price) : current.domainRegistrationCost,
-                  };
+                  });
                 });
               }}
             >
@@ -2538,20 +2643,42 @@ export default function ClientOrderForm({
               onChange={(e) => setField("domainSubscriptionStartDate", e.target.value)}
             />
           </Field>
-          <Field label="Domain Registration Expiration Date" hint="When domain registration expires">
+          <Field
+            label="Domain Registration Expiration Date"
+            hint="Managed by the system. Registration expires 9 years after the start date."
+            icon="fa-solid fa-lock"
+          >
             <input
               className={inputClass()}
               type="date"
               value={form.domainRegistrationExpirationDate}
-              onChange={(e) => setField("domainRegistrationExpirationDate", e.target.value)}
+              readOnly
             />
           </Field>
-          <Field label="Domain Subscription End Date" hint="When the domain subscription ends">
+          {selectionIncludesWildcardSsl(form.dealName, form.productName, form.productCategory) ? (
+            <Field
+              label="SSL Wildcard Expiration Date"
+              hint="Managed by the system. Wildcard SSL expires 9 years after the expiration start date."
+              icon="fa-solid fa-lock"
+            >
+              <input
+                className={inputClass()}
+                type="date"
+                value={form.sslWildcardExpirationDate}
+                readOnly
+              />
+            </Field>
+          ) : null}
+          <Field
+            label="Domain Subscription End Date"
+            hint="Filled from the subscription start date. Domain subscriptions run for 10 years."
+            icon="fa-solid fa-lock"
+          >
             <input
               className={inputClass()}
               type="date"
               value={form.domainSubscriptionEndDate}
-              onChange={(e) => setField("domainSubscriptionEndDate", e.target.value)}
+              readOnly
             />
           </Field>
           <Field label="Domain Registration Cost" hint="Cost of domain registration">
@@ -2689,13 +2816,69 @@ export default function ClientOrderForm({
             onAmountChange={setDealAmount}
             onDiscountChange={setDealDiscount}
             onTaxChange={setDealTax}
-            clientNotes={isWebDesignDeal ? webDesignClientNotes(transaction?.notes) : undefined}
-            salesNotes={isWebDesignDeal ? form.salesNotes : undefined}
-            onSalesNotesChange={isWebDesignDeal ? (value) => setField("salesNotes", value) : undefined}
             actions={toolbarActions}
           />
         </section>
       ) : null}
+
+      {transaction?.id ? (
+        <DealConversationModal
+          open={chatOpen}
+          recordId={transaction.id}
+          orderNo={transaction.transaction_no}
+          clientNotes={dealConversationNotes(effectiveNotes).clientNotes}
+          salesNotes={dealConversationNotes(effectiveNotes).salesNotes}
+          conversation={dealConversationThread(effectiveNotes)}
+          isWebDesign={isWebDesignTransaction(transaction)}
+          viewer="sales"
+          peerName={transaction.customer_name || "Customer"}
+          placement="right"
+          showLauncher
+          quotedPrice={dealQuotedPrice(effectiveNotes, Number(transaction.grand_total || 0))}
+          canSetPrice={isPendingQuotationTransaction(transaction)}
+          onSetPrice={() => setPriceOpen(true)}
+          onOpen={() => setChatOpen(true)}
+          onClose={() => setChatOpen(false)}
+          onReplied={(next) => {
+            if (next.notes) {
+              setLiveNotes(next.notes);
+              return;
+            }
+            if (next.conversation || next.clientNotes || next.salesNotes) {
+              setLiveNotes((current) => current || transaction.notes || "");
+            }
+          }}
+        />
+      ) : null}
+      <SetWebDesignPriceModal
+        open={priceOpen}
+        transaction={transaction}
+        onClose={() => setPriceOpen(false)}
+        onSave={(amount) => {
+          if (!transaction) return;
+          const items = applyWebDesignPriceToItems(transaction.items, amount);
+          const notes = buildWebDesignPricedNotes(effectiveNotes, amount);
+          void updateSalesTransaction(transaction.id, {
+            items,
+            notes,
+            subtotal: amount,
+            discount_total: 0,
+            tax_total: 0,
+            shipping_total: 0,
+            grand_total: amount,
+            payment_status: transaction.payment_status || "pending",
+          })
+            .then((res) => {
+              setLiveNotes(res?.data?.notes || notes);
+              setPriceOpen(false);
+              setChatOpen(true);
+              toast.success(`Quoted price set to ₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`);
+            })
+            .catch((err: { response?: { data?: { message?: string } } }) => {
+              toast.error(err?.response?.data?.message || "Failed to set the quoted price.");
+            });
+        }}
+      />
       <FormActionConfirmModal
         intent={actionIntent}
         entity="deal"

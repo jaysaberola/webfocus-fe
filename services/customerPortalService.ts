@@ -55,6 +55,54 @@ export async function cancelPortalOrder(recordId: number): Promise<PortalOrder> 
   return res.data?.data;
 }
 
+export type PortalDealConversation = {
+  recordId?: number;
+  notes?: string;
+  clientNotes?: string;
+  salesNotes?: string;
+  conversation?: PortalOrder["conversation"];
+  quotedPrice?: number;
+};
+
+export async function fetchPortalDealConversation(recordId: number): Promise<PortalDealConversation> {
+  const res = await axiosInstance.get(`/customer/portal/orders/${recordId}/conversation`, {
+    headers: silentHeaders,
+  });
+  return res.data?.data ?? {};
+}
+
+export async function replyPortalOrderNote(
+  recordId: number,
+  message: string,
+  file?: File | null,
+): Promise<PortalOrder> {
+  if (file) {
+    const formData = new FormData();
+    if (message.trim()) formData.append("message", message);
+    formData.append("file", file);
+    const res = await axiosInstance.post(`/customer/portal/orders/${recordId}/notes`, formData);
+    return res.data?.data;
+  }
+  const res = await axiosInstance.post(`/customer/portal/orders/${recordId}/notes`, { message });
+  return res.data?.data;
+}
+
+export async function fetchPortalDealFile(
+  recordId: number,
+  file: { name?: string; path?: string; url?: string },
+  download = false,
+): Promise<Blob> {
+  const res = await axiosInstance.get(`/customer/portal/orders/${recordId}/files`, {
+    params: {
+      path: file.path || file.url || file.name || "",
+      name: file.name || undefined,
+      download: download ? 1 : undefined,
+    },
+    responseType: "blob",
+  });
+  return res.data;
+}
+
 export async function updatePortalOrderItems(
   recordId: number,
   items: Array<{ id?: number | string; name?: string; quantity: number }>,

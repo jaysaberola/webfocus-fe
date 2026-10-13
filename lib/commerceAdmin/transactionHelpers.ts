@@ -21,7 +21,9 @@ export type TxColumnKey =
   | "clientStatus"
   | "productStatus"
   | "salesStatus"
-  | "statusTriggerDate"
+  | "subscriptionStartDate"
+  | "subscriptionEndDate"
+  | "expirationStartDate"
   | "joNumber"
   | "billingInCharge"
   | "dealStatus"
@@ -65,7 +67,9 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   clientStatus: "Client Status",
   productStatus: "Product Status",
   salesStatus: "Sales Status",
-  statusTriggerDate: "Status Trigger Date",
+  subscriptionStartDate: "Subscription Start Date",
+  subscriptionEndDate: "Subscription End Date",
+  expirationStartDate: "Expiration Start Date",
   joNumber: "JO Number",
   billingInCharge: "Billing-in-Charge",
   dealStatus: "Deal Status",
@@ -97,7 +101,9 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   clientStatus: false,
   productStatus: false,
   salesStatus: false,
-  statusTriggerDate: false,
+  subscriptionStartDate: false,
+  subscriptionEndDate: false,
+  expirationStartDate: false,
   joNumber: false,
   billingInCharge: false,
   dealStatus: false,

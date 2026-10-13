@@ -18,7 +18,7 @@ import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transa
 import { isWebDesignPlan } from "@/lib/serviceCategory";
 import { subjectForPublicCatalogName } from "@/lib/servicesCatalog";
 import { isWebDesignTransaction } from "@/lib/commerceAdmin/webDesignPricing";
-import { webDesignIncludedServices } from "@/lib/webDesignSetup";
+import { isDealChatAttachmentLabel, webDesignIncludedServices } from "@/lib/webDesignSetup";
 import { userFacingNotes } from "@/lib/commerceAdmin/hostingTransactionActions";
 import type { CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import type { CustomerRow, CustomerServiceLine } from "@/services/customerService";
@@ -66,7 +66,9 @@ export type ClientDealRow = {
   paymentStatus: string;
   expectedRevenue: number | null;
   probability: string;
-  statusTriggerDate: string;
+  subscriptionStartDate: string;
+  subscriptionEndDate: string;
+  expirationStartDate: string;
   joNumber: string;
   billingInCharge: string;
   dealStatus: string;
@@ -108,7 +110,9 @@ export type DealColumnKey =
   | "expectedRevenue"
   | "dealAmount"
   | "probability"
-  | "statusTriggerDate"
+  | "subscriptionStartDate"
+  | "subscriptionEndDate"
+  | "expirationStartDate"
   | "joNumber"
   | "billingInCharge"
   | "dealStatus"
@@ -134,7 +138,9 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   clientStatus: "Client Status",
   productStatus: "Product Status",
   salesStatus: "Sales Status",
-  statusTriggerDate: "Status Trigger Date",
+  subscriptionStartDate: "Subscription Start Date",
+  subscriptionEndDate: "Subscription End Date",
+  expirationStartDate: "Expiration Start Date",
   joNumber: "JO Number",
   billingInCharge: "Billing-in-Charge",
   dealStatus: "Deal Status",
@@ -167,7 +173,9 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   clientStatus: false,
   productStatus: false,
   salesStatus: false,
-  statusTriggerDate: false,
+  subscriptionStartDate: false,
+  subscriptionEndDate: false,
+  expirationStartDate: false,
   joNumber: false,
   billingInCharge: false,
   dealStatus: false,
@@ -299,8 +307,12 @@ export function orderAdminColumnValue(
     }
     case "salesStatus":
       return metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status));
-    case "statusTriggerDate":
-      return formatDealDate(meta?.statusTriggerDate || transaction.created_at || transaction.transacted_at);
+    case "subscriptionStartDate":
+      return formatDealDate(meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate);
+    case "subscriptionEndDate":
+      return formatDealDate(meta?.subscriptionEndDate || meta?.domainSubscriptionEndDate);
+    case "expirationStartDate":
+      return formatDealDate(meta?.expirationStartDate || meta?.domainRegistrationStartDate);
     case "joNumber":
       return metaText(meta?.joNumber, extractJoNumber(transaction.notes, transaction.transaction_no));
     case "billingInCharge":
@@ -936,9 +948,9 @@ function crmFields(params: {
     paymentStatus: metaText(meta?.paymentStatus, transaction ? paymentStatusLabel(transaction.payment_status) : "—"),
     expectedRevenue,
     probability: dealProbability(stage, meta?.probability),
-    statusTriggerDate: meta?.statusTriggerDate
-      ? formatDealDate(meta.statusTriggerDate)
-      : formatDealDate(transaction?.created_at ?? transaction?.transacted_at),
+    subscriptionStartDate: formatDealDate(meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate),
+    subscriptionEndDate: formatDealDate(meta?.subscriptionEndDate || meta?.domainSubscriptionEndDate),
+    expirationStartDate: formatDealDate(meta?.expirationStartDate || meta?.domainRegistrationStartDate),
     joNumber: metaText(meta?.joNumber, extractJoNumber(transaction?.notes, transaction?.transaction_no)),
     billingInCharge: clientBillingInCharge(client),
     dealStatus: metaText(meta?.dealStatus, dealStatus),
@@ -1026,9 +1038,22 @@ function buildLineItems(
   domainFallback: string,
 ): ClientDealLineItem[] {
   const headerTax = money(transaction.tax_total);
-  const period = formatPeriod(transaction.issued_date ?? transaction.transacted_at, transaction.due_date);
-  const discounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealDiscounts);
-  const mapped = items.map((item, index) => {
+  const lineMeta = parseDealMeta(transaction.notes);
+  const period = formatPeriod(
+    lineMeta?.expirationStartDate ||
+      lineMeta?.domainRegistrationStartDate ||
+      lineMeta?.subscriptionStartDate ||
+      transaction.issued_date ||
+      transaction.transacted_at,
+    lineMeta?.domainRegistrationExpirationDate ||
+      lineMeta?.sslWildcardExpirationDate ||
+      lineMeta?.subscriptionEndDate ||
+      transaction.due_date,
+  );
+  const discounts = parseDealAmounts(lineMeta?.dealDiscounts);
+  const mapped = items
+    .filter((item) => !isDealChatAttachmentLabel(String(item.name ?? "")))
+    .map((item, index) => {
     const quantity = Math.max(1, money(item.quantity) || 1);
     const listPrice = money(item.price);
     let amount = money(item.total_price);
@@ -1065,7 +1090,9 @@ function buildLineItems(
 }
 
 function attachWebDesignPackageExtras(transaction: SalesTransaction, items: ClientDealLineItem[]): ClientDealLineItem[] {
-  const extras = webDesignIncludedServices(transaction.notes);
+  const extras = webDesignIncludedServices(transaction.notes).filter(
+    (label) => !isDealChatAttachmentLabel(label),
+  );
   const extraKeys = new Set(extras.map((value) => value.toLowerCase()));
   const amounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealAmounts);
   const discounts = parseDealAmounts(parseDealMeta(transaction.notes)?.dealDiscounts);
@@ -1145,8 +1172,8 @@ function appendDomainLineItem(
 
   const period =
     formatPeriod(
-      meta?.domainSubscriptionStartDate || meta?.domainRegistrationStartDate || transaction.issued_date || transaction.transacted_at,
-      meta?.domainSubscriptionEndDate || meta?.domainRegistrationExpirationDate || transaction.due_date,
+      meta?.expirationStartDate || meta?.domainRegistrationStartDate || transaction.issued_date || transaction.transacted_at,
+      meta?.domainRegistrationExpirationDate || meta?.sslWildcardExpirationDate || transaction.due_date,
     ) || items[0]?.period || "";
 
   if (alreadyIncluded) {
@@ -1354,7 +1381,9 @@ export function buildDraftDealRow(input: {
     paymentStatus: "",
     expectedRevenue: totals.grandTotal,
     probability: "",
-    statusTriggerDate: "",
+    subscriptionStartDate: "",
+    subscriptionEndDate: "",
+    expirationStartDate: "",
     joNumber: "",
     billingInCharge: "",
     dealStatus: "",

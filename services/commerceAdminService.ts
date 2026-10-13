@@ -225,6 +225,12 @@ export type CommerceNotificationAdminRow = {
     setPrice?: boolean;
     proceedPayment?: boolean;
   } | null;
+  canReply?: boolean;
+  recordId?: number | null;
+  clientNotes?: string | null;
+  salesNotes?: string | null;
+  conversation?: Array<{ from: "client" | "sales"; text: string; at?: string }>;
+  quotedPrice?: number;
 };
 
 export type CommerceNotificationsPayload = {

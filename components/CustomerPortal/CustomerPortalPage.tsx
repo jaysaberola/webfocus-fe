@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import type { CustomerPortalTab } from "@/lib/customerPortal/types";
 import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAuth";
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
+import LiveInboxHost from "@/components/LiveInboxHost";
 import CustomerPortalTabs from "./CustomerPortalTabs";
 import OverviewTab from "./tabs/OverviewTab";
 import BillingTab from "./tabs/BillingTab";
@@ -44,17 +45,24 @@ export default function CustomerPortalPage() {
 
   const unreadCount = usePortalUnreadCount(Boolean(customer));
 
-  const switchTab = (tab: CustomerPortalTab, extraQuery?: Record<string, string>) => {
-    if (tab === activeTab && !extraQuery) return;
-    setActiveTab(tab);
-    const query =
-      tab === "overview" && !extraQuery
-        ? {}
-        : { ...(tab === "overview" ? {} : { tab }), ...extraQuery };
-    router.replace({ pathname: "/public/dashboard", query }, undefined, {
-      shallow: true,
-    });
-  };
+  const switchTab = useCallback(
+    (tab: CustomerPortalTab, extraQuery?: Record<string, string>) => {
+      if (tab === activeTab && !extraQuery) return;
+      setActiveTab(tab);
+      const query =
+        tab === "overview" && !extraQuery
+          ? {}
+          : { ...(tab === "overview" ? {} : { tab }), ...extraQuery };
+      router.replace({ pathname: "/public/dashboard", query }, undefined, {
+        shallow: true,
+      });
+    },
+    [activeTab, router],
+  );
+
+  const openInbox = useCallback(() => {
+    switchTab("notification");
+  }, [switchTab]);
 
   if (loading) {
     return (
@@ -92,6 +100,8 @@ export default function CustomerPortalPage() {
           <AccountTab customer={customer} onCustomerUpdate={setCustomer} />
         )}
       </div>
+
+      <LiveInboxHost audience="customer" enabled={Boolean(customer)} onOpenInbox={openInbox} />
 
       {activeTab !== "billing" ? (
         <PaynamicsProofReminderHost

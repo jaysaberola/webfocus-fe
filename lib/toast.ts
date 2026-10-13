@@ -1,10 +1,13 @@
 export type ToastType = "success" | "danger" | "warning" | "info";
-export type ToastVariant = "default" | "cart";
+export type ToastVariant = "default" | "cart" | "inbox";
 
-type ToastPayload = {
+export type ToastPayload = {
   message: string;
   type: ToastType;
   variant?: ToastVariant;
+  title?: string;
+  body?: string;
+  onClick?: () => void;
 };
 
 type Listener = (toast: ToastPayload) => void;
@@ -48,6 +51,18 @@ export const toast = {
       message: `Added ${productName.toUpperCase()} to cart!`,
       type: "success",
       variant: "cart",
+    });
+  },
+  inbox(payload: { title: string; body?: string; onClick?: () => void }) {
+    const title = String(payload.title || "New notification").trim() || "New notification";
+    const body = String(payload.body || "").trim();
+    toastEmitter.emit({
+      message: body || title,
+      type: "info",
+      variant: "inbox",
+      title,
+      body,
+      onClick: payload.onClick,
     });
   },
 };

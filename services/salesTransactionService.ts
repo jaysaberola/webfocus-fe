@@ -173,3 +173,56 @@ export const proceedWebDesignPayment = async (id: number) => {
   const res = await axiosInstance.post(`/sales-transactions/${id}/proceed-payment`);
   return res.data;
 };
+
+export type SalesDealConversation = {
+  recordId?: number;
+  notes?: string;
+  clientNotes?: string;
+  salesNotes?: string;
+  conversation?: Array<{
+    from: "client" | "sales";
+    text: string;
+    at?: string;
+    file?: { name: string; url: string; path?: string; kind?: "file" | "proposal" | "signed" };
+  }>;
+  quotedPrice?: number;
+};
+
+export const fetchSalesDealConversation = async (id: number): Promise<SalesDealConversation> => {
+  const res = await axiosInstance.get(`/sales-transactions/${id}/conversation`, {
+    headers: { "X-No-Loading": true },
+  });
+  return res.data?.data ?? {};
+};
+
+export const replySalesDealNote = async (
+  id: number,
+  message: string,
+  file?: File | null,
+): Promise<SalesDealConversation> => {
+  if (file) {
+    const formData = new FormData();
+    if (message.trim()) formData.append("message", message);
+    formData.append("file", file);
+    const res = await axiosInstance.post(`/sales-transactions/${id}/notes`, formData);
+    return res.data?.data ?? {};
+  }
+  const res = await axiosInstance.post(`/sales-transactions/${id}/notes`, { message });
+  return res.data?.data ?? {};
+};
+
+export const fetchSalesDealFile = async (
+  id: number,
+  file: { name?: string; path?: string; url?: string },
+  download = false,
+): Promise<Blob> => {
+  const res = await axiosInstance.get(`/sales-transactions/${id}/files`, {
+    params: {
+      path: file.path || file.url || file.name || "",
+      name: file.name || undefined,
+      download: download ? 1 : undefined,
+    },
+    responseType: "blob",
+  });
+  return res.data;
+};

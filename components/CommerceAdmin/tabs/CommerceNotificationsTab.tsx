@@ -6,6 +6,7 @@ import {
   fetchCommerceNotifications,
   markAllCommerceNotificationsRead,
   markCommerceNotificationRead,
+  COMMERCE_NOTIFICATIONS_UPDATED_EVENT,
   notifyCommerceNotificationsUpdated,
   rejectCommercePaymentProof,
   rejectCommerceProfileChange,
@@ -16,6 +17,7 @@ import {
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { stashOpenDealFromInbox, type OpenDealInboxAction } from "@/lib/commerceAdmin/openDealFromInbox";
+import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -154,7 +156,7 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
 }
 
 function quotationDealId(row: CommerceNotificationAdminRow) {
-  if (row.kind !== "web_design_quotation") return null;
+  if (row.kind !== "web_design_quotation" && row.kind !== "deal_reply") return null;
   const referenceId = Number(row.referenceId || 0);
   if (referenceId > 0) return referenceId;
   if (row.manageable === false) {
@@ -187,6 +189,20 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
   useEffect(() => {
     loadRows().finally(() => setLoading(false));
+  }, [loadRows]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadRows();
+    };
+    window.addEventListener(COMMERCE_NOTIFICATIONS_UPDATED_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    const interval = window.setInterval(refresh, 8000);
+    return () => {
+      window.removeEventListener(COMMERCE_NOTIFICATIONS_UPDATED_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+      window.clearInterval(interval);
+    };
   }, [loadRows]);
 
   useEffect(() => {
@@ -613,6 +629,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
 
       {opened ? (
         <InboxMessageView
+          key={opened.id ?? opened.referenceId ?? opened.title}
           item={opened}
           busy={busyKey === rowKey(opened)}
           onOpenRelated={() => openAlert(opened)}
@@ -722,19 +739,20 @@ function formatNoticeStatus(value: string) {
 function QuotationNotice({
   item,
   details,
+  onOpenChat,
 }: {
   item: CommerceNotificationAdminRow;
   details: NonNullable<CommerceNotificationAdminRow["details"]>;
+  onOpenChat?: () => void;
 }) {
   const client = detailValue(details, "Client");
   const email = detailValue(details, "Email");
   const orderNo = detailValue(details, "Order No");
   const amount = detailValue(details, "Amount");
   const status = detailValue(details, "Status") || item.status || "";
-  const submitted = detailValue(details, "Submitted");
-  const notes = detailValue(details, "Notes");
-  const reply = detailValue(details, "Sales reply");
+  const submitted = detailValue(details, "Submitted") || detailValue(details, "Received");
   const lines = details.filter((row) => row.label === "Items" || row.label === "Included service");
+  const conversation = item.kind === "deal_reply";
   const statusClass = /await|pending|review/i.test(status)
     ? styles.badgePending
     : /sign|complete|paid|active/i.test(status)
@@ -745,11 +763,12 @@ function QuotationNotice({
     <div className={styles.quoteNotice}>
       <div className={styles.quoteNoticeHead}>
         <div>
-          <p className={styles.quoteNoticeKicker}>Quotation</p>
+          <p className={styles.quoteNoticeKicker}>{conversation ? "Conversation" : "Quotation"}</p>
           <h2>{item.title}</h2>
           <p>
-            {client || "The client"}
-            {orderNo ? ` · ${orderNo}` : ""} has a saved quotation amount.
+            {conversation
+              ? item.intro || `${client || "The client"} sent a message about this quotation.`
+              : `${client || "The client"}${orderNo ? ` · ${orderNo}` : ""} has a saved quotation amount.`}
           </p>
         </div>
         <div className={styles.quoteNoticeTotal}>
@@ -786,7 +805,13 @@ function QuotationNotice({
               const line = splitQuoteLine(String(row.value || ""));
               return (
                 <li key={`${row.label}-${index}`}>
-                  <span>{line.name}</span>
+                  {onOpenChat ? (
+                    <button type="button" className={styles.tableCellLink} onClick={onOpenChat}>
+                      {line.name}
+                    </button>
+                  ) : (
+                    <span>{line.name}</span>
+                  )}
                   {line.price ? <strong>{line.price}</strong> : null}
                 </li>
               );
@@ -795,22 +820,6 @@ function QuotationNotice({
         </section>
       ) : null}
 
-      {notes || reply ? (
-        <div className={styles.quoteNoticeNotes}>
-          {notes ? (
-            <p>
-              <span>Notes</span>
-              {notes}
-            </p>
-          ) : null}
-          {reply ? (
-            <p>
-              <span>Sales reply</span>
-              {reply}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -940,7 +949,10 @@ function InboxMessageView({
   const fromName = item.fromName || item.audience || senderLabel(item);
   const fromEmail = item.fromEmail || item.email || "";
   const attachments = item.attachments ?? [];
-  const details = (item.details ?? []).filter((row) => String(row.value || "").trim());
+  const details = (item.details ?? []).filter((row) => {
+    const value = String(row.value || "").trim();
+    return value !== "" && row.label !== "Notes" && row.label !== "Sales reply";
+  });
   const intro = String(item.intro || item.desc || "").trim();
   const reviewable = canReviewFromInbox(item);
   const confirmLabel = item.kind === "profile_change" ? "Confirm Profile" : "Confirm Receipt";
@@ -948,8 +960,10 @@ function InboxMessageView({
   const quotationDeal = quotationDealId(item) != null;
   const quotationActions = item.quotationActions ?? null;
   const showQuotationActions = quotationDeal && Boolean(onOpenQuotation);
-  const quotation = item.kind === "web_design_quotation";
+  const quotation = item.kind === "web_design_quotation" || item.kind === "deal_reply";
   const receipt = item.kind === "payment_proof";
+  const canReply = Boolean((item.canReply || item.kind === "deal_reply") && (item.recordId || item.referenceId));
+  const [replyOpen, setReplyOpen] = useState(canReply);
 
   return (
     <article className={styles.inboxMessage}>
@@ -967,7 +981,11 @@ function InboxMessageView({
         </div>
 
         {quotation ? (
-          <QuotationNotice item={item} details={details} />
+          <QuotationNotice
+            item={item}
+            details={details}
+            onOpenChat={canReply ? () => setReplyOpen(true) : undefined}
+          />
         ) : receipt ? (
           <ReceiptNotice item={item} details={details} attachments={attachments} />
         ) : (
@@ -1024,6 +1042,11 @@ function InboxMessageView({
         ) : null}
 
         <div className={styles.inboxMessageActions}>
+          {canReply ? (
+            <button type="button" className={styles.primaryBtnSm} onClick={() => setReplyOpen(true)}>
+              Reply
+            </button>
+          ) : null}
           {reviewable ? (
             <>
               <button type="button" className={styles.primaryBtnSm} disabled={busy} onClick={onConfirm}>
@@ -1042,16 +1065,7 @@ function InboxMessageView({
                   className={styles.secondaryBtnSm}
                   onClick={() => onOpenQuotation?.("set-price")}
                 >
-                  Set Price
-                </button>
-              ) : null}
-              {quotationActions?.uploadProposal ? (
-                <button
-                  type="button"
-                  className={styles.primaryBtnSm}
-                  onClick={() => onOpenQuotation?.("upload-proposal")}
-                >
-                  Upload Proposal
+                  {item.quotedPrice ? "Update Price" : "Set Price"}
                 </button>
               ) : null}
               {quotationActions?.proceedPayment ? (
@@ -1078,6 +1092,27 @@ function InboxMessageView({
           )}
         </div>
       </div>
+      <DealConversationModal
+        open={replyOpen}
+        recordId={item.recordId || item.referenceId}
+        orderNo={item.transactionNo || detailValue(item.details, "Order No")}
+        clientNotes={item.clientNotes}
+        salesNotes={item.salesNotes}
+        conversation={item.conversation}
+        isWebDesign={quotation}
+        viewer="sales"
+        peerName={item.fromName || item.audience || "Customer"}
+        placement="right"
+        showLauncher
+        quotedPrice={item.quotedPrice}
+        canSetPrice={Boolean(quotationActions?.setPrice)}
+        onSetPrice={quotationActions?.setPrice ? () => onOpenQuotation?.("set-price") : undefined}
+        onOpen={() => setReplyOpen(true)}
+        onClose={() => setReplyOpen(false)}
+        onReplied={() => {
+          notifyCommerceNotificationsUpdated();
+        }}
+      />
     </article>
   );
 }

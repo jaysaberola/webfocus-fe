@@ -17,6 +17,7 @@ import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/l
 import { fetchPublicProducts } from "@/services/publicProductService";
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
 import { getServices } from "@/services/serviceService";
+import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
 import { updatePortalOrderItems } from "@/services/customerPortalService";
 import PortalPickSelect from "@/components/CustomerPortal/PortalPickSelect";
 import { toast } from "@/lib/toast";
@@ -52,27 +53,35 @@ const DOMAIN_TYPE_FALLBACK_PRICE: Record<string, number> = {
   "Government Domain": 5184,
 };
 
-function ReadField({ label, value }: { label: string; value: string }) {
+function ReadField({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick?: () => void;
+}) {
   return (
     <label className={styles.orderInfoField}>
       <span className={styles.orderInfoLabel}>{label}</span>
-      <input className={styles.orderInfoInput} value={value} readOnly />
+      {onClick ? (
+        <button type="button" className={styles.tableCellLink} onClick={onClick}>
+          {value}
+        </button>
+      ) : (
+        <input className={styles.orderInfoInput} value={value} readOnly />
+      )}
     </label>
   );
 }
 
-function ItemExtras({ extras, notes, salesNotes }: { extras?: string[]; notes?: string; salesNotes?: string }) {
+function ItemExtras({ extras }: { extras?: string[]; notes?: string; salesNotes?: string }) {
   const services = (extras ?? []).map((value) => String(value || "").trim()).filter(Boolean);
-  const note = String(notes || "").trim();
-  const reply = String(salesNotes || "").trim();
-  if (!services.length && !note && !reply) return null;
+  if (!services.length) return null;
   return (
     <div className={styles.orderInfoItemExtras}>
-      {services.length ? (
-        <p className={styles.orderInfoItemServices}>{services.join(" · ")}</p>
-      ) : null}
-      {note ? <p className={styles.orderInfoItemNote}>Notes: {note}</p> : null}
-      {reply ? <p className={styles.orderInfoItemNote}>Sales reply: {reply}</p> : null}
+      <p className={styles.orderInfoItemServices}>{services.join(" · ")}</p>
     </div>
   );
 }
@@ -247,7 +256,11 @@ export default function OrderInfoPanel({
   const canCustomize = orderCanCustomize(order) && Boolean(order.recordId);
   const canCheckout = orderCanCheckout(order) && Boolean(onCheckout);
   const canCancel = orderCanCancel(order) && Boolean(onCancel);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const autoOpened = useRef<number | null>(null);
   const billedTotal = portalBilledAmount(order);
+  const isWebDesignQuote = String(order.status || "").toLowerCase().includes("quotation")
+    || String(order.serviceName || "").toLowerCase().includes("web");
   const itemSubtotal = useMemo(
     () => order.items.reduce((sum, item) => sum + Number(item.price ?? item.total ?? 0), 0),
     [order.items],
@@ -267,6 +280,12 @@ export default function OrderInfoPanel({
   useEffect(() => {
     setDraftItems(draftsFromOrder(order));
   }, [order.id, order.recordId, order.total, order.items]);
+
+  useEffect(() => {
+    if (!order.recordId || autoOpened.current === order.recordId) return;
+    autoOpened.current = order.recordId;
+    setReplyOpen(true);
+  }, [order.recordId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -451,14 +470,26 @@ export default function OrderInfoPanel({
           </button>
           <div>
             <h2 className={styles.panelTitle}>
-              {serviceName} - {formatPeso(canCustomize ? grandTotal : billedTotal)}
+              {order.recordId ? (
+                <button type="button" className={styles.tableCellLink} onClick={() => setReplyOpen(true)}>
+                  {serviceName}
+                </button>
+              ) : (
+                serviceName
+              )}{" "}
+              - {formatPeso(canCustomize ? grandTotal : billedTotal)}
             </h2>
             <p className={styles.panelSub}>Orders</p>
           </div>
         </div>
-        {canCheckout || canCancel ? (
+        {canCheckout || canCancel || order.recordId ? (
           <div className={styles.orderInfoActions}>
             <div className={styles.orderInfoActionButtons}>
+              {order.recordId ? (
+                <button type="button" className={styles.secondaryBtnSm} onClick={() => setReplyOpen(true)}>
+                  Reply to Sales
+                </button>
+              ) : null}
               {canCheckout ? (
                 <button
                   type="button"
@@ -493,7 +524,11 @@ export default function OrderInfoPanel({
         <div className={styles.orderInfoGrid}>
           <ReadField label="Order #" value={order.id} />
           {order.invoiceId ? <ReadField label="Invoice" value={order.invoiceId} /> : null}
-          <ReadField label="Service Name" value={serviceName} />
+          <ReadField
+            label="Service Name"
+            value={serviceName}
+            onClick={order.recordId ? () => setReplyOpen(true) : undefined}
+          />
           <ReadField label="Plan" value={plan || "—"} />
           {order.domain ? <ReadField label="Domain Name" value={order.domain} /> : null}
           <ReadField label="Amount" value={formatPeso(canCustomize ? grandTotal : billedTotal)} />
@@ -551,7 +586,9 @@ export default function OrderInfoPanel({
                       <td className={styles.orderCustomizeSno} data-label="S.NO">{included ? "" : serial}</td>
                       <td data-label="Item">
                         {included ? (
-                          <span className={styles.orderInfoIncludedName}>{item.name}</span>
+                          <button type="button" className={styles.tableCellLink} onClick={() => setReplyOpen(true)}>
+                            {item.name}
+                          </button>
                         ) : (
                           <>
                             <div className={styles.orderCustomizeDealSelect}>
@@ -640,7 +677,11 @@ export default function OrderInfoPanel({
                     className={included ? styles.orderInfoIncludedRow : undefined}
                   >
                     <td data-label="Item">
-                      {included ? (
+                      {order.recordId ? (
+                        <button type="button" className={styles.tableCellLink} onClick={() => setReplyOpen(true)}>
+                          {item.name || "—"}
+                        </button>
+                      ) : included ? (
                         <span className={styles.orderInfoIncludedName}>{item.name || "—"}</span>
                       ) : (
                         item.name || "—"
@@ -685,6 +726,22 @@ export default function OrderInfoPanel({
           </div>
         </div>
       ) : null}
+
+      <DealConversationModal
+        open={replyOpen}
+        recordId={order.recordId}
+        orderNo={order.id}
+        clientNotes={order.clientNotes}
+        salesNotes={order.salesNotes}
+        conversation={order.conversation}
+        isWebDesign={isWebDesignQuote}
+        placement="right"
+        showLauncher
+        quotedPrice={order.quotedPrice}
+        onOpen={() => setReplyOpen(true)}
+        onClose={() => setReplyOpen(false)}
+        onReplied={(next) => onOrderUpdated?.(next as PortalOrder)}
+      />
     </section>
   );
 }

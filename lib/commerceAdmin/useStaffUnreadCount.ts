@@ -43,15 +43,26 @@ export function useStaffUnreadCount(enabled: boolean) {
     };
 
     const cancelIdle = scheduleIdleTask(refresh, 300);
+    const interval = window.setInterval(refresh, 8000);
+
+    const onFocus = () => refresh();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
 
     window.addEventListener(COMMERCE_NOTIFICATIONS_UPDATED_EVENT, refresh);
     window.addEventListener("public-admin-updated", refresh);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
       cancelIdle();
+      window.clearInterval(interval);
       window.removeEventListener(COMMERCE_NOTIFICATIONS_UPDATED_EVENT, refresh);
       window.removeEventListener("public-admin-updated", refresh);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [enabled]);
 

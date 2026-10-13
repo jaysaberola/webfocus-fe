@@ -81,8 +81,12 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return formatDealAmount(deal.amount);
     case "probability":
       return deal.probability;
-    case "statusTriggerDate":
-      return deal.statusTriggerDate;
+    case "subscriptionStartDate":
+      return deal.subscriptionStartDate;
+    case "subscriptionEndDate":
+      return deal.subscriptionEndDate;
+    case "expirationStartDate":
+      return deal.expirationStartDate;
     case "joNumber":
       return deal.joNumber;
     case "billingInCharge":
@@ -312,11 +316,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                   <ResizableTableHead
                     key={column}
                     label={DEAL_COLUMN_LABELS[column]}
-                    className={
-                      column === "expectedRevenue" || column === "dealAmount"
-                        ? styles.dealsAmount
-                        : undefined
-                    }
+                    className={column === "dealAmount" ? styles.dealsAmount : undefined}
                   />
                 ))}
               </tr>
@@ -385,7 +385,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         key={column}
                         className={[
                           styles.resizableCell,
-                          column === "expectedRevenue" || column === "dealAmount"
+                          column === "dealAmount"
                             ? styles.dealsAmount
                             : column === "collectionNote"
                               ? undefined

@@ -10,9 +10,6 @@ type Props = {
   onAmountChange?: (itemName: string, value: string) => void;
   onDiscountChange?: (itemName: string, value: string) => void;
   onTaxChange?: (itemName: string, value: string) => void;
-  clientNotes?: string;
-  salesNotes?: string;
-  onSalesNotesChange?: (value: string) => void;
   actions?: React.ReactNode;
   onClose?: () => void;
 };
@@ -50,9 +47,6 @@ export default function OrderProductDetailsPanel({
   onAmountChange,
   onDiscountChange,
   onTaxChange,
-  clientNotes,
-  salesNotes,
-  onSalesNotesChange,
   actions,
   onClose,
 }: Props) {
@@ -60,9 +54,6 @@ export default function OrderProductDetailsPanel({
   const canEditAmount = Boolean(onAmountChange);
   const canEditDiscount = Boolean(onDiscountChange);
   const canEditTax = Boolean(onTaxChange);
-  const customerNote = String(clientNotes || "").trim();
-  const customerName = String(order.clientName || "").trim();
-  const showNotes = Boolean(onSalesNotesChange) || customerNote !== "";
 
   return (
     <div className={`${styles.productDetailsPanel}${embedded ? ` ${styles.productDetailsPanelEmbedded}` : ""}`}>
@@ -191,32 +182,7 @@ export default function OrderProductDetailsPanel({
       </div>
 
       <div className={styles.productDetailsFooter}>
-        {showNotes ? (
-          <div className={styles.productDetailsNotes}>
-            <div className={styles.productDetailsMessageIn}>
-              <span className={styles.productDetailsMessageName}>
-                {customerName || "Customer"}
-              </span>
-              <p className={styles.productDetailsMessageBubble}>
-                {customerNote || "No notes yet."}
-              </p>
-            </div>
-            {onSalesNotesChange ? (
-              <label className={styles.productDetailsMessageOut}>
-                <span className={styles.productDetailsMessageName}>Sales</span>
-                <textarea
-                  className={styles.productDetailsMessageInput}
-                  rows={3}
-                  value={salesNotes ?? ""}
-                  onChange={(event) => onSalesNotesChange(event.target.value)}
-                  placeholder={customerName ? `Reply to ${customerName}` : "Write a reply"}
-                />
-              </label>
-            ) : null}
-          </div>
-        ) : (
-          <div />
-        )}
+        <div />
         <div className={styles.productDetailsFooterRight}>
           <div className={styles.productDetailsTotals}>
             <div>
