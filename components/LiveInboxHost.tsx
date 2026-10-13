@@ -63,12 +63,13 @@ function popupUnread(items: LiveInboxItem[], onOpenInbox?: () => void) {
   const sorted = [...items].sort((a, b) => b.id - a.id);
   const latest = sorted[0];
   const extra = sorted.length - 1;
+  const detail = String(latest.body || "").trim();
   toast.inbox({
     title: latest.title,
     body:
       extra > 0
-        ? `${latest.body || "You have unread notifications."}${latest.body ? " " : ""}(+${extra} more)`
-        : latest.body || "You have an unread notification.",
+        ? `${detail || "You have unread notifications."}${detail ? " " : ""}· ${extra} more unread`
+        : detail || "Open your inbox to review this message.",
     onClick: onOpenInbox,
   });
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ToastType, ToastVariant } from "@/lib/toast";
 import styles from "@/styles/toast.module.css";
 
@@ -8,6 +8,21 @@ const defaultTypeClass: Record<ToastType, string> = {
   warning: styles.defaultToastWarning,
   info: styles.defaultToastInfo,
 };
+
+function cleanInboxBody(title: string, body: string) {
+  let detail = String(body || "").trim();
+  const heading = String(title || "").trim();
+  if (!detail) return "";
+  if (heading && detail.toLowerCase().startsWith(heading.toLowerCase())) {
+    detail = detail.slice(heading.length).replace(/^[\s:.\-–—]+/, "").trim();
+  }
+  if (detail.length > 140) {
+    const clipped = detail.slice(0, 140);
+    const lastSpace = clipped.lastIndexOf(" ");
+    detail = `${(lastSpace > 80 ? clipped.slice(0, lastSpace) : clipped).trim()}…`;
+  }
+  return detail;
+}
 
 export default function Toast({
   message,
@@ -26,15 +41,18 @@ export default function Toast({
   onClick?: () => void;
   onClose: () => void;
 }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
-    const duration = variant === "inbox" ? 7000 : variant === "cart" ? 4000 : 3000;
-    const timer = setTimeout(onClose, duration);
-    return () => clearTimeout(timer);
-  }, [onClose, variant]);
+    const duration = variant === "inbox" ? 10000 : variant === "cart" ? 4000 : 3000;
+    const timer = window.setTimeout(() => onCloseRef.current(), duration);
+    return () => window.clearTimeout(timer);
+  }, [variant, title, body, message]);
 
   if (variant === "inbox") {
     const heading = title || "New notification";
-    const detail = body || (title ? "" : message);
+    const detail = cleanInboxBody(heading, body || (title ? "" : message));
     return (
       <div className={styles.inboxToast} role="status" aria-live="polite">
         <button
@@ -51,9 +69,18 @@ export default function Toast({
           <div className={styles.inboxToastText}>
             <strong>{heading}</strong>
             {detail ? <p>{detail}</p> : null}
+            <span className={styles.inboxToastAction}>Open notifications</span>
           </div>
         </button>
-        <button type="button" className={styles.inboxToastClose} onClick={onClose} aria-label="Dismiss">
+        <button
+          type="button"
+          className={styles.inboxToastClose}
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+          aria-label="Dismiss"
+        >
           <i className="fa-solid fa-xmark" aria-hidden="true" />
         </button>
       </div>

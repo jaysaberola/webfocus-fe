@@ -61,8 +61,13 @@ export default function CustomerPortalPage() {
   );
 
   const openInbox = useCallback(() => {
-    switchTab("notification");
-  }, [switchTab]);
+    setActiveTab("notification");
+    void router.replace(
+      { pathname: "/public/dashboard", query: { tab: "notification" } },
+      undefined,
+      { shallow: true },
+    );
+  }, [router]);
 
   if (loading) {
     return (

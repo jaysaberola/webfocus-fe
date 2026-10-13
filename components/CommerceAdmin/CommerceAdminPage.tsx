@@ -56,8 +56,13 @@ export default function CommerceAdminPage() {
   );
 
   const openInbox = useCallback(() => {
-    switchTab("notifications");
-  }, [switchTab]);
+    setActiveTab("notifications");
+    void router.replace(
+      { pathname: COMMERCE_ADMIN_PATH, query: { tab: "notifications" } },
+      undefined,
+      { shallow: true },
+    );
+  }, [router]);
 
   if (loading && !user) {
     return <div className={styles.loadingState}>Loading commerce control center...</div>;

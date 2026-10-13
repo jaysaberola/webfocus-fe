@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Toast from "./Toast";
 import { toastEmitter, ToastType, ToastVariant } from "@/lib/toast";
+import styles from "@/styles/toast.module.css";
 
 interface ToastItem {
   id: number;
@@ -19,9 +20,8 @@ export default function ToastHost() {
 
   useEffect(() => {
     const unsubscribe = toastEmitter.subscribe((toast) => {
-      setToasts((prev) => [
-        ...prev,
-        {
+      setToasts((prev) => {
+        const nextItem: ToastItem = {
           id: ++id,
           message: toast.message,
           type: toast.type,
@@ -29,29 +29,30 @@ export default function ToastHost() {
           title: toast.title,
           body: toast.body,
           onClick: toast.onClick,
-        },
-      ]);
+        };
+        // Keep a single inbox popup (Gmail-style), replace older ones.
+        if (nextItem.variant === "inbox") {
+          return [...prev.filter((row) => row.variant !== "inbox"), nextItem];
+        }
+        return [...prev, nextItem];
+      });
     });
 
     return unsubscribe;
   }, []);
 
-  const remove = (toastId: number) => setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  const remove = useCallback((toastId: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== toastId));
+  }, []);
 
   const hasCartToast = toasts.some((t) => t.variant === "cart");
   const hasInboxToast = toasts.some((t) => t.variant === "inbox");
 
   return (
     <div
+      className={`${styles.toastHost}${hasInboxToast ? ` ${styles.toastHostInbox}` : ""}`}
       style={{
-        position: "fixed",
-        top: hasCartToast || hasInboxToast ? "5rem" : "20px",
-        right: "1rem",
-        zIndex: 9999,
-        display: "flex",
-        flexDirection: "column",
-        gap: "10px",
-        maxWidth: "min(24rem, calc(100vw - 2rem))",
+        top: hasCartToast || hasInboxToast ? "4.75rem" : "20px",
       }}
     >
       {toasts.map((t) => (
