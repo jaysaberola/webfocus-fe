@@ -59,7 +59,7 @@ export default function Toast({
   if (variant === "inbox") {
     const heading = title || "New notification";
     const { detail, extraUnread } = cleanInboxBody(heading, body || (title ? "" : message));
-    const unreadLabel = extraUnread > 0 ? `${extraUnread + 1} unread` : "New";
+    const unreadLabel = extraUnread > 0 ? `${extraUnread + 1} unread` : "Notification";
     return (
       <div className={styles.inboxToast} role="status" aria-live="polite">
         <button
@@ -71,18 +71,16 @@ export default function Toast({
           }}
         >
           <div className={styles.inboxToastIcon} aria-hidden="true">
-            <i className="fa-solid fa-bell" />
+            <i className="fa-regular fa-bell" />
           </div>
           <div className={styles.inboxToastText}>
             <span className={styles.inboxToastEyebrow}>{unreadLabel}</span>
             <strong>{heading}</strong>
             {detail ? <p>{detail}</p> : null}
             {extraUnread > 0 ? (
-              <span className={styles.inboxToastMeta}>+{extraUnread} more unread in your inbox</span>
+              <span className={styles.inboxToastMeta}>+{extraUnread} more unread</span>
             ) : null}
-            <span className={styles.inboxToastAction}>
-              Open notifications <i className="fa-solid fa-arrow-right" aria-hidden="true" />
-            </span>
+            <span className={styles.inboxToastAction}>Open notifications</span>
           </div>
         </button>
         <button

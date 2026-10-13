@@ -188,6 +188,7 @@ export default function LandingTopbar() {
             </button>
 
             <Link
+              id="portal-notify-bell"
               href={
                 isStaffLoggedIn
                   ? "/public/commerce-admin?tab=notifications"
