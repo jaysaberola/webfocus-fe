@@ -113,6 +113,33 @@ function senderInitial(name: string) {
   return trimmed ? trimmed.slice(0, 1).toUpperCase() : "W";
 }
 
+function InboxAvatar({
+  name,
+  url,
+  className,
+}: {
+  name: string;
+  url?: string | null;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const resolved = resolveStorageAssetUrl(url) || url || "";
+
+  useEffect(() => {
+    setFailed(false);
+  }, [resolved]);
+
+  return (
+    <span className={className} aria-hidden="true">
+      {resolved && !failed ? (
+        <img src={resolved} alt="" onError={() => setFailed(true)} />
+      ) : (
+        senderInitial(name)
+      )}
+    </span>
+  );
+}
+
 function isUnread(row: CommerceNotificationAdminRow) {
   return row.unread === true;
 }
@@ -687,7 +714,10 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
                   className={styles.inboxRowMain}
                   onClick={() => void openNotification(item)}
                 >
-                  <span className={styles.inboxSender}>{sender}</span>
+                  <span className={styles.inboxSenderCell}>
+                    <InboxAvatar name={sender} url={item.fromAvatarUrl} className={styles.inboxRowAvatar} />
+                    <span className={styles.inboxSender}>{sender}</span>
+                  </span>
                   <span className={styles.inboxCopy}>
                     <span className={styles.inboxSubject}>{item.title}</span>
                     <span className={styles.inboxPreview}> - {item.desc}</span>
@@ -948,8 +978,6 @@ function InboxMessageView({
 }) {
   const fromName = item.fromName || item.audience || senderLabel(item);
   const fromEmail = item.fromEmail || item.email || "";
-  const fromAvatarUrl = resolveStorageAssetUrl(item.fromAvatarUrl) || item.fromAvatarUrl || "";
-  const [avatarFailed, setAvatarFailed] = useState(false);
   const attachments = item.attachments ?? [];
   const details = (item.details ?? []).filter((row) => {
     const value = String(row.value || "").trim();
@@ -971,13 +999,7 @@ function InboxMessageView({
     <article className={styles.inboxMessage}>
       <div className={styles.inboxMessageCard}>
         <div className={styles.inboxMessageMeta}>
-          <span className={styles.inboxMessageAvatar} aria-hidden="true">
-            {fromAvatarUrl && !avatarFailed ? (
-              <img src={fromAvatarUrl} alt="" onError={() => setAvatarFailed(true)} />
-            ) : (
-              senderInitial(fromName)
-            )}
-          </span>
+          <InboxAvatar name={fromName} url={item.fromAvatarUrl} className={styles.inboxMessageAvatar} />
           <div className={styles.inboxMessageFrom}>
             <strong>{fromName}</strong>
             {fromEmail ? <span>&lt;{fromEmail}&gt;</span> : null}

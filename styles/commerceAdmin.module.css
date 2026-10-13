@@ -7179,7 +7179,7 @@ select.clientCrmInput {
 
 .inboxRowMain {
   display: grid;
-  grid-template-columns: 8.5rem minmax(0, 1fr) 7.25rem;
+  grid-template-columns: 11rem minmax(0, 1fr) 7.25rem;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
@@ -7190,6 +7190,35 @@ select.clientCrmInput {
   text-align: left;
   cursor: pointer;
   font: inherit;
+}
+
+.inboxSenderCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.inboxRowAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.inboxRowAvatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .inboxSender,
