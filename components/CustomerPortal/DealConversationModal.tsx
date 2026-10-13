@@ -79,6 +79,10 @@ function PeerMark({
   const resolved = resolveStorageAssetUrl(avatarUrl) || avatarUrl || undefined;
   const showPhoto = Boolean(resolved && !failed);
 
+  useEffect(() => {
+    setFailed(false);
+  }, [resolved]);
+
   return (
     <span className={[styles.chatBrandMark, styles.chatPeerMark, className].filter(Boolean).join(" ")} aria-hidden="true">
       {showPhoto ? (

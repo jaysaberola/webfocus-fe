@@ -1105,28 +1105,30 @@ function InboxMessageView({
           )}
         </div>
       </div>
-      <DealConversationModal
-        open={replyOpen}
-        recordId={item.recordId || item.referenceId}
-        orderNo={item.transactionNo || detailValue(item.details, "Order No")}
-        clientNotes={item.clientNotes}
-        salesNotes={item.salesNotes}
-        conversation={item.conversation}
-        isWebDesign={quotation}
-        viewer="sales"
-        peerName={item.fromName || item.audience || "Customer"}
-        peerAvatarUrl={item.fromAvatarUrl}
-        placement="right"
-        showLauncher
-        quotedPrice={item.quotedPrice}
-        canSetPrice={Boolean(quotationActions?.setPrice)}
-        onSetPrice={quotationActions?.setPrice ? () => onOpenQuotation?.("set-price") : undefined}
-        onOpen={() => setReplyOpen(true)}
-        onClose={() => setReplyOpen(false)}
-        onReplied={() => {
-          notifyCommerceNotificationsUpdated();
-        }}
-      />
+      {canReply ? (
+        <DealConversationModal
+          open={replyOpen}
+          recordId={item.recordId || item.referenceId}
+          orderNo={item.transactionNo || detailValue(item.details, "Order No")}
+          clientNotes={item.clientNotes}
+          salesNotes={item.salesNotes}
+          conversation={item.conversation}
+          isWebDesign={quotation}
+          viewer="sales"
+          peerName={item.fromName || item.audience || "Customer"}
+          peerAvatarUrl={item.fromAvatarUrl}
+          placement="right"
+          showLauncher
+          quotedPrice={item.quotedPrice}
+          canSetPrice={Boolean(quotationActions?.setPrice)}
+          onSetPrice={quotationActions?.setPrice ? () => onOpenQuotation?.("set-price") : undefined}
+          onOpen={() => setReplyOpen(true)}
+          onClose={() => setReplyOpen(false)}
+          onReplied={() => {
+            notifyCommerceNotificationsUpdated();
+          }}
+        />
+      ) : null}
     </article>
   );
 }

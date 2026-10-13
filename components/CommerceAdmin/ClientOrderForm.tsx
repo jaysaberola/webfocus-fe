@@ -1152,10 +1152,12 @@ export default function ClientOrderForm({
         const nextClients = Array.isArray(clientRes?.data) ? clientRes.data : [];
         const nextServices = Array.isArray(serviceRes) ? serviceRes : extractServicesList(serviceRes);
         const detailClient = clientDetail as CustomerRow | null;
-        const mergedClients =
-          detailClient && !nextClients.some((row) => Number(row.id) === Number(detailClient.id))
-            ? [detailClient, ...nextClients]
-            : nextClients;
+        const mergedClients = detailClient
+          ? [
+              detailClient,
+              ...nextClients.filter((row) => Number(row.id) !== Number(detailClient.id)),
+            ]
+          : nextClients;
         setOwners(nextOwners);
         setStaffUsers(nextStaff);
         setClients(mergedClients);
