@@ -4,6 +4,11 @@ import type { PortalOrder } from "@/lib/customerPortal/types";
 import { provisioningCountdownCopy } from "@/lib/customerPortal/orderHelpers";
 import styles from "@/styles/customerPortal.module.css";
 
+function orderStatusLabel(status: PortalOrder["status"]) {
+  if (status === "Active Live") return "Active";
+  return status;
+}
+
 function orderStatusClass(status: PortalOrder["status"]) {
   if (status === "Active Live" || status === "Active") return styles.badgeGreen;
   if (status === "Provisioning") return styles.badgeBlue;
@@ -51,7 +56,7 @@ export default function OrderStatusBadge({ order }: Props) {
   }, [open]);
 
   if (order.status !== "Provisioning") {
-    return <span className={orderStatusClass(order.status)}>{order.status}</span>;
+    return <span className={orderStatusClass(order.status)}>{orderStatusLabel(order.status)}</span>;
   }
 
   const countdown = provisioningCountdownCopy(order, now);

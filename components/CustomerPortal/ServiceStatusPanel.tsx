@@ -7,6 +7,11 @@ import styles from "@/styles/customerPortal.module.css";
 type ViewMode = "grid" | "list";
 type FilterValue = (typeof PORTAL_SERVICE_FILTERS)[number];
 
+function serviceStatusLabel(status: PortalServiceStatus["status"]) {
+  if (status === "Active Live") return "Active";
+  return status;
+}
+
 function serviceStatusClass(status: PortalServiceStatus["status"]) {
   if (status === "Active" || status === "Active Live") return styles.serviceBadgeActive;
   if (status === "Expired") return styles.serviceBadgeExpired;
@@ -104,7 +109,7 @@ function ServiceCard({ service }: { service: PortalServiceStatus }) {
             {service.category} - Plan: {service.plan}
           </p>
         </div>
-        <span className={serviceStatusClass(service.status)}>{service.status}</span>
+        <span className={serviceStatusClass(service.status)}>{serviceStatusLabel(service.status)}</span>
       </div>
       <div className={styles.serviceCardRenew}>
         <span className={styles.serviceRenewLabel}>{service.renewLabel}</span>
@@ -129,7 +134,7 @@ function ServiceRow({ service }: { service: PortalServiceStatus }) {
         {service.renewDate && <strong className={styles.serviceRenewDate}>{service.renewDate}</strong>}
         <p className={styles.serviceRenewNote}>{service.renewNote}</p>
       </div>
-      <span className={serviceStatusClass(service.status)}>{service.status}</span>
+      <span className={serviceStatusClass(service.status)}>{serviceStatusLabel(service.status)}</span>
     </article>
   );
 }

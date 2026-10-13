@@ -600,7 +600,7 @@ export default function OrdersTab() {
     }
 
     if (action === "receipt") {
-      if (order.status !== "Active Live") {
+      if (order.status !== "Active" && order.status !== "Active Live") {
         toast.info("Receipt is available once the order is active.");
         return;
       }
