@@ -36,6 +36,9 @@ type CmsHelpTourOverlayProps = {
   onBrowseTopics: () => void;
   needsNavigation: boolean;
   onNavigate: () => void;
+  autoPlay?: boolean;
+  onAutoAdvance?: () => void;
+  onToggleAutoPlay?: () => void;
 };
 
 const MARGIN = 16;
@@ -225,6 +228,9 @@ export default function CmsHelpTourOverlay({
   onBrowseTopics,
   needsNavigation,
   onNavigate,
+  autoPlay = false,
+  onAutoAdvance,
+  onToggleAutoPlay,
 }: CmsHelpTourOverlayProps) {
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const targetRectRef = useRef<Rect | null>(null);
@@ -242,11 +248,31 @@ export default function CmsHelpTourOverlay({
   const script = step ? spokenStepScript(step, stepIndex, totalSteps) : "";
   const followAlong = prefs.captions;
   const voiceOn = prefs.voice;
+  const autoPlayRef = useRef(autoPlay);
+  const needsNavRef = useRef(needsNavigation);
+  const advanceTimerRef = useRef<number | null>(null);
+  autoPlayRef.current = autoPlay;
+  needsNavRef.current = needsNavigation;
+
+  const scheduleAutoAdvance = useCallback(() => {
+    if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+    if (!autoPlayRef.current || needsNavRef.current || !onAutoAdvance) return;
+    advanceTimerRef.current = window.setTimeout(() => {
+      advanceTimerRef.current = null;
+      if (autoPlayRef.current && !needsNavRef.current) onAutoAdvance();
+    }, 900);
+  }, [onAutoAdvance]);
 
   useEffect(() => {
     setPrefs(getAriaPrefs());
     return () => stopAriaSpeech();
   }, []);
+
+  useEffect(() => {
+    if (!autoPlay || !needsNavigation) return;
+    const timer = window.setTimeout(() => onNavigate(), 700);
+    return () => window.clearTimeout(timer);
+  }, [autoPlay, needsNavigation, stepIndex, onNavigate]);
 
   useEffect(() => {
     if (!step || !script) return;
@@ -255,7 +281,12 @@ export default function CmsHelpTourOverlay({
       setSpoken(script);
       setTalking(false);
       stopAriaSpeech();
-      return;
+      const timer = window.setTimeout(scheduleAutoAdvance, 1600);
+      return () => {
+        window.clearTimeout(timer);
+        if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+        stopAriaSpeech();
+      };
     }
 
     if (!followAlong) setSpoken(script);
@@ -265,10 +296,16 @@ export default function CmsHelpTourOverlay({
       onProgress: (said) => {
         if (followAlong) setSpoken(said);
       },
-      onEnd: () => setTalking(false),
+      onEnd: () => {
+        setTalking(false);
+        scheduleAutoAdvance();
+      },
     });
-    return () => stopAriaSpeech();
-  }, [step, script, voiceOn, followAlong, prefs.speed]);
+    return () => {
+      if (advanceTimerRef.current) window.clearTimeout(advanceTimerRef.current);
+      stopAriaSpeech();
+    };
+  }, [step, script, voiceOn, followAlong, prefs.speed, scheduleAutoAdvance]);
 
   const updatePrefs = (partial: Partial<AriaPrefs>) => {
     setPrefs(setAriaPrefs(partial));
@@ -414,18 +451,37 @@ export default function CmsHelpTourOverlay({
 
   const content = (
     <div className="cms-help-tour" aria-live="polite">
-      <div className="cms-help-tour__backdrop" onClick={onClose} aria-hidden="true" />
+      {rect ? null : <div className="cms-help-tour__backdrop" onClick={onClose} aria-hidden="true" />}
 
       {rect ? (
-        <div
-          className="cms-help-tour__spotlight"
-          style={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          }}
-        />
+        <>
+          <div
+            className="cms-help-tour__spotlight"
+            style={{
+              top: rect.top,
+              left: rect.left,
+              width: rect.width,
+              height: rect.height,
+            }}
+          />
+          <div
+            className="cms-help-tour__pointer"
+            style={{
+              top: rect.top + Math.min(rect.height * 0.45, 36),
+              left: rect.left + Math.min(28, rect.width * 0.2),
+            }}
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 24 24" width="28" height="28">
+              <path
+                d="M4 2 L4 20 L9 15.5 L13 22 L16 20.5 L12 14 L19 14 Z"
+                fill="#4f46e5"
+                stroke="#fff"
+                strokeWidth="1.4"
+              />
+            </svg>
+          </div>
+        </>
       ) : null}
 
       <div
@@ -460,7 +516,7 @@ export default function CmsHelpTourOverlay({
         </div>
 
         <div className="cms-help-tour__tooltip-body">
-          <CmsHelpStepIllustration step={step} stepTitle={step.title} compact />
+          {rect && autoPlay ? null : <CmsHelpStepIllustration step={step} stepTitle={step.title} compact />}
           <h3>{step.title}</h3>
           <p>{step.body}</p>
 
@@ -495,6 +551,12 @@ export default function CmsHelpTourOverlay({
         ) : null}
 
         <CmsHelpPlaybackControls prefs={prefs} onChange={updatePrefs} variant="compact" />
+
+        {onToggleAutoPlay ? (
+          <button type="button" className="btn btn-link btn-sm text-secondary" onClick={onToggleAutoPlay}>
+            {autoPlay ? "Pause live demo" : "Resume live demo"}
+          </button>
+        ) : null}
 
         {needsNavigation && step.route ? (
           <div className="cms-help-tour__actions">

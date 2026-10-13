@@ -24,29 +24,48 @@ import CmsHelpLiveCaption, { CmsHelpKaraoke } from "@/components/Help/CmsHelpLiv
 import CmsHelpPlaybackControls from "@/components/Help/CmsHelpPlaybackControls";
 import CmsHelpStepIllustration from "@/components/Help/CmsHelpStepIllustration";
 import { toast } from "@/lib/toast";
+import type { CmsGuideProgress, CmsGuideProgressStatus } from "@/services/cmsHelpProgressService";
 
 type CmsHelpAssistantProps = {
   variant: "modal" | "dock";
   activeGuideId: string;
   stepIndex: number;
+  progress?: Record<string, CmsGuideProgress>;
+  completedCount?: number;
+  totalGuides?: number;
   onGuideChange: (guideId: string) => void;
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
   onBrowse?: () => void;
   onStartTour?: () => void;
+  onReplay?: () => void;
 };
+
+function guideStatus(progress: Record<string, CmsGuideProgress> | undefined, guideId: string): CmsGuideProgressStatus {
+  return progress?.[guideId]?.status ?? "not_started";
+}
+
+function statusLabel(status: CmsGuideProgressStatus) {
+  if (status === "completed") return "Completed";
+  if (status === "in_progress") return "In Progress";
+  return "Not Started";
+}
 
 export default function CmsHelpAssistant({
   variant,
   activeGuideId,
   stepIndex,
+  progress,
+  completedCount = 0,
+  totalGuides = 0,
   onGuideChange,
   onClose,
   onNext,
   onPrev,
   onBrowse,
   onStartTour,
+  onReplay,
 }: CmsHelpAssistantProps) {
   const [query, setQuery] = useState("");
   const [typing, setTyping] = useState(false);
@@ -58,6 +77,9 @@ export default function CmsHelpAssistant({
   const messagesRef = useRef<HTMLDivElement | null>(null);
 
   const guide = CMS_HELP_GUIDE_MAP[activeGuideId] ?? CMS_HELP_GUIDE_MAP.dashboard;
+  const currentStatus = guideStatus(progress, guide.id);
+  const tourActionLabel =
+    currentStatus === "completed" ? "Replay tour" : currentStatus === "in_progress" ? "Resume tour" : "Start live tour";
   const step = guide.steps[stepIndex];
   const totalSteps = guide.steps.length;
   const welcome = spokenWelcome(guide.title);
@@ -271,9 +293,13 @@ export default function CmsHelpAssistant({
               <i className="fa-solid fa-download me-1" aria-hidden="true" />
               {downloading === "all" ? "Preparing..." : "Download all topics"}
             </button>
-            <button type="button" className="btn btn-light btn-sm" onClick={onStartTour}>
+            <button
+              type="button"
+              className="btn btn-light btn-sm"
+              onClick={currentStatus === "completed" ? onReplay : onStartTour}
+            >
               <i className="fa-solid fa-wand-magic-sparkles me-1" aria-hidden="true" />
-              Start live tour
+              {tourActionLabel}
             </button>
             <button type="button" className="cms-help-assistant__close" onClick={onClose} aria-label="Close help">
               <i className="fa-solid fa-xmark" aria-hidden="true" />
@@ -296,6 +322,12 @@ export default function CmsHelpAssistant({
                 </span>
               </div>
             </div>
+
+            {totalGuides > 0 ? (
+              <p className="cms-help-assistant__overall">
+                Training {completedCount} of {totalGuides} completed
+              </p>
+            ) : null}
 
             <div className="cms-help-assistant__search-wrap">
               <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
@@ -320,7 +352,12 @@ export default function CmsHelpAssistant({
                       onClick={() => onGuideChange(item.id)}
                     >
                       <i className={item.icon} aria-hidden="true" />
-                      <span>{item.title}</span>
+                      <span className="cms-help-assistant__topic-copy">
+                        <span>{item.title}</span>
+                        <em className={`cms-help-status cms-help-status--${guideStatus(progress, item.id)}`}>
+                          {statusLabel(guideStatus(progress, item.id))}
+                        </em>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -442,17 +479,20 @@ export default function CmsHelpAssistant({
                   <i className="fa-solid fa-arrow-left" aria-hidden="true" />
                   Previous
                 </button>
-                <button type="button" className="btn btn-primary cms-help-assistant__nav-btn" onClick={onStartTour}>
+                <button
+                  type="button"
+                  className="btn btn-primary cms-help-assistant__nav-btn"
+                  onClick={currentStatus === "completed" ? onReplay : onStartTour}
+                >
                   <i className="fa-solid fa-location-crosshairs" aria-hidden="true" />
-                  Guide me here
+                  {currentStatus === "completed" ? "Replay" : "Guide me here"}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline-primary cms-help-assistant__nav-btn"
                   onClick={onNext}
-                  disabled={stepIndex >= totalSteps - 1}
                 >
-                  Next
+                  {stepIndex >= totalSteps - 1 ? "Finish" : "Next"}
                   <i className="fa-solid fa-arrow-right" aria-hidden="true" />
                 </button>
               </div>

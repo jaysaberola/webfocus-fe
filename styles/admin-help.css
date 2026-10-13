@@ -226,6 +226,43 @@
   text-align: center;
 }
 
+.cms-help-assistant__topic-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.1rem;
+}
+
+.cms-help-assistant__topic-copy > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cms-help-assistant__overall {
+  margin: 0 0.85rem 0.55rem;
+  color: #c7d2fe;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.cms-help-status {
+  font-style: normal;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.cms-help-status--in_progress {
+  color: #fbbf24;
+}
+
+.cms-help-status--completed {
+  color: #34d399;
+}
+
 .cms-help-assistant__topic-btn:hover,
 .cms-help-assistant__topic-btn.is-active {
   background: rgba(99, 102, 241, 0.22);
@@ -528,11 +565,32 @@
   position: fixed;
   border-radius: 12px;
   box-shadow: 0 0 0 9999px rgba(15, 23, 42, 0.55);
-  border: 2px solid rgba(99, 102, 241, 0.95);
+  border: 3px solid #818cf8;
   background: transparent;
   pointer-events: none;
   z-index: 2147483001;
-  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+  transition: top 0.35s ease, left 0.35s ease, width 0.35s ease, height 0.35s ease;
+}
+
+.cms-help-tour__pointer {
+  position: fixed;
+  z-index: 2147483003;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.35));
+  transition: top 0.45s ease, left 0.45s ease;
+  animation: cmsHelpPointerTap 1.4s ease-in-out infinite;
+}
+
+@keyframes cmsHelpPointerTap {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(6px, 6px);
+  }
 }
 
 .cms-help-tour__tooltip {
