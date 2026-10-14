@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getCanvas7BrandedPreviewUrl } from "@/lib/canvasTemplateCatalog";
 import type { TemplateGroup, WebsiteTemplate, WebsiteTemplateCategory } from "@/lib/servicesCatalog";
 import {
   getWebsiteTemplateCategory,
@@ -79,12 +80,12 @@ function LiveTemplateThumb({
       {enabled ? (
         <iframe
           className={`${styles.templateLiveFrame} ${ready ? styles.templateLiveFrameReady : ""}`}
-          src={template.previewUrl}
+          src={getCanvas7BrandedPreviewUrl(template.previewUrl)}
           title={`${template.label} live preview`}
           tabIndex={-1}
           aria-hidden
           loading={priority ? "eager" : "lazy"}
-          sandbox="allow-scripts allow-same-origin allow-forms"
+          sandbox="allow-scripts allow-forms"
           style={{ transform: `scale(${scale})` }}
           onLoad={() => setReady(true)}
         />

@@ -4,7 +4,7 @@ import {
   type TemplateGroup,
   type WebsiteTemplate,
 } from "@/lib/servicesCatalog";
-import { openCanvas7TemplatePreview } from "@/lib/canvasTemplateCatalog";
+import { getCanvas7BrandedPreviewUrl, openCanvas7TemplatePreview } from "@/lib/canvasTemplateCatalog";
 import { warmCanvasPreview } from "@/lib/canvasPreviewWarmup";
 import {
   TEMPLATE_NAV_NEXT_ICON,
@@ -123,7 +123,7 @@ export default function TemplatePreviewModal({
       >
         <header className={styles.templatePreviewHeader}>
           <div className={styles.templatePreviewTitleBlock}>
-            <p className={styles.templatePreviewKicker}>Canvas 7 · {group.title}</p>
+            <p className={styles.templatePreviewKicker}>WebFocus · {group.title}</p>
             <h2 id="template-preview-title">{template.label}</h2>
           </div>
 
@@ -216,9 +216,9 @@ export default function TemplatePreviewModal({
                   className={`${styles.templatePreviewFrame} ${
                     frameLoading ? styles.templatePreviewFrameHidden : ""
                   }`}
-                  src={template.previewUrl}
+                  src={getCanvas7BrandedPreviewUrl(template.previewUrl)}
                   loading="eager"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+                  sandbox="allow-scripts allow-forms allow-popups"
                   style={{
                     width: designWidth,
                     height: frameScale > 0 ? `calc(100% / ${frameScale})` : "100%",

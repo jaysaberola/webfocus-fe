@@ -152,6 +152,12 @@ export const HOSTING_ADDONS: Record<HostingPlanType, ServiceAddon[]> = {
 };
 
 export const UNIVERSAL_HOSTING_ADDONS: ServiceAddon[] = [
+  {
+    name: "Add Ons_Sample Test",
+    price: 100,
+    label: "Add-on",
+    desc: "Test add-on. After payment is approved, provisioning finishes in 5 minutes.",
+  },
   { name: "Add Ons_WhoIs", price: 780, label: "Add-on" },
   { name: "Add Ons_Static IP", price: 3000, label: "Add-on" },
   { name: "Add Ons_Sitelock", price: 14160, label: "Add-on" },

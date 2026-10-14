@@ -1,3 +1,5 @@
+import { getCanvas7BrandedPreviewUrl } from "@/lib/canvasTemplateCatalog";
+
 const warmed = new Set<string>();
 const MAX_WARM_FRAMES = 2;
 const warmFrames: HTMLIFrameElement[] = [];
@@ -13,12 +15,12 @@ export function warmCanvasPreview(url: string) {
   }
 
   const iframe = document.createElement("iframe");
-  iframe.src = url;
+  iframe.src = getCanvas7BrandedPreviewUrl(url);
   iframe.title = "Template preview warmup";
   iframe.setAttribute("aria-hidden", "true");
   iframe.setAttribute("tabindex", "-1");
   iframe.loading = "eager";
-  iframe.sandbox = "allow-scripts allow-same-origin allow-forms";
+  iframe.sandbox = "allow-scripts allow-forms";
   iframe.style.cssText =
     "position:absolute;width:0;height:0;border:0;opacity:0;pointer-events:none;left:-9999px;top:0";
 

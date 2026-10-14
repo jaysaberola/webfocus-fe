@@ -20,6 +20,12 @@ export function getCanvas7DemoUrl(page: string) {
   return `${CANVAS7_TEMPLATE_BASE}/${page}`;
 }
 
+/** Same-origin preview that swaps the Canvas wordmark for the WebFocus logo. */
+export function getCanvas7BrandedPreviewUrl(previewUrl: string) {
+  if (!previewUrl) return previewUrl;
+  return `/api/template-preview?url=${encodeURIComponent(previewUrl)}`;
+}
+
 export function getCanvas7ThumbnailUrl(fileName: string) {
   return `${CANVAS7_THUMBNAIL_BASE}/${fileName}`;
 }

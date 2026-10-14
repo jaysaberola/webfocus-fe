@@ -63,6 +63,7 @@ function mapFallbackUniversalAddons(): PublicHostingAddon[] {
     name: addon.name,
     price: addon.price,
     label: addon.label,
+    desc: addon.desc,
     plan_type: "universal",
     billing: "yr",
   }));
