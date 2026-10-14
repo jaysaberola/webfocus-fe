@@ -7609,6 +7609,10 @@ select.clientCrmInput {
   margin-top: 1rem;
 }
 
+.quoteNoticeMeta {
+  margin-top: 1rem;
+}
+
 .quoteNoticeLines h3 {
   margin: 0 0 0.35rem;
   color: #64748b;

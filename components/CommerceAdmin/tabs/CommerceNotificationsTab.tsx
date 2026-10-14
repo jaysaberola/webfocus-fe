@@ -720,7 +720,12 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
                   </span>
                   <span className={styles.inboxCopy}>
                     <span className={styles.inboxSubject}>{item.title}</span>
-                    <span className={styles.inboxPreview}> - {item.desc}</span>
+                    <span className={styles.inboxPreview}>
+                      {" "}
+                      - {item.kind === "deal_reply" || item.kind === "web_design_quotation"
+                        ? quotationLead(item.desc || item.intro || "", item.fromName || sender, item.transactionNo || "")
+                        : item.desc}
+                    </span>
                   </span>
                   <span className={styles.inboxRowEnd}>
                     <span className={styles.inboxClip} aria-hidden="true">
@@ -754,6 +759,25 @@ function detailValue(details: CommerceNotificationAdminRow["details"], label: st
   return String(details?.find((row) => row.label === label)?.value || "").trim();
 }
 
+function isQuotationDump(value: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  return (
+    text.length > 220 ||
+    /grand total:/i.test(text) ||
+    /a quoted price is ready/i.test(text) ||
+    /status is still pending quotation/i.test(text)
+  );
+}
+
+function quotationLead(value: string, fromName: string, orderNo: string) {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (!text || isQuotationDump(text)) {
+    const who = fromName || "Sales";
+    return `${who} updated this quotation${orderNo ? ` for ${orderNo}` : ""}. The services and total below are the current price.`;
+  }
+  return text;
+}
+
 function splitQuoteLine(value: string) {
   const parts = value.split(/\s+[—–-]\s+/);
   if (parts.length < 2) return { name: value, price: "" };
@@ -783,6 +807,7 @@ function QuotationNotice({
   const submitted = detailValue(details, "Submitted") || detailValue(details, "Received");
   const lines = details.filter((row) => row.label === "Items" || row.label === "Included service");
   const conversation = item.kind === "deal_reply";
+  const lead = quotationLead(item.intro || item.desc || "", item.fromName || client, orderNo);
   const statusClass = /await|pending|review/i.test(status)
     ? styles.badgePending
     : /sign|complete|paid|active/i.test(status)
@@ -795,11 +820,7 @@ function QuotationNotice({
         <div>
           <p className={styles.quoteNoticeKicker}>{conversation ? "Conversation" : "Quotation"}</p>
           <h2>{item.title}</h2>
-          <p>
-            {conversation
-              ? item.intro || `${client || "The client"} sent a message about this quotation.`
-              : `${client || "The client"}${orderNo ? ` · ${orderNo}` : ""} has a saved quotation amount.`}
-          </p>
+          <p>{lead}</p>
         </div>
         <div className={styles.quoteNoticeTotal}>
           <span>Grand total</span>
@@ -807,25 +828,6 @@ function QuotationNotice({
           {status ? <em className={statusClass}>{formatNoticeStatus(status)}</em> : null}
         </div>
       </div>
-
-      <dl className={styles.quoteNoticeMeta}>
-        <div>
-          <dt>Client</dt>
-          <dd>{client || "—"}</dd>
-        </div>
-        <div>
-          <dt>Email</dt>
-          <dd>{email || "—"}</dd>
-        </div>
-        <div>
-          <dt>Order</dt>
-          <dd>{orderNo || "—"}</dd>
-        </div>
-        <div>
-          <dt>Submitted</dt>
-          <dd>{submitted || "—"}</dd>
-        </div>
-      </dl>
 
       {lines.length > 0 ? (
         <section className={styles.quoteNoticeLines}>
@@ -850,6 +852,24 @@ function QuotationNotice({
         </section>
       ) : null}
 
+      <dl className={styles.quoteNoticeMeta}>
+        <div>
+          <dt>Client</dt>
+          <dd>{client || "—"}</dd>
+        </div>
+        <div>
+          <dt>Email</dt>
+          <dd>{email || "—"}</dd>
+        </div>
+        <div>
+          <dt>Order</dt>
+          <dd>{orderNo || "—"}</dd>
+        </div>
+        <div>
+          <dt>Submitted</dt>
+          <dd>{submitted || "—"}</dd>
+        </div>
+      </dl>
     </div>
   );
 }

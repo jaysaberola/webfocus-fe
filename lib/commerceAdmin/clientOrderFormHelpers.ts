@@ -1410,6 +1410,28 @@ export function withDomainDealSelection<T extends ClientOrderFormState>(form: T)
   };
 }
 
+export function rememberDealAmount(notes: string | null | undefined, name: string, amount: number) {
+  const cleanName = String(name || "").trim();
+  const text = String(notes || "");
+  if (!cleanName || !(amount > 0)) return text;
+  const meta = parseDealMeta(text) ?? {};
+  const next = {
+    ...meta,
+    dealAmounts: {
+      ...parseDealAmounts(meta.dealAmounts),
+      [cleanName]: String(amount),
+    },
+  };
+  const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(next)}`;
+  const marker = text.indexOf(DEAL_META_PREFIX);
+  if (marker < 0) return [metaLine, text].filter(Boolean).join("\n");
+  const before = text.slice(0, marker).trim();
+  const afterMarker = text.slice(marker + DEAL_META_PREFIX.length);
+  const newline = afterMarker.indexOf("\n");
+  const after = newline >= 0 ? afterMarker.slice(newline + 1).trim() : "";
+  return [before, metaLine, after].filter(Boolean).join("\n");
+}
+
 export function mergeDealMetaIntoNotes(existingNotes: string | null | undefined, form: ClientOrderFormState) {
   const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(dealMetaFromForm(form, existingNotes))}`;
   const text = String(existingNotes ?? "");

@@ -60,7 +60,6 @@ import { HOSTING_PLANS, UNIVERSAL_HOSTING_ADDONS, WEBDESIGN_PACKAGES } from "@/l
 import { getAllPublicHostingAddons } from "@/services/publicHostingService";
 import { isDealChatAttachmentLabel, webDesignIncludedServices } from "@/lib/webDesignSetup";
 import {
-  applyWebDesignPriceToItems,
   isPendingQuotationTransaction,
   isQuotedWebDesign,
   isWebDesignTransaction,
@@ -381,11 +380,14 @@ function catalogLinesForDealNames(
     .map((name) => {
       const sold = soldPriceForName(transaction, name);
       const catalog = catalogPriceForProduct(services, name);
+      const typed = dealAmountNumber(amounts, name);
+      if (typed > 0) {
+        return { name, price: typed, needsAmount: false };
+      }
       if (isWebDesignPlan(name)) {
-        const typed = dealAmountNumber(amounts, name);
         return {
           name,
-          price: quoted ? quotedAmount || sold || typed || catalog || 0 : typed,
+          price: quoted ? quotedAmount || sold || catalog || 0 : 0,
           needsAmount: false,
         };
       }
@@ -436,15 +438,17 @@ function buildDealItemPayload(
     const isDomainType = Boolean(matchDomainTypeOption(name));
     const isWebDesign = isWebDesignPlan(name, form.dealSubType || form.dealType);
     const sold = soldPriceForName(transaction, name);
+    const typed = dealAmountNumber(form.dealAmounts, name);
     let itemPrice =
       isDomainType && domainCost > 0
         ? domainCost
         : sold ?? catalogPriceForProduct(services, name) ?? 0;
-    if (isWebDesign) {
-      const typed = dealAmountNumber(form.dealAmounts, name);
-      itemPrice = quoted ? quotedAmount || typed || itemPrice : typed;
+    if (typed > 0) {
+      itemPrice = typed;
+    } else if (isWebDesign && quoted) {
+      itemPrice = quotedAmount || itemPrice;
     } else if (!(itemPrice > 0)) {
-      itemPrice = dealAmountNumber(form.dealAmounts, name);
+      itemPrice = 0;
     }
     return {
       name,
@@ -1464,6 +1468,51 @@ export default function ClientOrderForm({
     if (!node) return;
     node.scrollIntoView({ behavior: "auto", block: "start" });
   }, [focusProductDetails, loading, productDeal]);
+
+  const saveQuotedLinePrices = async () => {
+    if (!transaction || submitting) return;
+    const itemPayload = buildDealItemPayload(services, form, transaction, effectiveNotes);
+    const subtotal = itemPayload.reduce((sum, item) => sum + Number(item.total_price || 0), 0);
+    if (!(subtotal > 0)) {
+      setPriceOpen(true);
+      return;
+    }
+    const discountTotal = Number(productDeal?.discountTotal || 0);
+    const taxTotal = Number(productDeal?.taxTotal || 0);
+    const shipping = Number(transaction.shipping_total || 0);
+    const grand = Math.max(0, subtotal - discountTotal + taxTotal + shipping);
+    let notes = mergeDealMetaIntoNotes(effectiveNotes, {
+      ...form,
+      expectedRevenue: String(grand),
+    });
+    notes = buildWebDesignPricedNotes(notes, grand);
+    setSubmitting(true);
+    try {
+      const res = await updateSalesTransaction(transaction.id, {
+        customer_id: transaction.customer_id,
+        customer_name: transaction.customer_name,
+        customer_email: transaction.customer_email,
+        subtotal,
+        discount_total: discountTotal,
+        tax_total: taxTotal,
+        shipping_total: shipping,
+        grand_total: grand,
+        payment_status: transaction.payment_status || "pending",
+        notes,
+        items: itemPayload,
+      });
+      setLiveNotes(res?.data?.notes || notes);
+      setForm((current) => ({ ...current, expectedRevenue: String(grand) }));
+      setChatOpen(true);
+      toast.success(
+        `Quoted price updated to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+      );
+    } catch (err: { response?: { data?: { message?: string } } }) {
+      toast.error(err?.response?.data?.message || "Failed to update the quoted price.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const dealPriceLines = useMemo(() => {
     const lines = catalogLinesForDealNames(
@@ -2839,7 +2888,9 @@ export default function ClientOrderForm({
           showLauncher
           quotedPrice={dealQuotedPrice(effectiveNotes, Number(transaction.grand_total || 0))}
           canSetPrice={isPendingQuotationTransaction(transaction)}
-          onSetPrice={() => setPriceOpen(true)}
+          onSetPrice={() => {
+            void saveQuotedLinePrices();
+          }}
           onOpen={() => setChatOpen(true)}
           onClose={() => setChatOpen(false)}
           onReplied={(next) => {
@@ -2859,23 +2910,45 @@ export default function ClientOrderForm({
         onClose={() => setPriceOpen(false)}
         onSave={(amount) => {
           if (!transaction) return;
-          const items = applyWebDesignPriceToItems(transaction.items, amount);
-          const notes = buildWebDesignPricedNotes(effectiveNotes, amount);
+          const planName =
+            (transaction.items ?? []).find((item) => isWebDesignPlan(item.name, item.item_type))?.name ||
+            parseDealNames(form.dealName).find((name) => isWebDesignPlan(name)) ||
+            "";
+          const nextForm = {
+            ...form,
+            dealAmounts: planName
+              ? { ...(form.dealAmounts ?? {}), [planName]: String(amount) }
+              : form.dealAmounts,
+          };
+          const items = buildDealItemPayload(services, nextForm, transaction, effectiveNotes);
+          const subtotal = items.reduce((sum, item) => sum + Number(item.total_price || 0), 0) || amount;
+          const discountTotal = Number(productDeal?.discountTotal || 0);
+          const taxTotal = Number(productDeal?.taxTotal || 0);
+          const shipping = Number(transaction.shipping_total || 0);
+          const grand = Math.max(0, subtotal - discountTotal + taxTotal + shipping);
+          let notes = mergeDealMetaIntoNotes(effectiveNotes, {
+            ...nextForm,
+            expectedRevenue: String(grand),
+          });
+          notes = buildWebDesignPricedNotes(notes, grand);
           void updateSalesTransaction(transaction.id, {
             items,
             notes,
-            subtotal: amount,
-            discount_total: 0,
-            tax_total: 0,
-            shipping_total: 0,
-            grand_total: amount,
+            subtotal,
+            discount_total: discountTotal,
+            tax_total: taxTotal,
+            shipping_total: shipping,
+            grand_total: grand,
             payment_status: transaction.payment_status || "pending",
           })
             .then((res) => {
+              setForm(nextForm);
               setLiveNotes(res?.data?.notes || notes);
               setPriceOpen(false);
               setChatOpen(true);
-              toast.success(`Quoted price set to ₱${amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`);
+              toast.success(
+                `Quoted price set to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+              );
             })
             .catch((err: { response?: { data?: { message?: string } } }) => {
               toast.error(err?.response?.data?.message || "Failed to set the quoted price.");

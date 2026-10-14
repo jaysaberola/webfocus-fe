@@ -18,7 +18,7 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
-import { dealConversationNotes } from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import { dealConversationNotes, rememberDealAmount } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
   formatDealNamesForDisplay,
   orderAdminColumnValue,
@@ -522,15 +522,24 @@ export default function CommerceTransactionsTab() {
   const applyWebDesignPrice = async (row: SalesTransaction, amount: number) => {
     try {
       const items = applyWebDesignPriceToItems(row.items, amount);
-      const notes = buildWebDesignPricedNotes(row.notes, amount);
+      const plan = items.find((item) => String(item.item_type || "") === "web_design") || items[0];
+      const subtotal = items.reduce((sum, item) => sum + Number(item.total_price ?? item.price ?? 0), 0);
+      const discountTotal = Number(row.discount_total || 0);
+      const taxTotal = Number(row.tax_total || 0);
+      const shippingTotal = Number(row.shipping_total || 0);
+      const grand = Math.max(0, subtotal - discountTotal + taxTotal + shippingTotal);
+      const notes = buildWebDesignPricedNotes(
+        rememberDealAmount(row.notes, String(plan?.name || ""), Number(plan?.total_price ?? plan?.price ?? amount)),
+        grand,
+      );
       await updateSalesTransaction(row.id, {
         items,
         notes,
-        subtotal: amount,
-        discount_total: 0,
-        tax_total: 0,
-        shipping_total: 0,
-        grand_total: amount,
+        subtotal,
+        discount_total: discountTotal,
+        tax_total: taxTotal,
+        shipping_total: shippingTotal,
+        grand_total: grand,
         payment_status: row.payment_status || "pending",
       });
       toast.success(`Web design price set for ${row.transaction_no}.`);
@@ -541,11 +550,11 @@ export default function CommerceTransactionsTab() {
               ...current,
               items,
               notes,
-              subtotal: amount,
-              discount_total: 0,
-              tax_total: 0,
-              shipping_total: 0,
-              grand_total: amount,
+              subtotal,
+              discount_total: discountTotal,
+              tax_total: taxTotal,
+              shipping_total: shippingTotal,
+              grand_total: grand,
             }
           : current,
       );
