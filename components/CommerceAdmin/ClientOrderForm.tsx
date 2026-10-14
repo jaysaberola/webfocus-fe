@@ -1961,7 +1961,7 @@ export default function ClientOrderForm({
         if (pendingWebQuote) {
           notes = buildWebDesignPricedNotes(notes, netTotal);
         }
-        await updateSalesTransaction(transaction.id, {
+        const saved = await updateSalesTransaction(transaction.id, {
           customer_id: clientId,
           customer_name: clientName || transaction.customer_name,
           customer_email: clientEmail,
@@ -2008,7 +2008,11 @@ export default function ClientOrderForm({
           }
         }
 
-        toast.success("Deal information saved.");
+        toast.success(
+          saved?.quoted_price_sent
+            ? "Deal saved. The customer was sent the updated quotation."
+            : "Deal information saved.",
+        );
         if (andNew) {
           onSaved({ andNew: true });
           return;

@@ -702,7 +702,7 @@ function CustomerNotice({
 }) {
   const rawIntro = String(item.intro || item.desc || "").trim();
   const intro = /grand total:|a quoted price is ready|status is still pending quotation/i.test(rawIntro) || rawIntro.length > 220
-    ? "Sales updated this quotation. The services and total below are the current price."
+    ? "Sales updated the quoted price. The new services and total are below."
     : rawIntro;
   const amount = detailValue(details, "Amount");
   const checkpoint = detailValue(details, "Checkpoint");
