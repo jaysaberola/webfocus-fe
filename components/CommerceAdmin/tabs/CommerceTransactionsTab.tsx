@@ -160,7 +160,8 @@ function isAssignedSalesForRow(row: SalesTransaction, currentUser: unknown) {
   if (!(myId > 0)) return false;
   return (
     Number(row.user_id || row.user?.id) === myId ||
-    Number(row.client_owner_id || row.client_owner?.id) === myId
+    Number(row.client_owner_id || row.client_owner?.id) === myId ||
+    Number(row.customer?.owner_id || row.customer?.owner?.id) === myId
   );
 }
 

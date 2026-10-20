@@ -215,6 +215,9 @@ export function formatDealAmount(amount: number | null) {
 }
 
 export function transactionClientOwner(transaction: SalesTransaction) {
+  if (transaction.customer && (transaction.customer.owner_id || transaction.customer.owner)) {
+    return clientOwnerName(transaction.customer);
+  }
   if (transaction.client_owner) {
     return clientOwnerName({ owner: transaction.client_owner });
   }
@@ -243,6 +246,16 @@ export function transactionClientName(transaction: SalesTransaction) {
 }
 
 export function transactionPreferredClientOwner(transaction: SalesTransaction) {
+  const customerOwnerId = Number(transaction.customer?.owner_id || transaction.customer?.owner?.id || 0);
+  if (customerOwnerId > 0) {
+    const name = transactionClientOwner(transaction);
+    return {
+      id: customerOwnerId,
+      name: name === "Unassigned" ? undefined : name,
+      email: transaction.customer?.owner?.email ?? null,
+    };
+  }
+
   const id = Number(transaction.client_owner_id || transaction.client_owner?.id || 0);
   if (!id) return null;
   const name = transactionClientOwner(transaction);
