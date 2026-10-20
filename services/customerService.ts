@@ -1,3 +1,4 @@
+import type { ClientContactInformation } from "@/lib/commerceAdmin/clientFormHelpers";
 import { axiosInstance } from "@/services/axios";
 import type { UserRow } from "@/services/userService";
 
@@ -59,6 +60,7 @@ export type ClientCrmAccountPayload = {
   sec_dti_registration?: File | null;
   valid_id_signatories?: File | null;
   gen_info_sheet?: File | null;
+  contact_information?: ClientContactInformation;
 };
 
 export type CustomerServiceLine = {
@@ -196,6 +198,9 @@ function buildClientCrmFormData(payload: ClientCrmAccountPayload, method?: "PUT"
   if (payload.sec_dti_registration) formData.append("sec_dti_registration", payload.sec_dti_registration);
   if (payload.valid_id_signatories) formData.append("valid_id_signatories", payload.valid_id_signatories);
   if (payload.gen_info_sheet) formData.append("gen_info_sheet", payload.gen_info_sheet);
+  if (payload.contact_information) {
+    formData.append("contact_information", JSON.stringify(payload.contact_information));
+  }
 
   return formData;
 }

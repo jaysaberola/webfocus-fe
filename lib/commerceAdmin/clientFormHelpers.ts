@@ -37,7 +37,96 @@ export type ClientCrmFormState = {
   sec_dti_registration: File | null;
   valid_id_signatories: File | null;
   gen_info_sheet: File | null;
+  contact_information: ClientContactInformation;
 };
+
+export type ClientContactBlock = {
+  enabled: boolean;
+  person: string;
+  designation: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  attention: string;
+  instructions: string;
+  address: string;
+  other: string;
+};
+
+export type ClientSignatory = {
+  person: string;
+  designation: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  other: string;
+};
+
+export type ClientContactInformation = {
+  billing: ClientContactBlock;
+  collection: ClientContactBlock;
+  technical: ClientContactBlock;
+  signatoriesEnabled: boolean;
+  signatories: ClientSignatory[];
+};
+
+export function emptyContactBlock(): ClientContactBlock {
+  return {
+    enabled: false,
+    person: "",
+    designation: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    attention: "",
+    instructions: "",
+    address: "",
+    other: "",
+  };
+}
+
+export function emptySignatory(): ClientSignatory {
+  return {
+    person: "",
+    designation: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    other: "",
+  };
+}
+
+export function emptyContactInformation(): ClientContactInformation {
+  return {
+    billing: emptyContactBlock(),
+    collection: emptyContactBlock(),
+    technical: emptyContactBlock(),
+    signatoriesEnabled: false,
+    signatories: [emptySignatory(), emptySignatory()],
+  };
+}
+
+export function contactInformationFromDetail(value: unknown): ClientContactInformation {
+  const base = emptyContactInformation();
+  if (!value || typeof value !== "object") return base;
+  const raw = value as Partial<ClientContactInformation>;
+  const block = (source: unknown, fallback: ClientContactBlock): ClientContactBlock => {
+    if (!source || typeof source !== "object") return fallback;
+    return { ...fallback, ...(source as ClientContactBlock), enabled: Boolean((source as ClientContactBlock).enabled) };
+  };
+  const rows = Array.isArray(raw.signatories)
+    ? raw.signatories
+        .filter((row) => row && typeof row === "object")
+        .map((row) => ({ ...emptySignatory(), ...(row as ClientSignatory) }))
+    : [];
+  return {
+    billing: block(raw.billing, base.billing),
+    collection: block(raw.collection, base.collection),
+    technical: block(raw.technical, base.technical),
+    signatoriesEnabled: Boolean(raw.signatoriesEnabled),
+    signatories: rows.length ? rows : base.signatories,
+  };
+}
 
 export const emptyClientCrmForm: ClientCrmFormState = {
   owner_id: null,
@@ -76,6 +165,7 @@ export const emptyClientCrmForm: ClientCrmFormState = {
   sec_dti_registration: null,
   valid_id_signatories: null,
   gen_info_sheet: null,
+  contact_information: emptyContactInformation(),
 };
 
 export const CLIENT_INDUSTRY_OPTIONS = [

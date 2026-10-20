@@ -5,10 +5,14 @@ import {
   CLIENT_OWNERSHIP_OPTIONS,
   CLIENT_TAX_CLASSIFICATION_OPTIONS,
   CLIENT_TYPE_OPTIONS,
+  contactInformationFromDetail,
   emptyClientCrmForm,
+  emptySignatory,
   parseMobileDigits,
   validateClientCrmForm,
+  type ClientContactBlock,
   type ClientCrmFormState,
+  type ClientSignatory,
 } from "@/lib/commerceAdmin/clientFormHelpers";
 import { customerDisplayName } from "@/lib/customerPortal/mockData";
 import {
@@ -23,7 +27,11 @@ import {
 } from "@/services/customerService";
 import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import AddressSuggestField from "@/components/CommerceAdmin/AddressSuggestField";
-import ClientTimeline, { type ClientAuditEntry } from "@/components/CommerceAdmin/ClientTimeline";
+import ClientFilesPanel from "@/components/CommerceAdmin/ClientFilesPanel";
+import ClientTimeline, {
+  type ClientAuditEntry,
+  type ClientInvoiceTimelineRow,
+} from "@/components/CommerceAdmin/ClientTimeline";
 import type { ClientRelatedSection } from "@/components/CommerceAdmin/ClientRelatedList";
 import { scrollToClientSectionById } from "@/lib/commerceAdmin/clientScrollHelpers";
 import {
@@ -40,6 +48,15 @@ import {
   zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import {
+  buildClientInfoSheetSnapshot,
+  downloadClientInfoSheet,
+  downloadClientInfoSheetPdf,
+  downloadCustomerInformationSheet,
+  downloadCustomerInformationSheetPdf,
+  printClientInfoSheet,
+  printCustomerInformationSheet,
+} from "@/lib/commerceAdmin/clientInfoSheet";
 import { toast } from "@/lib/toast";
 import {
   assignablePersonLabel,
@@ -60,7 +77,7 @@ type Props = {
   onSectionChange?: (section: ClientRelatedSection) => void;
 };
 
-type ClientTab = "overview" | "timeline";
+type ClientTab = "overview" | "files" | "timeline";
 
 export type ClientCrmFormHandle = {
   goToSection: (section: ClientRelatedSection) => void;
@@ -84,6 +101,276 @@ function Field({
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function ContactText({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Field label={label}>
+      <textarea className={`${styles.clientCrmInput} ${styles.clientCrmTextarea}`} value={value} onChange={(event) => onChange(event.target.value)} />
+    </Field>
+  );
+}
+
+function ContactBlockFields({
+  title,
+  value,
+  left,
+  right,
+  onChange,
+}: {
+  title: string;
+  value: ClientContactBlock;
+  left: Array<{ key: keyof ClientContactBlock; label: string; area?: boolean }>;
+  right: Array<{ key: keyof ClientContactBlock; label: string; area?: boolean }>;
+  onChange: (next: ClientContactBlock) => void;
+}) {
+  const field = (item: { key: keyof ClientContactBlock; label: string; area?: boolean }) =>
+    item.area ? (
+      <ContactText
+        key={item.key}
+        label={item.label}
+        value={String(value[item.key] || "")}
+        onChange={(next) => onChange({ ...value, [item.key]: next })}
+      />
+    ) : (
+      <Field key={item.key} label={item.label}>
+        <input
+          className={styles.clientCrmInput}
+          value={String(value[item.key] || "")}
+          onChange={(event) => onChange({ ...value, [item.key]: event.target.value })}
+        />
+      </Field>
+    );
+
+  return (
+    <div className={`${styles.clientOrderGroup} ${styles.contactPanel}`}>
+      <h5 className={styles.clientCrmCategoryTitle}>{title}</h5>
+      <div className={styles.clientCrmGrid}>
+        <div className={styles.clientCrmCol}>{left.map(field)}</div>
+        <div className={styles.clientCrmCol}>{right.map(field)}</div>
+      </div>
+    </div>
+  );
+}
+
+function ContactInformationSection({
+  value,
+  onChange,
+}: {
+  value: ClientCrmFormState["contact_information"];
+  onChange: (next: ClientCrmFormState["contact_information"]) => void;
+}) {
+  const toggleBlock = (key: "billing" | "collection" | "technical") => {
+    onChange({
+      ...value,
+      [key]: { ...value[key], enabled: !value[key].enabled },
+    });
+  };
+
+  const toggleSignatories = () => {
+    const enabled = !value.signatoriesEnabled;
+    onChange({
+      ...value,
+      signatoriesEnabled: enabled,
+      signatories: enabled && value.signatories.length === 0 ? [emptySignatory(), emptySignatory()] : value.signatories,
+    });
+  };
+
+  const updateSignatory = (index: number, key: keyof ClientSignatory, next: string) => {
+    onChange({
+      ...value,
+      signatories: value.signatories.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: next } : row)),
+    });
+  };
+
+  const removeSignatory = (index: number) => {
+    if (value.signatories.length <= 1) return;
+    onChange({
+      ...value,
+      signatories: value.signatories.filter((_, rowIndex) => rowIndex !== index),
+    });
+  };
+
+  return (
+    <section id="client-section-contacts" className={styles.clientCrmSection}>
+      <h4 className={styles.clientCrmSectionTitle}>Contact Information</h4>
+      <div className={styles.contactToggleGrid}>
+        <label className={styles.contactToggle}>
+          <input type="checkbox" checked={value.billing.enabled} onChange={() => toggleBlock("billing")} />
+          <span className={styles.contactToggleLabel}>
+            <span>Billing Contact Information</span>
+            <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Billing contact shown on invoices" />
+          </span>
+        </label>
+        <label className={styles.contactToggle}>
+          <input type="checkbox" checked={value.technical.enabled} onChange={() => toggleBlock("technical")} />
+          <span className={styles.contactToggleLabel}>
+            <span>Technical Department Contact Information</span>
+            <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Technical department contact" />
+          </span>
+        </label>
+        <label className={styles.contactToggle}>
+          <input type="checkbox" checked={value.collection.enabled} onChange={() => toggleBlock("collection")} />
+          <span className={styles.contactToggleLabel}>
+            <span>Collection Contact Information</span>
+            <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Collection contact for payment follow-up" />
+          </span>
+        </label>
+        <label className={styles.contactToggle}>
+          <input type="checkbox" checked={value.signatoriesEnabled} onChange={toggleSignatories} />
+          <span className={styles.contactToggleLabel}>
+            <span>Authorized Signatories</span>
+          </span>
+        </label>
+      </div>
+
+      {value.billing.enabled ? (
+        <ContactBlockFields
+          title="Billing Contact Information"
+          value={value.billing}
+          onChange={(billing) => onChange({ ...value, billing })}
+          left={[
+            { key: "person", label: "Billing Contact Person" },
+            { key: "designation", label: "BC Designation" },
+            { key: "email", label: "BC Email" },
+            { key: "instructions", label: "Billing Instructions", area: true },
+            { key: "other", label: "BC Other Details", area: true },
+          ]}
+          right={[
+            { key: "phone", label: "BC Phone" },
+            { key: "mobile", label: "BC Mobile" },
+            { key: "attention", label: "Billing Attention To" },
+            { key: "address", label: "Billing Address", area: true },
+          ]}
+        />
+      ) : null}
+
+      {value.collection.enabled ? (
+        <ContactBlockFields
+          title="Collection Contact Information"
+          value={value.collection}
+          onChange={(collection) => onChange({ ...value, collection })}
+          left={[
+            { key: "person", label: "Collection Contact Person" },
+            { key: "designation", label: "CC Designation" },
+            { key: "email", label: "CC Email" },
+            { key: "instructions", label: "Collection Instruction", area: true },
+          ]}
+          right={[
+            { key: "phone", label: "CC Phone" },
+            { key: "mobile", label: "CC Mobile" },
+            { key: "other", label: "CC Other Details" },
+            { key: "address", label: "Collection Address", area: true },
+          ]}
+        />
+      ) : null}
+
+      {value.technical.enabled ? (
+        <ContactBlockFields
+          title="Technical Department Contact Information"
+          value={value.technical}
+          onChange={(technical) => onChange({ ...value, technical })}
+          left={[
+            { key: "person", label: "Technical Contact Person" },
+            { key: "designation", label: "TD Designation" },
+            { key: "email", label: "TD Email" },
+            { key: "instructions", label: "Technical Instruction", area: true },
+          ]}
+          right={[
+            { key: "phone", label: "TD Phone" },
+            { key: "mobile", label: "TD Mobile" },
+            { key: "other", label: "TD Other Details" },
+            { key: "address", label: "Technical Address", area: true },
+          ]}
+        />
+      ) : null}
+
+      {value.signatoriesEnabled ? (
+        <div className={`${styles.clientOrderGroup} ${styles.contactPanel}`}>
+          <h5 className={styles.clientCrmCategoryTitle}>Authorized Signatories</h5>
+          <div className={styles.contactSignatoryWrap}>
+            <table className={styles.contactSignatoryTable}>
+              <thead>
+                <tr>
+                  <th className={styles.invoiceItemsActionHead} aria-label="Remove" />
+                  <th>AS Contact Person</th>
+                  <th>AS Designation</th>
+                  <th>AS Email</th>
+                  <th>AS Phone</th>
+                  <th>AS Mobile</th>
+                  <th>Other Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {value.signatories.map((row, index) => (
+                  <tr key={index}>
+                    <td className={styles.invoiceItemsActionCell}>
+                      <button
+                        type="button"
+                        className={styles.invoiceItemsRemove}
+                        title="Remove row"
+                        aria-label={`Remove signatory row ${index + 1}`}
+                        disabled={value.signatories.length <= 1}
+                        onClick={() => removeSignatory(index)}
+                      >
+                        <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                      </button>
+                    </td>
+                    {(
+                      [
+                        ["person", "AS Contact Person"],
+                        ["designation", "AS Designation"],
+                        ["email", "AS Email"],
+                        ["phone", "AS Phone"],
+                        ["mobile", "AS Mobile"],
+                        ["other", "Other Details"],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <td key={key} data-label={label}>
+                        {key === "other" ? (
+                          <textarea
+                            className={`${styles.clientCrmInput} ${styles.contactSignatoryTextarea}`}
+                            value={row[key]}
+                            rows={2}
+                            aria-label={`${label} ${index + 1}`}
+                            onChange={(event) => updateSignatory(index, key, event.target.value)}
+                          />
+                        ) : (
+                          <input
+                            className={`${styles.clientCrmInput} ${styles.contactSignatoryInput}`}
+                            value={row[key]}
+                            aria-label={`${label} ${index + 1}`}
+                            onChange={(event) => updateSignatory(index, key, event.target.value)}
+                          />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className={styles.contactSignatoryFooter}>
+            <button
+              type="button"
+              className={styles.invoiceItemsAddRow}
+              onClick={() => onChange({ ...value, signatories: [...value.signatories, emptySignatory()] })}
+            >
+              + Add row
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -136,43 +423,52 @@ function FileField({
   existingPath,
   existingUrl,
   onChange,
+  stacked = false,
 }: {
   label: string;
   value: File | null;
   existingPath?: string | null;
   existingUrl?: string | null;
   onChange: (file: File | null) => void;
+  stacked?: boolean;
 }) {
   const viewUrl = resolveStorageAssetUrl(existingUrl || existingPath);
   const existingName = fileLabelFromPath(existingPath);
 
-  return (
-    <Field label={label}>
-      <div className={styles.clientCrmFileBlock}>
-        <input
-          className={styles.clientCrmInput}
-          type="file"
-          onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        />
-        {value ? (
-          <span className={styles.clientCrmFileHint}>Selected: {value.name}</span>
-        ) : existingName || viewUrl ? (
-          <div className={styles.clientCrmFileView}>
-            <span className={styles.clientCrmFileHint}>
-              Uploaded: {existingName || "file on record"}
-            </span>
-            {viewUrl ? (
-              <a className={styles.clientCrmFileLink} href={viewUrl} target="_blank" rel="noreferrer">
-                View / Download
-              </a>
-            ) : null}
-          </div>
-        ) : (
-          <span className={styles.clientCrmFileHint}>No file uploaded</span>
-        )}
-      </div>
-    </Field>
+  const fileControl = (
+    <div className={styles.clientCrmFileBlock}>
+      <input
+        className={styles.clientCrmInput}
+        type="file"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+      {value ? (
+        <span className={styles.clientCrmFileHint}>Selected: {value.name}</span>
+      ) : existingName || viewUrl ? (
+        <div className={styles.clientCrmFileView}>
+          <span className={styles.clientCrmFileHint}>Uploaded: {existingName || "file on record"}</span>
+          {viewUrl ? (
+            <a className={styles.clientCrmFileLink} href={viewUrl} target="_blank" rel="noreferrer">
+              View / Download
+            </a>
+          ) : null}
+        </div>
+      ) : (
+        <span className={styles.clientCrmFileHint}>No file uploaded</span>
+      )}
+    </div>
   );
+
+  if (stacked) {
+    return (
+      <div className={styles.clientCrmFileField}>
+        <div className={styles.clientCrmFileFieldLabel}>{label}</div>
+        {fileControl}
+      </div>
+    );
+  }
+
+  return <Field label={label}>{fileControl}</Field>;
 }
 
 const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmForm(
@@ -180,6 +476,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   ref,
 ) {
   const [form, setForm] = useState<ClientCrmFormState>(emptyClientCrmForm);
+  const [exportTemplate, setExportTemplate] = useState<"authorized-contact" | "customer-info">("authorized-contact");
   const [billingBarangay, setBillingBarangay] = useState("");
   const [shippingBarangay, setShippingBarangay] = useState("");
   const [owners, setOwners] = useState<CommerceAssignableUser[]>([]);
@@ -190,6 +487,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   const [existingFiles, setExistingFiles] = useState<Record<string, string | null>>({});
   const [existingFileUrls, setExistingFileUrls] = useState<Record<string, string | null>>({});
   const [audits, setAudits] = useState<ClientAuditEntry[]>([]);
+  const [invoiceTimeline, setInvoiceTimeline] = useState<ClientInvoiceTimelineRow[]>([]);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ClientTab>("overview");
   const [formMode, setFormMode] = useState(mode);
@@ -216,6 +514,54 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
   );
 
   const billingSelectValue = resolveAssignableSelectValue(form.billing_in_charge, billingOfficers);
+
+  const infoSheetExtras = useMemo(
+    () => ({
+      clientOwner:
+        ownerOptions.find((owner) => Number(owner.id) === Number(form.owner_id))?.name ||
+        currentOwner?.name ||
+        "",
+      billingBarangay,
+      shippingBarangay,
+      attachments: existingFiles,
+    }),
+    [ownerOptions, form.owner_id, currentOwner, billingBarangay, shippingBarangay, existingFiles],
+  );
+
+  const openInfoSheet = (mode: "word" | "pdf" | "print") => {
+    if (!form.company.trim()) {
+      toast.error("Enter a client name before generating the information sheet.");
+      return;
+    }
+    const snapshot = buildClientInfoSheetSnapshot(form, infoSheetExtras);
+    const isCustomerSheet = exportTemplate === "customer-info";
+    const sheetLabel = isCustomerSheet ? "Customer Information Sheet" : "Authorized Contact Information Form";
+
+    if (mode === "word") {
+      const download = isCustomerSheet ? downloadCustomerInformationSheet : downloadClientInfoSheet;
+      void download(snapshot)
+        .then(() => toast.success(`${sheetLabel} downloaded (.docx).`))
+        .catch(() => toast.error("Could not generate the Word document. Try again."));
+      return;
+    }
+    if (mode === "pdf") {
+      const download = isCustomerSheet ? downloadCustomerInformationSheetPdf : downloadClientInfoSheetPdf;
+      void download(snapshot)
+        .then(() => toast.success(`${sheetLabel} downloaded (.pdf).`))
+        .catch(() => toast.error("Could not generate the PDF. Try again."));
+      return;
+    }
+    const printSheet = isCustomerSheet ? printCustomerInformationSheet : printClientInfoSheet;
+    void printSheet(snapshot)
+      .then((opened) => {
+        if (!opened) {
+          toast.error("Could not open the print dialog. Try Download PDF instead.");
+          return;
+        }
+        toast.success(`Print dialog opened for the ${sheetLabel}.`);
+      })
+      .catch(() => toast.error("Could not open the print dialog. Try Download PDF instead."));
+  };
 
   const goToSection = useCallback(
     (section: ClientRelatedSection) => {
@@ -265,6 +611,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       setExistingFiles({});
       setExistingFileUrls({});
       setAudits([]);
+      setInvoiceTimeline([]);
       setCreatedAt(null);
       setActiveTab("overview");
       setCurrentOwner(null);
@@ -353,6 +700,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             detail?.shipping_zip,
           ),
           shipping_country: detail?.shipping_country || "Philippines",
+          contact_information: contactInformationFromDetail(detail?.contact_information),
         });
         setBillingBarangay(
           matchedBarangay(detail?.address_street, detail?.address_city, detail?.address_province),
@@ -375,6 +723,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           gen_info_sheet: detail?.gen_info_sheet_url ?? null,
         });
         setAudits(Array.isArray(detail?.audits) ? detail.audits : []);
+        setInvoiceTimeline(Array.isArray(detail?.invoices) ? detail.invoices : []);
         setCreatedAt(detail?.created_at ?? client.created_at ?? null);
       })
       .catch(() => {
@@ -397,6 +746,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
             : null,
         );
         setAudits([]);
+        setInvoiceTimeline([]);
       })
       .finally(() => setLoading(false));
   }, [mode, client, preferredOwner]);
@@ -616,6 +966,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     sec_dti_registration: form.sec_dti_registration,
     valid_id_signatories: form.valid_id_signatories,
     gen_info_sheet: form.gen_info_sheet,
+    contact_information: form.contact_information,
   });
 
   const save = async (andNew: boolean) => {
@@ -648,6 +999,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           setExistingFiles({});
           setExistingFileUrls({});
           setAudits([]);
+          setInvoiceTimeline([]);
           setCreatedAt(null);
           setActiveTab("overview");
           onSaved({ andNew: true });
@@ -718,6 +1070,51 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </div>
         </div>
         <div className={styles.clientCrmActions}>
+          <label className={styles.clientExportTemplateField}>
+            <span className={styles.clientExportTemplateLabel}>Export template</span>
+            <select
+              className={styles.clientExportTemplateSelect}
+              value={exportTemplate}
+              onChange={(event) => setExportTemplate(event.target.value as "authorized-contact" | "customer-info")}
+              disabled={submitting}
+              aria-label="Export template"
+            >
+              <option value="authorized-contact">Authorized Contact Form</option>
+              <option value="customer-info">Customer Information Sheet</option>
+            </select>
+          </label>
+          <div className={styles.clientCrmTopExportActions} aria-label="Export client form">
+            <button
+              type="button"
+              className={styles.clientInfoSheetIconBtn}
+              onClick={() => openInfoSheet("word")}
+              disabled={submitting}
+              title="Download Word"
+              aria-label="Download Word"
+            >
+              <i className="fa-solid fa-file-word" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.clientInfoSheetIconBtn}
+              onClick={() => openInfoSheet("pdf")}
+              disabled={submitting}
+              title="Download PDF"
+              aria-label="Download PDF"
+            >
+              <i className="fa-solid fa-file-pdf" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.clientInfoSheetIconBtn}
+              onClick={() => openInfoSheet("print")}
+              disabled={submitting}
+              title="Print"
+              aria-label="Print"
+            >
+              <i className="fa-solid fa-print" aria-hidden="true" />
+            </button>
+          </div>
           <button
             type="button"
             className={styles.secondaryBtnSm}
@@ -762,6 +1159,18 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           <button
             type="button"
             role="tab"
+            aria-selected={activeTab === "files"}
+            className={`${styles.clientCrmTab}${activeTab === "files" ? ` ${styles.clientCrmTabActive}` : ""}`}
+            onClick={() => {
+              setActiveTab("files");
+              onSectionChange?.("files");
+            }}
+          >
+            Files
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={activeTab === "timeline"}
             className={`${styles.clientCrmTab}${activeTab === "timeline" ? ` ${styles.clientCrmTabActive}` : ""}`}
             onClick={() => {
@@ -778,11 +1187,36 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         <div id="client-section-timeline" className={styles.clientEditScrollTarget}>
           <ClientTimeline
             audits={audits}
+            invoices={invoiceTimeline}
             createdAt={createdAt}
             clientName={form.company || client?.company || client?.name || null}
           />
         </div>
-      ) : (
+      ) : null}
+
+      {activeTab === "files" && formMode === "edit" && client?.id ? (
+        <ClientFilesPanel
+          clientId={client.id}
+          clientName={form.company || client.company || client.name || ""}
+          clientEmail={form.email || client.email || ""}
+          existingFiles={existingFiles}
+          existingFileUrls={existingFileUrls}
+          pendingFiles={{
+            bir_certificate: form.bir_certificate,
+            business_permit: form.business_permit,
+            sec_dti_registration: form.sec_dti_registration,
+            valid_id_signatories: form.valid_id_signatories,
+            gen_info_sheet: form.gen_info_sheet,
+          }}
+          onOpenUploads={() => {
+            setActiveTab("overview");
+            onSectionChange?.("files");
+            requestAnimationFrame(() => scrollToClientSectionById(OVERVIEW_SECTION_IDS.files ?? "client-section-files"));
+          }}
+        />
+      ) : null}
+
+      {activeTab === "overview" || formMode === "create" ? (
         <>
       <section id="client-section-info" className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>Client Information</h4>
@@ -955,48 +1389,58 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
       <section id="client-section-files" className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>File Attachments</h4>
-        <div className={styles.clientCrmGrid}>
-          <div className={styles.clientCrmCol}>
-            <FileField
-              label="BIR Certificate of Registration"
-              value={form.bir_certificate}
-              existingPath={existingFiles.bir_certificate}
-              existingUrl={existingFileUrls.bir_certificate}
-              onChange={(file) => setField("bir_certificate", file)}
-            />
-            <FileField
-              label="Business Permit"
-              value={form.business_permit}
-              existingPath={existingFiles.business_permit}
-              existingUrl={existingFileUrls.business_permit}
-              onChange={(file) => setField("business_permit", file)}
-            />
-            <FileField
-              label="SEC/DTI Registration"
-              value={form.sec_dti_registration}
-              existingPath={existingFiles.sec_dti_registration}
-              existingUrl={existingFileUrls.sec_dti_registration}
-              onChange={(file) => setField("sec_dti_registration", file)}
-            />
-          </div>
-          <div className={styles.clientCrmCol}>
-            <FileField
-              label="Valid ID of Signatories"
-              value={form.valid_id_signatories}
-              existingPath={existingFiles.valid_id_signatories}
-              existingUrl={existingFileUrls.valid_id_signatories}
-              onChange={(file) => setField("valid_id_signatories", file)}
-            />
-            <FileField
-              label="Gen. Info and Customer Info Sheet"
-              value={form.gen_info_sheet}
-              existingPath={existingFiles.gen_info_sheet}
-              existingUrl={existingFileUrls.gen_info_sheet}
-              onChange={(file) => setField("gen_info_sheet", file)}
-            />
-          </div>
+        <p className={styles.clientCrmHelpText}>
+          Use Export template in the top bar to choose Authorized Contact Form or Customer Information Sheet (orange),
+          then Word, PDF, or Print to download with client details filled in where available.
+        </p>
+        <div className={styles.clientFileAttachmentsGrid}>
+          <FileField
+            stacked
+            label="BIR Certificate of Registration"
+            value={form.bir_certificate}
+            existingPath={existingFiles.bir_certificate}
+            existingUrl={existingFileUrls.bir_certificate}
+            onChange={(file) => setField("bir_certificate", file)}
+          />
+          <FileField
+            stacked
+            label="Valid ID of Signatories"
+            value={form.valid_id_signatories}
+            existingPath={existingFiles.valid_id_signatories}
+            existingUrl={existingFileUrls.valid_id_signatories}
+            onChange={(file) => setField("valid_id_signatories", file)}
+          />
+          <FileField
+            stacked
+            label="Business Permit"
+            value={form.business_permit}
+            existingPath={existingFiles.business_permit}
+            existingUrl={existingFileUrls.business_permit}
+            onChange={(file) => setField("business_permit", file)}
+          />
+          <FileField
+            stacked
+            label="Gen. Info and Customer Info Sheet"
+            value={form.gen_info_sheet}
+            existingPath={existingFiles.gen_info_sheet}
+            existingUrl={existingFileUrls.gen_info_sheet}
+            onChange={(file) => setField("gen_info_sheet", file)}
+          />
+          <FileField
+            stacked
+            label="SEC/DTI Registration"
+            value={form.sec_dti_registration}
+            existingPath={existingFiles.sec_dti_registration}
+            existingUrl={existingFileUrls.sec_dti_registration}
+            onChange={(file) => setField("sec_dti_registration", file)}
+          />
         </div>
       </section>
+
+      <ContactInformationSection
+        value={form.contact_information}
+        onChange={(contact_information) => setField("contact_information", contact_information)}
+      />
 
       <section id="client-section-address" className={styles.clientCrmSection}>
         <div className={styles.clientCrmSectionHead}>
@@ -1237,7 +1681,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
         </div>
       </section>
         </>
-      )}
+      ) : null}
       <FormActionConfirmModal
         intent={actionIntent}
         entity="client"

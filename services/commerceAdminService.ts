@@ -254,12 +254,12 @@ export async function fetchCommerceDashboard() {
   return res.data.data as CommerceDashboardData;
 }
 
-export async function fetchCommercePaymentProofs(status = "Pending Review") {
+export async function fetchCommercePaymentProofs(status = "Pending Review", perPage = 50) {
   const res = await axiosInstance.get("/commerce-admin/payment-proofs", {
-    params: { status, per_page: 50 },
+    params: { status, per_page: perPage },
     headers: { "X-No-Loading": true },
   });
-  return extractList<CommercePaymentProofRow>(res.data.data);
+  return extractList<CommercePaymentProofRow>(res.data.data ?? res.data);
 }
 
 export async function fetchCommerceApprovals(status = "Pending Review") {

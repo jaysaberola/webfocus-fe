@@ -4476,6 +4476,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -4523,6 +4524,122 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.contactToggleGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem 2rem;
+}
+
+@media (min-width: 900px) {
+  .contactToggleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.contactToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: var(--ca-control-height);
+  color: var(--ca-slate-600);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contactToggleLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  line-height: 1.35;
+}
+
+.contactToggle input {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
+}
+
+.contactInfoIcon {
+  color: #94a3b8;
+  font-size: 0.72rem;
+}
+
+.contactPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.clientCrmTextarea {
+  min-height: 4.5rem;
+  resize: vertical;
+  align-self: stretch;
+}
+
+.contactSignatoryWrap {
+  overflow-x: auto;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.contactSignatoryTable {
+  width: 100%;
+  min-width: 56rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--ca-text-sm);
+}
+
+.contactSignatoryTable th {
+  padding: 0.7rem 0.65rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+  background: #f8fafc;
+  color: var(--ca-slate-700);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.contactSignatoryTable td {
+  padding: 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--ca-slate-100);
+  vertical-align: top;
+}
+
+.contactSignatoryTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.contactSignatoryInput,
+.contactSignatoryTextarea {
+  display: block;
+  width: 100%;
+  min-width: 7.5rem;
+  min-height: 2rem;
+  font-size: var(--ca-text-sm);
+  font-weight: 600;
+}
+
+.contactSignatoryTextarea {
+  min-height: 2.35rem;
+  resize: vertical;
+}
+
+.contactSignatoryFooter {
+  margin-top: 0.65rem;
 }
 
 .clientCrmCategoryTitle {
@@ -4582,6 +4699,67 @@ select.clientCrmInput {
 
 .clientCrmInputRequired {
   border-left: 3px solid #dc2626 !important;
+}
+
+.clientExportTemplateField {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-right: 0.15rem;
+}
+
+.clientExportTemplateLabel {
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  color: var(--ca-slate-500);
+  white-space: nowrap;
+}
+
+.clientExportTemplateSelect {
+  min-height: 2.05rem;
+  padding: 0.35rem 1.65rem 0.35rem 0.55rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-sm);
+  background: #fff;
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  color: var(--ca-slate-800);
+}
+
+.clientCrmTopExportActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 0.15rem;
+  padding-right: 0.55rem;
+  border-right: 1px solid var(--ca-slate-200);
+}
+
+.clientInfoSheetIconBtn {
+  composes: secondaryBtnSm;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.05rem;
+  height: 2.05rem;
+  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: var(--ca-slate-700);
+}
+
+.clientInfoSheetIconBtn:hover:not(:disabled) {
+  color: var(--ca-blue);
+}
+
+.clientCrmHelpText {
+  margin: 0.35rem 0 0.85rem;
+  max-width: 52rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--ca-slate-500);
 }
 
 .clientCrmHint {
@@ -4810,9 +4988,14 @@ select.clientCrmInput {
   cursor: pointer;
 }
 
-.invoiceItemsRemove:hover {
+.invoiceItemsRemove:hover:not(:disabled) {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.invoiceItemsRemove:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .invoiceItemsFooter {
@@ -5675,6 +5858,36 @@ select.clientCrmInput {
   line-height: calc(var(--ca-control-height) - 10px);
 }
 
+.clientFileAttachmentsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 2rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .clientFileAttachmentsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clientCrmFileField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.clientCrmFileFieldLabel {
+  display: flex;
+  align-items: flex-end;
+  min-height: 2.65rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--ca-slate-600);
+}
+
 .clientCrmFileHint {
   display: block;
   margin-top: 0.25rem;
@@ -5687,6 +5900,7 @@ select.clientCrmInput {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  width: 100%;
 }
 
 .clientCrmFileView {
@@ -5707,6 +5921,139 @@ select.clientCrmInput {
 
 .clientCrmFileLink:hover {
   text-decoration: underline;
+}
+
+.clientFilesPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-top: 0.35rem;
+}
+
+.clientFilesPanelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.clientFilesFolderTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 999px;
+  background: #f8fafc;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.clientFilesFolderTabs .clientCrmTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.clientFilesTabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: var(--ca-slate-600);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.clientFilesFolderTabs .clientCrmTabActive .clientFilesTabCount {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.clientFilesListHint {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--ca-slate-500);
+}
+
+.clientFilesTableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+}
+
+.clientFilesTableWrap .emptyState {
+  padding: 1.1rem 0.85rem;
+}
+
+.clientFilesTable {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--ca-text-sm);
+}
+
+.clientFilesTable th {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+  background: #f8fafc;
+  color: var(--ca-slate-700);
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.clientFilesTable td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--ca-slate-100);
+  vertical-align: middle;
+  color: var(--ca-slate-800);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.clientFilesTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.clientFilesActionHead,
+.clientFilesActionCell {
+  width: 5.5rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clientFilesRowActions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.clientFilesIconBtn {
+  composes: clientInfoSheetIconBtn;
+  text-decoration: none;
+}
+
+.clientFilesIconBtn:hover {
+  color: var(--ca-blue);
+}
+
+.clientFilesListMeta {
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  color: var(--ca-slate-400);
 }
 
 .clientCrmTabs {
@@ -5741,8 +6088,9 @@ select.clientCrmInput {
 .clientTimeline {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   padding-top: 0.35rem;
+  max-width: 920px;
 }
 
 .clientTimelineHead {
@@ -5839,6 +6187,246 @@ select.clientCrmInput {
 .clientTimelineBody p {
   margin: 0;
   line-height: 1.45;
+}
+
+.clientTimelineSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.clientTimelineSectionHeadRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.clientTimelineSectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.clientTimelineSectionTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.clientTimelineSectionHint {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.clientTimelinePanel {
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.clientTimelineFeedWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.clientTimelineListCompact {
+  gap: 0;
+}
+
+.clientTimelineScrollPane {
+  max-height: min(22rem, 52vh);
+  overflow-y: auto;
+}
+
+.clientTimelineCompactItem {
+  border-top: 1px solid #eef2f7;
+}
+
+.clientTimelineCompactItem:first-child {
+  border-top: none;
+}
+
+.clientTimelineCompactDate {
+  padding: 0.45rem 0.85rem 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  background: #f8fafc;
+  border-top: 1px solid #eef2f7;
+}
+
+.clientTimelineCompactItem:first-child .clientTimelineCompactDate {
+  border-top: none;
+}
+
+.clientTimelineCompactRow {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  gap: 0.55rem;
+  padding: 0.55rem 0.85rem 0.6rem;
+  align-items: start;
+}
+
+.clientTimelineCompactDot {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+  font-size: 0.58rem;
+  flex-shrink: 0;
+}
+
+.clientTimelineCompactContent {
+  min-width: 0;
+}
+
+.clientTimelineCompactMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 0.15rem;
+}
+
+.clientTimelineCompactText {
+  margin: 0;
+  font-size: var(--ca-text-sm);
+  line-height: 1.4;
+  color: #334155;
+}
+
+.clientTimelineMoreBtn {
+  align-self: flex-start;
+  margin: 0.35rem 0.85rem 0.65rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  color: #4f46e5;
+  cursor: pointer;
+}
+
+.clientTimelineMoreBtn:hover {
+  color: #3730a3;
+  text-decoration: underline;
+}
+
+.clientTimelinePanel .emptyState {
+  padding: 0.85rem;
+}
+
+.clientTimelineInvoiceStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.clientTimelineInvoiceGroup {
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  overflow: hidden;
+}
+
+.clientTimelineInvoiceGroupOpen {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.clientTimelineInvoiceTrigger {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 0.55rem;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  background: #f8fafc;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.clientTimelineInvoiceTrigger:hover {
+  background: #f1f5f9;
+}
+
+.clientTimelineInvoiceChevron {
+  color: #64748b;
+  font-size: 0.72rem;
+  padding-top: 0.15rem;
+}
+
+.clientTimelineInvoiceTriggerMain {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.clientTimelineInvoiceTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.65rem;
+  color: #0f172a;
+  font-size: 0.84rem;
+}
+
+.clientTimelineInvoiceAmount {
+  font-weight: 800;
+  color: #334155;
+}
+
+.clientTimelineInvoiceEventCount {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.clientTimelineInvoiceMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.clientTimelineInvoicePreview {
+  font-size: var(--ca-text-xs);
+  color: #475569;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clientTimelineInvoiceBody {
+  border-top: 1px solid #e2e8f0;
+}
+
+.clientTimelineInvoiceBody .clientTimelineMoreBtn {
+  margin-left: 0.75rem;
 }
 
 .clientCrmCopyBtn {
