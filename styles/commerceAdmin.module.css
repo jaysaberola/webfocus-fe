@@ -7924,6 +7924,139 @@ select.clientCrmInput {
   }
 }
 
+/* Deal chat uses billingModalOverlay + chatWidgetOverlay (flex-end). Inquiry uses this equivalent. */
+.inquiryChatDockOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482000;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 0 1.15rem 5.5rem 1.15rem;
+  pointer-events: none;
+  overflow: hidden;
+  background: transparent;
+}
+
+@media (max-width: 640px) {
+  .inquiryChatDockOverlay {
+    padding: 0 0.65rem 5.75rem;
+  }
+}
+
+.inquiryChatHost {
+  --cp-blue: #2563eb;
+  --cp-blue-dark: #1d4ed8;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inquiryChatThread {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: none !important;
+}
+
+.inquiryDetailLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.inquiryDetailsSection {
+  width: 100%;
+  padding-top: 0.25rem;
+}
+
+.inquiryDetailsSectionHead {
+  margin-bottom: 1rem;
+}
+
+.inquiryDetailsHeading {
+  margin: 0;
+  font-size: var(--ca-text-base);
+  font-weight: 700;
+  color: var(--ca-slate-900);
+}
+
+.inquiryDetailsHint {
+  margin: 0.35rem 0 0;
+  max-width: 42rem;
+  font-size: var(--ca-text-sm);
+  color: var(--ca-slate-500);
+  line-height: 1.5;
+}
+
+.inquiryDetailsLink {
+  color: var(--ca-blue);
+  text-decoration: none;
+}
+
+.inquiryDetailsLink:hover strong {
+  text-decoration: underline;
+}
+
+.inquiryDetailsPanel {
+  flex-shrink: 0;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.inquiryDetailsTitle {
+  margin: 0 0 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.inquiryDetailsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.inquiryDetailsTable th {
+  width: 42%;
+  padding: 0.4rem 0.75rem 0.4rem 0;
+  text-align: left;
+  font-weight: 700;
+  vertical-align: top;
+  color: #0f172a;
+}
+
+.inquiryDetailsTable td {
+  padding: 0.4rem 0;
+  font-weight: 600;
+  vertical-align: top;
+  color: #334155;
+  word-break: break-word;
+}
+
+.inquiryDetailsTable tr + tr th,
+.inquiryDetailsTable tr + tr td {
+  border-top: 1px solid #e2e8f0;
+}
+
+.inquiryStatusField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: min(100%, 13rem);
+}
+
+.inquiryStatusLabel {
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  color: var(--ca-slate-600);
+}
+
 .inboxMessage {
   padding: 0.5rem 0 1rem;
 }

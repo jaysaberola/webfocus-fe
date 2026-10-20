@@ -5360,6 +5360,38 @@
   border-bottom-right-radius: 0.3rem;
 }
 
+.chatRowSummary {
+  align-self: stretch;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.chatRowSummary .chatBubbleTheirs {
+  width: 100%;
+  max-width: 100%;
+}
+
+.chatBubbleTheirs.chatQuote {
+  min-width: 14rem;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  background: linear-gradient(180deg, #1e4fad 0%, #1d4ed8 100%);
+  color: #fff;
+  border-radius: 0.85rem;
+  box-shadow: 0 8px 20px rgba(29, 78, 216, 0.22);
+}
+
+.chatBubbleTheirs.chatQuote p {
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 .chatQuote p {
   min-width: 14rem;
   text-align: left;

@@ -11,6 +11,8 @@ import {
   type ContactInquiryRow,
   type InquiryStatus,
 } from "@/services/inquiryService";
+import InquiryDetailsCard from "@/components/CommerceAdmin/InquiryDetailsCard";
+import InquiryConversationPanel from "@/components/CommerceAdmin/InquiryConversationPanel";
 import { notifyCommerceNotificationsUpdated } from "@/services/commerceAdminService";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -25,7 +27,7 @@ const INQUIRY_COLUMN_LABELS: Record<(typeof INQUIRY_COLUMNS)[number], string> = 
   inquiryType: "Inquiry Type",
   name: "Name",
   email: "Email",
-  phone: "Contact Number",
+  phone: "Mobile number",
   status: "Status",
   received: "Received",
 };
@@ -180,67 +182,41 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
             <h3 className={styles.panelTitle} style={{ marginTop: "0.75rem" }}>
               Contact Us inquiry
             </h3>
-            <p className={styles.panelSubtitle}>Submitted from the public Contact Us page.</p>
+            <p className={styles.panelSubtitle}>Chat with the customer about this Contact Us submission.</p>
           </div>
+          {detail && !detailLoading ? (
+            <label className={styles.inquiryStatusField}>
+              <span className={styles.inquiryStatusLabel}>Customer Care status</span>
+              <select
+                className={styles.clientCrmInput}
+                value={detail.status}
+                disabled={savingStatus}
+                onChange={(e) => void saveStatus(e.target.value as InquiryStatus)}
+              >
+                {(Object.keys(INQUIRY_STATUS_LABELS) as InquiryStatus[]).map((key) => (
+                  <option key={key} value={key}>
+                    {INQUIRY_STATUS_LABELS[key]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
 
         {detailLoading || !detail ? (
           <p className={styles.emptyState}>Loading inquiry...</p>
         ) : (
-          <div className={styles.clientCrmSection}>
-            <div className={styles.clientCrmGrid}>
-              <div className={styles.clientCrmCol}>
-                <p className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Inquiry type</span>
-                  <strong>{detail.inquiry_type}</strong>
-                </p>
-                <p className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Name</span>
-                  <strong>{inquiryName(detail)}</strong>
-                </p>
-                <p className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Email</span>
-                  <a href={`mailto:${detail.email}`}>{detail.email}</a>
-                </p>
-                <p className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Contact number</span>
-                  {detail.contact_number}
-                </p>
-                <p className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Received</span>
-                  {formatReceived(detail.created_at)}
-                </p>
-              </div>
-              <div className={styles.clientCrmCol}>
-                <label className={styles.clientCrmField}>
-                  <span className={styles.clientCrmFieldLabel}>Customer Care status</span>
-                  <select
-                    className={styles.clientCrmInput}
-                    value={detail.status}
-                    disabled={savingStatus}
-                    onChange={(e) => void saveStatus(e.target.value as InquiryStatus)}
-                  >
-                    {(Object.keys(INQUIRY_STATUS_LABELS) as InquiryStatus[]).map((key) => (
-                      <option key={key} value={key}>
-                        {INQUIRY_STATUS_LABELS[key]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {detail.preferred_services?.length ? (
-                  <p className={styles.clientCrmField}>
-                    <span className={styles.clientCrmFieldLabel}>Preferred services</span>
-                    {detail.preferred_services.join(", ")}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <label className={styles.clientCrmField}>
-              <span className={styles.clientCrmFieldLabel}>Message</span>
-              <div className={`${styles.clientCrmInput} ${styles.clientCrmTextarea}`} style={{ whiteSpace: "pre-wrap" }}>
-                {detail.message}
-              </div>
-            </label>
+          <div className={styles.inquiryDetailLayout}>
+            <InquiryDetailsCard inquiry={detail} />
+            <InquiryConversationPanel
+              inquiry={detail}
+              onUpdated={(updated) => {
+                setDetail(updated);
+                setRows((current) =>
+                  current.map((row) => (row.id === updated.id ? { ...row, status: updated.status } : row)),
+                );
+              }}
+            />
           </div>
         )}
       </section>

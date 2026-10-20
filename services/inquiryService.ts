@@ -1,4 +1,5 @@
 import { axiosInstance } from "@/services/axios";
+import type { PortalConversationMessage } from "@/lib/customerPortal/types";
 
 export type ContactInquiryRow = {
   id: number;
@@ -8,6 +9,7 @@ export type ContactInquiryRow = {
   email: string;
   contact_number: string;
   message: string;
+  conversation?: PortalConversationMessage[];
   preferred_services?: string[];
   status: string;
   read_at?: string | null;
@@ -45,4 +47,14 @@ export async function getInquiry(id: number, options?: { silent?: boolean }) {
 export async function updateInquiryStatus(id: number, status: InquiryStatus) {
   const res = await axiosInstance.patch(`/commerce-admin/inquiries/${id}`, { status });
   return res.data?.data as ContactInquiryRow;
+}
+
+export async function replyInquiry(id: number, message: string) {
+  const res = await axiosInstance.post(`/commerce-admin/inquiries/${id}/reply`, { message });
+  return {
+    inquiry: res.data?.data as ContactInquiryRow,
+    message: String(res.data?.message ?? ""),
+    emailed: Boolean(res.data?.meta?.emailed),
+    recipient: typeof res.data?.meta?.recipient === "string" ? res.data.meta.recipient : null,
+  };
 }
