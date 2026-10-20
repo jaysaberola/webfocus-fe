@@ -4697,6 +4697,36 @@ select.clientCrmInput {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
 }
 
+.clientCrmFieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.clientCrmLockedField {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+  background: #f8fafc;
+  color: #334155;
+  font-size: var(--ca-text-sm);
+}
+
+.clientCrmLockedField i {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.clientCrmNameSplit {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr);
+  gap: 0.45rem;
+}
+
 .clientCrmInputRequired {
   border-left: 3px solid #dc2626 !important;
 }

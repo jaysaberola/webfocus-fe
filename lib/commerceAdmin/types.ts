@@ -1,6 +1,8 @@
 export type CommerceAdminTab =
   | "dashboard"
   | "clients"
+  | "leads"
+  | "inquiries"
   | "orders"
   | "approvals"
   | "billing"

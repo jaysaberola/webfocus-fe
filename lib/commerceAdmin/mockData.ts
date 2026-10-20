@@ -13,6 +13,8 @@ import type {
 export const COMMERCE_ADMIN_TABS = [
   { id: "dashboard", label: "Dashboard", shortLabel: "Home", icon: "fa-solid fa-gauge-high" },
   { id: "clients", label: "Clients", shortLabel: "Clients", icon: "fa-solid fa-users" },
+  { id: "leads", label: "Leads", shortLabel: "Leads", icon: "fa-solid fa-user-plus" },
+  { id: "inquiries", label: "Inquiries", shortLabel: "Inquiries", icon: "fa-solid fa-envelope-open-text" },
   { id: "orders", label: "Deals", shortLabel: "Deals", icon: "fa-regular fa-handshake" },
   { id: "approvals", label: "Approvals", shortLabel: "Approve", icon: "fa-solid fa-circle-check", badge: true },
   { id: "billing", label: "Billing and Payments", shortLabel: "Billing", icon: "fa-solid fa-file-invoice-dollar" },

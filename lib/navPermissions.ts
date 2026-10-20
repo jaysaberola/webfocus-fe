@@ -1,6 +1,6 @@
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { hasAnyPermission } from "@/lib/userPermissions";
-import { isCustomerUser } from "@/lib/userRoles";
+import { isCustomerCareUser, isCustomerUser } from "@/lib/userRoles";
 
 export type CmsNavChild = {
   label: string;
@@ -26,6 +26,8 @@ const COMMERCE_PORTAL_PERMISSIONS = [
   "commerce_approvals.view",
   "commerce_managed.view",
   "commerce_notifications.view",
+  "commerce_leads.view",
+  "commerce_inquiries.view",
   "commerce_helpdesk.view",
   "reports.view",
 ];
@@ -95,6 +97,8 @@ export const COMMERCE_PORTAL_ITEM: CmsNavItem = {
 export const COMMERCE_TAB_PERMISSIONS: Record<CommerceAdminTab, string[]> = {
   dashboard: ["commerce_dashboard.view"],
   clients: ["customers.manage"],
+  leads: ["commerce_leads.view", "commerce_leads.manage"],
+  inquiries: ["commerce_inquiries.view", "commerce_inquiries.manage"],
   orders: ["sales_transactions.view", "sales_transactions.manage"],
   approvals: ["commerce_approvals.view", "commerce_approvals.manage"],
   billing: ["sales_transactions.view", "sales_transactions.manage"],
@@ -130,6 +134,9 @@ export function canAccessCommercePortal(user: unknown): boolean {
 export function canAccessCommerceTab(user: unknown, tab: CommerceAdminTab): boolean {
   // Contracts and Managed are not Commerce Control Center tabs (Managed lives in CMS Admin).
   if (tab === "contracts" || tab === "managed") return false;
+  if (tab === "orders" && isCustomerCareUser(user)) return false;
+  if (tab === "leads" && !isCustomerCareUser(user)) return false;
+  if (tab === "inquiries" && !isCustomerCareUser(user)) return false;
   return hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS[tab]);
 }
 
@@ -152,6 +159,14 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
         : requested === "managed" || requested === "contracts"
           ? undefined
           : (requested as CommerceAdminTab | undefined);
+
+  if (
+    normalized === "orders" &&
+    isCustomerCareUser(user) &&
+    allowed.includes("leads")
+  ) {
+    return "leads";
+  }
 
   if (normalized && allowed.includes(normalized)) return normalized;
   return allowed[0];

@@ -317,7 +317,7 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
 
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="contact_number">
-                      Contact Number <span className={styles.required}>*</span>
+                      Mobile number <span className={styles.required}>*</span>
                     </label>
                     <input
                       id="contact_number"
@@ -329,7 +329,7 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
                       maxLength={phMobileMaxLength(form.contact_number)}
                       spellCheck={false}
                       autoCorrect="off"
-                      placeholder="09XXXXXXXXX or +639XXXXXXXXX"
+                      placeholder="e.g. 09171234567"
                       value={form.contact_number}
                       onKeyDown={rejectLetterKey}
                       onChange={handleChange}

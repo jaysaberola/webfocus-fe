@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
+import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { invalidateCommerceDashboardCache } from "@/lib/commerceAdmin/dashboardCache";
 import {
   approveCommerceProfileChange,
@@ -33,6 +35,7 @@ const KIND_LABEL: Record<string, string> = {
   billing: "Billing",
   profile_change: "Account",
   support_ticket: "Support",
+  contact_inquiry: "Inquiries",
   web_design_quotation: "Quotations",
   order: "Orders",
   provisioning_action: "Provisioning",
@@ -45,6 +48,7 @@ const KIND_FILTERS = [
   { value: "billing", label: "Billing" },
   { value: "profile_change", label: "Account" },
   { value: "support_ticket", label: "Support" },
+  { value: "contact_inquiry", label: "Inquiries" },
   { value: "web_design_quotation", label: "Quotations" },
   { value: "order", label: "Orders" },
   { value: "provisioning_action", label: "Provisioning" },
@@ -165,6 +169,9 @@ function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
   if (url.includes("tab=helpdesk") || row.kind === "support_ticket") {
     return "helpdesk";
   }
+  if (url.includes("tab=inquiries") || row.kind === "contact_inquiry") {
+    return "inquiries";
+  }
   if (url.includes("tab=invoices") || url.includes("tab=billing") || row.kind === "billing") {
     return "billing";
   }
@@ -177,6 +184,7 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
   const tab = alertActionTab(row);
   if (tab === "approvals") return "Open Approvals";
   if (tab === "helpdesk") return "Open Helpdesk";
+  if (tab === "inquiries") return "Open Inquiries";
   if (tab === "billing") return "Open Billing";
   if (row.kind === "web_design_quotation") return "Open Pending Quotation";
   return "Open Deals";
@@ -194,6 +202,7 @@ function quotationDealId(row: CommerceNotificationAdminRow) {
 }
 
 export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: Props) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState<CommerceNotificationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -328,6 +337,12 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
     const dealId = quotationDealId(row);
     if (dealId) stashOpenDealFromInbox({ id: dealId, action });
     const tab = alertActionTab(row);
+    if (tab === "inquiries") {
+      const inquiryId = Number(row.referenceId || 0);
+      const query: Record<string, string> = { tab: "inquiries" };
+      if (inquiryId > 0) query.inquiry = String(inquiryId);
+      void router.replace({ pathname: COMMERCE_ADMIN_PATH, query }, undefined, { shallow: true });
+    }
     if (onTabChange) {
       onTabChange(tab);
       return;

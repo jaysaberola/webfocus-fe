@@ -6,6 +6,8 @@ import { COMMERCE_REPORTS } from "@/lib/commerceAdmin/mockData";
 const CommerceDashboardTab = dynamic(() => import("./CommerceDashboardTab"));
 const CommerceClientsTab = dynamic(() => import("./tabs/CommerceClientsTab"));
 const CommerceTransactionsTab = dynamic(() => import("./tabs/CommerceTransactionsTab"));
+const CommerceLeadsTab = dynamic(() => import("./tabs/CommerceLeadsTab"));
+const CommerceInquiriesTab = dynamic(() => import("./tabs/CommerceInquiriesTab"));
 const CommerceApprovalsTab = dynamic(() => import("./tabs/CommerceApprovalsTab"));
 const CommerceBillingTab = dynamic(() => import("./tabs/CommerceBillingTab"));
 const CommerceNotificationsTab = dynamic(() => import("./tabs/CommerceNotificationsTab"));
@@ -14,6 +16,7 @@ const CommerceHelpdeskTab = dynamic(() => import("./tabs/CommerceHelpdeskTab"));
 type Props = {
   activeTab: CommerceAdminTab;
   onTabChange: (tab: CommerceAdminTab) => void;
+  openInquiryId?: number | null;
 };
 
 function ReportsTab() {
@@ -37,12 +40,16 @@ function ReportsTab() {
   );
 }
 
-export default function CommerceAdminContent({ activeTab, onTabChange }: Props) {
+export default function CommerceAdminContent({ activeTab, onTabChange, openInquiryId }: Props) {
   switch (activeTab) {
     case "dashboard":
       return <CommerceDashboardTab onTabChange={onTabChange} />;
     case "clients":
       return <CommerceClientsTab onTabChange={onTabChange} />;
+    case "leads":
+      return <CommerceLeadsTab />;
+    case "inquiries":
+      return <CommerceInquiriesTab initialInquiryId={openInquiryId ?? undefined} />;
     case "orders":
       return <CommerceTransactionsTab />;
     case "approvals":

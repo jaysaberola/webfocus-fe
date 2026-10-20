@@ -14,6 +14,7 @@ export default function CommerceAdminPage() {
   const router = useRouter();
   const { loading, user } = useCommerceAdminAuth();
   const [activeTab, setActiveTab] = useState<CommerceAdminTab>("dashboard");
+  const [openInquiryId, setOpenInquiryId] = useState<number | null>(null);
 
   useEffect(() => {
     prefetchCommerceAdmin(router);
@@ -34,6 +35,10 @@ export default function CommerceAdminPage() {
 
     setActiveTab(resolved);
 
+    const inquiryRaw = typeof router.query.inquiry === "string" ? router.query.inquiry : undefined;
+    const inquiryId = inquiryRaw ? Number(inquiryRaw) : NaN;
+    setOpenInquiryId(Number.isFinite(inquiryId) && inquiryId > 0 ? inquiryId : null);
+
     if (requested && requested !== resolved) {
       router.replace(
         { pathname: COMMERCE_ADMIN_PATH, query: resolved === "dashboard" ? {} : { tab: resolved } },
@@ -41,7 +46,7 @@ export default function CommerceAdminPage() {
         { shallow: true }
       );
     }
-  }, [router.isReady, router.query.tab, loading, user]);
+  }, [router.isReady, router.query.tab, router.query.inquiry, loading, user]);
 
   const switchTab = useCallback(
     (tab: CommerceAdminTab) => {
@@ -76,7 +81,7 @@ export default function CommerceAdminPage() {
         onTabChange={switchTab}
         user={user}
       />
-      <CommerceAdminContent activeTab={activeTab} onTabChange={switchTab} />
+      <CommerceAdminContent activeTab={activeTab} onTabChange={switchTab} openInquiryId={openInquiryId} />
     </div>
   );
 }
