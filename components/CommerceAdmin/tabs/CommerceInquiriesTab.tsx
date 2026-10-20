@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
-import { TableFilterShell } from "@/components/shared/TableFilterPanel";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { emptyDateRange, rowMatchesDateRange, type DateRangeValue } from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import {
   getInquiries,
   getInquiry,
@@ -33,6 +40,14 @@ const INQUIRY_COLUMN_LABELS: Record<(typeof INQUIRY_COLUMNS)[number], string> = 
 };
 
 const PAGE_SIZE = 10;
+
+const INQUIRY_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "inquiryType", label: "Inquiry Type" },
+  { id: "name", label: "Name", mode: "contains" },
+  { id: "email", label: "Email", mode: "contains" },
+  { id: "phone", label: "Mobile number" },
+  { id: "status", label: "Status" },
+];
 
 type SortKey = "newest" | "oldest" | "name-asc" | "name-desc" | "status-asc" | "status-desc";
 
@@ -69,6 +84,8 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ContactInquiryRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -125,13 +142,33 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
       .finally(() => setDetailLoading(false));
   }, [selectedId]);
 
-  const filteredRows = useMemo(
-    () => rows.filter((row) => rowMatchesDateRange(row.created_at, dateRange)),
-    [rows, dateRange],
+  const getFilterValue = useCallback((row: ContactInquiryRow, fieldId: string) => {
+    switch (fieldId) {
+      case "inquiryType":
+        return String(row.inquiry_type ?? "").trim();
+      case "name":
+        return inquiryName(row);
+      case "email":
+        return String(row.email ?? "").trim();
+      case "phone":
+        return String(row.contact_number ?? "").trim();
+      case "status":
+        return INQUIRY_STATUS_LABELS[row.status as InquiryStatus] || String(row.status ?? "").trim();
+      default:
+        return "";
+    }
+  }, []);
+
+  const processedRows = useMemo(
+    () =>
+      applyTableFilter(rows, appliedFilter, INQUIRY_FILTER_FIELDS, getFilterValue).filter((row) =>
+        rowMatchesDateRange(row.created_at, dateRange),
+      ),
+    [rows, appliedFilter, getFilterValue, dateRange],
   );
 
   const sortedRows = useMemo(() => {
-    const copy = [...filteredRows];
+    const copy = [...processedRows];
     copy.sort((a, b) => {
       switch (sortBy) {
         case "name-asc":
@@ -150,7 +187,10 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
       }
     });
     return copy;
-  }, [filteredRows, sortBy]);
+  }, [processedRows, sortBy]);
+
+  const displayTotal =
+    isTableFilterActive(appliedFilter) || dateRange.from || dateRange.to ? sortedRows.length : totalRecords;
 
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -257,8 +297,8 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
 
       <TableFilterShell
         open={filterOpen}
-        active={Boolean(dateRange.from || dateRange.to)}
-        total={totalRecords}
+        active={isTableFilterActive(appliedFilter) || Boolean(dateRange.from || dateRange.to)}
+        total={displayTotal}
         onToggle={() => setFilterOpen((open) => !open)}
         search={search}
         onSearchChange={(value) => {
@@ -271,7 +311,41 @@ export default function CommerceInquiriesTab({ initialInquiryId }: Props) {
           setDateRange(next);
           setPage(1);
         }}
-        panel={null}
+        panel={
+          <TableFilterPanel
+            rows={rows}
+            fields={INQUIRY_FILTER_FIELDS}
+            draft={draftFilter}
+            applied={appliedFilter}
+            getValue={getFilterValue}
+            onDraftChange={setDraftFilter}
+            onApply={() => {
+              setAppliedFilter(draftFilter);
+              setPage(1);
+            }}
+            onClear={() => {
+              setDraftFilter(emptyTableFilter);
+              setAppliedFilter(emptyTableFilter);
+              setPage(1);
+            }}
+            onClose={() => setFilterOpen(false)}
+            sortControl={
+              <select
+                className={styles.selectInline}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortKey)}
+                aria-label="Sort inquiries"
+              >
+                <option value="newest">Newest Received</option>
+                <option value="oldest">Oldest Received</option>
+                <option value="name-asc">Name (A - Z)</option>
+                <option value="name-desc">Name (Z - A)</option>
+                <option value="status-asc">Status (A - Z)</option>
+                <option value="status-desc">Status (Z - A)</option>
+              </select>
+            }
+          />
+        }
       >
         {loading ? (
           <p className={styles.emptyState}>Loading inquiries...</p>

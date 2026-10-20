@@ -2,8 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import LeadCrmForm from "@/components/CommerceAdmin/LeadCrmForm";
 import SortableTableHead from "@/components/CommerceAdmin/SortableTableHead";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
-import { TableFilterShell } from "@/components/shared/TableFilterPanel";
+import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
 import { emptyDateRange, rowMatchesDateRange, type DateRangeValue } from "@/lib/dateRangeHelpers";
+import {
+  applyTableFilter,
+  emptyTableFilter,
+  isTableFilterActive,
+  type TableFilterFieldDef,
+  type TableFilterState,
+} from "@/lib/tableFilterHelpers";
 import { getLeads, type CrmLeadRow } from "@/services/leadService";
 import styles from "@/styles/commerceAdmin.module.css";
 
@@ -31,6 +38,14 @@ const LEAD_COLUMN_LABELS: Record<(typeof LEAD_COLUMNS)[number], string> = {
 };
 
 const PAGE_SIZE = 10;
+
+const LEAD_FILTER_FIELDS: TableFilterFieldDef[] = [
+  { id: "company", label: "Company", mode: "contains" },
+  { id: "contact", label: "Contact", mode: "contains" },
+  { id: "leadSource", label: "Lead Source" },
+  { id: "status", label: "Status" },
+  { id: "owner", label: "Owner" },
+];
 
 function leadOwnerName(row: CrmLeadRow) {
   const owner = row.lead_owner;
@@ -123,6 +138,25 @@ export default function CommerceLeadsTab() {
   const [sortBy, setSortBy] = useState<LeadSortKey>("newest");
   const [filterOpen, setFilterOpen] = useState(false);
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
+  const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+
+  const getFilterValue = useCallback((row: CrmLeadRow, fieldId: string) => {
+    switch (fieldId) {
+      case "company":
+        return String(row.company ?? "").trim();
+      case "contact":
+        return leadContactPerson(row);
+      case "leadSource":
+        return String(row.lead_source ?? "").trim();
+      case "status":
+        return String(row.lead_status ?? "").trim();
+      case "owner":
+        return leadOwnerName(row);
+      default:
+        return "";
+    }
+  }, []);
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -144,12 +178,17 @@ export default function CommerceLeadsTab() {
     reload();
   }, [view, reload]);
 
-  const dateFilteredRows = useMemo(
-    () => rows.filter((row) => rowMatchesDateRange(row.created_at, dateRange)),
-    [rows, dateRange],
+  const processedRows = useMemo(
+    () =>
+      applyTableFilter(rows, appliedFilter, LEAD_FILTER_FIELDS, getFilterValue).filter((row) =>
+        rowMatchesDateRange(row.created_at, dateRange),
+      ),
+    [rows, appliedFilter, getFilterValue, dateRange],
   );
 
-  const sortedRows = useMemo(() => sortLeads(dateFilteredRows, sortBy), [dateFilteredRows, sortBy]);
+  const sortedRows = useMemo(() => sortLeads(processedRows, sortBy), [processedRows, sortBy]);
+
+  const displayTotal = isTableFilterActive(appliedFilter) || dateRange.from || dateRange.to ? sortedRows.length : totalRecords;
 
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
   const rangeStart = totalRecords === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -210,8 +249,8 @@ export default function CommerceLeadsTab() {
 
       <TableFilterShell
         open={filterOpen}
-        active={Boolean(dateRange.from || dateRange.to)}
-        total={totalRecords}
+        active={isTableFilterActive(appliedFilter) || Boolean(dateRange.from || dateRange.to)}
+        total={displayTotal}
         onToggle={() => setFilterOpen((open) => !open)}
         search={search}
         onSearchChange={(value) => {
@@ -224,7 +263,43 @@ export default function CommerceLeadsTab() {
           setDateRange(next);
           setPage(1);
         }}
-        panel={null}
+        panel={
+          <TableFilterPanel
+            rows={rows}
+            fields={LEAD_FILTER_FIELDS}
+            draft={draftFilter}
+            applied={appliedFilter}
+            getValue={getFilterValue}
+            onDraftChange={setDraftFilter}
+            onApply={() => {
+              setAppliedFilter(draftFilter);
+              setPage(1);
+            }}
+            onClear={() => {
+              setDraftFilter(emptyTableFilter);
+              setAppliedFilter(emptyTableFilter);
+              setPage(1);
+            }}
+            onClose={() => setFilterOpen(false)}
+            sortControl={
+              <select
+                className={styles.selectInline}
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as LeadSortKey)}
+                aria-label="Sort leads"
+              >
+                <option value="newest">Newest Created</option>
+                <option value="oldest">Oldest Created</option>
+                <option value="company-asc">Company (A - Z)</option>
+                <option value="company-desc">Company (Z - A)</option>
+                <option value="status-asc">Status (A - Z)</option>
+                <option value="status-desc">Status (Z - A)</option>
+                <option value="source-asc">Lead Source (A - Z)</option>
+                <option value="source-desc">Lead Source (Z - A)</option>
+              </select>
+            }
+          />
+        }
       >
         {loading ? (
           <p className={styles.emptyState}>Loading leads...</p>

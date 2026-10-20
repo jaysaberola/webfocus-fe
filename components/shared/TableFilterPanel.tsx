@@ -271,11 +271,14 @@ export function TableFilterShell({
 }: ShellProps) {
   const showSearch = typeof search === "string" && typeof onSearchChange === "function";
   const showDateRange = Boolean(dateRange && onDateRangeChange);
-  const showTools = showSearch || showDateRange;
+  const inlineFiltersOnly = panel == null;
+  const showTools =
+    (showSearch || showDateRange) && (!inlineFiltersOnly || open || active);
+  const showSidePanel = open && panel != null;
 
   return (
-    <div className={[styles.layout, open ? styles.layoutWithPanel : ""].filter(Boolean).join(" ")}>
-      {open ? panel : null}
+    <div className={[styles.layout, showSidePanel ? styles.layoutWithPanel : ""].filter(Boolean).join(" ")}>
+      {showSidePanel ? panel : null}
       <div className={styles.main}>
         <div className={styles.toggleRow}>
           <button
