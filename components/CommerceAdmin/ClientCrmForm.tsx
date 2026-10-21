@@ -162,12 +162,82 @@ function ContactBlockFields({
   );
 }
 
+function ClientExportTemplateToolbar({
+  exportTemplate,
+  onExportTemplateChange,
+  onInfoSheet,
+  disabled,
+}: {
+  exportTemplate: "authorized-contact" | "customer-info";
+  onExportTemplateChange: (value: "authorized-contact" | "customer-info") => void;
+  onInfoSheet: (mode: "word" | "pdf" | "print") => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className={styles.clientCrmSectionHeadActions}>
+      <label className={styles.clientExportTemplateField}>
+        <span className={styles.clientExportTemplateLabel}>Export template</span>
+        <select
+          className={styles.clientExportTemplateSelect}
+          value={exportTemplate}
+          onChange={(event) => onExportTemplateChange(event.target.value as "authorized-contact" | "customer-info")}
+          disabled={disabled}
+          aria-label="Export template"
+        >
+          <option value="authorized-contact">Authorized Contact Form</option>
+          <option value="customer-info">Customer Information Sheet</option>
+        </select>
+      </label>
+      <div className={styles.clientCrmSectionExportActions} aria-label="Export client form">
+        <button
+          type="button"
+          className={styles.clientInfoSheetIconBtn}
+          onClick={() => onInfoSheet("word")}
+          disabled={disabled}
+          title="Download Word"
+          aria-label="Download Word"
+        >
+          <i className="fa-solid fa-file-word" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={styles.clientInfoSheetIconBtn}
+          onClick={() => onInfoSheet("pdf")}
+          disabled={disabled}
+          title="Download PDF"
+          aria-label="Download PDF"
+        >
+          <i className="fa-solid fa-file-pdf" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={styles.clientInfoSheetIconBtn}
+          onClick={() => onInfoSheet("print")}
+          disabled={disabled}
+          title="Print"
+          aria-label="Print"
+        >
+          <i className="fa-solid fa-print" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ContactInformationSection({
   value,
   onChange,
+  exportTemplate,
+  onExportTemplateChange,
+  onInfoSheet,
+  submitting,
 }: {
   value: ClientCrmFormState["contact_information"];
   onChange: (next: ClientCrmFormState["contact_information"]) => void;
+  exportTemplate: "authorized-contact" | "customer-info";
+  onExportTemplateChange: (value: "authorized-contact" | "customer-info") => void;
+  onInfoSheet: (mode: "word" | "pdf" | "print") => void;
+  submitting?: boolean;
 }) {
   const toggleBlock = (key: "billing" | "collection" | "technical") => {
     onChange({
@@ -201,8 +271,16 @@ function ContactInformationSection({
   };
 
   return (
-    <section id="client-section-contacts" className={styles.clientCrmSection}>
-      <h4 className={styles.clientCrmSectionTitle}>Contact Information</h4>
+    <section id="client-section-contacts" className={`${styles.clientCrmSection} ${styles.clientCrmContactSection}`}>
+      <div className={styles.clientCrmSectionHead}>
+        <h4 className={styles.clientCrmSectionTitle}>Contact Information</h4>
+        <ClientExportTemplateToolbar
+          exportTemplate={exportTemplate}
+          onExportTemplateChange={onExportTemplateChange}
+          onInfoSheet={onInfoSheet}
+          disabled={submitting}
+        />
+      </div>
       <div className={styles.contactToggleGrid}>
         <label className={styles.contactToggle}>
           <input type="checkbox" checked={value.billing.enabled} onChange={() => toggleBlock("billing")} />
@@ -1070,51 +1148,6 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
           </div>
         </div>
         <div className={styles.clientCrmActions}>
-          <label className={styles.clientExportTemplateField}>
-            <span className={styles.clientExportTemplateLabel}>Export template</span>
-            <select
-              className={styles.clientExportTemplateSelect}
-              value={exportTemplate}
-              onChange={(event) => setExportTemplate(event.target.value as "authorized-contact" | "customer-info")}
-              disabled={submitting}
-              aria-label="Export template"
-            >
-              <option value="authorized-contact">Authorized Contact Form</option>
-              <option value="customer-info">Customer Information Sheet</option>
-            </select>
-          </label>
-          <div className={styles.clientCrmTopExportActions} aria-label="Export client form">
-            <button
-              type="button"
-              className={styles.clientInfoSheetIconBtn}
-              onClick={() => openInfoSheet("word")}
-              disabled={submitting}
-              title="Download Word"
-              aria-label="Download Word"
-            >
-              <i className="fa-solid fa-file-word" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={styles.clientInfoSheetIconBtn}
-              onClick={() => openInfoSheet("pdf")}
-              disabled={submitting}
-              title="Download PDF"
-              aria-label="Download PDF"
-            >
-              <i className="fa-solid fa-file-pdf" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className={styles.clientInfoSheetIconBtn}
-              onClick={() => openInfoSheet("print")}
-              disabled={submitting}
-              title="Print"
-              aria-label="Print"
-            >
-              <i className="fa-solid fa-print" aria-hidden="true" />
-            </button>
-          </div>
           <button
             type="button"
             className={styles.secondaryBtnSm}
@@ -1390,7 +1423,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       <section id="client-section-files" className={styles.clientCrmSection}>
         <h4 className={styles.clientCrmSectionTitle}>File Attachments</h4>
         <p className={styles.clientCrmHelpText}>
-          Use Export template in the top bar to choose Authorized Contact Form or Customer Information Sheet (orange),
+          Use Export template in Contact Information to choose Authorized Contact Form or Customer Information Sheet,
           then Word, PDF, or Print to download with client details filled in where available.
         </p>
         <div className={styles.clientFileAttachmentsGrid}>
@@ -1440,6 +1473,10 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
       <ContactInformationSection
         value={form.contact_information}
         onChange={(contact_information) => setField("contact_information", contact_information)}
+        exportTemplate={exportTemplate}
+        onExportTemplateChange={setExportTemplate}
+        onInfoSheet={openInfoSheet}
+        submitting={submitting}
       />
 
       <section id="client-section-address" className={styles.clientCrmSection}>
