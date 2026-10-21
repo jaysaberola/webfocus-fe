@@ -419,7 +419,7 @@ export type CommerceAssignableUser = {
 };
 
 export async function fetchCommerceAssignableUsers(params?: {
-  for?: "client_owner" | "billing_in_charge" | "sales_staff";
+  for?: "client_owner" | "billing_in_charge" | "sales_staff" | "lead_assignee";
 }) {
   const res = await axiosInstance.get("/commerce-admin/assignable-users", {
     params,

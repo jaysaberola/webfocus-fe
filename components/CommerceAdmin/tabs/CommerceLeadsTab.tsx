@@ -11,7 +11,11 @@ import {
   type TableFilterFieldDef,
   type TableFilterState,
 } from "@/lib/tableFilterHelpers";
-import { getLeads, type CrmLeadRow } from "@/services/leadService";
+import LeadOwnerAssignSelect from "@/components/CommerceAdmin/LeadOwnerAssignSelect";
+import { sortSalesAssignees, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
+import { toast } from "@/lib/toast";
+import { fetchCommerceAssignableUsers, type CommerceAssignableUser } from "@/services/commerceAdminService";
+import { getLeads, updateLead, type CrmLeadRow } from "@/services/leadService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type View = "list" | "create" | "edit";
@@ -26,7 +30,7 @@ type LeadSortKey =
   | "source-asc"
   | "source-desc";
 
-const LEAD_COLUMNS = ["company", "contact", "leadSource", "status", "owner", "created"] as const;
+const LEAD_COLUMNS = ["company", "contact", "leadSource", "status", "owner", "assignedTo", "created"] as const;
 
 const LEAD_COLUMN_LABELS: Record<(typeof LEAD_COLUMNS)[number], string> = {
   company: "Company",
@@ -34,6 +38,7 @@ const LEAD_COLUMN_LABELS: Record<(typeof LEAD_COLUMNS)[number], string> = {
   leadSource: "Lead Source",
   status: "Status",
   owner: "Owner",
+  assignedTo: "Assigned To",
   created: "Created Date",
 };
 
@@ -45,17 +50,30 @@ const LEAD_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "leadSource", label: "Lead Source" },
   { id: "status", label: "Status" },
   { id: "owner", label: "Owner" },
+  { id: "assignedTo", label: "Assigned To" },
 ];
 
-function leadOwnerName(row: CrmLeadRow) {
-  const owner = row.lead_owner;
-  if (!owner) return "Unassigned";
+function leadUserDisplayName(user?: CrmLeadRow["created_by"] | CrmLeadRow["lead_owner"] | null) {
+  if (!user) return "";
   return (
-    String(owner.name || "").trim() ||
-    `${owner.fname || ""} ${owner.lname || ""}`.trim() ||
-    owner.email ||
-    "Unassigned"
+    String(user.name || "").trim() ||
+    `${user.fname || ""} ${user.lname || ""}`.trim() ||
+    user.email ||
+    ""
   );
+}
+
+function leadRecordOwnerName(row: CrmLeadRow) {
+  const fromUser = leadUserDisplayName(row.created_by);
+  if (fromUser) return fromUser;
+  const encoded = String(row.encoded_by ?? "").trim();
+  if (encoded) return encoded;
+  return "—";
+}
+
+function leadAssigneeName(row: CrmLeadRow) {
+  const name = leadUserDisplayName(row.lead_owner);
+  return name || "Unassigned";
 }
 
 function leadContactPerson(row: CrmLeadRow) {
@@ -140,6 +158,8 @@ export default function CommerceLeadsTab() {
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [draftFilter, setDraftFilter] = useState<TableFilterState>(emptyTableFilter);
   const [appliedFilter, setAppliedFilter] = useState<TableFilterState>(emptyTableFilter);
+  const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
+  const [assigningLeadId, setAssigningLeadId] = useState<number | null>(null);
 
   const getFilterValue = useCallback((row: CrmLeadRow, fieldId: string) => {
     switch (fieldId) {
@@ -152,7 +172,9 @@ export default function CommerceLeadsTab() {
       case "status":
         return String(row.lead_status ?? "").trim();
       case "owner":
-        return leadOwnerName(row);
+        return leadRecordOwnerName(row);
+      case "assignedTo":
+        return leadAssigneeName(row);
       default:
         return "";
     }
@@ -177,6 +199,44 @@ export default function CommerceLeadsTab() {
     if (view !== "list") return;
     reload();
   }, [view, reload]);
+
+  useEffect(() => {
+    if (view !== "list") return;
+    fetchCommerceAssignableUsers({ for: "lead_assignee" })
+      .then((rows) => setStaffUsers(sortSalesAssignees(Array.isArray(rows) ? rows : [])))
+      .catch(() => setStaffUsers([]));
+  }, [view]);
+
+  const ownerOptionsForRow = useCallback(
+    (row: CrmLeadRow) =>
+      withCurrentAssignablePerson(staffUsers, row.lead_owner
+        ? {
+            id: row.lead_owner.id,
+            name:
+              row.lead_owner.name ||
+              `${row.lead_owner.fname || ""} ${row.lead_owner.lname || ""}`.trim() ||
+              row.lead_owner.email ||
+              undefined,
+            email: row.lead_owner.email ?? null,
+          }
+        : null),
+    [staffUsers],
+  );
+
+  const assignLeadOwner = useCallback(async (row: CrmLeadRow, userId: number | null) => {
+    setAssigningLeadId(row.id);
+    try {
+      const updated = await updateLead(row.id, { lead_owner_id: userId });
+      setRows((current) =>
+        current.map((item) => (item.id === row.id ? { ...item, ...updated } : item)),
+      );
+      toast.success(userId ? "Lead assigned." : "Lead unassigned.");
+    } catch {
+      toast.error("Could not update assignment.");
+    } finally {
+      setAssigningLeadId(null);
+    }
+  }, []);
 
   const processedRows = useMemo(
     () =>
@@ -335,6 +395,7 @@ export default function CommerceLeadsTab() {
                       onClick={() => setSortBy((current) => toggleLeadSort(current, "status"))}
                     />
                     <th>{LEAD_COLUMN_LABELS.owner}</th>
+                    <th>{LEAD_COLUMN_LABELS.assignedTo}</th>
                     <SortableTableHead
                       label={LEAD_COLUMN_LABELS.created}
                       active={isLeadColumnSorted(sortBy, "created")}
@@ -365,7 +426,16 @@ export default function CommerceLeadsTab() {
                             "—"
                           )}
                         </td>
-                        <td data-label={LEAD_COLUMN_LABELS.owner}>{leadOwnerName(row)}</td>
+                        <td data-label={LEAD_COLUMN_LABELS.owner}>{leadRecordOwnerName(row)}</td>
+                        <td data-label={LEAD_COLUMN_LABELS.assignedTo}>
+                          <LeadOwnerAssignSelect
+                            value={row.lead_owner_id ?? row.lead_owner?.id ?? null}
+                            users={ownerOptionsForRow(row)}
+                            disabled={assigningLeadId === row.id}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(userId) => void assignLeadOwner(row, userId)}
+                          />
+                        </td>
                         <td data-label={LEAD_COLUMN_LABELS.created}>{formatLeadCreated(row)}</td>
                       </tr>
                     ))

@@ -1,6 +1,11 @@
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
 import { hasAnyPermission } from "@/lib/userPermissions";
-import { isCustomerCareUser, isCustomerUser } from "@/lib/userRoles";
+import {
+  isAdminLikeUser,
+  isCustomerCareUser,
+  isCustomerUser,
+  isSalesRoleUser,
+} from "@/lib/userRoles";
 
 export type CmsNavChild = {
   label: string;
@@ -131,12 +136,19 @@ export function canAccessCommercePortal(user: unknown): boolean {
   return hasAnyPermission(user, COMMERCE_PORTAL_PERMISSIONS);
 }
 
+/** Contact Us inquiries — Customer Care only; not Sales Admin / Sales Staff (even with dual roles). */
+export function canAccessCommerceInquiries(user: unknown): boolean {
+  if (!hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS.inquiries)) return false;
+  if (isAdminLikeUser(user)) return true;
+  if (isSalesRoleUser(user)) return false;
+  return isCustomerCareUser(user);
+}
+
 export function canAccessCommerceTab(user: unknown, tab: CommerceAdminTab): boolean {
   // Contracts and Managed are not Commerce Control Center tabs (Managed lives in CMS Admin).
   if (tab === "contracts" || tab === "managed") return false;
   if (tab === "orders" && isCustomerCareUser(user)) return false;
-  if (tab === "leads" && !isCustomerCareUser(user)) return false;
-  if (tab === "inquiries" && !isCustomerCareUser(user)) return false;
+  if (tab === "inquiries") return canAccessCommerceInquiries(user);
   return hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS[tab]);
 }
 

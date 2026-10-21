@@ -23,9 +23,11 @@ import {
   streetsForPlace,
   zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
-import { getRoleDisplayLabel } from "@/lib/userRoles";
+import { sortSalesAssignees, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
 import { createLead, updateLead, type CrmLeadRow } from "@/services/leadService";
+import { fetchCommerceAssignableUsers, type CommerceAssignableUser } from "@/services/commerceAdminService";
 import { getCurrentUserCached } from "@/lib/currentUser";
+import LeadOwnerAssignSelect from "@/components/CommerceAdmin/LeadOwnerAssignSelect";
 import styles from "@/styles/commerceAdmin.module.css";
 
 function Field({
@@ -79,6 +81,19 @@ function composeStreetLine(street: string, barangay: string) {
   return `${line}, ${place}`;
 }
 
+function leadRecordOwnerLabel(row?: CrmLeadRow | null) {
+  if (!row) return "—";
+  const user = row.created_by;
+  const fromUser =
+    String(user?.name || "").trim() ||
+    `${user?.fname || ""} ${user?.lname || ""}`.trim() ||
+    user?.email ||
+    "";
+  if (fromUser) return fromUser;
+  const encoded = String(row.encoded_by ?? "").trim();
+  return encoded || "—";
+}
+
 function streetWithoutBarangay(street: string, barangay: string) {
   const place = barangay.trim();
   if (!place) return street.trim();
@@ -98,7 +113,9 @@ type Props = {
 export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
   const [form, setForm] = useState<LeadFormState>(() => (lead ? leadFormFromRow(lead) : emptyLeadForm));
   const [submitting, setSubmitting] = useState(false);
-  const [ownerLabel, setOwnerLabel] = useState("Customer Care");
+  const [leadOwnerId, setLeadOwnerId] = useState<number | null>(null);
+  const [createOwnerLabel, setCreateOwnerLabel] = useState("—");
+  const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [addressRegion, setAddressRegion] = useState("");
   const [leadBarangay, setLeadBarangay] = useState("");
 
@@ -111,25 +128,45 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
         ...leadFormFromRow(lead),
         address_street: streetWithoutBarangay(lead.address_street ?? "", barangay),
       });
-      const owner = lead.lead_owner?.name || [lead.lead_owner?.fname, lead.lead_owner?.lname].filter(Boolean).join(" ");
-      if (owner) setOwnerLabel(owner);
+      setLeadOwnerId(lead.lead_owner_id ?? lead.lead_owner?.id ?? null);
     }
   }, [lead]);
 
   useEffect(() => {
+    fetchCommerceAssignableUsers({ for: "lead_assignee" })
+      .then((rows) => setStaffUsers(sortSalesAssignees(Array.isArray(rows) ? rows : [])))
+      .catch(() => setStaffUsers([]));
+  }, []);
+
+  useEffect(() => {
     if (mode !== "create") return;
     void getCurrentUserCached({ force: false }).then((user) => {
-      if (!user) return;
-      const name = getRoleDisplayLabel(user);
-      const person = String(
-        (user as { name?: string }).name ||
-          `${(user as { fname?: string }).fname || ""} ${(user as { lname?: string }).lname || ""}`.trim() ||
-          (user as { email?: string }).email ||
-          "",
-      ).trim();
-      setOwnerLabel(person || name);
+      const record = user as { fname?: string; lname?: string; email?: string; name?: string } | null;
+      const label =
+        String(record?.name || "").trim() ||
+        `${record?.fname || ""} ${record?.lname || ""}`.trim() ||
+        record?.email ||
+        "—";
+      setCreateOwnerLabel(label);
     });
   }, [mode]);
+
+  const ownerOptions = useMemo(() => {
+    const current = lead?.lead_owner
+      ? {
+          id: lead.lead_owner.id,
+          name:
+            lead.lead_owner.name ||
+            `${lead.lead_owner.fname || ""} ${lead.lead_owner.lname || ""}`.trim() ||
+            lead.lead_owner.email ||
+            undefined,
+          email: lead.lead_owner.email ?? null,
+        }
+      : leadOwnerId
+        ? staffUsers.find((user) => user.id === leadOwnerId) ?? { id: leadOwnerId }
+        : null;
+    return withCurrentAssignablePerson(staffUsers, current);
+  }, [staffUsers, lead?.lead_owner, leadOwnerId]);
 
   const title = mode === "create" ? "Create Lead" : "Edit Lead";
 
@@ -235,7 +272,7 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
   const save = async (andNew: boolean) => {
     if (!validate()) return;
     setSubmitting(true);
-    const payload = toAddressPayload();
+    const payload = { ...toAddressPayload(), lead_owner_id: leadOwnerId };
     try {
       if (mode === "edit" && lead?.id) {
         await updateLead(lead.id, payload);
@@ -249,6 +286,7 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
         setForm({ ...emptyLeadForm });
         setLeadBarangay("");
         setAddressRegion("");
+        setLeadOwnerId(null);
         onSaved({ andNew: true });
         return;
       }
@@ -334,11 +372,20 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
         <h4 className={styles.clientCrmSectionTitle}>Lead Information</h4>
         <div className={styles.clientCrmGrid}>
           <div className={styles.clientCrmCol}>
-            <Field label="Lead Owner">
-              <div className={styles.clientCrmLockedField}>
-                <i className="fa-solid fa-lock" aria-hidden="true" />
-                <span>{ownerLabel}</span>
+            <Field label="Owner" hint="Set automatically from the signed-in user who created this lead">
+              <div className={styles.clientCrmLockedField} aria-readonly="true">
+                <i className="fa-solid fa-lock" aria-hidden />
+                <span>{mode === "create" ? createOwnerLabel : leadRecordOwnerLabel(lead)}</span>
               </div>
+            </Field>
+            <Field label="Assigned To" hint="Assign to Sales Staff or Sales Admin">
+              <LeadOwnerAssignSelect
+                className={inputClass()}
+                value={leadOwnerId}
+                users={ownerOptions}
+                disabled={submitting}
+                onChange={setLeadOwnerId}
+              />
             </Field>
             <Field label="First Name">
               <div className={styles.clientCrmNameSplit}>

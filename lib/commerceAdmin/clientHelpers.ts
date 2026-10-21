@@ -393,6 +393,19 @@ export function resolveAssignableSelectValue(
   return match ? assignablePersonLabel(match) : selected;
 }
 
+export function sortSalesAssignees<T extends { name?: string; role?: string | null; roles?: string[] }>(
+  users: T[],
+): T[] {
+  const isSalesAdmin = (user: T) =>
+    user.role === "sales_admin" || (user.roles ?? []).includes("sales_admin");
+
+  return [...users].sort((a, b) => {
+    const adminFirst = Number(isSalesAdmin(b)) - Number(isSalesAdmin(a));
+    if (adminFirst !== 0) return adminFirst;
+    return String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, { sensitivity: "base" });
+  });
+}
+
 export function withCurrentAssignablePerson(
   people: AssignablePerson[],
   current?: Partial<AssignablePerson> | null,

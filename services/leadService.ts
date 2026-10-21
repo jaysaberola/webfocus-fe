@@ -1,6 +1,10 @@
 import { axiosInstance } from "@/services/axios";
 import type { LeadFormState } from "@/lib/commerceAdmin/leadFormHelpers";
 
+export type LeadWritePayload = LeadFormState & {
+  lead_owner_id?: number | null;
+};
+
 export type CrmLeadRow = LeadFormState & {
   id: number;
   lead_owner_id?: number | null;
@@ -11,6 +15,15 @@ export type CrmLeadRow = LeadFormState & {
     lname?: string | null;
     email?: string | null;
   } | null;
+  created_by_id?: number | null;
+  created_by?: {
+    id: number;
+    name?: string | null;
+    fname?: string | null;
+    lname?: string | null;
+    email?: string | null;
+  } | null;
+  encoded_by?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -33,12 +46,12 @@ export async function getLead(id: number, options?: { silent?: boolean }) {
   return res.data?.data as CrmLeadRow;
 }
 
-export async function createLead(payload: LeadFormState) {
+export async function createLead(payload: LeadWritePayload) {
   const res = await axiosInstance.post("/commerce-admin/leads", payload);
   return res.data?.data as CrmLeadRow;
 }
 
-export async function updateLead(id: number, payload: Partial<LeadFormState>) {
+export async function updateLead(id: number, payload: Partial<LeadWritePayload>) {
   const res = await axiosInstance.put(`/commerce-admin/leads/${id}`, payload);
   return res.data?.data as CrmLeadRow;
 }

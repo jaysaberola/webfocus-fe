@@ -17,6 +17,8 @@ import {
   type CommerceNotificationAttachment,
 } from "@/services/commerceAdminService";
 import type { CommerceAdminTab } from "@/lib/commerceAdmin/types";
+import { canAccessCommerceInquiries } from "@/lib/navPermissions";
+import { useCommerceAdminAuth } from "@/lib/commerceAdmin/useCommerceAdminAuth";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { stashOpenDealFromInbox, type OpenDealInboxAction } from "@/lib/commerceAdmin/openDealFromInbox";
 import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
@@ -203,6 +205,15 @@ function quotationDealId(row: CommerceNotificationAdminRow) {
 
 export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: Props) {
   const router = useRouter();
+  const { user } = useCommerceAdminAuth();
+  const canSeeInquiries = canAccessCommerceInquiries(user);
+  const kindFilters = useMemo(
+    () =>
+      canSeeInquiries
+        ? KIND_FILTERS
+        : KIND_FILTERS.filter((option) => option.value !== "contact_inquiry"),
+    [canSeeInquiries],
+  );
   const [notifications, setNotifications] = useState<CommerceNotificationAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -217,15 +228,24 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   const loadRows = useCallback(async () => {
     try {
       const data = await fetchCommerceNotifications();
-      setNotifications(Array.isArray(data.clientAlerts) ? data.clientAlerts : []);
+      const rows = Array.isArray(data.clientAlerts) ? data.clientAlerts : [];
+      setNotifications(
+        canSeeInquiries ? rows : rows.filter((row) => row.kind !== "contact_inquiry"),
+      );
     } catch {
       setNotifications([]);
     }
-  }, []);
+  }, [canSeeInquiries]);
 
   useEffect(() => {
     loadRows().finally(() => setLoading(false));
   }, [loadRows]);
+
+  useEffect(() => {
+    if (!canSeeInquiries && typeFilter === "contact_inquiry") {
+      setTypeFilter("all");
+    }
+  }, [canSeeInquiries, typeFilter]);
 
   useEffect(() => {
     const refresh = () => {
@@ -336,7 +356,10 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
   const openAlert = (row: CommerceNotificationAdminRow, action: OpenDealInboxAction = "view") => {
     const dealId = quotationDealId(row);
     if (dealId) stashOpenDealFromInbox({ id: dealId, action });
-    const tab = alertActionTab(row);
+    let tab = alertActionTab(row);
+    if (tab === "inquiries" && !canSeeInquiries) {
+      tab = "notifications";
+    }
     if (tab === "inquiries") {
       const inquiryId = Number(row.referenceId || 0);
       const query: Record<string, string> = { tab: "inquiries" };
@@ -587,7 +610,7 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
               onChange={(e) => setTypeFilter(e.target.value)}
               aria-label="Filter by category"
             >
-              {KIND_FILTERS.map((option) => (
+              {kindFilters.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
