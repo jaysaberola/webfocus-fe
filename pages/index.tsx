@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import AuthLayout, { AdminAuthField, AdminCustomerLoginHint } from "@/components/Layout/AuthLayout";
+import AuthLayout, {
+  AdminAuthField,
+  AdminCustomerLoginHint,
+  AdminPasswordField,
+} from "@/components/Layout/AuthLayout";
 import { login } from "@/services/authService";
 import { toast } from "@/lib/toast";
 import { resolveStaffLoginRedirect } from "@/lib/userRoles";
@@ -26,6 +30,17 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedEmail = localStorage.getItem("cms4.adminRememberEmail");
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +52,13 @@ function LoginPage() {
 
     try {
       const data = await login(email, password);
+      if (typeof window !== "undefined") {
+        if (rememberMe) {
+          localStorage.setItem("cms4.adminRememberEmail", email);
+        } else {
+          localStorage.removeItem("cms4.adminRememberEmail");
+        }
+      }
       toast.success("Login successfully.");
       const redirect = typeof router.query.redirect === "string" ? router.query.redirect : "";
       window.location.assign(resolveStaffLoginRedirect(data?.user, redirect));
@@ -57,7 +79,7 @@ function LoginPage() {
         </div>
       ) : null}
 
-      <form onSubmit={handleLogin}>
+      <form className={styles.formStack} onSubmit={handleLogin}>
         <AdminAuthField
           id="admin-login-email"
           label="Email"
@@ -67,32 +89,41 @@ function LoginPage() {
           required
           disabled={isSubmitting}
           autoComplete="email"
+          placeholder="you@company.com"
         />
 
-        <AdminAuthField
+        <AdminPasswordField
           id="admin-login-password"
           label="Password"
-          type="password"
           value={password}
           onChange={setPassword}
           required
           disabled={isSubmitting}
           autoComplete="current-password"
+          placeholder="Enter your password"
+          showValue={showPassword}
+          onToggleShow={() => setShowPassword((value) => !value)}
         />
 
-        <div className={styles.actions}>
-          <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
-            {isSubmitting ? "Signing in..." : "Sign In"}
-          </button>
+        <label className={styles.checkRow}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            disabled={isSubmitting}
+            onChange={(event) => setRememberMe(event.target.checked)}
+          />
+          Keep me signed in on this device
+        </label>
 
-          <a
-            href="/forgot-password"
-            className={`${styles.secondaryLink} ${isSubmitting ? styles.secondaryLinkDisabled : ""}`}
-            aria-disabled={isSubmitting}
-          >
-            Forgot Password
-          </a>
-        </div>
+        <button type="submit" className={styles.primaryBtn} disabled={isSubmitting}>
+          <span>{isSubmitting ? "Signing in..." : "Sign In"}</span>
+          {!isSubmitting ? (
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m13 6 6 6-6 6" />
+            </svg>
+          ) : null}
+        </button>
       </form>
 
       <AdminCustomerLoginHint />

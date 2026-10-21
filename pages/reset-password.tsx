@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import AuthLayout from "@/components/Layout/AuthLayout";
+import AuthLayout, { AdminAuthField, AdminPasswordField } from "@/components/Layout/AuthLayout";
 import { toast } from "@/lib/toast";
+import styles from "@/styles/adminAuth.module.css";
 
 function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,62 +27,62 @@ function ResetPasswordPage() {
   };
 
   return (
-    <>
-      <p className="text-muted mb-4" style={{ fontSize: "0.9rem" }}>
-        Enter your email address and your new password below.
-      </p>
+    <form className={styles.formStack} onSubmit={handleSubmit}>
+      <AdminAuthField
+        id="admin-reset-email"
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        required
+        autoComplete="email"
+        placeholder="you@company.com"
+      />
 
-      <form onSubmit={handleSubmit}>
-        {/* Email */}
-        <div className="mb-3">
-          <label className="form-label">E-Mail Address</label>
-          <input
-            type="email"
-            className="form-control"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
+      <AdminPasswordField
+        id="admin-reset-password"
+        label="New Password"
+        value={password}
+        onChange={setPassword}
+        required
+        autoComplete="new-password"
+        placeholder="Enter your password"
+        showValue={showPassword}
+        onToggleShow={() => setShowPassword((value) => !value)}
+        showForgotLink={false}
+      />
 
-        {/* New Password */}
-        <div className="mb-3">
-          <label className="form-label">New Password</label>
-          <input
-            type="password"
-            className="form-control"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
+      <AdminPasswordField
+        id="admin-reset-confirm"
+        label="Confirm New Password"
+        value={confirmPassword}
+        onChange={setConfirmPassword}
+        required
+        autoComplete="new-password"
+        placeholder="Enter your password"
+        showValue={showConfirmPassword}
+        onToggleShow={() => setShowConfirmPassword((value) => !value)}
+        showForgotLink={false}
+      />
 
-        {/* Confirm Password */}
-        <div className="mb-4">
-          <label className="form-label">Confirm New Password</label>
-          <input
-            type="password"
-            className="form-control"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-        </div>
+      <div className={styles.formActions}>
+        <button type="submit" className={styles.primaryBtn}>
+          Reset Password
+        </button>
 
-        {/* Buttons */}
-        <div className="d-flex gap-2">
-          <button type="submit" className="btn btn-primary">
-            Reset Password
-          </button>
-
-          <a href="/" className="btn btn-outline-secondary">
-            Cancel
-          </a>
-        </div>
-      </form>
-    </>
+        <a href="/" className={styles.secondaryLink}>
+          Cancel
+        </a>
+      </div>
+    </form>
   );
 }
 
 ResetPasswordPage.Layout = ({ children }: { children: React.ReactNode }) => (
-  <AuthLayout title="Reset Password" imageUrl="https://img.freepik.com/premium-photo/light-indigo-black-abstract-3d-geometric-background-design_851755-368825.jpg">
+  <AuthLayout
+    title="Reset Password"
+    subtitle="Enter your email address and your new password below."
+  >
     {children}
   </AuthLayout>
 );

@@ -1,0 +1,13 @@
+body.admin-auth-page {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body.admin-auth-page .admin-auth-root input:not([type="checkbox"]) {
+  box-shadow: none;
+}
+
+body.admin-auth-page .admin-auth-root button[type="submit"] {
+  box-shadow: none;
+}

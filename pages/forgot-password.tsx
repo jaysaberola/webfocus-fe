@@ -18,7 +18,7 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className={styles.formStack} onSubmit={handleSubmit}>
       <AdminAuthField
         id="admin-forgot-email"
         label="Email"
@@ -27,9 +27,10 @@ function ForgotPasswordPage() {
         onChange={setEmail}
         required
         autoComplete="email"
+        placeholder="you@company.com"
       />
 
-      <div className={styles.actions}>
+      <div className={styles.formActions}>
         <button type="submit" className={styles.primaryBtn}>
           Send Reset Link
         </button>
