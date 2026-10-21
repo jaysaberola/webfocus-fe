@@ -177,6 +177,9 @@ function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
   if (url.includes("tab=invoices") || url.includes("tab=billing") || row.kind === "billing") {
     return "billing";
   }
+  if (url.includes("tab=leads") || row.kind === "crm_lead") {
+    return "leads";
+  }
   return "orders";
 }
 
@@ -188,6 +191,7 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
   if (tab === "helpdesk") return "Open Helpdesk";
   if (tab === "inquiries") return "Open Inquiries";
   if (tab === "billing") return "Open Billing";
+  if (tab === "leads" || row.kind === "crm_lead") return "Open Leads";
   if (row.kind === "web_design_quotation") return "Open Pending Quotation";
   return "Open Deals";
 }
