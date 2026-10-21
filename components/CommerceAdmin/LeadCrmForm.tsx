@@ -24,6 +24,12 @@ import {
   zipSuggestOptions,
 } from "@/lib/commerceAdmin/phAddressCatalog";
 import { sortSalesAssignees, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
+import {
+  canChangeLeadAssignment,
+  leadAssignmentFieldHint,
+  resolveLeadAssignableFor,
+  type LeadAssignableFor,
+} from "@/lib/commerceAdmin/leadAssignmentHelpers";
 import { createLead, updateLead, type CrmLeadRow } from "@/services/leadService";
 import { fetchCommerceAssignableUsers, type CommerceAssignableUser } from "@/services/commerceAdminService";
 import { getCurrentUserCached } from "@/lib/currentUser";
@@ -81,6 +87,17 @@ function composeStreetLine(street: string, barangay: string) {
   return `${line}, ${place}`;
 }
 
+function leadAssigneeLabel(row?: CrmLeadRow | null) {
+  const owner = row?.lead_owner;
+  if (!owner) return "Unassigned";
+  return (
+    String(owner.name || "").trim() ||
+    `${owner.fname || ""} ${owner.lname || ""}`.trim() ||
+    owner.email ||
+    "Unassigned"
+  );
+}
+
 function leadRecordOwnerLabel(row?: CrmLeadRow | null) {
   if (!row) return "—";
   const user = row.created_by;
@@ -115,6 +132,9 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [leadOwnerId, setLeadOwnerId] = useState<number | null>(null);
   const [createOwnerLabel, setCreateOwnerLabel] = useState("—");
+  const [assignableFor, setAssignableFor] = useState<LeadAssignableFor | null>(null);
+  const [canAssignLead, setCanAssignLead] = useState(false);
+  const [assignmentActor, setAssignmentActor] = useState<unknown>(null);
   const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [addressRegion, setAddressRegion] = useState("");
   const [leadBarangay, setLeadBarangay] = useState("");
@@ -133,10 +153,22 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
   }, [lead]);
 
   useEffect(() => {
-    fetchCommerceAssignableUsers({ for: "lead_assignee" })
+    void getCurrentUserCached({ force: false }).then((user) => {
+      setAssignmentActor(user);
+      setAssignableFor(resolveLeadAssignableFor(user));
+      setCanAssignLead(canChangeLeadAssignment(user));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!assignableFor) {
+      setStaffUsers([]);
+      return;
+    }
+    fetchCommerceAssignableUsers({ for: assignableFor })
       .then((rows) => setStaffUsers(sortSalesAssignees(Array.isArray(rows) ? rows : [])))
       .catch(() => setStaffUsers([]));
-  }, []);
+  }, [assignableFor]);
 
   useEffect(() => {
     if (mode !== "create") return;
@@ -378,14 +410,20 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
                 <span>{mode === "create" ? createOwnerLabel : leadRecordOwnerLabel(lead)}</span>
               </div>
             </Field>
-            <Field label="Assigned To" hint="Assign to Sales Staff or Sales Admin">
-              <LeadOwnerAssignSelect
-                className={inputClass()}
-                value={leadOwnerId}
-                users={ownerOptions}
-                disabled={submitting}
-                onChange={setLeadOwnerId}
-              />
+            <Field label="Assigned To" hint={leadAssignmentFieldHint(assignmentActor)}>
+              {canAssignLead ? (
+                <LeadOwnerAssignSelect
+                  className={inputClass()}
+                  value={leadOwnerId}
+                  users={ownerOptions}
+                  disabled={submitting}
+                  onChange={setLeadOwnerId}
+                />
+              ) : (
+                <div className={styles.clientCrmLockedField} aria-readonly="true">
+                  <span>{leadAssigneeLabel(lead)}</span>
+                </div>
+              )}
             </Field>
             <Field label="First Name">
               <div className={styles.clientCrmNameSplit}>

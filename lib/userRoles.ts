@@ -60,6 +60,11 @@ export function isSalesStaffUser(user: unknown) {
   return getUserRoleNames(user).some((role) => role === "sales staff");
 }
 
+export function isSalesAdminUser(user: unknown) {
+  if (!user || typeof user !== "object") return false;
+  return getUserRoleNames(user).some((role) => role === "sales admin");
+}
+
 export function isSalesRoleUser(user: unknown) {
   if (!user || typeof user !== "object") return false;
   return getUserRoleNames(user).some((role) => role === "sales staff" || role === "sales admin");

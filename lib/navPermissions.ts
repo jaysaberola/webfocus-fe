@@ -147,7 +147,8 @@ export function canAccessCommerceInquiries(user: unknown): boolean {
 export function canAccessCommerceTab(user: unknown, tab: CommerceAdminTab): boolean {
   // Contracts and Managed are not Commerce Control Center tabs (Managed lives in CMS Admin).
   if (tab === "contracts" || tab === "managed") return false;
-  if (tab === "orders" && isCustomerCareUser(user)) return false;
+  // Deals (orders): Customer Care only — unless they are also Sales Admin / Sales Staff.
+  if (tab === "orders" && isCustomerCareUser(user) && !isSalesRoleUser(user)) return false;
   if (tab === "inquiries") return canAccessCommerceInquiries(user);
   return hasAnyPermission(user, COMMERCE_TAB_PERMISSIONS[tab]);
 }
@@ -175,6 +176,7 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
   if (
     normalized === "orders" &&
     isCustomerCareUser(user) &&
+    !isSalesRoleUser(user) &&
     allowed.includes("leads")
   ) {
     return "leads";

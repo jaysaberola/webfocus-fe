@@ -13,6 +13,12 @@ import {
 } from "@/lib/tableFilterHelpers";
 import LeadOwnerAssignSelect from "@/components/CommerceAdmin/LeadOwnerAssignSelect";
 import { sortSalesAssignees, withCurrentAssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
+import {
+  canChangeLeadAssignment,
+  resolveLeadAssignableFor,
+  type LeadAssignableFor,
+} from "@/lib/commerceAdmin/leadAssignmentHelpers";
+import { useCommerceAdminAuth } from "@/lib/commerceAdmin/useCommerceAdminAuth";
 import { toast } from "@/lib/toast";
 import { fetchCommerceAssignableUsers, type CommerceAssignableUser } from "@/services/commerceAdminService";
 import { getLeads, updateLead, type CrmLeadRow } from "@/services/leadService";
@@ -146,6 +152,9 @@ function leadSortDirection(sortBy: LeadSortKey, column: "company" | "status" | "
 }
 
 export default function CommerceLeadsTab() {
+  const { user } = useCommerceAdminAuth();
+  const assignableFor = useMemo(() => resolveLeadAssignableFor(user), [user]);
+  const canAssignLead = canChangeLeadAssignment(user);
   const [view, setView] = useState<View>("list");
   const [rows, setRows] = useState<CrmLeadRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,11 +210,14 @@ export default function CommerceLeadsTab() {
   }, [view, reload]);
 
   useEffect(() => {
-    if (view !== "list") return;
-    fetchCommerceAssignableUsers({ for: "lead_assignee" })
+    if (view !== "list" || !assignableFor) {
+      setStaffUsers([]);
+      return;
+    }
+    fetchCommerceAssignableUsers({ for: assignableFor as LeadAssignableFor })
       .then((rows) => setStaffUsers(sortSalesAssignees(Array.isArray(rows) ? rows : [])))
       .catch(() => setStaffUsers([]));
-  }, [view]);
+  }, [view, assignableFor]);
 
   const ownerOptionsForRow = useCallback(
     (row: CrmLeadRow) =>
@@ -428,13 +440,17 @@ export default function CommerceLeadsTab() {
                         </td>
                         <td data-label={LEAD_COLUMN_LABELS.owner}>{leadRecordOwnerName(row)}</td>
                         <td data-label={LEAD_COLUMN_LABELS.assignedTo}>
-                          <LeadOwnerAssignSelect
-                            value={row.lead_owner_id ?? row.lead_owner?.id ?? null}
-                            users={ownerOptionsForRow(row)}
-                            disabled={assigningLeadId === row.id}
-                            onClick={(event) => event.stopPropagation()}
-                            onChange={(userId) => void assignLeadOwner(row, userId)}
-                          />
+                          {canAssignLead ? (
+                            <LeadOwnerAssignSelect
+                              value={row.lead_owner_id ?? row.lead_owner?.id ?? null}
+                              users={ownerOptionsForRow(row)}
+                              disabled={assigningLeadId === row.id}
+                              onClick={(event) => event.stopPropagation()}
+                              onChange={(userId) => void assignLeadOwner(row, userId)}
+                            />
+                          ) : (
+                            leadAssigneeName(row)
+                          )}
                         </td>
                         <td data-label={LEAD_COLUMN_LABELS.created}>{formatLeadCreated(row)}</td>
                       </tr>
