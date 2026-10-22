@@ -498,17 +498,6 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         </td>
                       );
                     }
-                    if (column === "expectedRevenue") {
-                      return (
-                        <td
-                          key={column}
-                          className={`${styles.resizableCell} ${styles.amountCell}`}
-                          data-label={DEAL_COLUMN_LABELS[column]}
-                        >
-                          {dealCellValue(deal, column)}
-                        </td>
-                      );
-                    }
                     if (column === "salesStatus" || column === "paymentStatus" || column === "invoiceStatus") {
                       return (
                         <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.statusCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
@@ -524,11 +513,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                         key={column}
                         className={[
                           styles.resizableCell,
-                          column === "dealAmount"
-                            ? styles.dealsAmount
-                            : column === "collectionNote"
-                              ? undefined
-                              : styles.dealsNowrap,
+                          column === "collectionNote" ? undefined : styles.dealsNowrap,
                         ]
                           .filter(Boolean)
                           .join(" ")}
