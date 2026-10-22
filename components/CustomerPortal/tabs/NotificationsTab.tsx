@@ -106,6 +106,7 @@ function actionLabel(item: PortalNotification) {
   if (url.includes("tab=account")) return "Open Account";
   if (url.includes("tab=help")) return "Open Help & Communication";
   if (url.includes("tab=overview")) return "Open Overview";
+  if (url.includes("renew=1")) return "Renew in Orders";
   if (url.includes("tab=contract")) return "Open Contract";
   return "Open related page";
 }

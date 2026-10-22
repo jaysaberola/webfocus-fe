@@ -442,12 +442,13 @@ export function clientDisplayStatus(client: CustomerRow) {
   return "Active";
 }
 
-export function clientHasExpiringService(client: CustomerRow, withinDays = 30) {
+export function clientHasExpiringService(client: CustomerRow, withinDays = 90) {
   const cutoff = Date.now() + withinDays * 24 * 60 * 60 * 1000;
   return (client.services ?? []).some((service) => {
     if (String(service.status ?? "").toLowerCase() === "expired") return false;
-    const renewAt = Date.parse(String(service.renew_at ?? ""));
-    return Number.isFinite(renewAt) && renewAt <= cutoff;
+    const raw = service.expires_at ?? service.expiresAt ?? service.renew_at ?? service.renewAt;
+    const expiry = Date.parse(String(raw ?? ""));
+    return Number.isFinite(expiry) && expiry <= cutoff;
   });
 }
 

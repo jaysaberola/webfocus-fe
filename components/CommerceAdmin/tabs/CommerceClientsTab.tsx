@@ -537,7 +537,7 @@ export default function CommerceClientsTab(_props: Props) {
 
       {expiringOnly ? (
         <div className={styles.filterBanner}>
-          <span>Showing clients with services expiring within 30 days</span>
+          <span>Showing clients with services expiring within 90 days</span>
           <button type="button" className={styles.secondaryBtnSm} onClick={() => setExpiringOnly(false)}>
             Clear filter
           </button>

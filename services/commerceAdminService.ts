@@ -186,6 +186,7 @@ export type CommerceServiceAdminRow = {
   email?: string;
   renewLabel?: string | null;
   renewAt?: string | null;
+  expiresAt?: string | null;
   transactionNo?: string | null;
 };
 

@@ -1,6 +1,8 @@
 export type ToastType = "success" | "danger" | "warning" | "info";
 export type ToastVariant = "default" | "cart" | "inbox";
 
+export type InboxToastPriority = "default" | "warning" | "critical";
+
 export type ToastPayload = {
   message: string;
   type: ToastType;
@@ -8,6 +10,9 @@ export type ToastPayload = {
   title?: string;
   body?: string;
   onClick?: () => void;
+  inboxPriority?: InboxToastPriority;
+  actionLabel?: string;
+  unreadCount?: number;
 };
 
 type Listener = (toast: ToastPayload) => void;
@@ -53,16 +58,29 @@ export const toast = {
       variant: "cart",
     });
   },
-  inbox(payload: { title: string; body?: string; onClick?: () => void }) {
+  inbox(payload: {
+    title: string;
+    body?: string;
+    onClick?: () => void;
+    priority?: InboxToastPriority;
+    actionLabel?: string;
+    unreadCount?: number;
+  }) {
     const title = String(payload.title || "New notification").trim() || "New notification";
     const body = String(payload.body || "").trim();
+    const priority = payload.priority ?? "default";
+    const type: ToastType =
+      priority === "critical" ? "danger" : priority === "warning" ? "warning" : "info";
     toastEmitter.emit({
       message: body || title,
-      type: "info",
+      type,
       variant: "inbox",
       title,
       body,
       onClick: payload.onClick,
+      inboxPriority: priority,
+      actionLabel: payload.actionLabel,
+      unreadCount: payload.unreadCount,
     });
   },
 };

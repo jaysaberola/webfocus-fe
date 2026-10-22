@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Toast from "./Toast";
-import { toastEmitter, ToastType, ToastVariant } from "@/lib/toast";
+import { toastEmitter, ToastType, ToastVariant, type InboxToastPriority } from "@/lib/toast";
 import styles from "@/styles/toast.module.css";
 
 interface ToastItem {
@@ -11,6 +11,9 @@ interface ToastItem {
   title?: string;
   body?: string;
   onClick?: () => void;
+  inboxPriority?: InboxToastPriority;
+  actionLabel?: string;
+  unreadCount?: number;
 }
 
 type AnchorRect = {
@@ -19,7 +22,7 @@ type AnchorRect = {
   width: number;
 };
 
-const INBOX_WIDTH = 420;
+const INBOX_WIDTH = 540;
 
 let id = 0;
 
@@ -45,10 +48,12 @@ export default function ToastHost() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [anchor, setAnchor] = useState<AnchorRect | null>(null);
 
-  const hasInboxToast = toasts.some((t) => t.variant === "inbox");
   const hasCartToast = toasts.some((t) => t.variant === "cart");
   const regularToasts = useMemo(() => toasts.filter((t) => t.variant !== "inbox"), [toasts]);
   const inboxToasts = useMemo(() => toasts.filter((t) => t.variant === "inbox"), [toasts]);
+  const hasInboxToast = inboxToasts.length > 0;
+  const inboxPriority = inboxToasts[0]?.inboxPriority ?? "default";
+  const inboxUrgent = inboxPriority === "critical" || inboxPriority === "warning";
 
   useEffect(() => {
     const unsubscribe = toastEmitter.subscribe((toast) => {
@@ -61,6 +66,9 @@ export default function ToastHost() {
           title: toast.title,
           body: toast.body,
           onClick: toast.onClick,
+          inboxPriority: toast.inboxPriority,
+          actionLabel: toast.actionLabel,
+          unreadCount: toast.unreadCount,
         };
         if (nextItem.variant === "inbox") {
           return [...prev.filter((row) => row.variant !== "inbox"), nextItem];
@@ -123,7 +131,13 @@ export default function ToastHost() {
 
       {inboxToasts.length ? (
         <div
-          className={`${styles.toastHost} ${styles.toastHostInbox}`}
+          className={`${styles.toastHost} ${styles.toastHostInbox}${
+            inboxPriority === "critical"
+              ? ` ${styles.toastHostInboxCritical}`
+              : inboxPriority === "warning"
+                ? ` ${styles.toastHostInboxWarning}`
+                : ""
+          }`}
           style={
             anchor
               ? {
@@ -131,12 +145,15 @@ export default function ToastHost() {
                   right: `${anchor.right}px`,
                   width: `${anchor.width}px`,
                   maxWidth: `${anchor.width}px`,
+                  // Align caret toward notification bell center (~44px wide).
+                  ["--inbox-caret-right" as string]: "22px",
                 }
               : {
                   top: "5.1rem",
                   right: "0.75rem",
                   width: `${INBOX_WIDTH}px`,
                   maxWidth: `min(${INBOX_WIDTH}px, calc(100vw - 1.5rem))`,
+                  ["--inbox-caret-right" as string]: "22px",
                 }
           }
         >
@@ -150,6 +167,9 @@ export default function ToastHost() {
               body={t.body}
               onClick={t.onClick}
               onClose={() => remove(t.id)}
+              inboxPriority={t.inboxPriority}
+              actionLabel={t.actionLabel}
+              unreadCount={t.unreadCount}
             />
           ))}
         </div>

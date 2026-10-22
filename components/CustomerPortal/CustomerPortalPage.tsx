@@ -5,7 +5,8 @@ import { useCustomerPortalAuth } from "@/lib/customerPortal/useCustomerPortalAut
 import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount";
 import { PORTAL_NOTIFICATIONS_UPDATED_EVENT } from "@/services/customerPortalService";
 import { fetchCurrentCustomer } from "@/services/publicCustomerService";
-import LiveInboxHost from "@/components/LiveInboxHost";
+import LiveInboxHost, { type InboxToastOpenContext } from "@/components/LiveInboxHost";
+import type { InboxToastPriority } from "@/lib/inboxToastPriority";
 import CustomerPortalTabs from "./CustomerPortalTabs";
 import OverviewTab from "./tabs/OverviewTab";
 import BillingTab from "./tabs/BillingTab";
@@ -88,6 +89,18 @@ export default function CustomerPortalPage() {
     );
   }, [router]);
 
+  const handleInboxToastOpen = useCallback(
+    (context?: InboxToastOpenContext) => {
+      const priority: InboxToastPriority = context?.priority ?? "default";
+      if (priority === "critical" || priority === "warning") {
+        switchTab("orders", { renew: "1" });
+        return;
+      }
+      openInbox();
+    },
+    [openInbox, switchTab],
+  );
+
   if (loading) {
     return (
       <div className={`${styles.page} public-content-gutter`}>
@@ -125,7 +138,7 @@ export default function CustomerPortalPage() {
         )}
       </div>
 
-      <LiveInboxHost audience="customer" enabled={Boolean(customer)} onOpenInbox={openInbox} />
+      <LiveInboxHost audience="customer" enabled={Boolean(customer)} onOpenInbox={handleInboxToastOpen} />
 
       {activeTab !== "billing" ? (
         <PaynamicsProofReminderHost

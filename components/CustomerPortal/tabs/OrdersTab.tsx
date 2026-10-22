@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
@@ -279,6 +280,8 @@ function ServiceNameLink({
 }
 
 export default function OrdersTab() {
+  const router = useRouter();
+  const showRenewHelp = router.isReady && router.query.renew === "1";
   const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -595,7 +598,8 @@ export default function OrdersTab() {
     }
 
     if (action === "renew") {
-      window.location.assign("/public/dashboard?tab=billing");
+      toast.info("Opening Billing to pay your renewal. If you need a new renewal quote, use Help & Communication.");
+      void router.push({ pathname: "/public/dashboard", query: { tab: "billing" } });
       return;
     }
 
@@ -697,6 +701,33 @@ export default function OrdersTab() {
             Order New
           </Link>
         </div>
+
+        {showRenewHelp ? (
+          <div className={`${styles.alertBanner} ${styles.alertPayment}`} role="status">
+            <span className={styles.alertIconWrap} aria-hidden="true">
+              <i className="fa-solid fa-rotate-right" />
+            </span>
+            <div className={styles.pendingPayCopy}>
+              <p className={styles.pendingPayTitle}>How to renew an expired service</p>
+              <p className={styles.panelSub}>
+                1) Find your order below → Actions → <strong>Renew Subscription</strong> (opens Billing to pay).
+                2) Or browse <Link href="/public/services">Add Service</Link> for a new term.
+                3) Questions? <Link href="/public/dashboard?tab=help">Help &amp; Communication</Link>.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.secondaryBtnSm}
+              onClick={() => {
+                void router.replace({ pathname: "/public/dashboard", query: { tab: "orders" } }, undefined, {
+                  shallow: true,
+                });
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
 
         {pendingCheckoutOrders.length > 0 ? (
           <div className={styles.pendingPayNotice} role="status">

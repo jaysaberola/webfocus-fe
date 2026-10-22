@@ -55,7 +55,24 @@ export interface SalesTransaction {
   payment_mode?: string | null;
   items?: SalesTransactionItem[];
   proposals?: SalesTransactionProposal[];
+  provisioning_run?: ProvisioningRunSummary | null;
+  provisioningRun?: ProvisioningRunSummary | null;
 }
+
+export type ProvisioningRunActionSummary = {
+  id: number;
+  service_name: string;
+  status: string;
+  done_at?: string | null;
+  completed_at?: string | null;
+};
+
+export type ProvisioningRunSummary = {
+  id: number;
+  status?: string | null;
+  approved_at?: string | null;
+  actions?: ProvisioningRunActionSummary[];
+};
 
 export interface SalesTransactionProposal {
   id: number;

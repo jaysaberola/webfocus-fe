@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import type { ToastType, ToastVariant } from "@/lib/toast";
+import type { InboxToastPriority, ToastType, ToastVariant } from "@/lib/toast";
+import { inboxToastEyebrow } from "@/lib/inboxToastPriority";
 import styles from "@/styles/toast.module.css";
 
 const defaultTypeClass: Record<ToastType, string> = {
@@ -22,10 +23,10 @@ function cleanInboxBody(title: string, body: string) {
     extraUnread = Number(extraMatch[1]) || 0;
     detail = detail.replace(/(?:·|\|)\s*\d+\s+more unread\s*$/i, "").trim();
   }
-  if (detail.length > 150) {
-    const clipped = detail.slice(0, 150);
+  if (detail.length > 220) {
+    const clipped = detail.slice(0, 220);
     const lastSpace = clipped.lastIndexOf(" ");
-    detail = `${(lastSpace > 90 ? clipped.slice(0, lastSpace) : clipped).trim()}…`;
+    detail = `${(lastSpace > 140 ? clipped.slice(0, lastSpace) : clipped).trim()}…`;
   }
   return { detail, extraUnread };
 }
@@ -38,6 +39,9 @@ export default function Toast({
   body,
   onClick,
   onClose,
+  inboxPriority = "default",
+  actionLabel,
+  unreadCount = 1,
 }: {
   message: string;
   type: ToastType;
@@ -46,43 +50,54 @@ export default function Toast({
   body?: string;
   onClick?: () => void;
   onClose: () => void;
+  inboxPriority?: InboxToastPriority;
+  actionLabel?: string;
+  unreadCount?: number;
 }) {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
-    const duration = variant === "inbox" ? 10000 : variant === "cart" ? 4000 : 3000;
+    // Inbox toasts re-open from LiveInboxHost while unread remain — stay long enough to read.
+    const duration =
+      variant === "inbox"
+        ? inboxPriority === "critical"
+          ? 45000
+          : inboxPriority === "warning"
+            ? 38000
+            : 32000
+        : variant === "cart"
+          ? 4000
+          : 3000;
     const timer = window.setTimeout(() => onCloseRef.current(), duration);
     return () => window.clearTimeout(timer);
-  }, [variant, title, body, message]);
+  }, [variant, title, body, message, inboxPriority]);
 
   if (variant === "inbox") {
     const heading = title || "New notification";
     const { detail, extraUnread } = cleanInboxBody(heading, body || (title ? "" : message));
-    const unreadLabel = extraUnread > 0 ? `${extraUnread + 1} unread` : "Notification";
+    const totalUnread = Math.max(unreadCount, extraUnread + 1);
+    const unreadLabel = inboxToastEyebrow(totalUnread, inboxPriority);
+    const priorityClass =
+      inboxPriority === "critical"
+        ? styles.inboxToastCritical
+        : inboxPriority === "warning"
+          ? styles.inboxToastWarning
+          : "";
+    const iconClass =
+      inboxPriority === "critical"
+        ? "fa-solid fa-triangle-exclamation"
+        : inboxPriority === "warning"
+          ? "fa-solid fa-clock"
+          : "fa-solid fa-bell";
+    const cta = actionLabel || "Open notifications";
     return (
-      <div className={styles.inboxToast} role="status" aria-live="polite">
-        <button
-          type="button"
-          className={styles.inboxToastMain}
-          onClick={() => {
-            onClick?.();
-            onClose();
-          }}
-        >
-          <div className={styles.inboxToastIcon} aria-hidden="true">
-            <i className="fa-regular fa-bell" />
-          </div>
-          <div className={styles.inboxToastText}>
-            <span className={styles.inboxToastEyebrow}>{unreadLabel}</span>
-            <strong>{heading}</strong>
-            {detail ? <p>{detail}</p> : null}
-            {extraUnread > 0 ? (
-              <span className={styles.inboxToastMeta}>+{extraUnread} more unread</span>
-            ) : null}
-            <span className={styles.inboxToastAction}>Open notifications</span>
-          </div>
-        </button>
+      <div
+        className={[styles.inboxToast, priorityClass].filter(Boolean).join(" ")}
+        role="alertdialog"
+        aria-live="assertive"
+        aria-label={heading}
+      >
         <button
           type="button"
           className={styles.inboxToastClose}
@@ -93,6 +108,31 @@ export default function Toast({
           aria-label="Dismiss"
         >
           <i className="fa-solid fa-xmark" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className={styles.inboxToastMain}
+          onClick={() => {
+            onClick?.();
+            onClose();
+          }}
+        >
+          <div className={styles.inboxToastIcon} aria-hidden="true">
+            <i className={iconClass} />
+          </div>
+          <div className={styles.inboxToastBody}>
+            <span className={styles.inboxToastEyebrow}>{unreadLabel}</span>
+            <strong className={styles.inboxToastTitle}>{heading}</strong>
+            <div className={styles.inboxToastFootRow}>
+              <div className={styles.inboxToastCopy}>
+                {detail ? <p className={styles.inboxToastDetail}>{detail}</p> : null}
+                {extraUnread > 0 ? (
+                  <span className={styles.inboxToastMeta}>+{extraUnread} more unread</span>
+                ) : null}
+              </div>
+              <span className={styles.inboxToastAction}>{cta}</span>
+            </div>
+          </div>
         </button>
       </div>
     );

@@ -16,13 +16,37 @@
 .toastHostInbox {
   align-items: flex-end;
   font-family: inherit;
+  z-index: 10060;
+}
+
+.toastHostInboxCritical,
+.toastHostInboxWarning {
+  z-index: 10061;
+}
+
+.inboxToastBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10055;
+  background: rgba(15, 23, 42, 0.28);
+  pointer-events: none;
+  animation: inboxBackdropIn 0.2s ease;
+}
+
+@keyframes inboxBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .toastHostInbox::before {
   content: "";
   position: absolute;
   top: -5px;
-  right: 16px;
+  right: var(--inbox-caret-right, 22px);
   width: 10px;
   height: 10px;
   background: #ffffff;
@@ -38,25 +62,78 @@
   max-width: none;
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 0.85rem;
+  border-radius: 0.75rem;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
-  padding: 0.85rem 0.8rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.35rem;
+  padding: 0.7rem 0.65rem 0.7rem 0.75rem;
   font-family: inherit;
   animation: inboxPopIn 0.22s ease;
 }
 
+.inboxToastWarning {
+  border-color: #fdba74;
+  border-left: 4px solid #f97316;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffffff 72%);
+  box-shadow:
+    0 0 0 1px rgba(249, 115, 22, 0.08),
+    0 16px 40px rgba(249, 115, 22, 0.18);
+  animation: inboxPopIn 0.22s ease, inboxPulseWarning 2.4s ease-in-out infinite;
+}
+
+.inboxToastCritical {
+  border-color: #fca5a5;
+  border-left: 4px solid #dc2626;
+  background: linear-gradient(180deg, #fef2f2 0%, #ffffff 72%);
+  box-shadow:
+    0 0 0 1px rgba(220, 38, 38, 0.1),
+    0 18px 44px rgba(220, 38, 38, 0.22);
+  animation: inboxPopIn 0.22s ease, inboxPulseCritical 2s ease-in-out infinite;
+}
+
+.inboxToastWarning .inboxToastEyebrow {
+  color: #c2410c;
+}
+
+.inboxToastCritical .inboxToastEyebrow {
+  color: #b91c1c;
+}
+
+.inboxToastWarning .inboxToastIcon {
+  background: #ffedd5;
+  border-color: #fdba74;
+  color: #ea580c;
+}
+
+.inboxToastCritical .inboxToastIcon {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.inboxToastWarning .inboxToastAction {
+  background: #ea580c;
+}
+
+.inboxToastWarning .inboxToastMain:hover .inboxToastAction {
+  background: #c2410c;
+}
+
+.inboxToastCritical .inboxToastAction {
+  background: #dc2626;
+}
+
+.inboxToastCritical .inboxToastMain:hover .inboxToastAction {
+  background: #b91c1c;
+}
+
 .inboxToastMain {
-  flex: 1;
-  min-width: 0;
   display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
+  align-items: stretch;
+  gap: 0.65rem;
+  width: 100%;
+  min-width: 0;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 0 1.85rem 0 0;
   text-align: left;
   cursor: pointer;
   font: inherit;
@@ -67,8 +144,8 @@
 }
 
 .inboxToastIcon {
-  width: 2.125rem;
-  height: 2.125rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 0.625rem;
   background: #eff6ff;
   color: #2563eb;
@@ -77,84 +154,125 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  align-self: center;
 }
 
-.inboxToastText {
+.inboxToastBody {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.28rem;
 }
 
 .inboxToastEyebrow {
-  display: inline-block;
-  margin-bottom: 0.2rem;
+  display: block;
   color: #64748b;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  line-height: 1.2;
 }
 
-.inboxToastText strong {
+.inboxToastTitle {
   display: block;
   color: #0f172a;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 700;
   line-height: 1.35;
+  margin: 0;
 }
 
-.inboxToastText p {
-  margin: 0.28rem 0 0;
+.inboxToastFootRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.65rem;
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.inboxToastCopy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.inboxToastDetail {
+  margin: 0;
+  width: 100%;
   color: #475569;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 400;
-  line-height: 1.45;
-  word-break: break-word;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .inboxToastMeta {
-  display: block;
-  margin-top: 0.28rem;
   color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .inboxToastAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  margin-top: 0.65rem;
-  min-height: 2.125rem;
-  padding: 0 0.9rem;
-  border-radius: 0.625rem;
+  flex-shrink: 0;
+  min-height: 1.875rem;
+  padding: 0 0.75rem;
+  border-radius: 0.5rem;
   background: #2563eb;
   color: #ffffff;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .inboxToastClose {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
   border: 1px solid #e2e8f0;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 0.45rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   line-height: 1;
-  flex-shrink: 0;
 }
 
 .inboxToastClose:hover {
   background: #f1f5f9;
   color: #0f172a;
+}
+
+@media (max-width: 520px) {
+  .inboxToastFootRow {
+    grid-template-columns: 1fr;
+    row-gap: 0.45rem;
+  }
+
+  .inboxToastAction {
+    justify-self: start;
+  }
 }
 
 @keyframes inboxPopIn {
@@ -165,6 +283,34 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes inboxPulseWarning {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.08),
+      0 16px 40px rgba(249, 115, 22, 0.18);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(249, 115, 22, 0.14),
+      0 18px 44px rgba(249, 115, 22, 0.24);
+  }
+}
+
+@keyframes inboxPulseCritical {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(220, 38, 38, 0.1),
+      0 18px 44px rgba(220, 38, 38, 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(220, 38, 38, 0.16),
+      0 22px 48px rgba(220, 38, 38, 0.28);
   }
 }
 

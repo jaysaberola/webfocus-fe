@@ -10,8 +10,28 @@ import {
 } from "@/services/customerPortalService";
 import { toast } from "@/lib/toast";
 import type { PortalNotification } from "@/lib/customerPortal/types";
+import {
+  inboxToastActionLabel,
+  inboxToastPriority,
+  notifyInboxToastShown,
+  sortInboxByPriority,
+  type InboxToastPriority,
+} from "@/lib/inboxToastPriority";
+
+export type InboxToastOpenContext = {
+  priority: InboxToastPriority;
+};
 
 const POLL_MS_DEFAULT = 8000;
+
+/** Re-show popup while unread remain (admin + customer stay aware). */
+function remindIntervalMs(items: LiveInboxItem[]): number {
+  if (!items.length) return 45000;
+  const priority = inboxToastPriority(sortInboxByPriority(items)[0]);
+  if (priority === "critical") return 20000;
+  if (priority === "warning") return 30000;
+  return 45000;
+}
 
 type Audience = "customer" | "staff";
 
@@ -20,13 +40,15 @@ type LiveInboxItem = {
   title: string;
   body: string;
   unread: boolean;
+  kind?: string | null;
+  type?: string | null;
 };
 
 type Props = {
   audience: Audience;
   enabled?: boolean;
   pollMs?: number;
-  onOpenInbox?: () => void;
+  onOpenInbox?: (context?: InboxToastOpenContext) => void;
 };
 
 function asCustomerItems(rows: PortalNotification[]): LiveInboxItem[] {
@@ -35,6 +57,8 @@ function asCustomerItems(rows: PortalNotification[]): LiveInboxItem[] {
     title: String(row.title || "New notification").trim() || "New notification",
     body: String(row.desc || row.intro || "").trim(),
     unread: Boolean(row.unread),
+    kind: row.type ?? null,
+    type: row.type ?? null,
   }));
 }
 
@@ -48,6 +72,8 @@ function asStaffItems(payload: {
     title: String(row.title || "New notification").trim() || "New notification",
     body: String(row.desc || row.intro || "").trim(),
     unread: Boolean(row.unread),
+    kind: row.kind ?? null,
+    type: row.kind ?? null,
   }));
 }
 
@@ -58,19 +84,24 @@ async function loadInbox(audience: Audience): Promise<LiveInboxItem[]> {
   return asStaffItems(await fetchCommerceNotifications());
 }
 
-function popupUnread(items: LiveInboxItem[], onOpenInbox?: () => void) {
+function popupUnread(items: LiveInboxItem[], onOpenInbox?: (context?: InboxToastOpenContext) => void) {
   if (!items.length) return;
-  const sorted = [...items].sort((a, b) => b.id - a.id);
+  const sorted = sortInboxByPriority(items);
   const latest = sorted[0];
+  const priority = inboxToastPriority(latest);
   const extra = sorted.length - 1;
   const detail = String(latest.body || "").trim();
+  notifyInboxToastShown(priority);
   toast.inbox({
     title: latest.title,
     body:
       extra > 0
         ? `${detail || "You have unread notifications."}${detail ? " " : ""}· ${extra} more unread`
         : detail || "Open your inbox to review this message.",
-    onClick: onOpenInbox,
+    onClick: () => onOpenInbox?.({ priority }),
+    priority,
+    actionLabel: inboxToastActionLabel(priority),
+    unreadCount: sorted.length,
   });
 }
 
@@ -107,7 +138,7 @@ export default function LiveInboxHost({
       lastOpenPopupAt.current = Date.now();
       window.setTimeout(() => {
         toasting.current = false;
-      }, 500);
+      }, 400);
     };
 
     const refresh = async (reason: "poll" | "open" | "focus" = "poll") => {
@@ -141,24 +172,27 @@ export default function LiveInboxHost({
         lastUnread.current = unreadCount;
         seenIds.current = new Set([...seenIds.current, ...ids]);
 
-        // Returning to the tab / window: remind about remaining unread (throttled).
-        if ((reason === "open" || reason === "focus") && unreadItems.length) {
-          const elapsed = Date.now() - lastOpenPopupAt.current;
-          if (elapsed > 15000) {
-            if (audience === "customer") notifyPortalNotificationsUpdated();
-            else notifyCommerceNotificationsUpdated();
-            showPopup(unreadItems);
-            return;
-          }
-        }
+        if (!unreadItems.length) return;
 
-        if (!freshUnread.length && !grew) return;
+        const elapsed = Date.now() - lastOpenPopupAt.current;
+        const remindMs = remindIntervalMs(unreadItems);
+        const dueForReminder = elapsed >= remindMs;
+        const tabReturned = reason === "open" || reason === "focus";
+        const shouldPopup =
+          freshUnread.length > 0 ||
+          grew ||
+          dueForReminder ||
+          (tabReturned && elapsed >= 8000);
+
+        if (!shouldPopup) return;
 
         if (audience === "customer") notifyPortalNotificationsUpdated();
         else notifyCommerceNotificationsUpdated();
 
-        if (!freshUnread.length) return;
-        showPopup(freshUnread);
+        // Prefer all unread on reminders so count stays visible; new-only when just arrived.
+        const payload =
+          freshUnread.length > 0 && (grew || elapsed < remindMs) ? freshUnread : unreadItems;
+        showPopup(payload);
       } catch {
         // Keep polling quietly; offline/auth blips should not spam the UI.
       }

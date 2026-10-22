@@ -6,9 +6,15 @@ import ResizableTableHead from "@/components/CommerceAdmin/ResizableTableHead";
 import ColumnResizeLines from "@/components/CommerceAdmin/ColumnResizeLines";
 import { COMMERCE_ADMIN_PATH } from "@/lib/commerceAdmin/constants";
 import { useResizableColumns } from "@/lib/commerceAdmin/useResizableColumns";
+import CommerceStatusBadge from "@/components/CommerceAdmin/CommerceStatusBadge";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
+import ApprovalDateCell from "@/components/CommerceAdmin/ApprovalDateCell";
+import DealExpirationCell from "@/components/CommerceAdmin/DealExpirationCell";
 import {
   buildClientDealRows,
+  clientDealLineAmount,
+  clientDealRowLineContext,
+  computeClientDealInvoiceGroups,
   DEAL_COLUMN_VISIBILITY_KEYS,
   DEAL_COLUMN_LABELS,
   DEFAULT_DEAL_COLUMNS,
@@ -17,10 +23,15 @@ import {
   type ClientDealRow,
   type DealColumnKey,
 } from "@/lib/commerceAdmin/clientDealHelpers";
+import { parseDealMeta } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientIsAssigned, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
 import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedColumnVisibility";
 import { toast } from "@/lib/toast";
-import { assignCommerceCustomerOwner, fetchCommerceServices } from "@/services/commerceAdminService";
+import {
+  assignCommerceCustomerOwner,
+  fetchCommerceServices,
+  type CommerceServiceAdminRow,
+} from "@/services/commerceAdminService";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import { type SalesTransaction } from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
@@ -103,6 +114,8 @@ function dealCellValue(deal: ClientDealRow, column: DealColumnKey) {
       return deal.collectionNote;
     case "dealStatus":
       return deal.dealStatus;
+    case "invoiceId":
+      return deal.transactionNo || "—";
     case "contractStatus":
       return deal.contractStatus;
     default:
@@ -114,13 +127,14 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
   const router = useRouter();
   const [dealRows, setDealRows] = useState<ClientDealRow[]>([]);
   const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
+  const [adminServices, setAdminServices] = useState<CommerceServiceAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const [assignOpen, setAssignOpen] = useState(false);
   const [unassigning, setUnassigning] = useState(false);
   const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
-    "commerceAdmin:columnVisibility:clientDeals",
+    "commerceAdmin:columnVisibility:clientDeals:v3",
     DEFAULT_DEAL_COLUMNS,
   );
   const [colVisOpen, setColVisOpen] = useState(false);
@@ -157,6 +171,7 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
           owner_id: detail?.owner_id ?? client.owner_id,
         };
         setTransactions(transactions);
+        setAdminServices(services);
         setDealRows(buildClientDealRows(enriched, transactions, services));
       })
       .catch(() => {
@@ -195,6 +210,8 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
     const start = (page - 1) * DEAL_PAGE_SIZE;
     return dealRows.slice(start, start + DEAL_PAGE_SIZE);
   }, [dealRows, page]);
+
+  const invoiceLineGroups = useMemo(() => computeClientDealInvoiceGroups(dealRows), [dealRows]);
   const rangeStart = dealRows.length ? (page - 1) * DEAL_PAGE_SIZE + 1 : 0;
   const rangeEnd = Math.min(page * DEAL_PAGE_SIZE, dealRows.length);
 
@@ -331,8 +348,25 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                 <td colSpan={Math.max(visibleColumns.length, 1)}>No deals found for this client.</td>
               </tr>
             ) : (
-              paginatedDeals.map((deal) => (
-                <tr key={deal.id}>
+              paginatedDeals.map((deal, rowIndex) => {
+                const transaction = transactions.find((row) => row.id === deal.transactionId);
+                const group = invoiceLineGroups.get(deal.id);
+                const prevDeal = rowIndex > 0 ? paginatedDeals[rowIndex - 1] : null;
+                const nextDeal = rowIndex < paginatedDeals.length - 1 ? paginatedDeals[rowIndex + 1] : null;
+                const multiInvoice = Boolean(group && group.lineTotal > 1);
+                const txId = deal.transactionId ?? null;
+                return (
+                <tr
+                  key={deal.id}
+                  className={[
+                    multiInvoice ? styles.invoiceGroupedRow : "",
+                    multiInvoice && prevDeal?.transactionId === txId ? styles.invoiceGroupedRowContinued : "",
+                    multiInvoice && nextDeal?.transactionId === txId ? styles.invoiceGroupedRowMoreBelow : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined}
+                  data-invoice-id={txId ?? undefined}
+                >
                   {visibleColumns.map((column) => {
                     if (column === "clientOwner") {
                       return (
@@ -371,12 +405,117 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     }
                     if (column === "dealStatus") {
                       return (
-                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
-                          {deal.dealStatus.toLowerCase() === "active" ? (
-                            <span className={styles.badgePaid}>ACTIVE</span>
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.statusCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
+                          <CommerceStatusBadge value={deal.dealStatus} context="deal" />
+                        </td>
+                      );
+                    }
+                    if (column === "invoiceId") {
+                      const invoiceNo = deal.transactionNo || "—";
+                      const multi = Boolean(group && group.lineTotal > 1);
+                      return (
+                        <td
+                          key={column}
+                          className={[
+                            styles.dealsNowrap,
+                            styles.resizableCell,
+                            styles.invoiceIdCell,
+                            multi ? styles.invoiceIdCellGrouped : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          data-label={DEAL_COLUMN_LABELS[column]}
+                        >
+                          {multi && group!.lineIndex > 1 ? (
+                            <span
+                              className={styles.invoiceLineContinued}
+                              title={`Line ${group!.lineIndex} of ${group!.lineTotal} on invoice ${invoiceNo}`}
+                            >
+                              ↳ {group!.lineIndex}/{group!.lineTotal}
+                            </span>
+                          ) : invoiceNo !== "—" ? (
+                            <>
+                              <button type="button" className={styles.tableCellLink} onClick={() => openEditDeal(deal)}>
+                                {invoiceNo}
+                              </button>
+                              {multi ? (
+                                <span
+                                  className={styles.invoiceLineBadge}
+                                  title={`${group!.lineTotal} deal lines on this invoice`}
+                                >
+                                  {group!.lineTotal} lines
+                                </span>
+                              ) : null}
+                            </>
                           ) : (
-                            <span className={styles.badgeMuted}>{deal.dealStatus}</span>
+                            "—"
                           )}
+                        </td>
+                      );
+                    }
+                    if (column === "dealExpirationDate") {
+                      const meta = transaction ? parseDealMeta(transaction.notes) : null;
+                      const line = clientDealRowLineContext(deal, client, transaction, adminServices);
+                      return (
+                        <td
+                          key={column}
+                          className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.dealExpirationCellWrap}`}
+                          data-label={DEAL_COLUMN_LABELS[column]}
+                        >
+                          <DealExpirationCell
+                            transaction={transaction}
+                            line={line}
+                            adminServices={adminServices}
+                            metaDealStatus={meta?.dealStatus}
+                          />
+                        </td>
+                      );
+                    }
+                    if (column === "technicalApproval") {
+                      const itemName = deal.itemName ?? deal.dealName;
+                      return (
+                        <td
+                          key={column}
+                          className={`${styles.resizableCell} ${styles.statusCell} ${styles.approvalDateCellWrap}`}
+                          data-label={DEAL_COLUMN_LABELS[column]}
+                        >
+                          {transaction ? (
+                            <ApprovalDateCell transaction={transaction} itemName={itemName} />
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      );
+                    }
+                    if (column === "dealAmount") {
+                      return (
+                        <td
+                          key={column}
+                          className={`${styles.resizableCell} ${styles.amountCell}`}
+                          data-label={DEAL_COLUMN_LABELS[column]}
+                        >
+                          {formatDealAmount(clientDealLineAmount(deal, transaction))}
+                        </td>
+                      );
+                    }
+                    if (column === "expectedRevenue") {
+                      return (
+                        <td
+                          key={column}
+                          className={`${styles.resizableCell} ${styles.amountCell}`}
+                          data-label={DEAL_COLUMN_LABELS[column]}
+                        >
+                          {dealCellValue(deal, column)}
+                        </td>
+                      );
+                    }
+                    if (column === "salesStatus" || column === "paymentStatus" || column === "invoiceStatus") {
+                      return (
+                        <td key={column} className={`${styles.dealsNowrap} ${styles.resizableCell} ${styles.statusCell}`} data-label={DEAL_COLUMN_LABELS[column]}>
+                          <CommerceStatusBadge
+                            value={dealCellValue(deal, column)}
+                            context={column === "paymentStatus" ? "payment" : column === "invoiceStatus" ? "invoice" : "sales"}
+                          />
                         </td>
                       );
                     }
@@ -400,7 +539,8 @@ export default function ClientDealsPanel({ client, onClientUpdated, onEditClient
                     );
                   })}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

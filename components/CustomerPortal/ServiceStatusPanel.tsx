@@ -115,6 +115,11 @@ function ServiceCard({ service }: { service: PortalServiceStatus }) {
         <span className={styles.serviceRenewLabel}>{service.renewLabel}</span>
         {service.renewDate && <strong className={styles.serviceRenewDate}>{service.renewDate}</strong>}
         <p className={styles.serviceRenewNote}>{service.renewNote}</p>
+        {service.status === "Expired" ? (
+          <Link href="/public/dashboard?tab=orders&renew=1" className={styles.primaryBtnSm}>
+            Renew service
+          </Link>
+        ) : null}
       </div>
     </article>
   );

@@ -3125,6 +3125,20 @@
   vertical-align: middle;
 }
 
+.dealDateValue {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.dealDateMuted {
+  color: #94a3b8;
+  font-size: 0.8125rem;
+}
+
 .paginationBar {
   display: flex;
   flex-direction: column;
@@ -7224,6 +7238,166 @@ select.clientCrmInput {
 
 .dealsNowrap {
   white-space: nowrap;
+}
+
+.invoiceIdCell {
+  vertical-align: middle;
+}
+
+.invoiceIdCellGrouped {
+  min-width: 9rem;
+}
+
+.invoiceLineBadge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.invoiceLineContinued {
+  display: inline-block;
+  color: #64748b;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.invoiceGroupedRow {
+  box-shadow: inset 3px 0 0 #93c5fd;
+  background: rgba(239, 246, 255, 0.45);
+}
+
+.invoiceGroupedRowContinued td {
+  border-top-color: #dbeafe;
+}
+
+.invoiceGroupedRowMoreBelow td {
+  border-bottom-color: #dbeafe;
+}
+
+.dealExpirationCellWrap {
+  min-width: 15.5rem;
+  width: 15.5rem;
+  vertical-align: middle;
+}
+
+.approvalDateCellWrap {
+  min-width: 10.5rem;
+  vertical-align: middle;
+}
+
+.dealExpirationCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+  width: 100%;
+  line-height: 1.2;
+}
+
+.dealExpirationDateLine {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.dealExpirationMetaRow {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.dealExpirationHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  border: 1px solid #e2e8f0;
+}
+
+.dealExpirationHint i {
+  font-size: 0.625rem;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.dealExpirationCountdownText {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.dealExpirationSublabel {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #64748b;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dealExpirationSublabelRenew {
+  color: #2563eb;
+}
+
+.dealExpirationHintFuture {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.dealExpirationHintSoon {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.dealExpirationHintToday {
+  background: #ffedd5;
+  color: #c2410c;
+  border-color: #fdba74;
+}
+
+.dealExpirationHintExpired {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.approvalDateCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.approvalDateBadge {
+  font-size: 0.6875rem;
+  padding: 0.18rem 0.5rem;
+  line-height: 1.25;
+  max-width: 100%;
 }
 
 .dealNameHost {

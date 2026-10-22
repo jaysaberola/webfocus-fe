@@ -9,6 +9,7 @@ import {
 export type TxColumnKey =
   | "clientOwner"
   | "clientName"
+  | "invoiceId"
   | "dealName"
   | "domainName"
   | "productCategory"
@@ -27,6 +28,8 @@ export type TxColumnKey =
   | "joNumber"
   | "billingInCharge"
   | "dealStatus"
+  | "dealExpirationDate"
+  | "technicalApproval"
   | "paymentTerms"
   | "paymentMethod"
   | "paymentMode"
@@ -55,6 +58,7 @@ export type TxFilterKey = "all" | "paid" | "pending";
 export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   clientOwner: "Client Owner",
   clientName: "Client Name",
+  invoiceId: "Invoice ID",
   dealName: "Deal Name",
   domainName: "Domain Name",
   productCategory: "Product Category",
@@ -73,6 +77,8 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
   joNumber: "JO Number",
   billingInCharge: "Billing-in-Charge",
   dealStatus: "Deal Status",
+  dealExpirationDate: "Deal Expiration",
+  technicalApproval: "Approved Date",
   paymentTerms: "Payment Terms",
   paymentMethod: "Payment Method",
   paymentMode: "Payment Mode",
@@ -89,6 +95,7 @@ export const TX_COLUMN_LABELS: Record<TxColumnKey, string> = {
 export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   clientOwner: true,
   clientName: true,
+  invoiceId: true,
   dealName: true,
   domainName: true,
   productCategory: true,
@@ -107,6 +114,8 @@ export const DEFAULT_TX_COLUMNS: Record<TxColumnKey, boolean> = {
   joNumber: false,
   billingInCharge: false,
   dealStatus: false,
+  dealExpirationDate: true,
+  technicalApproval: true,
   paymentTerms: false,
   paymentMethod: false,
   paymentMode: true,

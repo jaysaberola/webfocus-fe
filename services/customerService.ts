@@ -70,6 +70,7 @@ export type CustomerServiceLine = {
   plan?: string | null;
   status?: string | null;
   renew_at?: string | null;
+  expires_at?: string | null;
   service_name?: string | null;
   plan_name?: string | null;
   subject?: string | null;

@@ -12,6 +12,7 @@ import { usePortalUnreadCount } from "@/lib/customerPortal/usePortalUnreadCount"
 import { useStaffUnreadCount } from "@/lib/commerceAdmin/useStaffUnreadCount";
 import { useStoredPublicAuthState } from "@/lib/publicAuthState";
 import { CORE_PUBLIC_ROUTES, prefetchPublicRoutes } from "@/lib/prefetchPublicRoute";
+import { INBOX_TOAST_SHOWN_EVENT, type InboxToastPriority } from "@/lib/inboxToastPriority";
 
 const LOGO_SRC = "/images/webfocus-logo.png";
 
@@ -28,7 +29,20 @@ export default function LandingTopbar() {
   const staffUnread = useStaffUnreadCount(isStaffLoggedIn);
   const unreadNotifications = isCustomerLoggedIn ? customerUnread : staffUnread;
   const [logoFailed, setLogoFailed] = useState(false);
+  const [notifyPulse, setNotifyPulse] = useState<InboxToastPriority | null>(null);
   const { openDrawer: openCartDrawer } = usePublicCartDrawer();
+
+  useEffect(() => {
+    const onToastShown = (event: Event) => {
+      const priority = (event as CustomEvent<{ priority?: InboxToastPriority }>).detail?.priority;
+      if (priority === "critical" || priority === "warning") {
+        setNotifyPulse(priority);
+        window.setTimeout(() => setNotifyPulse(null), 12000);
+      }
+    };
+    window.addEventListener(INBOX_TOAST_SHOWN_EVENT, onToastShown);
+    return () => window.removeEventListener(INBOX_TOAST_SHOWN_EVENT, onToastShown);
+  }, []);
 
   useEffect(() => {
     prefetchPublicRoutes(router, CORE_PUBLIC_ROUTES);
@@ -196,7 +210,13 @@ export default function LandingTopbar() {
                     ? "/public/dashboard?tab=notification"
                     : "/public/login"
               }
-              className={`${styles["notify-btn"]}${isLoggedIn ? "" : ` ${styles["notify-btnReserved"]}`}`}
+              className={`${styles["notify-btn"]}${isLoggedIn ? "" : ` ${styles["notify-btnReserved"]}`}${
+                notifyPulse === "critical"
+                  ? ` ${styles["notify-btnCritical"]}`
+                  : notifyPulse === "warning"
+                    ? ` ${styles["notify-btnWarning"]}`
+                    : ""
+              }`}
               aria-label={
                 isLoggedIn
                   ? unreadNotifications > 0

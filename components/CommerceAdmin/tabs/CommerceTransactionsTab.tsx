@@ -17,14 +17,26 @@ import {
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
+import CommerceStatusBadge from "@/components/CommerceAdmin/CommerceStatusBadge";
+import ApprovalDateCell from "@/components/CommerceAdmin/ApprovalDateCell";
+import DealExpirationCell from "@/components/CommerceAdmin/DealExpirationCell";
 import DealNameCell from "@/components/CommerceAdmin/DealNameCell";
-import { dealConversationNotes, rememberDealAmount } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import {
-  formatDealNamesForDisplay,
+  dealConversationNotes,
+  parseDealMeta,
+  rememberDealAmount,
+} from "@/lib/commerceAdmin/clientOrderFormHelpers";
+import {
+  computeInvoiceLineGroups,
+  dealNameCellPropsForLine,
+  expandTransactionsToDealLines,
+  formatDealAmount,
   orderAdminColumnValue,
-  transactionDealNames,
-  transactionDomainType,
+  resolveTransactionLineAmount,
+  sortTransactionDealLines,
+  transactionDealLineContext,
   transactionPreferredClientOwner,
+  type TransactionDealLineRow,
 } from "@/lib/commerceAdmin/clientDealHelpers";
 import {
   DEFAULT_TX_COLUMNS,
@@ -35,7 +47,6 @@ import {
   isNewDealRow,
   isPaidStatus,
   paymentStatusLabel,
-  sortTransactions,
   transactionDueDate,
   transactionIssuedDate,
   transactionItemSummary,
@@ -91,6 +102,7 @@ import {
 } from "@/lib/commerceAdmin/webDesignPricing";
 import { takeOpenDealFromInbox } from "@/lib/commerceAdmin/openDealFromInbox";
 import { toast } from "@/lib/toast";
+import { fetchCommerceServices, type CommerceServiceAdminRow } from "@/services/commerceAdminService";
 import { readStoredCurrentUser } from "@/lib/currentUser";
 import { canAssignSalesTransactions, isAdminLikeUser, isSalesRoleUser, isSalesStaffUser } from "@/lib/userRoles";
 import {
@@ -192,6 +204,7 @@ const emptyForm = {
 export default function CommerceTransactionsTab() {
   const router = useRouter();
   const [rows, setRows] = useState<SalesTransaction[]>([]);
+  const [adminServices, setAdminServices] = useState<CommerceServiceAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [sortBy, setSortBy] = useState<TxSortKey>("date-desc");
@@ -201,7 +214,7 @@ export default function CommerceTransactionsTab() {
   const [search, setSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeValue>(emptyDateRange);
   const [columnsVisible, setColumnsVisible] = usePersistedColumnVisibility(
-    "commerceAdmin:columnVisibility:deals",
+    "commerceAdmin:columnVisibility:deals:v3",
     DEFAULT_TX_COLUMNS,
   );
   const [colVisOpen, setColVisOpen] = useState(false);
@@ -306,10 +319,15 @@ export default function CommerceTransactionsTab() {
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getSalesTransactions({ per_page: 200 }, { silent: true });
+      const [res, services] = await Promise.all([
+        getSalesTransactions({ per_page: 200 }, { silent: true }),
+        fetchCommerceServices(undefined, undefined, { perPage: 500 }).catch(() => []),
+      ]);
       setRows(Array.isArray(res?.data) ? res.data : []);
+      setAdminServices(Array.isArray(services) ? services : []);
     } catch {
       setRows([]);
+      setAdminServices([]);
     } finally {
       setLoading(false);
     }
@@ -390,10 +408,15 @@ export default function CommerceTransactionsTab() {
           dateRange,
         ),
       );
-    return sortTransactions(filtered, sortBy, (row, column) =>
-      orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) }),
+    const expanded = expandTransactionsToDealLines(filtered, adminServices);
+    return sortTransactionDealLines(expanded, sortBy, (lineRow, column) =>
+      orderAdminColumnValue(lineRow.transaction, column, {
+        assigned: assignedUserLabel(lineRow.transaction),
+        line: transactionDealLineContext(lineRow),
+        adminServices: lineRow.adminServices ?? adminServices,
+      }),
     );
-  }, [rows, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
+  }, [rows, adminServices, appliedFilter, sortBy, clientFilter, queueFilter, getFilterValue, search, dateRange]);
 
   const displayRows = useMemo(() => {
     if (showAll) return processedRows;
@@ -401,14 +424,16 @@ export default function CommerceTransactionsTab() {
     return processedRows.slice(start, start + PAGE_SIZE);
   }, [processedRows, page, showAll]);
 
-  const getTxRowId = useCallback((row: SalesTransaction) => String(row.id), []);
+  const getTxRowId = useCallback((row: TransactionDealLineRow) => row.lineKey, []);
   const selection = useRowSelection(displayRows, getTxRowId);
   const hasSelection = selection.selectedCount > 0;
 
   const selectedRows = useMemo(() => {
     const ids = new Set(selection.selectedIds);
-    return processedRows.filter((row) => ids.has(String(row.id)));
+    return processedRows.filter((row) => ids.has(row.lineKey));
   }, [processedRows, selection.selectedIds]);
+
+  const invoiceLineGroups = useMemo(() => computeInvoiceLineGroups(processedRows), [processedRows]);
 
   const totalCount = processedRows.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -702,37 +727,132 @@ export default function CommerceTransactionsTab() {
     if (isPendingQuotationTransaction(row)) {
       return <span className={styles.badgePending}>Pending Quotation</span>;
     }
-    const label = paymentStatusLabel(row.payment_status);
-    const paid = isPaidStatus(row.payment_status);
-    return <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>;
+    return <CommerceStatusBadge value={paymentStatusLabel(row.payment_status)} context="payment" />;
   };
 
-  const renderOrderColumnCell = (row: SalesTransaction, column: TxColumnKey) => {
+  const lineColumnExtras = useCallback(
+    (lineRow: TransactionDealLineRow) => ({
+      assigned: assignedUserLabel(lineRow.transaction),
+      line: transactionDealLineContext(lineRow),
+      adminServices: lineRow.adminServices ?? adminServices,
+    }),
+    [adminServices],
+  );
+
+  const renderOrderColumnCell = (lineRow: TransactionDealLineRow, column: TxColumnKey) => {
+    const row = lineRow.transaction;
+    const extras = lineColumnExtras(lineRow);
+    if (column === "invoiceId") {
+      const invoiceNo = orderAdminColumnValue(row, column, extras);
+      const group = invoiceLineGroups.get(lineRow.lineKey);
+      const multi = Boolean(group && group.lineTotal > 1);
+      return (
+        <td
+          key={column}
+          className={[styles.dealsNowrap, styles.invoiceIdCell, multi ? styles.invoiceIdCellGrouped : ""]
+            .filter(Boolean)
+            .join(" ")}
+          data-label={TX_COLUMN_LABELS[column]}
+        >
+          {multi && group!.lineIndex > 1 ? (
+            <span
+              className={styles.invoiceLineContinued}
+              title={`Line ${group!.lineIndex} of ${group!.lineTotal} on invoice ${invoiceNo}`}
+            >
+              ↳ {group!.lineIndex}/{group!.lineTotal}
+            </span>
+          ) : (
+            <>
+              <button type="button" className={styles.tableCellLink} onClick={() => openDealInfo(row)}>
+                {invoiceNo}
+              </button>
+              {multi ? (
+                <span className={styles.invoiceLineBadge} title={`${group!.lineTotal} deal lines on this invoice`}>
+                  {group!.lineTotal} lines
+                </span>
+              ) : null}
+            </>
+          )}
+        </td>
+      );
+    }
     if (column === "clientOwner") {
       return (
         <td key={column} className={styles.dealsNowrap} data-label={TX_COLUMN_LABELS[column]}>
-          {orderAdminColumnValue(row, column)}
+          {orderAdminColumnValue(row, column, extras)}
         </td>
       );
     }
     if (column === "paymentStatus") {
-      const label = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
-      const paid = label.toLowerCase() === "paid" || isPaidStatus(row.payment_status);
+      const label = orderAdminColumnValue(row, column, extras);
       return (
         <td key={column} className={styles.statusCell} data-label={TX_COLUMN_LABELS[column]}>
-          <span className={paid ? styles.badgePaid : styles.badgePending}>{label}</span>
+          <CommerceStatusBadge value={label} context="payment" />
+        </td>
+      );
+    }
+    if (column === "invoiceStatus") {
+      const label = orderAdminColumnValue(row, column, extras);
+      return (
+        <td key={column} className={styles.statusCell} data-label={TX_COLUMN_LABELS[column]}>
+          <CommerceStatusBadge value={label} context="invoice" />
+        </td>
+      );
+    }
+    if (column === "salesStatus") {
+      const label = orderAdminColumnValue(row, column, extras);
+      return (
+        <td key={column} className={styles.statusCell} data-label={TX_COLUMN_LABELS[column]}>
+          <CommerceStatusBadge value={label} context="sales" />
+        </td>
+      );
+    }
+    if (column === "dealStatus") {
+      const label = orderAdminColumnValue(row, column, extras);
+      return (
+        <td key={column} className={styles.statusCell} data-label={TX_COLUMN_LABELS[column]}>
+          <CommerceStatusBadge value={label} context="deal" />
+        </td>
+      );
+    }
+    if (column === "dealExpirationDate") {
+      const meta = parseDealMeta(row.notes);
+      return (
+        <td
+          key={column}
+          className={[styles.dealsNowrap, styles.dealExpirationCellWrap].join(" ")}
+          data-label={TX_COLUMN_LABELS[column]}
+        >
+          <DealExpirationCell
+            transaction={row}
+            line={extras.line}
+            adminServices={extras.adminServices ?? adminServices}
+            metaDealStatus={meta?.dealStatus}
+          />
+        </td>
+      );
+    }
+    if (column === "technicalApproval") {
+      const itemName = extras.line?.itemName ?? "";
+      return (
+        <td
+          key={column}
+          className={[styles.statusCell, styles.approvalDateCellWrap].join(" ")}
+          data-label={TX_COLUMN_LABELS[column]}
+        >
+          <ApprovalDateCell transaction={row} itemName={itemName} />
         </td>
       );
     }
     if (column === "expectedRevenue" || column === "dealAmount") {
       return (
         <td key={column} className={styles.amountCell} data-label={TX_COLUMN_LABELS[column]}>
-          {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
+          {orderAdminColumnValue(row, column, extras)}
         </td>
       );
     }
     if (column === "clientName") {
-      const name = orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) });
+      const name = orderAdminColumnValue(row, column, extras);
       return (
         <td key={column} className={styles.dealsNowrap} data-label={TX_COLUMN_LABELS[column]}>
           <button type="button" className={styles.tableCellLink} onClick={() => void openClientInfo(row)}>
@@ -742,11 +862,14 @@ export default function CommerceTransactionsTab() {
       );
     }
     if (column === "dealName") {
+      const singleName = orderAdminColumnValue(row, column, extras);
+      const dealNameExtras = dealNameCellPropsForLine(extras.line);
       return (
         <td key={column} className={styles.dealNameCell} data-deal-name-cell="" data-label={TX_COLUMN_LABELS[column]}>
           <DealNameCell
-            names={transactionDealNames(row)}
-            domainType={transactionDomainType(row)}
+            names={[singleName]}
+            domain={dealNameExtras.domain}
+            domainType={dealNameExtras.domainType}
             onClick={() => openDealInfo(row)}
           />
         </td>
@@ -758,7 +881,7 @@ export default function CommerceTransactionsTab() {
         className={column === "collectionNote" ? undefined : styles.dealsNowrap}
         data-label={TX_COLUMN_LABELS[column]}
       >
-        {orderAdminColumnValue(row, column, { assigned: assignedUserLabel(row) })}
+        {orderAdminColumnValue(row, column, extras)}
       </td>
     );
   };
@@ -783,13 +906,15 @@ export default function CommerceTransactionsTab() {
     try {
       exportRowsToExcel(
         ["Invoice ID", ...TX_COLUMN_KEYS.map((key) => TX_COLUMN_LABELS[key]), "Order Type"],
-        selectedRows.map((row) => [
-          row.transaction_no,
-          ...TX_COLUMN_KEYS.map((key) =>
-            orderAdminColumnValue(row, key, { assigned: assignedUserLabel(row) }),
-          ),
-          transactionOrderType(row),
-        ]),
+        selectedRows.map((lineRow) => {
+          const tx = lineRow.transaction;
+          const extras = lineColumnExtras(lineRow);
+          return [
+            tx.transaction_no,
+            ...TX_COLUMN_KEYS.map((key) => orderAdminColumnValue(tx, key, extras)),
+            transactionOrderType(tx),
+          ];
+        }),
         "deals",
       );
     } finally {
@@ -801,10 +926,11 @@ export default function CommerceTransactionsTab() {
     if (selectedRows.length === 0 || bulkDeleting) return;
     setBulkDeleting(true);
     try {
-      for (const row of selectedRows) {
-        await deleteSalesTransaction(row.id);
+      const txIds = [...new Set(selectedRows.map((lineRow) => lineRow.transaction.id))];
+      for (const id of txIds) {
+        await deleteSalesTransaction(id);
       }
-      toast.success(`${selectedRows.length} deal(s) deleted.`);
+      toast.success(`${txIds.length} invoice(s) deleted.`);
       selection.clearSelection();
       setBulkDeleteOpen(false);
       loadRows();
@@ -1115,26 +1241,36 @@ export default function CommerceTransactionsTab() {
                       <td colSpan={visibleColumnCount}>No deals found matching filter.</td>
                     </tr>
                   ) : (
-                    displayRows.map((row) => {
-                      const isNew = isNewDealRow(row, seenDealIds);
+                    displayRows.map((lineRow, rowIndex) => {
+                      const tx = lineRow.transaction;
+                      const isNew = isNewDealRow(tx, seenDealIds);
+                      const group = invoiceLineGroups.get(lineRow.lineKey);
+                      const prevTxId = rowIndex > 0 ? displayRows[rowIndex - 1]?.transaction.id : null;
+                      const nextTxId =
+                        rowIndex < displayRows.length - 1 ? displayRows[rowIndex + 1]?.transaction.id : null;
+                      const multiInvoice = Boolean(group && group.lineTotal > 1);
                       return (
                       <tr
-                        key={row.id}
+                        key={lineRow.lineKey}
                         className={[
-                          selection.isSelected(row) ? styles.rowSelected : "",
+                          selection.isSelected(lineRow) ? styles.rowSelected : "",
                           isNew ? styles.rowNew : "",
+                          multiInvoice ? styles.invoiceGroupedRow : "",
+                          multiInvoice && prevTxId === tx.id ? styles.invoiceGroupedRowContinued : "",
+                          multiInvoice && nextTxId === tx.id ? styles.invoiceGroupedRowMoreBelow : "",
                         ]
                           .filter(Boolean)
                           .join(" ") || undefined}
                         data-new={isNew ? "true" : undefined}
-                        aria-label={isNew ? `New deal ${row.transaction_no}` : undefined}
+                        data-invoice-id={tx.id}
+                        aria-label={isNew ? `New deal ${tx.transaction_no}` : undefined}
                       >
                         <CommerceSelectRowCell
-                          checked={selection.isSelected(row)}
-                          onChange={() => selection.toggleRow(row)}
-                          label={`Select deal ${row.transaction_no}`}
+                          checked={selection.isSelected(lineRow)}
+                          onChange={() => selection.toggleRow(lineRow)}
+                          label={`Select deal ${tx.transaction_no}`}
                         />
-                        {visibleOrderColumns.map((column) => renderOrderColumnCell(row, column))}
+                        {visibleOrderColumns.map((column) => renderOrderColumnCell(lineRow, column))}
                       </tr>
                       );
                     })
@@ -1147,17 +1283,19 @@ export default function CommerceTransactionsTab() {
               {displayRows.length === 0 ? (
                 <p className={styles.emptyState}>No deals found matching filter.</p>
               ) : (
-                displayRows.map((row) => {
+                displayRows.map((lineRow) => {
+                  const row = lineRow.transaction;
+                  const extras = lineColumnExtras(lineRow);
+                  const group = invoiceLineGroups.get(lineRow.lineKey);
                   const isNew = isNewDealRow(row, seenDealIds);
-                  const dealNames = transactionDealNames(row);
-                  const domainType = transactionDomainType(row);
-                  const dealTitle = formatDealNamesForDisplay(dealNames);
-                  const extraType = domainType && !dealNames.some((name) => name.trim().toLowerCase() === domainType.trim().toLowerCase())
-                    ? domainType
-                    : "";
+                  const dealTitle = orderAdminColumnValue(row, "dealName", extras);
+                  const invoiceLabel = orderAdminColumnValue(row, "invoiceId", extras);
+                  const dealNameExtras = dealNameCellPropsForLine(extras.line);
+                  const extraType = dealNameExtras.domainType ?? "";
+                  const lineAmount = formatDealAmount(resolveTransactionLineAmount(row, lineRow.lineItem));
                   return (
                   <article
-                    key={row.id}
+                    key={lineRow.lineKey}
                     className={[styles.txGridCard, isNew ? styles.txGridCardNew : ""]
                       .filter(Boolean)
                       .join(" ")}
@@ -1186,31 +1324,42 @@ export default function CommerceTransactionsTab() {
                             className={styles.tableCellLink}
                             onClick={() => void openClientInfo(row)}
                           >
-                            {orderAdminColumnValue(row, "clientName", { assigned: assignedUserLabel(row) })}
+                            {orderAdminColumnValue(row, "clientName", extras)}
                           </button>
                         </div>
                       </div>
                       <div>
                         <div className={styles.txGridLabel}>Owner</div>
                         <div className={styles.txGridValue}>
-                          {orderAdminColumnValue(row, "clientOwner")}
+                          {orderAdminColumnValue(row, "clientOwner", extras)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className={styles.txGridLabel}>Invoice ID</div>
+                        <div className={styles.txGridValue}>
+                          {invoiceLabel}
+                          {group && group.lineTotal > 1 ? (
+                            <span className={styles.invoiceLineBadge}>
+                              {group.lineIndex}/{group.lineTotal}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                       <div>
                         <div className={styles.txGridLabel}>Domain</div>
                         <div className={styles.txGridValue}>
-                          {orderAdminColumnValue(row, "domainName", { assigned: assignedUserLabel(row) })}
+                          {orderAdminColumnValue(row, "domainName", extras)}
                         </div>
                       </div>
                       <div>
                         <div className={styles.txGridLabel}>Category</div>
                         <div className={styles.txGridValue}>
-                          {orderAdminColumnValue(row, "productCategory", { assigned: assignedUserLabel(row) })}
+                          {orderAdminColumnValue(row, "productCategory", extras)}
                         </div>
                       </div>
                     </div>
                     <div className={styles.txGridFooter}>
-                      <strong className={styles.amountCell}>{transactionAmountLabel(row)}</strong>
+                      <strong className={styles.amountCell}>{lineAmount}</strong>
                       {(() => {
                         const canManage = canManageWebDesignOrder(row, currentUser);
                         const pending = isPendingQuotationTransaction(row);

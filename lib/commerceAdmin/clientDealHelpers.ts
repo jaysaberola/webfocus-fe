@@ -12,9 +12,15 @@ import {
   DOMAIN_TYPE_OPTIONS,
   parseDealAmounts,
   dealAmountNumber,
+  parseDealNames,
+  DEAL_NAME_SEPARATOR,
 } from "@/lib/commerceAdmin/clientOrderFormHelpers";
 import { clientBillingInCharge, clientDisplayName, clientOwnerName } from "@/lib/commerceAdmin/clientHelpers";
-import { paymentStatusLabel, type TxColumnKey } from "@/lib/commerceAdmin/transactionHelpers";
+import {
+  formatCommerceStatusLabel,
+  formatPaymentStatusDisplay,
+} from "@/lib/commerceAdmin/statusDisplay";
+import { paymentStatusLabel, type TxColumnKey, type TxSortKey } from "@/lib/commerceAdmin/transactionHelpers";
 import { isWebDesignPlan } from "@/lib/serviceCategory";
 import { subjectForPublicCatalogName } from "@/lib/servicesCatalog";
 import { isWebDesignTransaction } from "@/lib/commerceAdmin/webDesignPricing";
@@ -81,6 +87,8 @@ export type ClientDealRow = {
   dealOwner: string;
   status: string;
   amount: number | null;
+  itemName?: string;
+  lineItem?: ClientDealLineItem;
   items: ClientDealLineItem[];
   subtotal: number;
   discountTotal: number;
@@ -88,6 +96,80 @@ export type ClientDealRow = {
   adjustment: number;
   grandTotal: number;
 };
+
+export type TransactionDealLineRow = {
+  lineKey: string;
+  transaction: SalesTransaction;
+  lineItem: ClientDealLineItem;
+  adminServices?: CommerceServiceAdminRow[];
+};
+
+export type InvoiceLineGroupMeta = {
+  lineIndex: number;
+  lineTotal: number;
+  transactionId: number;
+};
+
+/** Maps each expanded deal row to its position on the parent invoice (for multi-line invoices). */
+export function computeInvoiceLineGroups(rows: TransactionDealLineRow[]): Map<string, InvoiceLineGroupMeta> {
+  const countByTx = new Map<number, number>();
+  for (const row of rows) {
+    const txId = Number(row.transaction.id) || 0;
+    if (!txId) continue;
+    countByTx.set(txId, (countByTx.get(txId) ?? 0) + 1);
+  }
+
+  const running = new Map<number, number>();
+  const result = new Map<string, InvoiceLineGroupMeta>();
+  for (const row of rows) {
+    const txId = Number(row.transaction.id) || 0;
+    if (!txId) continue;
+    const lineIndex = (running.get(txId) ?? 0) + 1;
+    running.set(txId, lineIndex);
+    result.set(row.lineKey, {
+      lineIndex,
+      lineTotal: countByTx.get(txId) ?? 1,
+      transactionId: txId,
+    });
+  }
+  return result;
+}
+
+/** Invoice line badges for client CRM deals table (same rules as main Deals tab). */
+export function computeClientDealInvoiceGroups(deals: ClientDealRow[]): Map<string, InvoiceLineGroupMeta> {
+  const pseudo: TransactionDealLineRow[] = deals
+    .filter((deal) => deal.transactionId)
+    .map((deal) => ({
+      lineKey: deal.id,
+      transaction: { id: deal.transactionId } as SalesTransaction,
+      lineItem:
+        deal.lineItem ??
+        ({
+          id: deal.id,
+          name: deal.itemName ?? deal.dealName,
+          domain: deal.domainName === "—" ? "" : deal.domainName,
+          period: "",
+          listPrice: 0,
+          quantity: 1,
+          amount: deal.amount ?? 0,
+          discount: 0,
+          tax: 0,
+        } satisfies ClientDealLineItem),
+    }));
+  return computeInvoiceLineGroups(pseudo);
+}
+
+export function clientDealLineAmount(
+  deal: ClientDealRow,
+  transaction?: SalesTransaction | null,
+): number | null {
+  if (transaction && deal.lineItem) {
+    const fromLine = resolveTransactionLineAmount(transaction, deal.lineItem);
+    if (fromLine > 0) return fromLine;
+  }
+  const raw = deal.amount;
+  return raw != null && Number.isFinite(raw) && raw > 0 ? raw : null;
+}
 
 export type DealColumnKey =
   | "clientOwner"
@@ -116,6 +198,9 @@ export type DealColumnKey =
   | "joNumber"
   | "billingInCharge"
   | "dealStatus"
+  | "invoiceId"
+  | "dealExpirationDate"
+  | "technicalApproval"
   | "invoiceStatus"
   | "invoiceSentDate"
   | "invoiceReceivedDate"
@@ -144,6 +229,9 @@ export const DEAL_COLUMN_LABELS: Record<DealColumnKey, string> = {
   joNumber: "JO Number",
   billingInCharge: "Billing-in-Charge",
   dealStatus: "Deal Status",
+  invoiceId: "Invoice ID",
+  dealExpirationDate: "Deal Expiration",
+  technicalApproval: "Approved Date",
   paymentTerms: "Payment Terms",
   paymentMethod: "Payment Method",
   paymentMode: "Payment Mode",
@@ -166,7 +254,7 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   productCategory: true,
   probability: false,
   expectedRevenue: false,
-  dealAmount: false,
+  dealAmount: true,
   stage: false,
   closingDate: false,
   contactName: false,
@@ -179,6 +267,9 @@ export const DEFAULT_DEAL_COLUMNS: Record<DealColumnKey, boolean> = {
   joNumber: false,
   billingInCharge: false,
   dealStatus: false,
+  invoiceId: true,
+  dealExpirationDate: true,
+  technicalApproval: true,
   paymentTerms: false,
   paymentMethod: false,
   paymentMode: true,
@@ -271,13 +362,465 @@ export function transactionBillingInCharge(transaction: SalesTransaction) {
   return "—";
 }
 
+function customerRowFromTransaction(transaction: SalesTransaction): CustomerRow {
+  if (transaction.customer) return transaction.customer;
+  return {
+    id: Number(transaction.customer_id) || 0,
+    name: transaction.customer_name,
+    email: transaction.customer_email,
+    services: [],
+  } as CustomerRow;
+}
+
+function parsePeriodBoundary(period: string | undefined, which: "start" | "end") {
+  const text = String(period ?? "").trim();
+  if (!text) return "";
+  const parts = text.split(/\s*-\s*/).map((part) => part.trim()).filter(Boolean);
+  const raw = which === "start" ? parts[0] : parts[parts.length - 1] || parts[0];
+  if (!raw) return "";
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return raw;
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function periodStartDate(period?: string) {
+  return parsePeriodBoundary(period, "start");
+}
+
+function periodEndDate(period?: string) {
+  return parsePeriodBoundary(period, "end");
+}
+
+function normalizeExpirationIso(raw?: string | null) {
+  const text = String(raw ?? "").trim();
+  if (!text) return "";
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+  const parsed = Date.parse(text);
+  if (!Number.isFinite(parsed)) return "";
+  return new Date(parsed).toISOString().slice(0, 10);
+}
+
+function serviceExpirationFromRow(line: unknown) {
+  if (!line || typeof line !== "object") return "";
+  const row = line as CommerceServiceAdminRow & CustomerServiceLine;
+  const expires = normalizeExpirationIso(row.expiresAt ?? row.expires_at);
+  if (expires) return expires;
+  return normalizeExpirationIso(row.renewAt ?? row.renew_at);
+}
+
+function serviceMatchScore(
+  needle: string,
+  service: CustomerServiceLine | CommerceServiceAdminRow,
+  transaction?: SalesTransaction | null,
+) {
+  const hay = [
+    "title" in service ? service.title : null,
+    service.plan,
+    "plan_name" in service ? service.plan_name : null,
+    "planName" in service ? service.planName : null,
+    "subject" in service ? service.subject : null,
+    "product_category" in service ? service.product_category : null,
+    "productCategory" in service ? service.productCategory : null,
+    "serviceName" in service ? service.serviceName : null,
+    "service_name" in service ? service.service_name : null,
+  ]
+    .map((value) => String(value ?? "").toLowerCase())
+    .join(" ");
+  const title = String(("title" in service ? service.title : "") ?? "").toLowerCase();
+  if (!hay.includes(needle) && !needle.includes(title)) return -1;
+
+  let score = 10;
+  const txNo = String(transaction?.transaction_no ?? "").trim().toLowerCase();
+  const serviceTx = String(
+    ("transactionNo" in service ? service.transactionNo : null) ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  if (txNo && serviceTx && txNo === serviceTx) score += 100;
+
+  const customerId = Number(transaction?.customer_id ?? 0);
+  const serviceCustomerId = Number(("customerId" in service ? service.customerId : null) ?? 0);
+  if (customerId > 0 && serviceCustomerId > 0 && customerId === serviceCustomerId) score += 20;
+
+  if (String(service.status ?? "").toLowerCase() === "active") score += 5;
+
+  return score;
+}
+
+function serviceRenewDate(
+  transaction: SalesTransaction,
+  itemName?: string,
+  adminServices: CommerceServiceAdminRow[] = [],
+) {
+  const needle = String(itemName ?? "").trim();
+  if (!needle) return "";
+  const client = customerRowFromTransaction(transaction);
+  const line = matchingServiceLine(needle, client, adminServices, transaction);
+  if (!line) return "";
+  return serviceExpirationFromRow(line);
+}
+
+function resolveMetaExpirationForItem(meta: ReturnType<typeof parseDealMeta>, itemName: string) {
+  if (!meta) return "";
+  const lower = itemName.trim().toLowerCase();
+
+  if (matchDomainTypeOption(itemName) || lower.includes("domain")) {
+    return normalizeExpirationIso(
+      meta.domainRegistrationExpirationDate ?? meta.domainSubscriptionEndDate,
+    );
+  }
+  if (lower.includes("ssl") && lower.includes("wildcard")) {
+    return normalizeExpirationIso(meta.sslWildcardExpirationDate);
+  }
+
+  return normalizeExpirationIso(meta.subscriptionEndDate ?? meta.domainSubscriptionEndDate);
+}
+
+function transactionProvisioningRun(transaction: SalesTransaction) {
+  return transaction.provisioning_run ?? transaction.provisioningRun ?? null;
+}
+
+function serviceNameMatchesAction(itemName: string, serviceName: string) {
+  const left = standardizeDealProductName(itemName).trim().toLowerCase();
+  const right = standardizeDealProductName(serviceName).trim().toLowerCase();
+  if (!left || !right) return false;
+  return left === right || left.includes(right) || right.includes(left);
+}
+
+export function isDealLineExpired(
+  transaction: SalesTransaction,
+  line?: OrderAdminLineContext,
+  adminServices: CommerceServiceAdminRow[] = [],
+): boolean {
+  const iso = resolveDealExpirationIso(transaction, line, adminServices);
+  if (!iso) return false;
+  const end = Date.parse(iso);
+  if (!Number.isFinite(end)) return false;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  return end < todayStart.getTime();
+}
+
+export function resolveDisplayDealStatus(
+  transaction: SalesTransaction,
+  options?: {
+    serviceStatus?: string | null;
+    line?: OrderAdminLineContext;
+    adminServices?: CommerceServiceAdminRow[];
+    metaDealStatus?: string | null;
+  },
+): string {
+  const serviceStatus = String(options?.serviceStatus ?? "").trim();
+  const metaStatus = String(options?.metaDealStatus ?? "").trim();
+  let base = serviceStatus
+    ? formatCommerceStatusLabel(titleCaseStatus(serviceStatus))
+    : formatCommerceStatusLabel(
+        metaStatus && metaStatus !== "—" ? metaStatus : resolveDealStatus(transaction, serviceStatus || null),
+      );
+
+  const lower = base.toLowerCase();
+  if (lower === "expired") base = "Renew";
+
+  const expired = isDealLineExpired(transaction, options?.line, options?.adminServices ?? []);
+  if (!expired) return base;
+
+  if (
+    lower === "inactive" ||
+    lower === "cancelled" ||
+    lower === "canceled" ||
+    lower === "provisioning" ||
+    lower.includes("pending")
+  ) {
+    return base;
+  }
+
+  return "Renew";
+}
+
+export function resolveDealExpirationIso(
+  transaction: SalesTransaction,
+  line?: OrderAdminLineContext,
+  adminServices: CommerceServiceAdminRow[] = [],
+): string {
+  const itemName = String(line?.itemName ?? "").trim();
+  const meta = parseDealMeta(transaction.notes);
+
+  const fromService = serviceRenewDate(transaction, itemName, adminServices);
+  if (fromService) return fromService;
+
+  const fromMeta = resolveMetaExpirationForItem(meta, itemName);
+  if (fromMeta) return fromMeta;
+
+  const periodEnd = normalizeExpirationIso(periodEndDate(line?.lineItem?.period));
+  if (periodEnd) return periodEnd;
+
+  const due = normalizeExpirationIso(transaction.due_date);
+  if (due) return due;
+
+  return "";
+}
+
+export function formatDealExpirationDisplay(
+  transaction: SalesTransaction,
+  line?: OrderAdminLineContext,
+  adminServices: CommerceServiceAdminRow[] = [],
+  dealStatusLabel?: string,
+): string {
+  const iso = resolveDealExpirationIso(transaction, line, adminServices);
+  if (!iso) return "—";
+  const formatted = formatDealDate(iso);
+  const statusLower = String(dealStatusLabel ?? "").toLowerCase();
+  const active = statusLower === "active";
+
+  const end = Date.parse(iso);
+  if (!Number.isFinite(end)) return formatted;
+  const days = Math.round((end - Date.now()) / (24 * 60 * 60 * 1000));
+  if (statusLower === "renew" || days < 0) return `${formatted} · Expired`;
+  if (!active) return formatted;
+  if (days === 0) return `${formatted} · Today`;
+  return `${formatted} · ${days}d left`;
+}
+
+export function splitDealExpirationLabel(label: string): { date: string; hint: string | null } {
+  const text = String(label ?? "").trim();
+  if (!text || text === "—") return { date: "—", hint: null };
+  const parts = text.split(" · ").map((part) => part.trim()).filter(Boolean);
+  if (parts.length <= 1) return { date: parts[0] ?? "—", hint: null };
+  return { date: parts[0], hint: parts.slice(1).join(" · ") };
+}
+
+function provisioningActionForLine(transaction: SalesTransaction, itemName: string) {
+  const run = transactionProvisioningRun(transaction);
+  if (!run) return { run: null as null, action: null as null };
+  const action =
+    (run.actions ?? []).find((row) => serviceNameMatchesAction(itemName, row.service_name)) ?? null;
+  return { run, action };
+}
+
+export function resolveTechnicalApprovalStatus(transaction: SalesTransaction, itemName: string): string {
+  const { run, action: match } = provisioningActionForLine(transaction, itemName);
+  const order = String(transaction.order_status ?? "").toLowerCase();
+
+  if (!run) {
+    if (["active", "completed", "delivered"].includes(order)) return "Approved";
+    if (["provisioning", "processing", "pending"].includes(order)) return "Awaiting Approval";
+    return "Not Approved";
+  }
+
+  if (["completed", "active"].includes(String(run.status ?? "").toLowerCase())) {
+    return "Approved";
+  }
+
+  const actions = run.actions ?? [];
+  if (!match) {
+    if (actions.length === 0) return run.approved_at ? "Awaiting Technical" : "Not Approved";
+    return "Not Assigned";
+  }
+
+  const status = String(match.status ?? "pending").toLowerCase();
+  if (status === "done" || match.done_at) return "Approved";
+  if (status === "completed" || status === "active") return "Approved";
+  return "Pending Technical";
+}
+
+/** Date approval started (order approved) or technical mark-done for this deal line. */
+export function resolveTechnicalApprovalDate(
+  transaction: SalesTransaction,
+  itemName: string,
+): string {
+  const { run, action } = provisioningActionForLine(transaction, itemName);
+  if (!run) {
+    const meta = parseDealMeta(transaction.notes);
+    const closing = formatDealDate(meta?.closingDate || transaction.issued_date || transaction.transacted_at);
+    if (closing !== "—" && resolveTechnicalApprovalStatus(transaction, itemName) === "Approved") {
+      return closing;
+    }
+    return "—";
+  }
+
+  const status = String(action?.status ?? "").toLowerCase();
+  const markedDone = Boolean(action?.done_at) || status === "done";
+  const lineApproved = markedDone || status === "completed" || status === "active";
+
+  if (lineApproved && action?.done_at) {
+    return formatDealDate(action.done_at);
+  }
+  if (lineApproved && action?.completed_at) {
+    return formatDealDate(action.completed_at);
+  }
+
+  if (run.approved_at) {
+    return formatDealDate(run.approved_at);
+  }
+
+  return "—";
+}
+
+function dealAmountNumberForLine(amounts: Record<string, string> | undefined, name: string) {
+  const direct = dealAmountNumber(amounts, name);
+  if (direct > 0) return direct;
+  const needle = standardizeDealProductName(name).trim().toLowerCase();
+  if (!needle) return 0;
+  for (const [key, raw] of Object.entries(amounts ?? {})) {
+    const candidate = standardizeDealProductName(key).trim().toLowerCase();
+    if (!candidate) continue;
+    if (candidate === needle || candidate.includes(needle) || needle.includes(candidate)) {
+      const numeric = Number(String(raw ?? "").trim());
+      if (Number.isFinite(numeric) && numeric > 0) return numeric;
+    }
+  }
+  return 0;
+}
+
+export function resolveTransactionLineAmount(
+  transaction: SalesTransaction,
+  lineItem: ClientDealLineItem,
+): number {
+  const meta = parseDealMeta(transaction.notes);
+  const amounts = parseDealAmounts(meta?.dealAmounts);
+  const name = String(lineItem.name ?? "").trim();
+
+  const fromMeta = dealAmountNumberForLine(amounts, name);
+  if (fromMeta > 0) return fromMeta;
+
+  for (const item of transaction.items ?? []) {
+    const itemName = String(item.name ?? "").trim();
+    if (!itemName) continue;
+    if (
+      itemName.toLowerCase() === name.toLowerCase() ||
+      standardizeDealProductName(itemName) === standardizeDealProductName(name)
+    ) {
+      const quantity = Math.max(1, money(item.quantity) || 1);
+      const fromTotal = money(item.total_price);
+      if (fromTotal > 0) return fromTotal;
+      const fromPrice = money(item.price) * quantity;
+      if (fromPrice > 0) return fromPrice;
+    }
+  }
+
+  if (lineItem.amount > 0) return lineItem.amount;
+
+  if (matchDomainTypeOption(name) || looksLikeDomain(name)) {
+    const cost = catalogDomainCost(name, meta?.domainRegistrationCost);
+    if (cost > 0) return cost;
+  }
+
+  return 0;
+}
+
+function enrichLineItemAmounts(transaction: SalesTransaction, items: ClientDealLineItem[]): ClientDealLineItem[] {
+  return items.map((item) => {
+    const amount = resolveTransactionLineAmount(transaction, item);
+    if (amount <= 0) return item;
+    return {
+      ...item,
+      amount,
+      listPrice: item.listPrice > 0 ? Math.max(item.listPrice, amount) : amount,
+    };
+  });
+}
+
+function dealLineDedupeKey(name: string) {
+  return standardizeDealProductName(name).trim().toLowerCase();
+}
+
+function dedupeTransactionDealLineItems(
+  transaction: SalesTransaction,
+  items: ClientDealLineItem[],
+): ClientDealLineItem[] {
+  const byKey = new Map<string, ClientDealLineItem>();
+  for (const item of items) {
+    const key = dealLineDedupeKey(item.name);
+    if (!key) continue;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, item);
+      continue;
+    }
+    const keepExisting = resolveTransactionLineAmount(transaction, existing);
+    const keepNext = resolveTransactionLineAmount(transaction, item);
+    if (keepNext > keepExisting) {
+      byKey.set(key, item);
+    }
+  }
+  return [...byKey.values()];
+}
+
+function billableRowsCoverDealNames(transaction: SalesTransaction, rows: ClientDealLineItem[], names: string[]) {
+  const rowKeys = new Set(rows.map((row) => dealLineDedupeKey(row.name)).filter(Boolean));
+  return names.every((name) => rowKeys.has(dealLineDedupeKey(name)));
+}
+
+/** Deal name cell: only domain rows show domain type / hostname — not every line on the invoice. */
+export function dealNameCellPropsForLine(line?: OrderAdminLineContext) {
+  const itemName = String(line?.itemName ?? "").trim();
+  const isDomainLine = Boolean(matchDomainTypeOption(itemName));
+  if (!isDomainLine) {
+    return { domain: undefined, domainType: undefined as string | undefined };
+  }
+  return {
+    domain: line?.itemDomain,
+    domainType: displayDomainType(itemName, line?.itemDomain),
+  };
+}
+
+export type OrderAdminLineContext = {
+  itemName: string;
+  itemAmount: number | null;
+  itemDomain: string;
+  lineItem?: ClientDealLineItem;
+  serviceStatus?: string | null;
+};
+
+export function clientDealRowLineContext(
+  deal: ClientDealRow,
+  client: CustomerRow,
+  transaction: SalesTransaction | undefined,
+  adminServices: CommerceServiceAdminRow[] = [],
+): OrderAdminLineContext {
+  const itemName = String(deal.itemName ?? deal.dealName ?? "").trim();
+  return {
+    itemName,
+    itemAmount: deal.amount,
+    itemDomain: deal.domainName === "—" ? "" : deal.domainName,
+    lineItem: deal.lineItem,
+    serviceStatus: transaction
+      ? matchingServiceStatus(itemName, client, adminServices, transaction)
+      : null,
+  };
+}
+
+export function transactionDealLineContext(lineRow: TransactionDealLineRow): OrderAdminLineContext {
+  const itemName = String(lineRow.lineItem.name ?? "").trim();
+  const client = customerRowFromTransaction(lineRow.transaction);
+  const serviceStatus = matchingServiceStatus(
+    itemName,
+    client,
+    lineRow.adminServices ?? [],
+    lineRow.transaction,
+  );
+  const resolvedAmount = resolveTransactionLineAmount(lineRow.transaction, lineRow.lineItem);
+  return {
+    itemName,
+    itemAmount: resolvedAmount > 0 ? resolvedAmount : lineRow.lineItem.amount > 0 ? lineRow.lineItem.amount : null,
+    itemDomain: formatDomain(lineRow.lineItem.domain) || transactionDomainName(lineRow.transaction),
+    lineItem: lineRow.lineItem,
+    serviceStatus,
+  };
+}
+
 export function orderAdminColumnValue(
   transaction: SalesTransaction,
   column: TxColumnKey,
-  extras?: { assigned?: string | null },
+  extras?: {
+    assigned?: string | null;
+    line?: OrderAdminLineContext;
+    adminServices?: CommerceServiceAdminRow[];
+  },
 ) {
   const meta = parseDealMeta(transaction.notes);
-  const itemName = String(transaction.items?.[0]?.name ?? "").trim();
+  const line = extras?.line;
+  const itemName = String(line?.itemName ?? transaction.items?.[0]?.name ?? "").trim();
   const stage = dealStage(transaction);
 
   switch (column) {
@@ -286,6 +829,10 @@ export function orderAdminColumnValue(
     case "probability":
       return dealProbability(stage, meta?.probability);
     case "expectedRevenue": {
+      if (line?.itemName && line.lineItem) {
+        return formatDealAmount(resolveTransactionLineAmount(transaction, line.lineItem));
+      }
+      if (line?.itemAmount != null) return formatDealAmount(line.itemAmount);
       const fromMeta = Number(meta?.expectedRevenue);
       const amount =
         Number.isFinite(fromMeta) && String(meta?.expectedRevenue ?? "").trim() !== ""
@@ -294,6 +841,10 @@ export function orderAdminColumnValue(
       return formatDealAmount(Number.isFinite(amount) ? amount : null);
     }
     case "dealAmount": {
+      if (line?.itemName && line.lineItem) {
+        return formatDealAmount(resolveTransactionLineAmount(transaction, line.lineItem));
+      }
+      if (line?.itemAmount != null) return formatDealAmount(line.itemAmount);
       const amount = Number(transaction.grand_total ?? 0);
       return formatDealAmount(Number.isFinite(amount) ? amount : null);
     }
@@ -303,9 +854,24 @@ export function orderAdminColumnValue(
       return formatDealDate(meta?.closingDate || transaction.issued_date || transaction.transacted_at);
     case "clientName":
       return transactionClientName(transaction);
+    case "invoiceId":
+      return String(transaction.transaction_no ?? "").trim() || "—";
     case "dealName":
+      if (line?.itemName) {
+        return resolveDealName({
+          metaDealName: meta?.dealName,
+          metaDealNames: meta?.dealNames,
+          metaDomainType: meta?.domainType,
+          metaProductName: meta?.productName,
+          clientName: transactionClientName(transaction),
+          itemName: line.itemName,
+          itemNames: (transaction.items ?? []).map((item) => String(item.name ?? "")),
+          domainName: line.itemDomain || transactionDomainName(transaction),
+        });
+      }
       return transactionDealName(transaction);
     case "domainName":
+      if (line?.itemDomain) return formatDomain(line.itemDomain) || line.itemDomain;
       return transactionDomainName(transaction);
     case "contactName":
       return metaText(meta?.contactName);
@@ -315,23 +881,55 @@ export function orderAdminColumnValue(
       return metaText(meta?.dealSubType);
     case "productCategory": {
       const fromItem = dealSubjectFromName(itemName);
-      const fromDeal = dealSubjectFromName(transactionDealName(transaction));
+      const fromDeal = dealSubjectFromName(line?.itemName || transactionDealName(transaction));
+      if (matchDomainTypeOption(itemName)) return "Domain Registration";
       return metaText(meta?.productCategory, fromItem !== "—" ? fromItem : fromDeal);
     }
     case "salesStatus":
-      return metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status));
-    case "subscriptionStartDate":
-      return formatDealDate(meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate);
-    case "subscriptionEndDate":
-      return formatDealDate(meta?.subscriptionEndDate || meta?.domainSubscriptionEndDate);
-    case "expirationStartDate":
-      return formatDealDate(meta?.expirationStartDate || meta?.domainRegistrationStartDate);
+      return formatCommerceStatusLabel(metaText(meta?.salesStatus, titleCaseStatus(transaction.order_status)));
+    case "subscriptionStartDate": {
+      const fromPeriod = periodStartDate(line?.lineItem?.period);
+      return formatDealDate(fromPeriod || meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate);
+    }
+    case "subscriptionEndDate": {
+      const fromService = serviceRenewDate(transaction, line?.itemName, extras?.adminServices ?? []);
+      const fromMeta = resolveMetaExpirationForItem(meta, itemName);
+      const fromPeriod = periodEndDate(line?.lineItem?.period);
+      return formatDealDate(
+        fromService || fromMeta || fromPeriod || meta?.subscriptionEndDate || meta?.domainSubscriptionEndDate,
+      );
+    }
+    case "expirationStartDate": {
+      const fromPeriod = periodStartDate(line?.lineItem?.period);
+      return formatDealDate(fromPeriod || meta?.expirationStartDate || meta?.domainRegistrationStartDate);
+    }
     case "joNumber":
       return metaText(meta?.joNumber, extractJoNumber(transaction.notes, transaction.transaction_no));
     case "billingInCharge":
       return transactionBillingInCharge(transaction);
     case "dealStatus":
-      return metaText(meta?.dealStatus, resolveDealStatus(transaction));
+      return resolveDisplayDealStatus(transaction, {
+        serviceStatus: line?.serviceStatus,
+        line,
+        adminServices: extras?.adminServices ?? [],
+        metaDealStatus: meta?.dealStatus,
+      });
+    case "dealExpirationDate": {
+      const dealStatus = resolveDisplayDealStatus(transaction, {
+        serviceStatus: line?.serviceStatus,
+        line,
+        adminServices: extras?.adminServices ?? [],
+        metaDealStatus: meta?.dealStatus,
+      });
+      return formatDealExpirationDisplay(
+        transaction,
+        line,
+        extras?.adminServices ?? [],
+        dealStatus,
+      );
+    }
+    case "technicalApproval":
+      return resolveTechnicalApprovalDate(transaction, itemName);
     case "paymentTerms":
       return metaText(meta?.paymentTerms, paymentTermsFrom(transaction));
     case "paymentMethod":
@@ -341,9 +939,9 @@ export function orderAdminColumnValue(
     case "paymentDate":
       return transactionPaymentDate(transaction, meta);
     case "paymentStatus":
-      return metaText(meta?.paymentStatus, paymentStatusLabel(transaction.payment_status));
+      return formatPaymentStatusDisplay(meta?.paymentStatus, transaction.payment_status);
     case "invoiceStatus":
-      return metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction));
+      return formatCommerceStatusLabel(metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction)));
     case "invoiceSentDate":
       return formatDealDate(meta?.invoiceSentDate || transaction.issued_date || transaction.transacted_at);
     case "invoiceReceivedDate":
@@ -487,7 +1085,42 @@ export function compactDealName(names: Array<string | null | undefined> | string
 }
 
 export function transactionDealNames(transaction: SalesTransaction) {
-  return normalizeDealNameList(transactionDealName(transaction));
+  const meta = parseDealMeta(transaction.notes);
+  const itemNames = (transaction.items ?? []).map((item) => String(item.name ?? "").trim());
+  const listed = listedDealNames({
+    metaDealName: meta?.dealName,
+    metaDealNames: meta?.dealNames,
+    metaDomainType: meta?.domainType,
+    metaProductName: meta?.productName,
+    clientName: transaction.customer_name,
+    itemName: itemNames[0],
+    itemNames,
+    domainName: transactionDomainName(transaction),
+  });
+  const domainType =
+    matchDomainTypeOption(meta?.domainType) ||
+    normalizeDomainTypeLabel(meta?.domainType) ||
+    domainTypeFromHostname(transactionDomainName(transaction)) ||
+    "";
+  const withDomain = domainType && !listed.some((name) => name.trim().toLowerCase() === domainType.trim().toLowerCase())
+    ? [...listed, domainType]
+    : listed;
+
+  const splitParts: string[] = [];
+  for (const name of withDomain.map(standardizeDealProductName)) {
+    const text = String(name ?? "").trim();
+    if (!text || text === "—") continue;
+    if (text.includes(" + ")) {
+      splitParts.push(...text.split(/\s+\+\s+/).map((part) => part.trim()).filter(Boolean));
+    } else if (text.includes(DEAL_NAME_SEPARATOR)) {
+      splitParts.push(...parseDealNames(text));
+    } else {
+      splitParts.push(text);
+    }
+  }
+  const cleaned = splitParts.map((part) => standardizeDealProductName(part)).filter(Boolean);
+  const usable = cleaned.filter((name) => isUsableDealName(name) || Boolean(matchDomainTypeOption(name)));
+  return normalizeDealNameList(usable.length ? usable : cleaned);
 }
 
 function listedDealNames(params: {
@@ -788,34 +1421,32 @@ function matchingServiceLine(
   itemName: string,
   client: CustomerRow,
   adminServices: CommerceServiceAdminRow[] = [],
+  transaction?: SalesTransaction | null,
 ) {
   const needle = itemName.trim().toLowerCase();
   if (!needle) return null;
 
-  const fromClient = (client.services ?? []).find((service) => {
-    const hay = [service.title, service.plan, service.plan_name, service.subject, service.product_category]
-      .map((value) => String(value ?? "").toLowerCase())
-      .join(" ");
-    return hay.includes(needle) || needle.includes(String(service.title ?? "").toLowerCase());
-  });
-  if (fromClient) return fromClient;
+  const ranked: Array<{ line: CustomerServiceLine | CommerceServiceAdminRow; score: number }> = [];
+  for (const service of client.services ?? []) {
+    const score = serviceMatchScore(needle, service, transaction);
+    if (score >= 0) ranked.push({ line: service, score });
+  }
+  for (const service of adminServices) {
+    const score = serviceMatchScore(needle, service, transaction);
+    if (score >= 0) ranked.push({ line: service, score });
+  }
 
-  return (
-    adminServices.find((service) => {
-      const hay = [service.title, service.plan, service.subject, service.productCategory, service.planName]
-        .map((value) => String(value ?? "").toLowerCase())
-        .join(" ");
-      return hay.includes(needle) || needle.includes(String(service.title ?? "").toLowerCase());
-    }) ?? null
-  );
+  ranked.sort((left, right) => right.score - left.score);
+  return ranked[0]?.line ?? null;
 }
 
 function matchingServiceStatus(
   itemName: string,
   client: CustomerRow,
   adminServices: CommerceServiceAdminRow[] = [],
+  transaction?: SalesTransaction | null,
 ) {
-  const line = matchingServiceLine(itemName, client, adminServices);
+  const line = matchingServiceLine(itemName, client, adminServices, transaction);
   if (!line) return null;
   return "status" in line ? line.status : null;
 }
@@ -960,8 +1591,10 @@ function crmFields(params: {
   amount: number | null;
   dealStatus: string;
   adminServices?: CommerceServiceAdminRow[];
+  servicePeriod?: string;
 }) {
-  const { client, transaction, itemName, dealType, domain, amount, dealStatus, adminServices = [] } = params;
+  const { client, transaction, itemName, dealType, domain, amount, dealStatus, adminServices = [], servicePeriod } =
+    params;
   const meta = parseDealMeta(transaction?.notes);
   const stage = dealStage(transaction);
   const metaRevenue = Number(meta?.expectedRevenue);
@@ -973,17 +1606,16 @@ function crmFields(params: {
   return {
     clientOwner: transaction ? transactionClientOwner(transaction) : clientOwnerName(client),
     clientName: clientDisplayName(client),
-    dealName: transaction
-      ? transactionDealName(transaction)
-      : resolveDealName({
-          metaDealName: meta?.dealName,
-          metaDealNames: meta?.dealNames,
-          metaDomainType: meta?.domainType,
-          metaProductName: meta?.productName,
-          clientName: clientDisplayName(client),
-          itemName,
-          domainName: domain,
-        }),
+    dealName: resolveDealName({
+      metaDealName: meta?.dealName,
+      metaDealNames: meta?.dealNames,
+      metaDomainType: meta?.domainType,
+      metaProductName: meta?.productName,
+      clientName: transaction ? transactionClientName(transaction) : clientDisplayName(client),
+      itemName,
+      itemNames: transaction?.items?.map((item) => String(item.name ?? "")) ?? [],
+      domainName: domain,
+    }),
     planName: matchingPlanName(itemName, client, adminServices),
     stage,
     clientStatus: metaText(meta?.dealType, dealType),
@@ -1003,12 +1635,24 @@ function crmFields(params: {
     paymentStatus: metaText(meta?.paymentStatus, transaction ? paymentStatusLabel(transaction.payment_status) : "—"),
     expectedRevenue,
     probability: dealProbability(stage, meta?.probability),
-    subscriptionStartDate: formatDealDate(meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate),
-    subscriptionEndDate: formatDealDate(meta?.subscriptionEndDate || meta?.domainSubscriptionEndDate),
-    expirationStartDate: formatDealDate(meta?.expirationStartDate || meta?.domainRegistrationStartDate),
+    subscriptionStartDate: formatDealDate(
+      periodStartDate(servicePeriod) || meta?.subscriptionStartDate || meta?.domainSubscriptionStartDate,
+    ),
+    subscriptionEndDate: formatDealDate(
+      periodEndDate(servicePeriod) ||
+        (transaction ? serviceRenewDate(transaction, itemName) : "") ||
+        meta?.subscriptionEndDate ||
+        meta?.domainSubscriptionEndDate,
+    ),
+    expirationStartDate: formatDealDate(
+      periodStartDate(servicePeriod) || meta?.expirationStartDate || meta?.domainRegistrationStartDate,
+    ),
     joNumber: metaText(meta?.joNumber, extractJoNumber(transaction?.notes, transaction?.transaction_no)),
     billingInCharge: clientBillingInCharge(client),
-    dealStatus: metaText(meta?.dealStatus, dealStatus),
+    dealStatus:
+      dealStatus === "Renew"
+        ? "Renew"
+        : metaText(meta?.dealStatus, dealStatus),
     invoiceStatus: metaText(meta?.invoiceStatus, invoiceStatusFrom(transaction)),
     invoiceSentDate: meta?.invoiceSentDate
       ? formatDealDate(meta.invoiceSentDate)
@@ -1114,6 +1758,8 @@ function buildLineItems(
     let amount = money(item.total_price);
     if (amount <= 0) amount = listPrice * quantity;
     const itemName = String(item.name ?? transaction.transaction_no ?? "Item").trim() || "Item";
+    const fromDealMeta = dealAmountNumberForLine(parseDealAmounts(lineMeta?.dealAmounts), itemName);
+    if (fromDealMeta > 0 && amount <= 0) amount = fromDealMeta;
     const extracted =
       formatDomain(looksLikeDomain(itemName) ? itemName : extractDomain(itemName)) || "";
     const isDomainProduct = Boolean(matchDomainTypeOption(itemName) || looksLikeDomain(itemName));
@@ -1222,7 +1868,9 @@ function appendDomainLineItem(
     normalizeDomainTypeLabel(meta?.domainType) ||
     domainTypeFromHostname(domainName) ||
     "Domain Registration";
-  const cost = catalogDomainCost(domainType, meta?.domainRegistrationCost);
+  const amounts = parseDealAmounts(meta?.dealAmounts);
+  const fromDealMeta = dealAmountNumberForLine(amounts, domainType);
+  const cost = fromDealMeta > 0 ? fromDealMeta : catalogDomainCost(domainType, meta?.domainRegistrationCost);
   const alreadyIncluded = items.some((item) => isDomainProductLine(item, domainName, domainType));
 
   const period =
@@ -1234,7 +1882,9 @@ function appendDomainLineItem(
   if (alreadyIncluded) {
     return items.map((item) => {
       if (!isDomainProductLine(item, domainName, domainType)) return item;
-      const amount = item.amount > 0 ? item.amount : cost > 0 ? cost : item.listPrice;
+      const fromLineMeta = dealAmountNumberForLine(amounts, domainType);
+      const amount =
+        fromLineMeta > 0 ? fromLineMeta : item.amount > 0 ? item.amount : cost > 0 ? cost : item.listPrice;
       return {
         ...item,
         name: domainType,
@@ -1485,6 +2135,167 @@ function extractTransactions(payload: unknown): SalesTransaction[] {
   return [];
 }
 
+function syntheticLineItemsFromDealNames(
+  transaction: SalesTransaction,
+  names: string[],
+  seed?: ClientDealLineItem,
+): ClientDealLineItem[] {
+  const meta = parseDealMeta(transaction.notes);
+  const domainName =
+    formatDomain(meta?.domainName) ||
+    (transactionDomainName(transaction) !== "—" ? transactionDomainName(transaction) : "");
+  return names.map((name, index) => {
+    const isDomainLine = Boolean(matchDomainTypeOption(name));
+    const draft: ClientDealLineItem = {
+      id: `${transaction.id}-deal-${index}`,
+      name,
+      domain: isDomainLine ? domainName : seed?.domain ?? "",
+      period: seed?.period ?? "",
+      listPrice: 0,
+      quantity: 1,
+      amount: 0,
+      discount: 0,
+      tax: 0,
+    };
+    const amount = resolveTransactionLineAmount(transaction, draft);
+    const resolved = amount > 0 ? amount : index === 0 ? seed?.amount ?? 0 : 0;
+    return {
+      ...draft,
+      listPrice: resolved,
+      amount: resolved,
+    };
+  });
+}
+
+/** One deals-table row per billable product line (multi-deal invoices become multiple rows). */
+export function expandTransactionsToDealLines(
+  transactions: SalesTransaction[],
+  adminServices: CommerceServiceAdminRow[] = [],
+): TransactionDealLineRow[] {
+  const expanded: TransactionDealLineRow[] = [];
+
+  for (const transaction of transactions) {
+    if (String(transaction.notes ?? "").includes("[INVOICE_META]")) continue;
+
+    const client = customerRowFromTransaction(transaction);
+    const domainFallback = resolveClientDomain(client, adminServices) || "";
+    const rawItems = transaction.items?.length
+      ? transaction.items
+      : [
+          {
+            id: transaction.id,
+            name: transaction.transaction_no,
+            price: transaction.grand_total,
+            quantity: 1,
+            total_price: transaction.grand_total,
+          },
+        ];
+
+    const lineItems = buildLineItems(transaction, rawItems, domainFallback);
+    const billable = lineItems.filter((item) => !item.included);
+    let rows = billable.length ? billable : lineItems.slice(0, 1);
+    rows = enrichLineItemAmounts(transaction, rows);
+
+    const names = transactionDealNames(transaction);
+    const pricedRows = rows.filter((row) => resolveTransactionLineAmount(transaction, row) > 0);
+    const covered = billableRowsCoverDealNames(transaction, rows, names);
+    if (names.length > 1 && !covered && (rows.length <= 1 || pricedRows.length <= 1)) {
+      rows = enrichLineItemAmounts(transaction, syntheticLineItemsFromDealNames(transaction, names, rows[0]));
+    }
+    rows = dedupeTransactionDealLineItems(transaction, enrichLineItemAmounts(transaction, rows));
+
+    if (!rows.length) {
+      rows = [
+        {
+          id: String(transaction.id),
+          name: transaction.transaction_no || "Deal",
+          domain: "",
+          period: "",
+          listPrice: 0,
+          quantity: 1,
+          amount: Number(transaction.grand_total ?? 0) || 0,
+          discount: 0,
+          tax: 0,
+        },
+      ];
+    }
+
+    const split = rows.length > 1;
+    for (const lineItem of rows) {
+      expanded.push({
+        lineKey: split ? `${transaction.id}:${lineItem.id}` : String(transaction.id),
+        transaction,
+        lineItem,
+        adminServices,
+      });
+    }
+  }
+
+  return expanded;
+}
+
+export function sortTransactionDealLines(
+  rows: TransactionDealLineRow[],
+  sortBy: TxSortKey,
+  columnValue: (row: TransactionDealLineRow, column: TxColumnKey) => string,
+) {
+  const copy = [...rows];
+  const dateValue = (row: TransactionDealLineRow) =>
+    Date.parse(String(row.transaction.created_at || row.transaction.transacted_at || row.transaction.issued_date || "")) ||
+    0;
+  const amountValue = (row: TransactionDealLineRow) => resolveTransactionLineAmount(row.transaction, row.lineItem);
+  const rowId = (row: TransactionDealLineRow) => Number(row.transaction.id) || 0;
+  const lineOrder = (row: TransactionDealLineRow) => String(row.lineItem.id ?? row.lineKey);
+
+  const tieBreakLines = (a: TransactionDealLineRow, b: TransactionDealLineRow) => {
+    const byTx = rowId(a) - rowId(b);
+    if (byTx !== 0) return byTx;
+    return lineOrder(a).localeCompare(lineOrder(b), undefined, { numeric: true, sensitivity: "base" });
+  };
+
+  copy.sort((a, b) => {
+    const compareText = (left: string, right: string, desc: boolean) => {
+      const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return desc ? -result : result;
+    };
+
+    if (sortBy === "date-desc") {
+      const byDate = dateValue(b) - dateValue(a);
+      return byDate !== 0 ? byDate : tieBreakLines(a, b);
+    }
+    if (sortBy === "date-asc") {
+      const byDate = dateValue(a) - dateValue(b);
+      return byDate !== 0 ? byDate : tieBreakLines(a, b);
+    }
+    if (sortBy === "amount-desc") {
+      const byAmount = amountValue(b) - amountValue(a);
+      return byAmount !== 0 ? byAmount : tieBreakLines(a, b);
+    }
+    if (sortBy === "amount-asc") {
+      const byAmount = amountValue(a) - amountValue(b);
+      return byAmount !== 0 ? byAmount : tieBreakLines(a, b);
+    }
+    if (sortBy === "id-asc") {
+      const byId = String(a.transaction.transaction_no ?? "").localeCompare(String(b.transaction.transaction_no ?? ""));
+      return byId !== 0 ? byId : tieBreakLines(a, b);
+    }
+    if (sortBy === "id-desc") {
+      const byId = String(b.transaction.transaction_no ?? "").localeCompare(String(a.transaction.transaction_no ?? ""));
+      return byId !== 0 ? byId : tieBreakLines(a, b);
+    }
+
+    const columnMatch = sortBy.match(/^(.*)-(asc|desc)$/) as [string, TxColumnKey, "asc" | "desc"] | null;
+    if (columnMatch) {
+      const [, column, direction] = columnMatch;
+      const byColumn = compareText(columnValue(a, column), columnValue(b, column), direction === "desc");
+      return byColumn !== 0 ? byColumn : tieBreakLines(a, b);
+    }
+    return tieBreakLines(a, b);
+  });
+
+  return copy;
+}
+
 export async function fetchCustomerDealTransactions(customerId: number): Promise<SalesTransaction[]> {
   const all: SalesTransaction[] = [];
   let page = 1;
@@ -1544,13 +2355,28 @@ export function buildClientDealRows(
       lineItems.map((item) => formatDomain(item.domain)).find(Boolean) ||
       "";
 
-    for (const item of lineItems) {
-      if (item.included) continue;
+    const billable = lineItems.filter((item) => !item.included);
+    let emitItems = billable.length ? billable : lineItems.slice(0, 1);
+    emitItems = enrichLineItemAmounts(transaction, emitItems);
+    const names = transactionDealNames(transaction);
+    const pricedRows = emitItems.filter((row) => resolveTransactionLineAmount(transaction, row) > 0);
+    const covered = billableRowsCoverDealNames(transaction, emitItems, names);
+    if (names.length > 1 && !covered && (emitItems.length <= 1 || pricedRows.length <= 1)) {
+      emitItems = enrichLineItemAmounts(
+        transaction,
+        syntheticLineItemsFromDealNames(transaction, names, emitItems[0]),
+      );
+    }
+    emitItems = dedupeTransactionDealLineItems(transaction, enrichLineItemAmounts(transaction, emitItems));
+
+    for (const item of emitItems) {
       const itemName = String(item.name ?? "").trim();
+      const lineAmount = resolveTransactionLineAmount(transaction, item);
       const amount = Number(item.amount);
       const domain = formatDomain(item.domain) || dealDomain || clientDomainValue || "—";
       const dealType = resolveDealType(itemName, transaction, seenItemNames);
-      const resolvedAmount = Number.isFinite(amount) && amount > 0 ? amount : catalogDomainCost(itemName) || null;
+      const resolvedAmount =
+        lineAmount > 0 ? lineAmount : Number.isFinite(amount) && amount > 0 ? amount : catalogDomainCost(itemName) || null;
 
       rows.push({
         id: `${transaction.id}:${item.id ?? itemName}`,
@@ -1567,8 +2393,19 @@ export function buildClientDealRows(
           dealType,
           domain,
           amount: resolvedAmount,
-          dealStatus: resolveDealStatus(transaction, matchingServiceStatus(itemName, client, adminServices)),
+          dealStatus: resolveDisplayDealStatus(transaction, {
+            serviceStatus: matchingServiceStatus(itemName, client, adminServices, transaction),
+            line: {
+              itemName,
+              itemAmount: resolvedAmount,
+              itemDomain: domain === "—" ? "" : domain,
+              lineItem: item,
+            },
+            adminServices,
+            metaDealStatus: meta?.dealStatus,
+          }),
           adminServices,
+          servicePeriod: item.period,
         }),
         productCategory: matchDomainTypeOption(itemName)
           ? "Domain Registration"
@@ -1577,6 +2414,8 @@ export function buildClientDealRows(
               dealSubjectFromName(matchingProductCategory(itemName, client, adminServices) || itemName),
             ),
         items: lineItems,
+        itemName,
+        lineItem: item,
         ...totals,
       });
 
@@ -1616,6 +2455,8 @@ export function buildClientDealRows(
           adminServices,
         }),
         items,
+        itemName: name,
+        lineItem: items[0],
         ...totalsFromItems(items),
       };
     });
