@@ -73,6 +73,11 @@ function canReviewFromInbox(row: CommerceNotificationAdminRow) {
   return Boolean(row.referenceId) && isPendingReview(row) && (row.kind === "payment_proof" || row.kind === "profile_change");
 }
 
+/** Approvals list is populated only after inbox Confirm (verify proof / approve profile). */
+function openRelatedBlockedUntilConfirmed(row: CommerceNotificationAdminRow) {
+  return canReviewFromInbox(row) && alertActionTab(row) === "approvals";
+}
+
 function senderLabel(row: CommerceNotificationAdminRow) {
   return KIND_LABEL[row.kind ?? ""] || row.kind || "WebFocus";
 }
@@ -1047,6 +1052,7 @@ function InboxMessageView({
   });
   const intro = String(item.intro || item.desc || "").trim();
   const reviewable = canReviewFromInbox(item);
+  const blockOpenRelated = openRelatedBlockedUntilConfirmed(item);
   const confirmLabel = item.kind === "profile_change" ? "Confirm Profile" : "Confirm Receipt";
   const declineLabel = "Decline";
   const quotationDeal = quotationDealId(item) != null;
@@ -1183,7 +1189,19 @@ function InboxMessageView({
               </button>
             </>
           ) : (
-            <button type="button" className={receipt ? styles.primaryBtnSm : styles.secondaryBtnSm} onClick={onOpenRelated}>
+            <button
+              type="button"
+              className={receipt && !blockOpenRelated ? styles.primaryBtnSm : styles.secondaryBtnSm}
+              disabled={busy || blockOpenRelated}
+              title={
+                blockOpenRelated
+                  ? reviewable && item.kind === "profile_change"
+                    ? "Confirm the profile change first. Related items appear in Approvals after approval."
+                    : "Confirm the receipt first. The order appears in Approvals after verification."
+                  : undefined
+              }
+              onClick={onOpenRelated}
+            >
               {alertActionLabel(item)}
             </button>
           )}
