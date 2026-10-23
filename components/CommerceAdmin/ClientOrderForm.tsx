@@ -74,6 +74,7 @@ import {
   assignCommerceSalesTransaction,
   assignCommerceCustomerOwner,
   fetchNextRotatingClientOwner,
+  notifyCommerceNotificationsUpdated,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
 import { getCustomers, getCustomer, updateCustomer, createCustomerCrmAccount, type CustomerRow } from "@/services/customerService";
@@ -88,7 +89,17 @@ import {
   PRIMARY_TLDS,
   type DomainCheckResult,
 } from "@/services/domainSearchService";
-import { createSalesTransaction, updateSalesTransaction, type SalesTransaction } from "@/services/salesTransactionService";
+import {
+  isDraftTransaction,
+  pricingWorkflowFromNotes,
+  pricingWorkflowLabel,
+} from "@/lib/commerceAdmin/dealPricingWorkflow";
+import {
+  createSalesTransaction,
+  requestDealPrice,
+  updateSalesTransaction,
+  type SalesTransaction,
+} from "@/services/salesTransactionService";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
@@ -202,6 +213,17 @@ function inputClass(required?: boolean, extra?: string) {
   return [styles.clientCrmInput, required ? styles.clientCrmInputRequired : "", extra]
     .filter(Boolean)
     .join(" ");
+}
+
+type DealSaveApiResponse = {
+  quoted_price_sent?: boolean;
+  draft_price_notified?: boolean;
+};
+
+function notifyIfDealPriceInboxUpdated(res: DealSaveApiResponse | undefined) {
+  if (res?.draft_price_notified) {
+    notifyCommerceNotificationsUpdated();
+  }
 }
 
 function normalizeCatalogName(value?: string | null) {
@@ -381,9 +403,6 @@ function catalogLinesForDealNames(
       const sold = soldPriceForName(transaction, name);
       const catalog = catalogPriceForProduct(services, name);
       const typed = dealAmountNumber(amounts, name);
-      if (typed > 0) {
-        return { name, price: typed, needsAmount: false };
-      }
       if (isWebDesignPlan(name)) {
         return {
           name,
@@ -1093,6 +1112,7 @@ export default function ClientOrderForm({
   const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [sendingPriceRequest, setSendingPriceRequest] = useState(false);
   const [liveNotes, setLiveNotes] = useState(transaction?.notes || "");
   const [newClientName, setNewClientName] = useState("");
   const [manualDateFields, setManualDateFields] = useState<Set<AutoDateKey>>(() => new Set());
@@ -1224,6 +1244,12 @@ export default function ClientOrderForm({
               nextForm.dealType ||
               "New Client",
             salesNotes: dealConversationNotes(transaction.notes).salesNotes,
+            priceAssigneeId: String(
+              parseDealMeta(transaction.notes)?.priceAssigneeId ??
+                transaction.client_owner_id ??
+                clientOwnerId ??
+                "",
+            ),
           });
           setLiveNotes(transaction.notes || "");
           setChatOpen(true);
@@ -1504,11 +1530,18 @@ export default function ClientOrderForm({
       setLiveNotes(res?.data?.notes || notes);
       setForm((current) => ({ ...current, expectedRevenue: String(grand) }));
       setChatOpen(true);
+      notifyIfDealPriceInboxUpdated(res as DealSaveApiResponse);
       toast.success(
-        `Quoted price updated to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+        (res as DealSaveApiResponse)?.draft_price_notified
+          ? `Quoted price updated to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Staff were notified.`
+          : `Quoted price updated to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
       );
-    } catch (err: { response?: { data?: { message?: string } } }) {
-      toast.error(err?.response?.data?.message || "Failed to update the quoted price.");
+    } catch (err: unknown) {
+      const apiMessage =
+        typeof err === "object" && err !== null && "response" in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      toast.error(apiMessage || "Failed to update the quoted price.");
     } finally {
       setSubmitting(false);
     }
@@ -1879,8 +1912,12 @@ export default function ClientOrderForm({
     setActionIntent("save");
   };
 
-  const saveDeal = async (andNew: boolean) => {
-    const validationError = validateClientOrderForm(form, { requireCrmFields: !isEditing });
+  const saveDeal = async (andNew: boolean, mode: "draft" | "finalize" = "finalize") => {
+    const draftSave = mode === "draft";
+    const validationError = validateClientOrderForm(form, {
+      requireCrmFields: !isEditing && !draftSave,
+      draft: draftSave,
+    });
     if (validationError) {
       toast.error(validationError);
       return;
@@ -1896,17 +1933,19 @@ export default function ClientOrderForm({
       return;
     }
 
-    const missingAmounts = catalogLinesForDealNames(
-      services,
-      form.dealName,
-      transaction,
-      form.dealAmounts,
-    )
-      .filter((row) => row.needsAmount && !(row.price > 0))
-      .map((row) => row.name);
-    if (missingAmounts.length) {
-      toast.error(`Please input a deal amount for ${missingAmounts.join(", ")}.`);
-      return;
+    if (!draftSave) {
+      const missingAmounts = catalogLinesForDealNames(
+        services,
+        form.dealName,
+        transaction,
+        form.dealAmounts,
+      )
+        .filter((row) => row.needsAmount && !(row.price > 0))
+        .map((row) => row.name);
+      if (missingAmounts.length) {
+        toast.error(`Please input a deal amount for ${missingAmounts.join(", ")}.`);
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -1970,10 +2009,14 @@ export default function ClientOrderForm({
           tax_total: taxTotal,
           grand_total: netTotal,
           payment_status: toApiPaymentStatus(form.paymentStatus) || transaction.payment_status,
-          order_status: toApiOrderStatus(form.salesStatus) || transaction.order_status,
+          order_status: draftSave
+            ? "draft"
+            : toApiOrderStatus(form.salesStatus) ||
+              (isDraftTransaction(transaction.order_status) ? "pending" : transaction.order_status),
           notes,
           transacted_at: form.closingDate || transaction.transacted_at,
           client_owner_id: ownerId || null,
+          save_mode: draftSave ? "draft" : "finalize",
           ...(itemPayload.length ? { items: itemPayload } : {}),
         });
 
@@ -2008,10 +2051,15 @@ export default function ClientOrderForm({
           }
         }
 
+        notifyIfDealPriceInboxUpdated(saved as DealSaveApiResponse);
         toast.success(
           saved?.quoted_price_sent
             ? "Deal saved. The customer was sent the updated quotation."
-            : "Deal information saved.",
+            : (saved as DealSaveApiResponse)?.draft_price_notified
+              ? "Deal saved. Staff were notified about the updated pricing."
+              : draftSave
+                ? "Deal saved as draft."
+                : "Deal information saved.",
         );
         if (andNew) {
           onSaved({ andNew: true });
@@ -2035,9 +2083,10 @@ export default function ClientOrderForm({
         shipping_total: 0,
         grand_total: netTotal,
         payment_status: toApiPaymentStatus(form.paymentStatus) || "pending",
-        order_status: toApiOrderStatus(form.salesStatus) || "pending",
+        order_status: draftSave ? "draft" : toApiOrderStatus(form.salesStatus) || "pending",
         notes: createdNotes,
         transacted_at: form.closingDate || undefined,
+        save_mode: draftSave ? "draft" : "finalize",
         items: buildDealItemPayload(services, form, transaction),
       });
 
@@ -2067,7 +2116,7 @@ export default function ClientOrderForm({
         }
       }
 
-      toast.success("Client order created successfully.");
+      toast.success(draftSave ? "Draft deal created." : "Client order created successfully.");
       onSaved({ andNew });
       if (andNew) {
         setManualDateFields(new Set());
@@ -2093,13 +2142,49 @@ export default function ClientOrderForm({
       return;
     }
     if (next === "save-and-new") {
-      void saveDeal(true);
+      void saveDeal(true, "finalize");
       return;
     }
     if (next === "save") {
-      void saveDeal(false);
+      void saveDeal(false, "finalize");
     }
   };
+
+  const handleSendPriceRequest = async () => {
+    const message = form.pricingRequestNote.trim();
+    const assigneeId = Number(form.priceAssigneeId || form.dealOwnerId);
+    if (!message) {
+      toast.error("Enter a note describing the pricing you need.");
+      return;
+    }
+    if (!(assigneeId > 0)) {
+      toast.error("Select who should set the price (deal owner or assignee).");
+      return;
+    }
+
+    if (!transaction?.id) {
+      toast.info("Save as draft first, then send the price request.");
+      return;
+    }
+
+    setSendingPriceRequest(true);
+    try {
+      const res = await requestDealPrice(transaction.id, { message, assignee_id: assigneeId });
+      const nextTxn = res?.data as SalesTransaction | undefined;
+      if (nextTxn?.notes) setLiveNotes(nextTxn.notes);
+      notifyCommerceNotificationsUpdated();
+      toast.success("Price request sent. The assignee was notified.");
+      setField("pricingRequestNote", "");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Could not send the price request.");
+    } finally {
+      setSendingPriceRequest(false);
+    }
+  };
+
+  const draftDeal = isDraftTransaction(transaction?.order_status);
+  const pricingStatus = pricingWorkflowFromNotes(effectiveNotes);
+  const showPricingWorkflow = draftDeal || dealPriceLines.some((row) => row.needsAmount && !(row.price > 0));
 
   const headerTitle = useMemo(() => {
     if (!isEditing) return pageTitle || "Create Deal";
@@ -2162,6 +2247,16 @@ export default function ClientOrderForm({
           >
             Cancel
           </button>
+          {showPricingWorkflow ? (
+            <button
+              type="button"
+              className={styles.secondaryBtnSm}
+              onClick={() => void saveDeal(false, "draft")}
+              disabled={submitting}
+            >
+              Save as Draft
+            </button>
+          ) : null}
           <button
             type="button"
             className={styles.secondaryBtnSm}
@@ -2171,7 +2266,7 @@ export default function ClientOrderForm({
             Save and New
           </button>
           <button type="submit" className={styles.primaryBtnSm} disabled={submitting}>
-            {submitting ? "Saving..." : "Save"}
+            {submitting ? "Saving..." : draftDeal || showPricingWorkflow ? "Finalize Deal" : "Save"}
           </button>
         </div>
       </div>
@@ -2446,7 +2541,7 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("campaignSource", e.target.value)}
               />
             </Field>
-            {dealPriceLines.length ? (
+            {dealPriceLines.length || showPricingWorkflow ? (
               <div className={styles.dealPriceSummarySlot}>
                 <div className={styles.dealPriceSummary}>
                   <span className={styles.clientOrderLabel}>
@@ -2458,58 +2553,148 @@ export default function ClientOrderForm({
                       i
                     </span>
                   </span>
-                  <div className={styles.dealPriceSummaryBox}>
-                    <ul className={styles.dealPriceSummaryList}>
-                      {dealPriceLines.map((row) => (
-                        <li key={row.name} className={row.needsAmount ? styles.dealPriceSummaryRowInput : ""}>
-                          <span className={styles.dealPriceSummaryName}>{row.name}</span>
-                          {row.needsAmount && !row.isDomain ? (
-                            <span className={styles.dealPriceAmountInput}>
-                              <span className={styles.clientCrmPesoPrefix}>₱</span>
-                              <input
-                                className={inputClass(true, styles.clientCrmPesoInput)}
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={form.dealAmounts?.[row.name] ?? ""}
-                                onChange={(e) => setDealAmount(row.name, e.target.value)}
-                                placeholder="0.00"
-                                aria-label={`Input a deal amount for ${row.name}`}
-                              />
-                            </span>
-                          ) : (
-                            <span className={styles.dealPriceSummaryAmount}>
-                              {formatDealAmount(row.price)}
-                            </span>
-                          )}
+                  <div className={`${styles.dealPriceSummaryBox} ${styles.dealPriceSummaryBoxEnhanced}`}>
+                    {dealPriceLines.length ? (
+                      <>
+                        <div className={styles.dealPriceSummaryHeader} aria-hidden="true">
+                          <span>Line item</span>
+                          <span className={styles.dealPriceSummaryAmountCol}>Amount</span>
+                          <span />
+                        </div>
+                        <ul className={styles.dealPriceSummaryList}>
+                          {dealPriceLines.map((row) => {
+                            const amountMissing =
+                              row.needsAmount &&
+                              !row.isDomain &&
+                              !(dealAmountNumber(form.dealAmounts, row.name) > 0);
+                            return (
+                              <li
+                                key={row.name}
+                                className={amountMissing ? styles.dealPriceSummaryRowNeedsPrice : ""}
+                              >
+                                <span className={styles.dealPriceSummaryName}>
+                                  <span className={styles.dealPriceSummaryNameLabel}>{row.name}</span>
+                                  {amountMissing ? (
+                                    <span className={styles.dealPriceNeedsPriceBadge}>Needs price</span>
+                                  ) : null}
+                                </span>
+                                <div className={styles.dealPriceSummaryAmountCol}>
+                                  {row.needsAmount && !row.isDomain ? (
+                                    <span className={styles.dealPriceAmountInput}>
+                                      <span className={styles.clientCrmPesoPrefix}>₱</span>
+                                      <input
+                                        className={inputClass(false, `${styles.clientCrmPesoInput} ${styles.dealPriceAmountField}`)}
+                                        type="text"
+                                        inputMode="decimal"
+                                        autoComplete="off"
+                                        value={form.dealAmounts?.[row.name] ?? ""}
+                                        onChange={(e) => {
+                                          const raw = e.target.value.replace(/[^\d.]/g, "");
+                                          const dot = raw.indexOf(".");
+                                          const normalized =
+                                            dot < 0
+                                              ? raw
+                                              : `${raw.slice(0, dot + 1)}${raw.slice(dot + 1).replace(/\./g, "")}`;
+                                          setDealAmount(row.name, normalized);
+                                        }}
+                                        placeholder="0.00"
+                                        aria-label={`Amount for ${row.name}`}
+                                      />
+                                    </span>
+                                  ) : (
+                                    <span className={styles.dealPriceSummaryAmount}>
+                                      {formatDealAmount(row.price)}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  className={styles.dealPriceSummaryRemove}
+                                  aria-label={`Remove ${row.name}`}
+                                  onClick={() => {
+                                    if (row.isDomain) {
+                                      setForm((current) => ({
+                                        ...current,
+                                        domainName: "",
+                                        domainType: "",
+                                        domainRegistrationCost: "",
+                                      }));
+                                      return;
+                                    }
+                                    handleDealNamesChange(
+                                      parseDealNames(form.dealName).filter((name) => name !== row.name),
+                                    );
+                                  }}
+                                >
+                                  <i className="fa-solid fa-xmark" aria-hidden="true" />
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <div className={`${styles.dealPriceSummaryTotal} ${styles.dealPriceSummaryTotalEmphasis}`}>
+                          <span>Total</span>
+                          <span className={`${styles.dealPriceSummaryAmountCol} ${styles.dealPriceSummaryAmount}`}>
+                            {formatDealAmount(dealPriceTotal)}
+                          </span>
+                          <span aria-hidden="true" />
+                        </div>
+                      </>
+                    ) : null}
+
+                    {showPricingWorkflow ? (
+                      <div className={styles.dealPricingRequestPanel}>
+                        <div className={styles.dealPricingRequestHeader}>
+                          <div>
+                            <strong className={styles.dealPricingRequestTitle}>Request pricing</strong>
+                            <p className={styles.dealPricingRequestHint}>
+                              Save as draft, then notify someone to set missing line prices.
+                            </p>
+                          </div>
+                          {draftDeal ? (
+                            <span className={styles.dealPricingStatusBadge}>{pricingWorkflowLabel(pricingStatus)}</span>
+                          ) : null}
+                        </div>
+                        <div className={styles.dealPricingRequestFields}>
+                          <label className={styles.dealPricingRequestField}>
+                            <span className={styles.dealPricingRequestLabel}>Send to</span>
+                            <select
+                              className={inputClass()}
+                              value={form.priceAssigneeId || form.dealOwnerId}
+                              onChange={(e) => setField("priceAssigneeId", e.target.value)}
+                            >
+                              <option value="">Select assignee</option>
+                              {staffUsers.map((user) => (
+                                <option key={user.id} value={user.id}>
+                                  {assignablePersonLabel(user)}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className={`${styles.dealPricingRequestField} ${styles.dealPricingRequestFieldGrow}`}>
+                            <span className={styles.dealPricingRequestLabel}>Notes</span>
+                            <textarea
+                              className={`${inputClass()} ${styles.dealPricingRequestTextarea}`}
+                              rows={3}
+                              placeholder="Describe the pricing needed for this deal…"
+                              value={form.pricingRequestNote}
+                              onChange={(e) => setField("pricingRequestNote", e.target.value)}
+                            />
+                          </label>
+                        </div>
+                        <div className={styles.dealPricingRequestActions}>
                           <button
                             type="button"
-                            className={styles.dealPriceSummaryRemove}
-                            aria-label={`Remove ${row.name}`}
-                            onClick={() => {
-                              if (row.isDomain) {
-                                setForm((current) => ({
-                                  ...current,
-                                  domainName: "",
-                                  domainType: "",
-                                  domainRegistrationCost: "",
-                                }));
-                                return;
-                              }
-                              handleDealNamesChange(
-                                parseDealNames(form.dealName).filter((name) => name !== row.name),
-                              );
-                            }}
+                            className={styles.primaryBtnSm}
+                            disabled={submitting || sendingPriceRequest}
+                            onClick={() => void handleSendPriceRequest()}
                           >
-                            <i className="fa-solid fa-xmark" aria-hidden="true" />
+                            <i className="fa-regular fa-paper-plane" aria-hidden="true" />{" "}
+                            {sendingPriceRequest ? "Sending…" : "Send price request"}
                           </button>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className={styles.dealPriceSummaryTotal}>
-                      <span>Total</span>
-                      <span className={styles.dealPriceSummaryAmount}>{formatDealAmount(dealPriceTotal)}</span>
-                    </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2950,8 +3135,11 @@ export default function ClientOrderForm({
               setLiveNotes(res?.data?.notes || notes);
               setPriceOpen(false);
               setChatOpen(true);
+              notifyIfDealPriceInboxUpdated(res as DealSaveApiResponse);
               toast.success(
-                `Quoted price set to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
+                (res as DealSaveApiResponse)?.draft_price_notified
+                  ? `Quoted price set to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Staff were notified.`
+                  : `Quoted price set to ₱${grand.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.`,
               );
             })
             .catch((err: { response?: { data?: { message?: string } } }) => {

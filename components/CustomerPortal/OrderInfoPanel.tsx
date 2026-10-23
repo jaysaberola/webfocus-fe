@@ -6,6 +6,8 @@ import {
   orderCanCheckout,
   orderCanCustomize,
   orderDueDate,
+  orderDisplayStatus,
+  orderRenewalInfo,
   orderPaymentDate,
   orderPaymentMethodLabel,
   orderPlanLabel,
@@ -258,6 +260,7 @@ export default function OrderInfoPanel({
   const [replyOpen, setReplyOpen] = useState(false);
   const autoOpened = useRef<number | null>(null);
   const billedTotal = portalBilledAmount(order);
+  const renewal = orderRenewalInfo(order);
   const isWebDesignQuote = String(order.status || "").toLowerCase().includes("quotation")
     || String(order.serviceName || "").toLowerCase().includes("web");
   const orderItems = order.items ?? [];
@@ -535,11 +538,18 @@ export default function OrderInfoPanel({
           <ReadField label="Payment Date" value={orderPaymentDate(order) || "—"} />
           <ReadField label="Payment Status" value={order.paymentStatus || "—"} />
           <ReadField label="Date Ordered" value={order.date || "—"} />
-          <ReadField label="Due Date" value={orderDueDate(order) || "—"} />
+          <ReadField
+            label="Subscription expires"
+            value={
+              renewal.showRenewal
+                ? `${renewal.endDate ?? orderDueDate(order) ?? "—"} · ${renewal.countdownLabel}`
+                : renewal.countdownLabel
+            }
+          />
           <label className={styles.orderInfoField}>
             <span className={styles.orderInfoLabel}>Status</span>
             <span className={styles.orderInfoStatusWrap}>
-              <OrderStatusBadge order={order} />
+              <OrderStatusBadge order={{ ...order, status: orderDisplayStatus(order) }} />
             </span>
           </label>
         </div>

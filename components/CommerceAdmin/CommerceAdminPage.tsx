@@ -23,7 +23,22 @@ export default function CommerceAdminPage() {
   useEffect(() => {
     if (!router.isReady || loading) return;
 
-    const requestedRaw = typeof router.query.tab === "string" ? router.query.tab : undefined;
+    let requestedRaw = typeof router.query.tab === "string" ? router.query.tab : undefined;
+    if (requestedRaw === "draft-deals") {
+      requestedRaw = "orders";
+      void router.replace(
+        {
+          pathname: COMMERCE_ADMIN_PATH,
+          query: {
+            tab: "orders",
+            dealsScope: "drafts",
+            ...(typeof router.query.dealId === "string" ? { dealId: router.query.dealId } : {}),
+          },
+        },
+        undefined,
+        { shallow: true },
+      );
+    }
 
     if (requestedRaw === "managed") {
       void router.replace("/managed");

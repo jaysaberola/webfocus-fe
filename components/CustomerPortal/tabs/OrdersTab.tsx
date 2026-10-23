@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PortalTabLoader from "@/components/CustomerPortal/PortalTabLoader";
 import OrderInfoPanel from "@/components/CustomerPortal/OrderInfoPanel";
-import OrderStatusBadge from "@/components/CustomerPortal/OrderStatusBadge";
+import OrderRenewalCell from "@/components/CustomerPortal/OrderRenewalCell";
+import OrderRenewalStatusBadge from "@/components/CustomerPortal/OrderRenewalStatusBadge";
 import PortalSortableTableHead from "@/components/CustomerPortal/PortalSortableTableHead";
 import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import PortalBulkSelectionBar from "@/components/CustomerPortal/PortalBulkSelectionBar";
@@ -279,9 +280,12 @@ function ServiceNameLink({
   );
 }
 
+const RENEW_ORDERS_FILTER: TableFilterState = { field: "status", value: "Expired" };
+
 export default function OrdersTab() {
   const router = useRouter();
   const showRenewHelp = router.isReady && router.query.renew === "1";
+  const renewHelpRef = useRef<HTMLDivElement>(null);
   const [orders, setOrders] = useState<PortalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -317,6 +321,19 @@ export default function OrdersTab() {
   useEffect(() => {
     loadOrders().finally(() => setLoading(false));
   }, [loadOrders]);
+
+  useEffect(() => {
+    if (!showRenewHelp) return;
+    renewHelpRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [showRenewHelp]);
+
+  useEffect(() => {
+    if (!showRenewHelp || loading) return;
+    const hasExpired = orders.some((order) => order.status === "Expired");
+    if (!hasExpired) return;
+    setDraftFilter(RENEW_ORDERS_FILTER);
+    setAppliedFilter(RENEW_ORDERS_FILTER);
+  }, [showRenewHelp, loading, orders]);
 
   const getOrderFilterValue = useCallback((order: PortalOrder, fieldId: string) => {
     switch (fieldId) {
@@ -703,21 +720,21 @@ export default function OrdersTab() {
         </div>
 
         {showRenewHelp ? (
-          <div className={`${styles.alertBanner} ${styles.alertPayment}`} role="status">
-            <span className={styles.alertIconWrap} aria-hidden="true">
+          <div ref={renewHelpRef} className={styles.ordersNotice} role="status">
+            <span className={`${styles.ordersNoticeIcon} ${styles.ordersNoticeIconInfo}`} aria-hidden="true">
               <i className="fa-solid fa-rotate-right" />
             </span>
-            <div className={styles.pendingPayCopy}>
-              <p className={styles.pendingPayTitle}>How to renew an expired service</p>
-              <p className={styles.panelSub}>
-                1) Find your order below → Actions → <strong>Renew Subscription</strong> (opens Billing to pay).
-                2) Or browse <Link href="/public/services">Add Service</Link> for a new term.
-                3) Questions? <Link href="/public/dashboard?tab=help">Help &amp; Communication</Link>.
+            <div className={styles.ordersNoticeBody}>
+              <p className={styles.ordersNoticeTitle}>How to renew an expired service</p>
+              <p className={styles.ordersNoticeText}>
+                Check the <strong>Expiration</strong> column for the end date and days remaining. Then use Actions →{" "}
+                <strong>Renew Subscription</strong>, or browse <Link href="/public/services">Add Service</Link> for a new
+                term. Questions? <Link href="/public/dashboard?tab=help">Help &amp; Communication</Link>.
               </p>
             </div>
             <button
               type="button"
-              className={styles.secondaryBtnSm}
+              className={`${styles.secondaryBtnSm} ${styles.ordersNoticeDismiss}`}
               onClick={() => {
                 void router.replace({ pathname: "/public/dashboard", query: { tab: "orders" } }, undefined, {
                   shallow: true,
@@ -730,37 +747,37 @@ export default function OrdersTab() {
         ) : null}
 
         {pendingCheckoutOrders.length > 0 ? (
-          <div className={styles.pendingPayNotice} role="status">
-            <span className={styles.pendingPayIcon} aria-hidden="true">
-              <i className="fa-solid fa-clock" />
+          <div className={styles.ordersNotice} role="status">
+            <span className={`${styles.ordersNoticeIcon} ${styles.ordersNoticeIconPayment}`} aria-hidden="true">
+              <i className="fa-solid fa-credit-card" />
             </span>
-            <div className={styles.pendingPayCopy}>
-              <p className={styles.pendingPayTitle}>
+            <div className={styles.ordersNoticeBody}>
+              <p className={styles.ordersNoticeTitle}>
                 {pendingCheckoutOrders.length === 1 ? "Pending payment" : "Pending payments"}
               </p>
               {pendingCheckoutOrders.map((order) => (
-                <p key={order.id} className={styles.pendingPayMeta}>
+                <p key={order.id} className={styles.ordersNoticeMeta}>
                   {orderServiceName(order)}
-                  <span className={styles.pendingPayInvoice}>{order.invoiceId || order.id}</span>
+                  <span className={styles.ordersNoticeInvoice}>{order.invoiceId || order.id}</span>
                 </p>
               ))}
-              <p className={styles.pendingPayText}>
-                Finish this Paynamics payment instead of creating a new invoice.
+              <p className={styles.ordersNoticeText}>
+                Complete your existing Paynamics checkout instead of creating a new invoice.
               </p>
-              <div className={styles.pendingPayActions}>
-                <Link href="/public/dashboard?tab=billing" className={styles.pendingPayLink}>
+              <div className={styles.ordersNoticeActions}>
+                <Link href="/public/dashboard?tab=billing" className={styles.secondaryBtnSm}>
                   View invoice
                 </Link>
                 <button
                   type="button"
-                  className={styles.pendingPayLink}
+                  className={styles.primaryBtnSm}
                   disabled={checkingOut || billingOpen || receiptTipOpen}
                   onClick={() => {
                     const first = pendingCheckoutOrders[0];
                     if (first) beginOrderCheckout(first);
                   }}
                 >
-                  {checkingOut ? "Opening Paynamics..." : "Ready for Checkout"}
+                  {checkingOut ? "Opening Paynamics..." : "Ready for checkout"}
                 </button>
               </div>
             </div>
@@ -886,7 +903,7 @@ export default function OrdersTab() {
                     onClick={() => setSortBy((current) => toggleOrderSort(current, "date"))}
                   />
                   <PortalSortableTableHead
-                    label="Due Date"
+                    label="Expiration"
                     active={orderSortDirection(sortBy, "due") !== null}
                     direction={orderSortDirection(sortBy, "due") ?? "asc"}
                     onClick={() => setSortBy((current) => toggleOrderSort(current, "due"))}
@@ -934,9 +951,11 @@ export default function OrdersTab() {
                         <td data-label="Payment Mode">{orderPaymentMethodLabel(order)}</td>
                         <td data-label="Payment Date">{orderPaymentDate(order) || "—"}</td>
                         <td data-label="Date Ordered">{order.date}</td>
-                        <td data-label="Due Date">{orderDueDate(order)}</td>
+                        <td data-label="Expiration">
+                          <OrderRenewalCell order={order} />
+                        </td>
                         <td className={styles.statusCell} data-label="Status">
-                          <OrderStatusBadge order={order} />
+                          <OrderRenewalStatusBadge order={order} />
                         </td>
                         <td className={styles.billingActionsCell} data-label="Action">
                           <select

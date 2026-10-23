@@ -201,8 +201,11 @@ const emptyForm = {
   items: [] as any[],
 };
 
+type DealsScope = "published" | "drafts";
+
 export default function CommerceTransactionsTab() {
   const router = useRouter();
+  const [dealsScope, setDealsScope] = useState<DealsScope>("published");
   const [rows, setRows] = useState<SalesTransaction[]>([]);
   const [adminServices, setAdminServices] = useState<CommerceServiceAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -320,10 +323,20 @@ export default function CommerceTransactionsTab() {
     setLoading(true);
     try {
       const [res, services] = await Promise.all([
-        getSalesTransactions({ per_page: 200 }, { silent: true }),
+        getSalesTransactions(
+          dealsScope === "drafts"
+            ? { per_page: 200, order_status: "draft" }
+            : { per_page: 200, exclude_draft: 1 },
+          { silent: true },
+        ),
         fetchCommerceServices(undefined, undefined, { perPage: 500 }).catch(() => []),
       ]);
-      setRows(Array.isArray(res?.data) ? res.data : []);
+      const raw: SalesTransaction[] = Array.isArray(res?.data) ? (res.data as SalesTransaction[]) : [];
+      setRows(
+        dealsScope === "drafts"
+          ? raw.filter((row) => String(row.order_status ?? "").toLowerCase() === "draft")
+          : raw.filter((row) => String(row.order_status ?? "").toLowerCase() !== "draft"),
+      );
       setAdminServices(Array.isArray(services) ? services : []);
     } catch {
       setRows([]);
@@ -331,11 +344,44 @@ export default function CommerceTransactionsTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dealsScope]);
 
   useEffect(() => {
     loadRows();
   }, [loadRows]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const scopeRaw = String(router.query.dealsScope ?? "").toLowerCase();
+    if (scopeRaw === "drafts") setDealsScope("drafts");
+    else if (scopeRaw === "published") setDealsScope("published");
+  }, [router.isReady, router.query.dealsScope]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const dealId = Number(router.query.dealId);
+    if (!(dealId > 0)) return;
+    const match = rows.find((row) => Number(row.id) === dealId);
+    if (!match) return;
+    setDealInfo(match);
+    setView("deal");
+    const query: Record<string, string> = { tab: "orders" };
+    if (String(match.order_status ?? "").toLowerCase() === "draft") query.dealsScope = "drafts";
+    void router.replace({ pathname: COMMERCE_ADMIN_PATH, query }, undefined, { shallow: true });
+  }, [router.isReady, router.query.dealId, rows, router]);
+
+  const switchDealsScope = (scope: DealsScope) => {
+    setDealsScope(scope);
+    setPage(1);
+    void router.replace(
+      {
+        pathname: COMMERCE_ADMIN_PATH,
+        query: scope === "drafts" ? { tab: "orders", dealsScope: "drafts" } : { tab: "orders" },
+      },
+      undefined,
+      { shallow: true },
+    );
+  };
 
   useEffect(() => {
     const raw = sessionStorage.getItem("commerceAdmin:txClientFilter");
@@ -1055,7 +1101,9 @@ export default function CommerceTransactionsTab() {
         <div>
           <h3 className={styles.panelTitle}>Deals</h3>
           <p className={styles.panelSubtitle}>
-            Track client deals, owners, domains, and product categories.
+            {dealsScope === "drafts"
+              ? "Draft deals missing prices or awaiting completion."
+              : "Track client deals, owners, domains, and product categories."}
           </p>
         </div>
         <div className={`${styles.analyticsToggle} ${styles.viewModeToggle}`} role="group" aria-label="View mode">
@@ -1116,9 +1164,31 @@ export default function CommerceTransactionsTab() {
           onDelete={() => setBulkDeleteOpen(true)}
           onClear={selection.clearSelection}
         />
-      ) : (
-        <div className={styles.toolbarRow}>
-          <div className={styles.toolbarFilters}>
+      ) : null}
+
+      <div className={styles.toolbarRow}>
+        <div className={styles.toolbarFilters}>
+          <div className={styles.clientCrmTabs} role="tablist" aria-label="Deal scope">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dealsScope === "published"}
+              className={`${styles.clientCrmTab}${dealsScope === "published" ? ` ${styles.clientCrmTabActive}` : ""}`}
+              onClick={() => switchDealsScope("published")}
+            >
+              Active
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dealsScope === "drafts"}
+              className={`${styles.clientCrmTab}${dealsScope === "drafts" ? ` ${styles.clientCrmTabActive}` : ""}`}
+              onClick={() => switchDealsScope("drafts")}
+            >
+              Drafts
+            </button>
+          </div>
+          {!hasSelection ? (
             <div className={styles.colVisWrap} ref={colVisRef}>
               <button
                 type="button"
@@ -1148,7 +1218,9 @@ export default function CommerceTransactionsTab() {
                 </div>
               ) : null}
             </div>
-          </div>
+          ) : null}
+        </div>
+        {!hasSelection ? (
           <button
             type="button"
             className={styles.primaryBtnSm}
@@ -1161,8 +1233,8 @@ export default function CommerceTransactionsTab() {
             <span className={styles.toolbarLabelFull}>Create Deal</span>
             <span className={styles.toolbarLabelShort}>Create</span>
           </button>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       {loading ? (
         <p className={styles.emptyState}>Loading deals...</p>

@@ -84,7 +84,7 @@ async function loadInbox(audience: Audience): Promise<LiveInboxItem[]> {
   return asStaffItems(await fetchCommerceNotifications());
 }
 
-function popupUnread(items: LiveInboxItem[], onOpenInbox?: (context?: InboxToastOpenContext) => void) {
+function popupUnread(items: LiveInboxItem[], onOpenInbox?: (context: InboxToastOpenContext) => void) {
   if (!items.length) return;
   const sorted = sortInboxByPriority(items);
   const latest = sorted[0];
@@ -134,7 +134,7 @@ export default function LiveInboxHost({
     const showPopup = (items: LiveInboxItem[]) => {
       if (!items.length || toasting.current) return;
       toasting.current = true;
-      popupUnread(items, () => onOpenInboxRef.current?.());
+      popupUnread(items, (context) => onOpenInboxRef.current?.(context));
       lastOpenPopupAt.current = Date.now();
       window.setTimeout(() => {
         toasting.current = false;

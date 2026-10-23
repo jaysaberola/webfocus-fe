@@ -98,6 +98,8 @@ export type CustomerRow = UserRow & {
   client_type?: string | null;
   billing_in_charge?: string | null;
   contact_person?: string | null;
+  mobile?: string | null;
+  phone?: string | null;
   website?: string | null;
   service_name?: string | null;
   plan_name?: string | null;

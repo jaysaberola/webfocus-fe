@@ -45,6 +45,8 @@ export type PortalOrder = {
   createdAt?: string | null;
   dueDate?: string;
   expiredDate: string;
+  subscriptionEndDate?: string | null;
+  daysUntilSubscriptionEnd?: number | null;
   total: number;
   grandTotal?: number;
   subtotal?: number;

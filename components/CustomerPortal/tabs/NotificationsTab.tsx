@@ -98,6 +98,26 @@ function attachmentUrl(attachment: PortalNotificationAttachment) {
   return resolveStorageAssetUrl(attachment.url) || attachment.url;
 }
 
+function openPortalDashboardHref(router: ReturnType<typeof useRouter>, href: string) {
+  const raw = String(href || "").trim();
+  if (!raw) return;
+  try {
+    const parsed = new URL(raw, typeof window !== "undefined" ? window.location.origin : "http://localhost");
+    const path = parsed.pathname.replace(/\/$/, "");
+    if (path.endsWith("/public/dashboard")) {
+      const query: Record<string, string> = {};
+      parsed.searchParams.forEach((value, key) => {
+        query[key] = value;
+      });
+      void router.replace({ pathname: "/public/dashboard", query }, undefined, { shallow: true });
+      return;
+    }
+  } catch {
+    // fall through to full navigation
+  }
+  void router.push(raw);
+}
+
 function actionLabel(item: PortalNotification) {
   if (item.actionLabel) return item.actionLabel;
   const url = String(item.actionUrl || "");
@@ -245,7 +265,7 @@ export default function NotificationsTab() {
   };
 
   const openRelated = (item: PortalNotification) => {
-    if (item.actionUrl) void router.push(item.actionUrl);
+    if (item.actionUrl) openPortalDashboardHref(router, item.actionUrl);
   };
 
   const handleMarkAllRead = async () => {

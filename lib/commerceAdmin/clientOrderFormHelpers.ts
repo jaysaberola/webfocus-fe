@@ -592,6 +592,8 @@ export type ClientOrderFormState = {
   sslWildcardExpirationDate: string;
   domainRegistrationCost: string;
   salesNotes: string;
+  priceAssigneeId: string;
+  pricingRequestNote: string;
 };
 
 export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): ClientOrderFormState => ({
@@ -650,6 +652,8 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   sslWildcardExpirationDate: "",
   domainRegistrationCost: "",
   salesNotes: "",
+  priceAssigneeId: "",
+  pricingRequestNote: "",
   ...defaults,
 });
 
@@ -671,12 +675,13 @@ export function hasSelectedDomain(form: Pick<ClientOrderFormState, "domainName">
 
 export function validateClientOrderForm(
   form: ClientOrderFormState,
-  options?: { requireCrmFields?: boolean },
+  options?: { requireCrmFields?: boolean; draft?: boolean },
 ) {
   const domainSelected = hasSelectedDomain(form);
   if (!form.stage) return "Stage is required.";
   if (!form.dealName.trim() && !domainSelected) return "Deal Name is required.";
   if (!form.clientId) return "Client Name is required.";
+  if (options?.draft) return null;
   if (requiresPreorderJoNumber(form) && !form.joNumber.trim()) {
     return "JO Number is required for Dedicated Server and Bare Metal pre-orders.";
   }
@@ -760,6 +765,9 @@ export type DealMeta = {
   salesNotes?: string;
   quotedPrice?: number;
   conversation?: Array<{ from?: string; text?: string; at?: string; file?: { name?: string; url?: string; kind?: string } }>;
+  pricingWorkflowStatus?: string;
+  priceAssigneeId?: string | number;
+  dealCreatedByUserId?: string | number;
 };
 
 const DEAL_META_PREFIX = "[DEAL_META]";

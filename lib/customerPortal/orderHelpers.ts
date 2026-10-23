@@ -6,6 +6,115 @@ export function orderDueDate(order: PortalOrder) {
   return order.dueDate ?? order.expiredDate;
 }
 
+export type OrderRenewalTone = "none" | "ok" | "soon" | "urgent" | "expired";
+
+export type OrderRenewalInfo = {
+  endDate: string | null;
+  daysLeft: number | null;
+  countdownLabel: string;
+  tone: OrderRenewalTone;
+  showRenewal: boolean;
+};
+
+function parseOrderEndDate(value?: string | null) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const parsed = Date.parse(`${raw.slice(0, 10)}T12:00:00`);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function renewalToneFromDays(daysLeft: number): OrderRenewalTone {
+  if (daysLeft < 0) return "expired";
+  if (daysLeft <= 30) return "urgent";
+  if (daysLeft <= 60) return "soon";
+  return "ok";
+}
+
+function renewalCountdownLabel(daysLeft: number) {
+  if (daysLeft < 0) {
+    const ago = Math.abs(daysLeft);
+    return ago === 1 ? "Expired 1 day ago" : `Expired ${ago} days ago`;
+  }
+  if (daysLeft === 0) return "Expires today";
+  if (daysLeft === 1) return "1 day left";
+  return `${daysLeft} days left`;
+}
+
+export function orderRenewalInfo(order: PortalOrder, now = Date.now()): OrderRenewalInfo {
+  const unpaid =
+    order.status === "Pending Payment" ||
+    order.status === "Pending Request" ||
+    order.status === "Awaiting Approval";
+  if (unpaid) {
+    return {
+      endDate: null,
+      daysLeft: null,
+      countdownLabel: "Pay to activate subscription",
+      tone: "none",
+      showRenewal: false,
+    };
+  }
+
+  const endDate =
+    String(order.subscriptionEndDate ?? "").trim() ||
+    String(orderDueDate(order) ?? "").trim() ||
+    null;
+  if (!endDate) {
+    return {
+      endDate: null,
+      daysLeft: null,
+      countdownLabel: "Renewal date pending",
+      tone: "none",
+      showRenewal: false,
+    };
+  }
+
+  let daysLeft: number | null =
+    typeof order.daysUntilSubscriptionEnd === "number" && Number.isFinite(order.daysUntilSubscriptionEnd)
+      ? order.daysUntilSubscriptionEnd
+      : null;
+  if (daysLeft == null) {
+    const endMs = parseOrderEndDate(endDate);
+    if (endMs == null) {
+      return {
+        endDate,
+        daysLeft: null,
+        countdownLabel: "Renewal date pending",
+        tone: "none",
+        showRenewal: true,
+      };
+    }
+    const today = new Date(now);
+    today.setHours(12, 0, 0, 0);
+    const end = new Date(endMs);
+    daysLeft = Math.round((end.getTime() - today.getTime()) / 86400000);
+  }
+
+  const tone = renewalToneFromDays(daysLeft);
+
+  return {
+    endDate: endDate.slice(0, 10),
+    daysLeft,
+    countdownLabel: renewalCountdownLabel(daysLeft),
+    tone,
+    showRenewal: true,
+  };
+}
+
+export function orderNeedsRenewalAttention(order: PortalOrder) {
+  const info = orderRenewalInfo(order);
+  return info.showRenewal && (info.tone === "urgent" || info.tone === "expired" || info.tone === "soon");
+}
+
+/** Customer-facing status: subscription past end date is Expired, not Active. */
+export function orderDisplayStatus(order: PortalOrder): PortalOrder["status"] {
+  const renewal = orderRenewalInfo(order);
+  if (renewal.showRenewal && renewal.tone === "expired") {
+    return "Expired";
+  }
+  return order.status;
+}
+
 export function orderPlanLabel(order: PortalOrder) {
   return customerPlanLabelFromParts({
     serviceName: order.serviceName,

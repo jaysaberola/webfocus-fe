@@ -95,6 +95,7 @@ export interface SalesTransactionItem {
 
 export type SalesTransactionPayload = Partial<SalesTransaction> & {
   items?: SalesTransactionItem[];
+  save_mode?: "draft" | "finalize";
 };
 
 export interface PaynamicsCheckoutResponse {
@@ -172,6 +173,14 @@ export const updateSalesTransaction = async (
 
   return res.data;
 };
+
+export async function requestDealPrice(
+  id: number,
+  payload: { message: string; assignee_id: number },
+) {
+  const res = await axiosInstance.post(`/sales-transactions/${id}/price-request`, payload);
+  return res.data;
+}
 
 export const deleteSalesTransaction = async (id: number) => {
   const res = await axiosInstance.delete(`/sales-transactions/${id}`);

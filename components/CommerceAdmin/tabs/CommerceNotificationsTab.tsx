@@ -41,6 +41,7 @@ const KIND_LABEL: Record<string, string> = {
   web_design_quotation: "Quotations",
   order: "Orders",
   provisioning_action: "Provisioning",
+  deal_price_request: "Deal pricing",
   broadcast: "Advisory",
   general: "Advisory",
 };
@@ -170,6 +171,9 @@ function attachmentUrl(attachment: CommerceNotificationAttachment) {
 
 function alertActionTab(row: CommerceNotificationAdminRow): CommerceAdminTab {
   const url = String(row.actionUrl ?? "");
+  if (url.includes("dealsScope=drafts") || url.includes("tab=draft-deals") || row.kind === "deal_price_request") {
+    return "orders";
+  }
   if (url.includes("tab=approvals") || row.kind === "payment_proof" || row.kind === "profile_change") {
     return "approvals";
   }
@@ -192,6 +196,7 @@ function alertActionLabel(row: CommerceNotificationAdminRow) {
   if (row.actionLabel) return row.actionLabel;
   if (row.kind === "provisioning_action") return "Open Provisioning";
   const tab = alertActionTab(row);
+  if (row.kind === "deal_price_request") return "Open Draft Deal";
   if (tab === "approvals") return "Open Approvals";
   if (tab === "helpdesk") return "Open Helpdesk";
   if (tab === "inquiries") return "Open Inquiries";

@@ -165,7 +165,7 @@ export function resolveCommerceTab(user: unknown, requested?: CommerceAdminTab |
 
   // Legacy query aliases from older bookmarks / notifications.
   const normalized: CommerceAdminTab | undefined =
-    requested === "transactions" || requested === "catalog"
+    requested === "transactions" || requested === "catalog" || requested === "draft-deals"
       ? "orders"
       : requested === "invoices"
         ? "billing"

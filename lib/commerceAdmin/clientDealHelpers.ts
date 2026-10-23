@@ -2333,6 +2333,7 @@ export function buildClientDealRows(
 
   for (const transaction of sorted) {
     if (String(transaction.notes ?? "").includes("[INVOICE_META]")) continue;
+    if (String(transaction.order_status ?? "").trim().toLowerCase() === "draft") continue;
 
     const items = transaction.items?.length
       ? transaction.items
