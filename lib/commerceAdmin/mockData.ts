@@ -17,7 +17,7 @@ export const COMMERCE_ADMIN_TABS = [
   { id: "inquiries", label: "Inquiries", shortLabel: "Inquiries", icon: "fa-solid fa-envelope-open-text" },
   { id: "orders", label: "Deals", shortLabel: "Deals", icon: "fa-regular fa-handshake" },
   { id: "approvals", label: "Approvals", shortLabel: "Approve", icon: "fa-solid fa-circle-check", badge: true },
-  { id: "billing", label: "Billing and Payments", shortLabel: "Billing", icon: "fa-solid fa-file-invoice-dollar" },
+  { id: "billing", label: "Bills and Payments", shortLabel: "Bills", icon: "fa-solid fa-file-invoice-dollar" },
   { id: "notifications", label: "Notifications", shortLabel: "Inbox", icon: "fa-regular fa-bell", badge: true },
   { id: "helpdesk", label: "Helpdesk", shortLabel: "Help", icon: "fa-solid fa-headset" },
   { id: "reports", label: "Reports", shortLabel: "Reports", icon: "fa-solid fa-chart-column" },
