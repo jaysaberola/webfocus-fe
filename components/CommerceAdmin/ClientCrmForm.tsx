@@ -9,6 +9,7 @@ import {
   emptyClientCrmForm,
   emptySignatory,
   parseMobileDigits,
+  syncBillingCollectionBlocks,
   validateClientCrmForm,
   type ClientContactBlock,
   type ClientCrmFormState,
@@ -239,16 +240,28 @@ function ContactInformationSection({
   onInfoSheet: (mode: "word" | "pdf" | "print") => void;
   submitting?: boolean;
 }) {
-  const toggleBlock = (key: "billing" | "collection" | "technical") => {
-    onChange({
+  const setContactInformation = (next: ClientCrmFormState["contact_information"]) => {
+    onChange(syncBillingCollectionBlocks(next));
+  };
+
+  const toggleBlock = (key: "billing" | "technical") => {
+    if (key === "billing") {
+      const enabled = !value.billing.enabled;
+      setContactInformation({
+        ...value,
+        billing: { ...value.billing, enabled },
+      });
+      return;
+    }
+    setContactInformation({
       ...value,
-      [key]: { ...value[key], enabled: !value[key].enabled },
+      technical: { ...value.technical, enabled: !value.technical.enabled },
     });
   };
 
   const toggleSignatories = () => {
     const enabled = !value.signatoriesEnabled;
-    onChange({
+    setContactInformation({
       ...value,
       signatoriesEnabled: enabled,
       signatories: enabled && value.signatories.length === 0 ? [emptySignatory(), emptySignatory()] : value.signatories,
@@ -256,7 +269,7 @@ function ContactInformationSection({
   };
 
   const updateSignatory = (index: number, key: keyof ClientSignatory, next: string) => {
-    onChange({
+    setContactInformation({
       ...value,
       signatories: value.signatories.map((row, rowIndex) => (rowIndex === index ? { ...row, [key]: next } : row)),
     });
@@ -264,7 +277,7 @@ function ContactInformationSection({
 
   const removeSignatory = (index: number) => {
     if (value.signatories.length <= 1) return;
-    onChange({
+    setContactInformation({
       ...value,
       signatories: value.signatories.filter((_, rowIndex) => rowIndex !== index),
     });
@@ -285,8 +298,11 @@ function ContactInformationSection({
         <label className={styles.contactToggle}>
           <input type="checkbox" checked={value.billing.enabled} onChange={() => toggleBlock("billing")} />
           <span className={styles.contactToggleLabel}>
-            <span>Billing Contact Information</span>
-            <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Billing contact shown on invoices" />
+            <span>Billing &amp; Collection Contact Information</span>
+            <i
+              className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`}
+              title="Used for invoices, billing follow-up, and payment collection"
+            />
           </span>
         </label>
         <label className={styles.contactToggle}>
@@ -294,13 +310,6 @@ function ContactInformationSection({
           <span className={styles.contactToggleLabel}>
             <span>Technical Department Contact Information</span>
             <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Technical department contact" />
-          </span>
-        </label>
-        <label className={styles.contactToggle}>
-          <input type="checkbox" checked={value.collection.enabled} onChange={() => toggleBlock("collection")} />
-          <span className={styles.contactToggleLabel}>
-            <span>Collection Contact Information</span>
-            <i className={`fa-solid fa-circle-info ${styles.contactInfoIcon}`} title="Collection contact for payment follow-up" />
           </span>
         </label>
         <label className={styles.contactToggle}>
@@ -313,41 +322,21 @@ function ContactInformationSection({
 
       {value.billing.enabled ? (
         <ContactBlockFields
-          title="Billing Contact Information"
+          title="Billing & Collection Contact Information"
           value={value.billing}
-          onChange={(billing) => onChange({ ...value, billing })}
+          onChange={(billing) => setContactInformation({ ...value, billing })}
           left={[
-            { key: "person", label: "Billing Contact Person" },
-            { key: "designation", label: "BC Designation" },
-            { key: "email", label: "BC Email" },
-            { key: "instructions", label: "Billing Instructions", area: true },
-            { key: "other", label: "BC Other Details", area: true },
+            { key: "person", label: "Contact Person" },
+            { key: "designation", label: "Designation" },
+            { key: "email", label: "Email" },
+            { key: "instructions", label: "Billing / Collection Instructions", area: true },
+            { key: "other", label: "Other Details", area: true },
           ]}
           right={[
-            { key: "phone", label: "BC Phone" },
-            { key: "mobile", label: "BC Mobile" },
-            { key: "attention", label: "Billing Attention To" },
-            { key: "address", label: "Billing Address", area: true },
-          ]}
-        />
-      ) : null}
-
-      {value.collection.enabled ? (
-        <ContactBlockFields
-          title="Collection Contact Information"
-          value={value.collection}
-          onChange={(collection) => onChange({ ...value, collection })}
-          left={[
-            { key: "person", label: "Collection Contact Person" },
-            { key: "designation", label: "CC Designation" },
-            { key: "email", label: "CC Email" },
-            { key: "instructions", label: "Collection Instruction", area: true },
-          ]}
-          right={[
-            { key: "phone", label: "CC Phone" },
-            { key: "mobile", label: "CC Mobile" },
-            { key: "other", label: "CC Other Details" },
-            { key: "address", label: "Collection Address", area: true },
+            { key: "phone", label: "Phone" },
+            { key: "mobile", label: "Mobile" },
+            { key: "attention", label: "Attention To" },
+            { key: "address", label: "Billing / Collection Address", area: true },
           ]}
         />
       ) : null}
@@ -356,7 +345,7 @@ function ContactInformationSection({
         <ContactBlockFields
           title="Technical Department Contact Information"
           value={value.technical}
-          onChange={(technical) => onChange({ ...value, technical })}
+          onChange={(technical) => setContactInformation({ ...value, technical })}
           left={[
             { key: "person", label: "Technical Contact Person" },
             { key: "designation", label: "TD Designation" },
@@ -1044,7 +1033,7 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
     sec_dti_registration: form.sec_dti_registration,
     valid_id_signatories: form.valid_id_signatories,
     gen_info_sheet: form.gen_info_sheet,
-    contact_information: form.contact_information,
+    contact_information: syncBillingCollectionBlocks(form.contact_information),
   });
 
   const save = async (andNew: boolean) => {
@@ -1472,7 +1461,9 @@ const ClientCrmForm = forwardRef<ClientCrmFormHandle, Props>(function ClientCrmF
 
       <ContactInformationSection
         value={form.contact_information}
-        onChange={(contact_information) => setField("contact_information", contact_information)}
+        onChange={(contact_information) =>
+          setField("contact_information", syncBillingCollectionBlocks(contact_information))
+        }
         exportTemplate={exportTemplate}
         onExportTemplateChange={setExportTemplate}
         onInfoSheet={openInfoSheet}

@@ -68,19 +68,24 @@ export function buildCustomerInformationSheetView(snapshot: ClientInfoSheetSnaps
   const sig1 = signatories[0];
   const sig2 = signatories[1];
 
-  const collection = info.collection;
   const technical = info.technical;
   const billing = info.billing;
 
   const primaryNumbers = numbersFromParts(snapshot.mobile, snapshot.phone);
 
-  const implementingOfficial = collection.enabled
+  const billingCollectionBlock = billing.enabled
+    ? billing
+    : info.collection.enabled
+      ? info.collection
+      : null;
+
+  const implementingOfficial = billingCollectionBlock
     ? rowFromBlock(
-        collection.person,
-        collection.designation,
-        collection.instructions || collection.other,
-        numbersFromParts(collection.mobile, collection.phone),
-        collection.email,
+        billingCollectionBlock.person,
+        billingCollectionBlock.designation,
+        billingCollectionBlock.instructions || billingCollectionBlock.other,
+        numbersFromParts(billingCollectionBlock.mobile, billingCollectionBlock.phone),
+        billingCollectionBlock.email,
       )
     : rowFromBlock(
         snapshot.contactPerson,

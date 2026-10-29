@@ -386,8 +386,7 @@ export function renderClientInfoSheetHtml(snapshot: ClientInfoSheetSnapshot, opt
       </table>
     </section>
 
-    ${blockSection("Billing Contact Information", snapshot.contactInformation.billing)}
-    ${blockSection("Collection Contact Information", snapshot.contactInformation.collection)}
+    ${blockSection("Billing & Collection Contact Information", snapshot.contactInformation.billing)}
     ${blockSection("Technical Department Contact Information", snapshot.contactInformation.technical)}
     ${signatorySection(snapshot.contactInformation)}
 

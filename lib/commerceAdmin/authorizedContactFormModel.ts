@@ -98,15 +98,15 @@ function pickAuthorizedContacts(snapshot: ClientInfoSheetSnapshot): {
   } else if (snapshot.contactInformation.billing.enabled && blockHasContent(snapshot.contactInformation.billing)) {
     additional = blockAsContact(snapshot.contactInformation.billing);
   } else if (
-    snapshot.contactInformation.technical.enabled &&
-    blockHasContent(snapshot.contactInformation.technical)
-  ) {
-    additional = blockAsContact(snapshot.contactInformation.technical);
-  } else if (
     snapshot.contactInformation.collection.enabled &&
     blockHasContent(snapshot.contactInformation.collection)
   ) {
     additional = blockAsContact(snapshot.contactInformation.collection);
+  } else if (
+    snapshot.contactInformation.technical.enabled &&
+    blockHasContent(snapshot.contactInformation.technical)
+  ) {
+    additional = blockAsContact(snapshot.contactInformation.technical);
   }
 
   return { current, additional };

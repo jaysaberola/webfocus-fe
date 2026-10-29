@@ -97,13 +97,48 @@ export function emptySignatory(): ClientSignatory {
 }
 
 export function emptyContactInformation(): ClientContactInformation {
-  return {
+  return syncBillingCollectionBlocks({
     billing: emptyContactBlock(),
     collection: emptyContactBlock(),
     technical: emptyContactBlock(),
     signatoriesEnabled: false,
     signatories: [emptySignatory(), emptySignatory()],
-  };
+  });
+}
+
+function contactBlockHasContent(block: ClientContactBlock): boolean {
+  return Boolean(
+    block.person ||
+      block.designation ||
+      block.email ||
+      block.phone ||
+      block.mobile ||
+      block.attention ||
+      block.instructions ||
+      block.address ||
+      block.other,
+  );
+}
+
+/** Billing and collection share one contact record; collection mirrors billing for legacy readers. */
+export function syncBillingCollectionBlocks(info: ClientContactInformation): ClientContactInformation {
+  const billing = { ...info.billing };
+  const collection = { ...billing, enabled: billing.enabled };
+  return { ...info, billing, collection };
+}
+
+function mergeLegacyCollectionIntoBilling(info: ClientContactInformation): ClientContactInformation {
+  let billing = { ...info.billing };
+  const collection = { ...info.collection };
+
+  if (!contactBlockHasContent(billing) && contactBlockHasContent(collection)) {
+    billing = { ...collection };
+  }
+  if (collection.enabled || billing.enabled) {
+    billing.enabled = true;
+  }
+
+  return syncBillingCollectionBlocks({ ...info, billing });
 }
 
 export function contactInformationFromDetail(value: unknown): ClientContactInformation {
@@ -119,13 +154,13 @@ export function contactInformationFromDetail(value: unknown): ClientContactInfor
         .filter((row) => row && typeof row === "object")
         .map((row) => ({ ...emptySignatory(), ...(row as ClientSignatory) }))
     : [];
-  return {
+  return mergeLegacyCollectionIntoBilling({
     billing: block(raw.billing, base.billing),
     collection: block(raw.collection, base.collection),
     technical: block(raw.technical, base.technical),
     signatoriesEnabled: Boolean(raw.signatoriesEnabled),
     signatories: rows.length ? rows : base.signatories,
-  };
+  });
 }
 
 export const emptyClientCrmForm: ClientCrmFormState = {

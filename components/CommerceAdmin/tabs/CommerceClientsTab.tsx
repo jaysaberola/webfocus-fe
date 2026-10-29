@@ -74,7 +74,7 @@ const CLIENT_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "billing", label: "Billing-in-Charge" },
   { id: "classification", label: "Client Classification" },
   { id: "client_type", label: "Client Type" },
-  { id: "contact_person", label: "Billing Contact Information" },
+  { id: "contact_person", label: "Billing & Collection Contact" },
   { id: "status", label: "Status" },
   { id: "name", label: "Client Name", mode: "contains" },
   { id: "service", label: "Service Name", mode: "contains" },
