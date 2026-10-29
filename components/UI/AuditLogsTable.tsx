@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import DataTable, { Column } from "@/components/UI/DataTable";
 import AuditChangesModal from "@/components/UI/AuditChangesModal";
-import { CmsModuleDate, cmsModuleTableProps } from "@/components/Modules/moduleTableUi";
+import { CmsModuleDate } from "@/components/Modules/moduleTableUi";
 
 export type AuditLogRow = {
   id: number;
@@ -52,21 +52,6 @@ function humanizeKey(key: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function summarizeValue(value: any) {
-  if (value == null || value === "") return "—";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
-  if (typeof value === "object") {
-    try {
-      const text = JSON.stringify(value);
-      return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-    } catch {
-      return "[Object]";
-    }
-  }
-  const text = String(value);
-  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-}
-
 function getChangedFields(oldValues?: Record<string, any> | string | null, newValues?: Record<string, any> | string | null) {
   const oldRecord = normalizeAuditValues(oldValues);
   const newRecord = normalizeAuditValues(newValues);
@@ -82,6 +67,35 @@ function getChangedFields(oldValues?: Record<string, any> | string | null, newVa
   }
 
   return changed;
+}
+
+const CMS_MODULE_LABELS: Record<string, string> = {
+  ArticleCategory: "News Category",
+  Article: "News Article",
+  Page: "Page",
+  Menu: "Menu",
+  Album: "Album",
+  Banner: "Banner",
+  Product: "Product",
+  ProductCategory: "Product Category",
+  Coupon: "Coupon",
+  JobOrder: "Job Order",
+  Setting: "Website Setting",
+  LayoutPreset: "Layout Preset",
+  SocialMediaAccount: "Social Media",
+  CmsActivityLog: "CMS Activity",
+};
+
+function moduleLabel(auditableType: string) {
+  const short = auditableType.split("\\").pop() || auditableType;
+  return CMS_MODULE_LABELS[short] ?? short.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function performerLabel(row: AuditLogRow) {
+  if (!row.user) return "System";
+  const name = `${row.user.fname ?? ""} ${row.user.lname ?? ""}`.trim();
+  if (name) return name;
+  return row.user.email || "CMS User";
 }
 
 function eventBadgeClass(event: string) {
@@ -127,10 +141,16 @@ export default function AuditLogsTable({
         width: 160,
         thClassName: "text-nowrap text-center",
         tdClassName: "align-top text-center",
-        render: (row) =>
-          row.user
-            ? `${row.user.fname ?? ""} ${row.user.lname ?? ""}`.trim() || row.user.email || "User"
-            : "System",
+        render: (row) => {
+          const label = performerLabel(row);
+          const email = row.user?.email?.trim();
+          return (
+            <div className="small">
+              <div className="fw-semibold">{label}</div>
+              {email && label !== email ? <div className="text-muted">{email}</div> : null}
+            </div>
+          );
+        },
       });
     }
 
@@ -138,15 +158,15 @@ export default function AuditLogsTable({
       {
         key: "auditable_type",
         header: "Module",
-        width: 120,
-        thClassName: "text-nowrap text-center",
-        tdClassName: "align-top text-center text-nowrap",
-        render: (row) => row.auditable_type.split("\\").pop() || row.auditable_type,
+        minWidth: 140,
+        thClassName: "text-nowrap",
+        tdClassName: "align-top text-nowrap",
+        render: (row) => moduleLabel(row.auditable_type),
       },
       {
         key: "auditable_id",
         header: "Record",
-        width: 90,
+        width: 96,
         thClassName: "text-nowrap text-center",
         tdClassName: "align-top text-center",
         render: (row) => `#${row.auditable_id}`,
@@ -154,7 +174,7 @@ export default function AuditLogsTable({
       {
         key: "changes",
         header: "Changed Fields",
-        minWidth: 220,
+        minWidth: 260,
         tdClassName: "align-top",
         render: (row) => {
           const changedFields = getChangedFields(row.old_values, row.new_values);
@@ -175,40 +195,6 @@ export default function AuditLogsTable({
                   <span className="badge bg-secondary-subtle text-secondary">+{changedFields.length - 6} more</span>
                 ) : null}
               </div>
-            </div>
-          );
-        },
-      },
-      {
-        key: "preview",
-        header: "Old → New",
-        minWidth: 280,
-        tdClassName: "align-top",
-        render: (row) => {
-          const oldRecord = normalizeAuditValues(row.old_values);
-          const newRecord = normalizeAuditValues(row.new_values);
-          const changedFields = getChangedFields(row.old_values, row.new_values).slice(0, 3);
-
-          if (changedFields.length === 0) {
-            return <span className="text-muted small">—</span>;
-          }
-
-          return (
-            <div className="d-flex flex-column gap-2">
-              {changedFields.map((field) => (
-                <div key={field} className="border rounded p-2 bg-light-subtle">
-                  <div className="small fw-semibold mb-1">{humanizeKey(field)}</div>
-                  <div className="small text-muted">
-                    <span className="text-danger">From:</span> {summarizeValue(oldRecord[field])}
-                  </div>
-                  <div className="small text-muted">
-                    <span className="text-success">To:</span> {summarizeValue(newRecord[field])}
-                  </div>
-                </div>
-              ))}
-              {getChangedFields(row.old_values, row.new_values).length > 3 ? (
-                <span className="small text-muted">Open details to see all changes.</span>
-              ) : null}
             </div>
           );
         },
@@ -254,7 +240,7 @@ export default function AuditLogsTable({
     return <div className="p-3 text-muted">{emptyMessage}</div>;
   }
 
-  const modelLabel = selectedAudit?.auditable_type.split("\\").pop() || "Record";
+  const modelLabel = selectedAudit ? moduleLabel(selectedAudit.auditable_type) : "Record";
 
   return (
     <>
@@ -262,7 +248,9 @@ export default function AuditLogsTable({
         columns={columns}
         data={audits}
         loading={loading}
-        {...cmsModuleTableProps}
+        wrapperClassName="cms-table-wrap cms-table-wrap--scroll cms-table-wrap--audit"
+        tableClassName="dt-enhanced-table dt-enhanced-table--audit"
+        getRowId={(row) => row.id}
         currentPage={currentPage}
         totalPages={totalPages}
         onPageChange={onPageChange}

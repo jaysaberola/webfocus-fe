@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 
 type AnyRecord = Record<string, any>;
 
@@ -352,9 +353,42 @@ function stringDiffParts(oldText: string, newText: string) {
   return { commonPrefix, commonSuffix, oldMid: aMid, newMid: bMid };
 }
 
+const AUDIT_INTERNAL_FIELD_KEYS = new Set([
+  "id",
+  "user_id",
+  "created_at",
+  "updated_at",
+  "deleted_at",
+]);
+
+function isEmptyAuditRecord(values?: AnyRecord | null) {
+  if (!values || typeof values !== "object") return true;
+  return Object.keys(values).length === 0;
+}
+
+function isCreateAuditSnapshot(oldValues?: AnyRecord, newValues?: AnyRecord) {
+  return isEmptyAuditRecord(oldValues) && !isEmptyAuditRecord(newValues);
+}
+
+function isDeleteAuditSnapshot(oldValues?: AnyRecord, newValues?: AnyRecord) {
+  return !isEmptyAuditRecord(oldValues) && isEmptyAuditRecord(newValues);
+}
+
+function shouldShowAuditField(key: string, value: any) {
+  const normalized = key.toLowerCase();
+  const empty =
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === 0 ||
+    value === "0";
+  if (AUDIT_INTERNAL_FIELD_KEYS.has(normalized) && empty) return false;
+  if (empty) return false;
+  return true;
+}
+
 function pretty(value: any) {
-  if (value === undefined) return "—";
-  if (value === null) return "null";
+  if (value === undefined || value === null || value === "") return "—";
   if (typeof value === "string") return value;
   if (typeof value === "number" || typeof value === "boolean") return String(value);
 
@@ -376,8 +410,7 @@ function humanizeKey(key: string) {
 
 function summarize(value: any, max = 80): string {
   const v = tryParseJsonString(value);
-  if (v === undefined) return "—";
-  if (v === null) return "null";
+  if (v === undefined || v === null || v === "") return "—";
   if (typeof v === "boolean" || typeof v === "number") return String(v);
   if (typeof v === "string") {
     const s = v.trim();
@@ -684,16 +717,50 @@ export default function AuditChangesModal({
   newValues,
   onClose,
 }: AuditChangesModalProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   React.useEffect(() => {
     if (!show) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [show, onClose]);
 
-  const diff = React.useMemo(() => computeDiff(oldValues, newValues), [oldValues, newValues]);
+  const normalizedOld = React.useMemo(() => oldValues ?? {}, [oldValues]);
+  const normalizedNew = React.useMemo(() => newValues ?? {}, [newValues]);
+
+  const isCreateSnapshot = React.useMemo(
+    () => isCreateAuditSnapshot(normalizedOld, normalizedNew),
+    [normalizedOld, normalizedNew],
+  );
+  const isDeleteSnapshot = React.useMemo(
+    () => isDeleteAuditSnapshot(normalizedOld, normalizedNew),
+    [normalizedOld, normalizedNew],
+  );
+
+  const snapshotFields = React.useMemo(() => {
+    const source = isCreateSnapshot ? normalizedNew : isDeleteSnapshot ? normalizedOld : null;
+    if (!source) return [];
+    return Object.entries(source)
+      .filter(([key, value]) => shouldShowAuditField(key, value))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => ({ key, value: tryParseJsonString(value) }));
+  }, [isCreateSnapshot, isDeleteSnapshot, normalizedNew, normalizedOld]);
+
+  const diff = React.useMemo(() => computeDiff(normalizedOld, normalizedNew), [normalizedOld, normalizedNew]);
 
   const changed = diff.filter((r) => r.kind !== "unchanged");
   const added = changed.filter((r) => r.kind === "added");
@@ -708,6 +775,8 @@ export default function AuditChangesModal({
   const rowsToRender = showUnchanged ? diff : changed;
 
   const humanChanges: HumanChange[] = React.useMemo(() => {
+    if (isCreateSnapshot || isDeleteSnapshot) return [];
+
     const out: HumanChange[] = [];
 
     for (const row of rowsToRender) {
@@ -786,7 +855,7 @@ export default function AuditChangesModal({
     }
 
     return out;
-  }, [rowsToRender, showUnchanged]);
+  }, [rowsToRender, showUnchanged, isCreateSnapshot, isDeleteSnapshot]);
 
   const addedHuman = humanChanges.filter((c) => c.kind === "added");
   const removedHuman = humanChanges.filter((c) => c.kind === "removed");
@@ -961,29 +1030,59 @@ export default function AuditChangesModal({
     return Array.from(groups.values()).sort((a, b) => a.header.localeCompare(b.header));
   }, [updatedHuman]);
 
-  if (!show) return null;
+  if (!show || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
-      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ background: "rgba(15, 23, 42, 0.55)", backdropFilter: "blur(2px)", zIndex: 1060 }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
+      className="position-fixed d-flex align-items-center justify-content-center p-3"
+      style={{
+        inset: 0,
+        background: "rgba(15, 23, 42, 0.55)",
+        backdropFilter: "blur(2px)",
+        zIndex: 1600,
+      }}
+      role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="card border-0 shadow-lg rounded-4" style={{ width: "min(980px, 98vw)" }}>
+      <div
+        className="card border-0 shadow-lg rounded-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        style={{
+          width: "min(980px, calc(100vw - 1.5rem))",
+          maxHeight: "calc(100vh - 1.5rem)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="card-header bg-white border-0 d-flex align-items-start justify-content-between pt-2 px-2 pb-0">
           <div>
             <h5 className="mb-1">{title}</h5>
             {subtitle ? <div className="text-muted small">{subtitle}</div> : null}
             <div className="d-flex flex-wrap gap-2 mt-2">
-              <span className="badge bg-success-subtle text-success">Added: {added.length}</span>
-              <span className="badge bg-danger-subtle text-danger">Removed: {removed.length}</span>
-              <span className="badge bg-primary-subtle text-primary">Updated: {updated.length}</span>
-              <span className="badge bg-secondary-subtle text-secondary">Unchanged: {diff.length - changed.length}</span>
+              {isCreateSnapshot ? (
+                <span className="badge bg-success-subtle text-success">
+                  New record · {snapshotFields.length} field{snapshotFields.length === 1 ? "" : "s"}
+                </span>
+              ) : isDeleteSnapshot ? (
+                <span className="badge bg-danger-subtle text-danger">
+                  Record deleted · {snapshotFields.length} field{snapshotFields.length === 1 ? "" : "s"} captured
+                </span>
+              ) : (
+                <>
+                  <span className="badge bg-success-subtle text-success">Added: {added.length}</span>
+                  <span className="badge bg-danger-subtle text-danger">Removed: {removed.length}</span>
+                  <span className="badge bg-primary-subtle text-primary">Updated: {updated.length}</span>
+                  <span className="badge bg-secondary-subtle text-secondary">
+                    Unchanged: {diff.length - changed.length}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -997,23 +1096,52 @@ export default function AuditChangesModal({
           </div>
         </div>
 
-        <div className="card-body px-2 pt-2 pb-2">
-          <div className="d-flex align-items-center justify-content-between mb-2">
-            <div className="form-check">
-              <input
-                id="audit-show-unchanged"
-                className="form-check-input"
-                type="checkbox"
-                checked={showUnchanged}
-                onChange={(e) => setShowUnchanged(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="audit-show-unchanged">
-                Show unchanged fields
-              </label>
+        <div className="card-body px-2 pt-2 pb-2 overflow-auto flex-grow-1">
+          {!isCreateSnapshot && !isDeleteSnapshot ? (
+            <div className="d-flex align-items-center justify-content-between mb-2">
+              <div className="form-check">
+                <input
+                  id="audit-show-unchanged"
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={showUnchanged}
+                  onChange={(e) => setShowUnchanged(e.target.checked)}
+                />
+                <label className="form-check-label" htmlFor="audit-show-unchanged">
+                  Show unchanged fields
+                </label>
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          {humanChanges.length === 0 ? (
+          {isCreateSnapshot || isDeleteSnapshot ? (
+            snapshotFields.length === 0 ? (
+              <div className="text-center text-muted py-4">
+                {isCreateSnapshot
+                  ? "Record was created, but no meaningful field values were stored in the audit log."
+                  : "Record was deleted, but no field snapshot was stored."}
+              </div>
+            ) : (
+              <div className="table-responsive" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+                <table className="table table-sm table-bordered align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th style={{ width: "34%" }}>Field</th>
+                      <th>{isCreateSnapshot ? "Initial value" : "Last known value"}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {snapshotFields.map(({ key, value }) => (
+                      <tr key={key}>
+                        <td className="fw-semibold">{humanizeKey(key)}</td>
+                        <td>{renderValueDetailed(key, value)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : humanChanges.length === 0 ? (
             <div className="text-center text-muted py-4">No field-level changes found.</div>
           ) : (
             <div className="d-flex flex-column gap-3" style={{ maxHeight: "70vh", overflowY: "auto" }}>
@@ -1066,13 +1194,16 @@ export default function AuditChangesModal({
                 <div>
                   <div className="fw-semibold mb-2">Added</div>
                   <div className="list-group">
-                    {addedHuman.slice(0, 200).map((c, idx) => (
+                    {addedHuman
+                      .filter((c) => shouldShowAuditField(c.meta?.root ?? c.field, c.newValue))
+                      .slice(0, 200)
+                      .map((c, idx) => (
                       <div key={`${c.title}-${idx}`} className="list-group-item">
                         <div className="fw-semibold">
                           <span className="badge bg-success me-2 text-uppercase">Added</span>
                           {c.title}
                         </div>
-                        <div className="small text-muted mt-1">{summarizeObjectForUser(c.newValue)}</div>
+                        <div className="mt-1">{renderValueDetailed(c.field, c.newValue)}</div>
                       </div>
                     ))}
                   </div>
@@ -1083,13 +1214,16 @@ export default function AuditChangesModal({
                 <div>
                   <div className="fw-semibold mb-2">Removed</div>
                   <div className="list-group">
-                    {removedHuman.slice(0, 200).map((c, idx) => (
+                    {removedHuman
+                      .filter((c) => shouldShowAuditField(c.meta?.root ?? c.field, c.oldValue))
+                      .slice(0, 200)
+                      .map((c, idx) => (
                       <div key={`${c.title}-${idx}`} className="list-group-item">
                         <div className="fw-semibold">
                           <span className="badge bg-danger me-2 text-uppercase">Removed</span>
                           {c.title}
                         </div>
-                        <div className="small text-muted mt-1">{summarizeObjectForUser(c.oldValue)}</div>
+                        <div className="mt-1">{renderValueDetailed(c.field, c.oldValue)}</div>
                       </div>
                     ))}
                   </div>
@@ -1103,6 +1237,7 @@ export default function AuditChangesModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

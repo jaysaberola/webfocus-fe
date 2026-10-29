@@ -57,7 +57,7 @@ function AuditTrailsPage() {
   return (
     <CmsModuleShell
       title="Manage Audit Trail"
-      description="Review system activity and track old and new values for every CMS change."
+      description="CMS admin activity only — pages, news, menus, products, settings, and related modules. Commerce and customer profile changes are not listed here."
       icon="fa-solid fa-clock-rotate-left"
       stats={[
         { label: "Showing", value: audits.length },
@@ -78,7 +78,7 @@ function AuditTrailsPage() {
       <CmsSettingsLayout>
         <CmsSettingsSection
           title="Activity Log"
-          description="Each row shows what changed. Click View to open the full old vs new comparison."
+          description="Each row lists changed fields. Use View for the full before-and-after comparison."
           icon="fa-solid fa-list-check"
         >
           <AuditLogsTable

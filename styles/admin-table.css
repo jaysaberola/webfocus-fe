@@ -44,6 +44,24 @@
   overflow-x: auto;
 }
 
+.cms-table-wrap--audit {
+  overflow-x: auto;
+}
+
+.cms-table-wrap--audit table {
+  table-layout: auto;
+  min-width: 920px;
+}
+
+.cms-table-wrap--audit .dt-enhanced-table thead th {
+  white-space: nowrap;
+}
+
+.cms-table-wrap--audit .dt-enhanced-table tbody td {
+  white-space: normal;
+  vertical-align: top;
+}
+
 /* ── Enhanced table ────────────────────────────────────────── */
 
 .dt-enhanced-table {
