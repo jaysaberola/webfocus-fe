@@ -344,6 +344,7 @@ function EditPage() {
         pageTitle={title}
         saveStatus={loading ? "saving" : isDirty ? "unsaved" : "saved"}
         pageId={pageId}
+        pageSlug={pageSlug}
         isPageLoading={initialLoading || pageSwitching}
         onPageSelect={handlePageSelect}
         onCreatePage={() => {

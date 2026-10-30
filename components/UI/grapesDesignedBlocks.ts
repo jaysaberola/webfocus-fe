@@ -154,31 +154,12 @@ export const registerDesignedStudioBlocks = (editor: any) => {
     category: "CMS Sections",
     attributes: { class: "fa fa-flag" },
     content: `
-      <section style="padding:120px 24px;background:linear-gradient(180deg,rgba(15,23,42,.62),rgba(15,23,42,.42)),url('https://images.unsplash.com/photo-1497215728101-856f4ea83613?w=1600&q=80') center/cover no-repeat;color:#fff;text-align:center;width:100%;">
+      <section class="cms-hero cms-hero-on-dark" style="padding:120px 24px;background:linear-gradient(180deg,rgba(15,23,42,.72),rgba(15,23,42,.5)),url('https://images.unsplash.com/photo-1497215728101-856f4ea83613?w=1600&q=80') center/cover no-repeat;color:#fff;text-align:center;width:100%;">
         <div style="max-width:820px;margin:0 auto;">
           <p style="margin:0 0 12px;letter-spacing:.14em;text-transform:uppercase;font-size:12px;color:#bfdbfe;font-weight:800;">Landing page</p>
-          <h1 style="margin:0 0 16px;font-size:58px;line-height:1.05;">A cleaner homepage for modern brands.</h1>
+          <h1 style="margin:0 0 16px;font-size:58px;line-height:1.05;color:#ffffff;">A cleaner homepage for modern brands.</h1>
           <p style="margin:0 0 28px;font-size:18px;line-height:1.7;color:#e2e8f0;">Replace this copy, swap the background, and connect the buttons to your own pages.</p>
           <a href="mailto:hello@example.com" style="display:inline-flex;padding:14px 24px;border-radius:999px;background:#2563eb;color:#fff;text-decoration:none;font-weight:800;">Talk with us</a>
-        </div>
-      </section>
-    `,
-  });
-
-  addBlock(editor, "cms-features-icon", {
-    label: "Features",
-    category: "CMS Sections",
-    attributes: { class: "fa fa-th-large" },
-    content: `
-      <section style="padding:80px 24px;background:#fff;width:100%;">
-        <div style="max-width:1100px;margin:0 auto;">
-          <h2 style="margin:0 0 8px;font-size:40px;text-align:center;">Everything you need to launch</h2>
-          <p style="margin:0 auto 32px;max-width:52ch;text-align:center;color:#64748b;line-height:1.7;">Swap these cards with your own benefits, service highlights, or product features.</p>
-          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;">
-            <div style="padding:24px;border-radius:24px;background:#f8fafc;border:1px solid #e5e7eb;"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;">01</div><h3 style="margin:16px 0 8px;">Visual editing</h3><p style="margin:0;color:#64748b;line-height:1.7;">Click any element, then change content and style without code.</p></div>
-            <div style="padding:24px;border-radius:24px;background:#f8fafc;border:1px solid #e5e7eb;"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;">02</div><h3 style="margin:16px 0 8px;">Responsive views</h3><p style="margin:0;color:#64748b;line-height:1.7;">Preview desktop, tablet, and mobile while you design.</p></div>
-            <div style="padding:24px;border-radius:24px;background:#f8fafc;border:1px solid #e5e7eb;"><div style="width:44px;height:44px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;">03</div><h3 style="margin:16px 0 8px;">Ready-made blocks</h3><p style="margin:0;color:#64748b;line-height:1.7;">Drop in heroes, pricing, FAQs, and contact sections instantly.</p></div>
-          </div>
         </div>
       </section>
     `,

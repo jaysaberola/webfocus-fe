@@ -3,6 +3,7 @@ import LandingPageLayout from "@/components/Layout/GuestLayout";
 import { ensureClientPreviewAccess, requireAdminPreviewAccess } from "@/lib/adminPreviewAccess";
 import { CANVAS7_CANVAS_STYLES, htmlNeedsCanvas7Assets } from "@/lib/canvasTemplateCatalog";
 import { composeContentFromGrapes, extractGrapesParts } from "@/lib/grapesContent";
+import CmsPublicContactForms from "@/components/Public/CmsPublicContactForms";
 import { activateCmsPageAnimations } from "@/lib/publicPageScripts";
 import { getPageById } from "@/services/pageService";
 import { useRouter } from "next/router";
@@ -129,6 +130,7 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
   }, [pageData]);
 
   const usesCanvas7 = htmlNeedsCanvas7Assets(htmlContent);
+  const hasContactForm = htmlContent.includes('data-cms-contact-form="1"');
 
   useEffect(() => {
     if (!usesCanvas7) return;
@@ -234,11 +236,14 @@ export default function AdminPagePreview({ ssrAllowed }: Props) {
           <div className="alert alert-danger mb-0">Unable to load page preview.</div>
         </div>
       ) : pageData ? (
-        <div
-          ref={contentRef}
-          className="public-page-content"
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
-        />
+        <>
+          <div
+            ref={contentRef}
+            className={`public-page-content${hasContactForm ? " public-contact" : ""}`}
+            dangerouslySetInnerHTML={{ __html: htmlContent }}
+          />
+          {hasContactForm ? <CmsPublicContactForms rootRef={contentRef} /> : null}
+        </>
       ) : (
         <div className="container py-5">
           <div className="alert alert-warning mb-0">Page preview is unavailable.</div>

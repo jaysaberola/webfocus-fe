@@ -15,8 +15,8 @@ export const cmsStudioCanvasCss = `
   }
 
   html {
-    height: auto !important;
-    min-height: 0 !important;
+    height: 100% !important;
+    min-height: 100% !important;
     overflow: visible !important;
   }
 
@@ -38,26 +38,99 @@ export const cmsStudioCanvasCss = `
     line-height: 1.5;
     position: relative;
     height: auto !important;
-    min-height: 0 !important;
+    min-height: 100% !important;
     overflow: visible !important;
     padding-bottom: 0 !important;
   }
 
   [data-gjs-type="wrapper"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0 !important;
     width: 100% !important;
     min-width: 100%;
-    min-height: 0 !important;
+    min-height: 100% !important;
     height: auto !important;
     overflow: visible !important;
     padding-bottom: 0 !important;
+    box-sizing: border-box;
+  }
+
+  [data-gjs-type="wrapper"] > * {
+    position: relative !important;
+    flex: 0 0 auto;
+    max-width: 100%;
+  }
+
+  body.cms-studio-sorting [data-gjs-type="wrapper"] > *:not(.cms-studio-sort-source):not(.cms-ww-drag-clone) {
+    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  body.cms-studio-sorting [data-gjs-type="wrapper"] > .cms-studio-sort-source {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .cms-ww-drag-clone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 99999;
+    pointer-events: none;
+    margin: 0 !important;
+    opacity: 0.97;
+    background: #ffffff;
+    box-shadow:
+      0 28px 70px rgba(15, 23, 42, 0.24),
+      0 0 0 1px rgba(148, 163, 184, 0.35);
+    outline: 2px solid rgba(99, 102, 241, 0.55);
+    outline-offset: 0;
+    will-change: transform;
+    transition: box-shadow 0.16s ease;
+  }
+
+  .gjs-placeholder,
+  .gjs-placeholder.horizontal,
+  .gjs-placeholder.vertical {
+    min-height: 4px !important;
+    height: 4px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 999px !important;
+    background: linear-gradient(90deg, #6366f1, #818cf8) !important;
+    box-shadow:
+      0 0 0 3px rgba(99, 102, 241, 0.18),
+      0 4px 14px rgba(99, 102, 241, 0.35) !important;
+    opacity: 1 !important;
+    animation: cms-ww-insert-pulse 0.7s ease-in-out infinite alternate;
+  }
+
+  .gjs-placeholder-int {
+    min-height: 2px !important;
+    height: 2px !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: 0 !important;
+  }
+
+  @keyframes cms-ww-insert-pulse {
+    from {
+      opacity: 0.75;
+      transform: scaleY(1);
+    }
+    to {
+      opacity: 1;
+      transform: scaleY(1.35);
+    }
   }
 
   img, video, iframe {
     max-width: 100%;
   }
 
-  /* Keep structural tags free for Grapes absolute dragMode.
-     Nested widgets (carousels, overlays) set their own position. */
+  /* Page blocks stack in document flow; nested widgets set their own layout. */
 
   :where(h1, h2, h3, h4, h5, h6) {
     margin: 0 0 0.5em;
@@ -69,6 +142,17 @@ export const cmsStudioCanvasCss = `
   :where(h2) { font-size: 2rem; }
   :where(h3) { font-size: 1.5rem; }
   :where(h4) { font-size: 1.25rem; }
+
+  /* Canvas 7 canvas styles set heading colors globally; photo heroes must stay readable. */
+  .cms-hero :where(h1, h2, h3, h4, h5, h6),
+  .cms-hero-on-dark :where(h1, h2, h3, h4, h5, h6) {
+    color: #ffffff !important;
+  }
+
+  .cms-hero :where(p, li, span, strong, em),
+  .cms-hero-on-dark :where(p, li, span, strong, em) {
+    color: inherit;
+  }
 
   :where(p) {
     margin: 0 0 1em;
@@ -248,6 +332,9 @@ export const CMS_ELEMENTS_CATEGORY = "Elements";
 export const CMS_BUTTONS_CATEGORY = "Buttons";
 export const CMS_LAYOUT_CATEGORY = "Layout";
 
+/** Must match grapesjs-plugin-forms category id (`forms`), not `"Forms"`. */
+export const FORMS_BLOCKS_CATEGORY = { id: "forms", label: "Forms" };
+
 const LEGACY_PRESET_CATEGORIES = new Set([
   "CMS Page Starters",
   "CMS Business",
@@ -267,12 +354,14 @@ const addBlock = (editor: any, id: string, config: any) => {
   if (bm.get(id)) return;
   const nextAttributes = { ...(config?.attributes || {}) };
   const iconClass = nextAttributes.class;
-  const normalizedCategory = normalizeStudioCategory(config?.category);
+  const rawCategory = config?.category;
+  const normalizedCategory =
+    typeof rawCategory === "string" ? normalizeStudioCategory(rawCategory) : rawCategory;
   delete nextAttributes.class;
 
   bm.add(id, {
     ...config,
-    category: normalizedCategory || config?.category,
+    category: normalizedCategory ?? rawCategory,
     attributes: Object.keys(nextAttributes).length ? nextAttributes : undefined,
     media: config?.media || resolveBlockThumb(id, iconClass),
   });
@@ -301,7 +390,17 @@ export const configureStudioCategories = (editor: any) => {
   };
 
   const apply = (category: any) => {
-    const label = normalizeStudioCategory(String(category?.get?.("id") || category?.get?.("label") || ""));
+    const rawId = String(category?.get?.("id") || "");
+    const rawLabel = String(category?.get?.("label") || "");
+    const isForms =
+      rawId.toLowerCase() === FORMS_BLOCKS_CATEGORY.id || rawLabel.toLowerCase() === FORMS_BLOCKS_CATEGORY.id;
+    if (isForms) {
+      category?.set?.("id", FORMS_BLOCKS_CATEGORY.id);
+      category?.set?.("label", FORMS_BLOCKS_CATEGORY.label);
+    }
+    const label = isForms
+      ? FORMS_BLOCKS_CATEGORY.label
+      : normalizeStudioCategory(rawId || rawLabel);
     category?.set?.("open", false);
     if (label === CMS_TEMPLATES_CATEGORY || label === CMS_PRESETS_CATEGORY || label === CMS_SECTIONS_CATEGORY || label === CMS_ELEMENTS_CATEGORY || label === CMS_BUTTONS_CATEGORY || label === CMS_LAYOUT_CATEGORY) {
       category?.set?.("id", label);
@@ -674,7 +773,7 @@ const FOUNDATION_BLOCK_STYLES: Record<string, string> = {
     <section style="padding:40px 24px;">
       <div style="max-width:980px;margin:0 auto;border-radius:16px;overflow:hidden;box-shadow:0 20px 44px rgba(15,23,42,.12);">
         <div style="position:relative;padding-top:56.25%;background:#0f172a;">
-          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:600;">Video placeholder</div>
+          <video controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"></video>
         </div>
       </div>
     </section>
@@ -763,7 +862,7 @@ const FOUNDATION_BLOCK_STYLES: Record<string, string> = {
   `,
   button: `
     <section style="padding:32px 24px;text-align:center;">
-      <a href="#" class="cms-btn" data-btn="primary" data-btn-shape="rounded" data-btn-size="md" data-btn-icon="none">Get started</a>
+      <button type="submit" style="display:inline-flex;align-items:center;justify-content:center;padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Submit</button>
     </section>
   `,
   label: `
@@ -789,6 +888,434 @@ const FOUNDATION_BLOCK_STYLES: Record<string, string> = {
       </div>
     </section>
   `,
+  "cms-basic-heading": `
+    <section style="padding:40px 24px;background:#fff;">
+      <div style="max-width:900px;margin:0 auto;">
+        <h2 style="margin:0;font-size:36px;line-height:1.15;color:#0f172a;font-weight:800;">Section heading</h2>
+      </div>
+    </section>
+  `,
+  "cms-basic-button": `
+    <section style="padding:32px 24px;text-align:center;">
+      <a href="#" class="cms-btn" data-btn="primary" data-btn-shape="rounded" data-btn-size="md" data-btn-icon="none">Get started</a>
+    </section>
+  `,
+  "cms-basic-divider": `
+    <section style="padding:24px;">
+      <div style="max-width:900px;margin:0 auto;">
+        <hr style="margin:0;border:0;border-top:1px solid #e2e8f0;" />
+      </div>
+    </section>
+  `,
+  "cms-basic-spacer": `
+    <section style="padding:0 24px;" aria-hidden="true">
+      <div style="max-width:900px;margin:0 auto;height:48px;"></div>
+    </section>
+  `,
+  "cms-basic-list": `
+    <section style="padding:40px 24px;background:#fff;">
+      <div style="max-width:720px;margin:0 auto;">
+        <ul style="margin:0;padding-left:20px;color:#475569;line-height:1.9;font-size:17px;">
+          <li>First list item — edit or add more</li>
+          <li>Second list item</li>
+          <li>Third list item</li>
+        </ul>
+      </div>
+    </section>
+  `,
+  "cms-basic-alert": `
+    <section style="padding:32px 24px;">
+      <div style="max-width:900px;margin:0 auto;padding:16px 18px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-size:15px;line-height:1.6;">
+        <strong style="display:block;margin-bottom:4px;">Tip</strong>
+        Use this callout for notes, alerts, or short highlights.
+      </div>
+    </section>
+  `,
+  "cms-basic-icon-text": `
+    <section style="padding:40px 24px;background:#fff;">
+      <div style="max-width:900px;margin:0 auto;display:flex;gap:16px;align-items:flex-start;">
+        <div style="width:48px;height:48px;border-radius:14px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;">★</div>
+        <div>
+          <h3 style="margin:0 0 6px;font-size:20px;color:#0f172a;">Feature title</h3>
+          <p style="margin:0;color:#64748b;line-height:1.7;">Short description for a feature, benefit, or service.</p>
+        </div>
+      </div>
+    </section>
+  `,
+  "cms-basic-columns-4": `
+    <section style="padding:40px 24px;">
+      <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;">
+        <div style="padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:96px;">Column 1</div>
+        <div style="padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:96px;">Column 2</div>
+        <div style="padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:96px;">Column 3</div>
+        <div style="padding:20px;border:1px dashed #cbd5e1;border-radius:14px;background:#fff;min-height:96px;">Column 4</div>
+      </div>
+    </section>
+  `,
+  "cms-basic-image-caption": `
+    <section style="padding:40px 24px;">
+      <div style="max-width:980px;margin:0 auto;">
+        <figure style="margin:0;">
+          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200" alt="Featured image" style="width:100%;border-radius:16px;object-fit:cover;min-height:240px;display:block;" />
+          <figcaption style="margin-top:10px;text-align:center;color:#64748b;font-size:14px;">Image caption — click to edit</figcaption>
+        </figure>
+      </div>
+    </section>
+  `,
+  "cms-basic-youtube": `
+    <section style="padding:40px 24px;">
+      <div style="max-width:960px;margin:0 auto;border-radius:20px;overflow:hidden;box-shadow:0 20px 44px rgba(15,23,42,.12);">
+        <div style="position:relative;padding-top:56.25%;background:#0f172a;">
+          <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" title="YouTube video" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+      </div>
+    </section>
+  `,
+  "cms-basic-video-file": `
+    <section style="padding:40px 24px;">
+      <div style="max-width:960px;margin:0 auto;border-radius:20px;overflow:hidden;box-shadow:0 20px 44px rgba(15,23,42,.12);">
+        <div style="position:relative;padding-top:56.25%;background:#0f172a;">
+          <video controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4"></video>
+        </div>
+      </div>
+    </section>
+  `,
+  "cms-form-newsletter": `
+    <section style="padding:48px 24px;background:#f8fafc;">
+      <form style="max-width:720px;margin:0 auto;padding:28px;border-radius:24px;background:#fff;border:1px solid #e2e8f0;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 20px 44px rgba(15,23,42,.08);">
+        <div style="flex:1 1 220px;">
+          <h3 style="margin:0 0 6px;font-size:24px;color:#0f172a;">Join our newsletter</h3>
+          <p style="margin:0;color:#64748b;font-size:15px;">Get updates — one email field is enough.</p>
+        </div>
+        <div style="display:flex;flex:1 1 280px;gap:10px;flex-wrap:wrap;">
+          <input type="email" name="email" placeholder="you@company.com" required style="flex:1;min-width:180px;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+          <button type="submit" style="padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;white-space:nowrap;">Subscribe</button>
+        </div>
+      </form>
+    </section>
+  `,
+  "cms-form-quote": `
+    <section style="padding:48px 24px;background:#fff;">
+      <form style="max-width:720px;margin:0 auto;padding:28px;border-radius:24px;border:1px solid #e2e8f0;display:grid;gap:14px;box-shadow:0 20px 44px rgba(15,23,42,.06);">
+        <h3 style="margin:0;font-size:28px;color:#0f172a;">Request a quote</h3>
+        <p style="margin:0;color:#64748b;">Tell us about your project and we will follow up.</p>
+        <input type="text" name="name" placeholder="Full name" required style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <input type="email" name="email" placeholder="Email" required style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <select name="service" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;">
+          <option value="">Select a service</option>
+          <option>Website design</option>
+          <option>Branding</option>
+          <option>Support &amp; maintenance</option>
+        </select>
+        <textarea name="details" rows="4" placeholder="Project details" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;resize:vertical;"></textarea>
+        <button type="submit" style="justify-self:start;padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Send request</button>
+      </form>
+    </section>
+  `,
+  "cms-form-appointment": `
+    <section style="padding:48px 24px;background:#f8fafc;">
+      <form style="max-width:640px;margin:0 auto;padding:28px;border-radius:24px;background:#fff;border:1px solid #e2e8f0;display:grid;gap:14px;">
+        <h3 style="margin:0;font-size:26px;">Book an appointment</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <input type="date" name="date" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+          <input type="time" name="time" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        </div>
+        <input type="text" name="name" placeholder="Your name" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <input type="tel" name="phone" placeholder="Phone number" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <button type="submit" style="padding:14px 22px;border-radius:999px;border:0;background:#0f172a;color:#fff;font-weight:700;cursor:pointer;">Book now</button>
+      </form>
+    </section>
+  `,
+  "cms-form-two-column": `
+    <section style="padding:32px 24px;">
+      <form style="max-width:720px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div style="display:grid;gap:8px;">
+          <label style="font-weight:600;color:#334155;">First name</label>
+          <input type="text" name="first_name" placeholder="First name" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        </div>
+        <div style="display:grid;gap:8px;">
+          <label style="font-weight:600;color:#334155;">Last name</label>
+          <input type="text" name="last_name" placeholder="Last name" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        </div>
+      </form>
+    </section>
+  `,
+  "cms-form-email-field": `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Email</label>
+        <input type="email" name="email" placeholder="name@example.com" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+      </div>
+    </section>
+  `,
+  "cms-form-phone-field": `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Phone</label>
+        <input type="tel" name="phone" placeholder="+63 9XX XXX XXXX" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+      </div>
+    </section>
+  `,
+  "cms-form-date-field": `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Preferred date</label>
+        <input type="date" name="date" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+      </div>
+    </section>
+  `,
+  "cms-form-file-field": `
+    <section style="padding:32px 24px;">
+      <div style="max-width:640px;margin:0 auto;display:grid;gap:8px;">
+        <label style="font-weight:600;color:#334155;">Upload file</label>
+        <input type="file" name="attachment" style="width:100%;padding:12px 14px;border-radius:14px;border:1px solid #cbd5e1;background:#fff;" />
+      </div>
+    </section>
+  `,
+  "cms-form-checkbox-group": `
+    <section style="padding:32px 24px;">
+      <fieldset style="max-width:640px;margin:0 auto;border:0;padding:0;">
+        <legend style="font-weight:700;color:#0f172a;margin-bottom:12px;">Select all that apply</legend>
+        <div style="display:grid;gap:10px;">
+          <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#334155;"><input type="checkbox" name="interest[]" value="design" style="width:18px;height:18px;" /> Design</label>
+          <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#334155;"><input type="checkbox" name="interest[]" value="dev" style="width:18px;height:18px;" /> Development</label>
+          <label style="display:flex;align-items:center;gap:10px;font-weight:600;color:#334155;"><input type="checkbox" name="interest[]" value="seo" style="width:18px;height:18px;" /> SEO</label>
+        </div>
+      </fieldset>
+    </section>
+  `,
+  "cms-form-submit-row": `
+    <section style="padding:32px 24px;">
+      <form style="max-width:640px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px;">
+        <button type="submit" style="padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Submit</button>
+        <button type="reset" style="padding:14px 22px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-weight:700;cursor:pointer;">Reset</button>
+      </form>
+    </section>
+  `,
+  "cms-form-contact-minimal": `
+    <section style="padding:48px 24px;">
+      <form style="max-width:520px;margin:0 auto;display:grid;gap:12px;">
+        <input type="text" name="name" placeholder="Name" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <input type="email" name="email" placeholder="Email" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;" />
+        <textarea name="message" rows="4" placeholder="Message" style="width:100%;padding:14px 16px;border-radius:14px;border:1px solid #cbd5e1;resize:vertical;"></textarea>
+        <button type="submit" style="padding:14px 22px;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:700;cursor:pointer;">Send</button>
+      </form>
+    </section>
+  `,
+};
+
+export const registerBasicStudioBlocks = (editor: any) => {
+  const basic = "Basic";
+
+  addBlock(editor, "cms-basic-heading", {
+    label: "Heading",
+    category: basic,
+    attributes: { class: "fa fa-header" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-heading"],
+  });
+
+  addBlock(editor, "cms-basic-button", {
+    label: "Button",
+    category: basic,
+    attributes: { class: "fa fa-square" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-button"],
+  });
+
+  addBlock(editor, "cms-basic-divider", {
+    label: "Divider",
+    category: basic,
+    attributes: { class: "fa fa-minus" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-divider"],
+  });
+
+  addBlock(editor, "cms-basic-spacer", {
+    label: "Spacer",
+    category: basic,
+    attributes: { class: "fa fa-arrows-v" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-spacer"],
+  });
+
+  addBlock(editor, "cms-basic-list", {
+    label: "Bullet list",
+    category: basic,
+    attributes: { class: "fa fa-list-ul" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-list"],
+  });
+
+  addBlock(editor, "cms-basic-alert", {
+    label: "Callout",
+    category: basic,
+    attributes: { class: "fa fa-info-circle" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-alert"],
+  });
+
+  addBlock(editor, "cms-basic-icon-text", {
+    label: "Icon + text",
+    category: basic,
+    attributes: { class: "fa fa-star" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-icon-text"],
+  });
+
+  addBlock(editor, "cms-basic-columns-4", {
+    label: "4 Columns",
+    category: basic,
+    attributes: { class: "fa fa-columns" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-columns-4"],
+  });
+
+  addBlock(editor, "cms-basic-image-caption", {
+    label: "Image + caption",
+    category: basic,
+    attributes: { class: "fa fa-image" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-image-caption"],
+  });
+
+  addBlock(editor, "cms-basic-youtube", {
+    label: "YouTube video",
+    category: basic,
+    attributes: { class: "fa fa-play" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-youtube"],
+  });
+
+  addBlock(editor, "cms-basic-video-file", {
+    label: "Video (MP4)",
+    category: basic,
+    attributes: { class: "fa fa-film" },
+    content: FOUNDATION_BLOCK_STYLES["cms-basic-video-file"],
+  });
+};
+
+/** Merge duplicate Grapes categories when custom blocks used category id `Forms` instead of `forms`. */
+export const consolidateFormsBlockCategory = (editor: any) => {
+  const bm = editor.BlockManager;
+  const categories = bm?.getCategories?.();
+  if (!bm?.getAll || !categories) return;
+
+  let formsCategory: any = null;
+  const registerCategory = (cat: any) => {
+    if (!cat?.get) return;
+    const id = String(cat.get("id") || "").toLowerCase();
+    if (id === FORMS_BLOCKS_CATEGORY.id) {
+      if (!formsCategory || cat.get("id") === FORMS_BLOCKS_CATEGORY.id) {
+        formsCategory = cat;
+      }
+    }
+  };
+
+  if (typeof categories.each === "function") categories.each(registerCategory);
+  else if (typeof categories.forEach === "function") categories.forEach(registerCategory);
+
+  if (!formsCategory && typeof categories.add === "function") {
+    formsCategory = categories.add({ ...FORMS_BLOCKS_CATEGORY });
+  }
+  if (!formsCategory) return;
+
+  formsCategory.set("id", FORMS_BLOCKS_CATEGORY.id);
+  formsCategory.set("label", FORMS_BLOCKS_CATEGORY.label);
+
+  bm.getAll().forEach((block: any) => {
+    const category = block.get("category");
+    if (!category) return;
+    const catId =
+      typeof category === "string"
+        ? category
+        : String(category.get?.("id") || category.get?.("label") || "");
+    if (catId === "Forms" || catId.toLowerCase() === FORMS_BLOCKS_CATEGORY.id) {
+      block.set("category", formsCategory, { silent: true });
+    }
+  });
+
+  if (typeof categories.filter === "function") {
+    categories
+      .filter((cat: any) => {
+        const id = String(cat?.get?.("id") || "");
+        return (id === "Forms" || id.toLowerCase() === FORMS_BLOCKS_CATEGORY.id) && cat !== formsCategory;
+      })
+      .forEach((dup: any) => {
+        categories.remove?.(dup);
+      });
+  }
+};
+
+export const registerFormStudioBlocks = (editor: any) => {
+  const forms = FORMS_BLOCKS_CATEGORY;
+
+  addBlock(editor, "cms-form-newsletter", {
+    label: "Newsletter signup",
+    category: forms,
+    attributes: { class: "fa fa-envelope" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-newsletter"],
+  });
+
+  addBlock(editor, "cms-form-contact-minimal", {
+    label: "Minimal contact",
+    category: forms,
+    attributes: { class: "fa fa-paper-plane" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-contact-minimal"],
+  });
+
+  addBlock(editor, "cms-form-quote", {
+    label: "Quote request",
+    category: forms,
+    attributes: { class: "fa fa-file-lines" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-quote"],
+  });
+
+  addBlock(editor, "cms-form-appointment", {
+    label: "Appointment booking",
+    category: forms,
+    attributes: { class: "fa fa-calendar" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-appointment"],
+  });
+
+  addBlock(editor, "cms-form-two-column", {
+    label: "Two-column fields",
+    category: forms,
+    attributes: { class: "fa fa-columns" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-two-column"],
+  });
+
+  addBlock(editor, "cms-form-email-field", {
+    label: "Email field",
+    category: forms,
+    attributes: { class: "fa fa-at" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-email-field"],
+  });
+
+  addBlock(editor, "cms-form-phone-field", {
+    label: "Phone field",
+    category: forms,
+    attributes: { class: "fa fa-phone" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-phone-field"],
+  });
+
+  addBlock(editor, "cms-form-date-field", {
+    label: "Date field",
+    category: forms,
+    attributes: { class: "fa fa-calendar-day" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-date-field"],
+  });
+
+  addBlock(editor, "cms-form-file-field", {
+    label: "File upload",
+    category: forms,
+    attributes: { class: "fa fa-cloud-arrow-up" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-file-field"],
+  });
+
+  addBlock(editor, "cms-form-checkbox-group", {
+    label: "Checkbox group",
+    category: forms,
+    attributes: { class: "fa fa-square-check" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-checkbox-group"],
+  });
+
+  addBlock(editor, "cms-form-submit-row", {
+    label: "Submit + reset",
+    category: forms,
+    attributes: { class: "fa fa-paper-plane" },
+    content: FOUNDATION_BLOCK_STYLES["cms-form-submit-row"],
+  });
 };
 
 const getBlockCategoryId = (block: any) => {
@@ -809,7 +1336,7 @@ export const enhanceFoundationBlocks = (editor: any) => {
       block.set("content", styledContent);
     } else {
       const categoryId = getBlockCategoryId(block);
-      if (categoryId === "Basic" || categoryId === "Forms") {
+      if (categoryId === "Basic" || categoryId.toLowerCase() === FORMS_BLOCKS_CATEGORY.id) {
         const currentContent = String(block.get("content") || "");
         if (!currentContent.includes("style=")) {
           block.set(

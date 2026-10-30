@@ -71,14 +71,15 @@ export function phMobileMaxLength(raw?: string | null) {
 }
 
 export function rejectLetterKey(event: {
-  key: string;
-  ctrlKey: boolean;
-  metaKey: boolean;
-  altKey: boolean;
-  preventDefault: () => void;
+  key?: string;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  altKey?: boolean;
+  preventDefault?: () => void;
 }) {
   if (event.ctrlKey || event.metaKey || event.altKey) return;
-  if (event.key.length === 1 && /[a-zA-Z]/.test(event.key)) {
-    event.preventDefault();
+  const key = typeof event.key === "string" ? event.key : "";
+  if (key.length === 1 && /[a-zA-Z]/.test(key)) {
+    event.preventDefault?.();
   }
 }

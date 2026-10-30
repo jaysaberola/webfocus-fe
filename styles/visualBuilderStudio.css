@@ -62,21 +62,22 @@ body.cms-visual-studio-open .cms-admin-main {
   gap: 12px;
   min-height: 56px;
   padding: 0 12px 0 8px;
-  background: #fff !important;
-  border-bottom: 1px solid var(--vb-line) !important;
+  background: linear-gradient(180deg, #0a1024 0%, #0f172a 48%, #0c1226 100%) !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.28) !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__brand {
   display: inline-flex !important;
   align-items: center;
   gap: 8px;
-  color: var(--vb-text) !important;
+  color: #f1f5f9 !important;
   min-width: 0;
   flex: 0 1 auto;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__brand i {
-  color: var(--vb-accent) !important;
+  color: #a5b4fc !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__tools,
@@ -98,27 +99,40 @@ body.cms-visual-studio-open .cms-admin-main {
   width: min(280px, 100%);
 }
 
-.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger {
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
   max-width: none;
   min-height: 36px;
   padding: 6px 12px;
-  border: 1px solid #e5e7eb !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
   border-radius: 10px;
-  background: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   box-shadow: none !important;
-  color: #111827;
+  color: #f1f5f9 !important;
   outline: none;
 }
 
-.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger:hover,
-.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger[aria-expanded="true"],
-.cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__trigger:focus-visible {
-  border-color: #c7d2fe !important;
-  background: #fff !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14) !important;
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger:hover,
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger[aria-expanded="true"],
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger:focus-visible {
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger-label {
+  color: #94a3b8 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger-title {
+  color: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-bar .page-switcher__trigger i {
+  color: #cbd5e1 !important;
+  font-size: 12px !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__title .page-switcher__panel {
@@ -131,75 +145,88 @@ body.cms-visual-studio-open .cms-admin-main {
   white-space: nowrap;
   font-size: 13px;
   font-weight: 700;
-  color: #111827;
+  color: #f8fafc !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__status {
   font-size: 11px;
   font-weight: 700;
-  color: #6b7280;
+  color: #94a3b8 !important;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__status.is-dirty {
-  color: #b45309;
+  color: #fbbf24 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__status.is-saved {
-  color: #047857;
+  color: #34d399 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn {
-  color: #4b5563 !important;
+  color: #94a3b8 !important;
   background: transparent !important;
   border-color: transparent !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn:hover:not(:disabled) {
-  background: #f3f4f6 !important;
-  color: #111827 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: #f1f5f9 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn.is-active {
-  background: #eef2ff !important;
-  color: #4338ca !important;
+  background: rgba(99, 102, 241, 0.28) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  color: #eef2ff !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__zoom {
-  color: #4b5563 !important;
+  color: #cbd5e1 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-bar__divider {
-  background: #e5e7eb !important;
+  background: rgba(148, 163, 184, 0.25) !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn--primary,
 .cms-grapes-shell--app .cms-grapes-studio-btn--save {
   width: auto !important;
   padding: 0 14px !important;
-  background: #111827 !important;
-  color: #fff !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
   font-size: 12px;
   font-weight: 700;
   gap: 6px;
 }
 
+.cms-grapes-shell--app .cms-grapes-studio-btn--save:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+}
+
 .cms-grapes-shell--app .cms-grapes-studio-btn--publish {
   width: auto !important;
   padding: 0 14px !important;
-  background: #4f46e5 !important;
+  background: #6366f1 !important;
   color: #fff !important;
+  border: 1px solid #818cf8 !important;
   font-size: 12px;
   font-weight: 700;
   gap: 6px;
+}
+
+.cms-grapes-shell--app .cms-grapes-studio-btn--publish:hover:not(:disabled) {
+  background: #4f46e5 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn--guide {
   width: auto !important;
   padding: 0 10px !important;
   gap: 6px;
-  color: #4f46e5 !important;
+  color: #c7d2fe !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-studio-btn--text {
@@ -207,6 +234,7 @@ body.cms-visual-studio-open .cms-admin-main {
   padding: 0 10px !important;
   font-size: 12px;
   font-weight: 700;
+  color: #e2e8f0 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-doc-bar:not(.is-rte-mode) {
@@ -216,16 +244,195 @@ body.cms-visual-studio-open .cms-admin-main {
 .cms-grapes-shell--app .cms-grapes-rte-docbar,
 .cms-grapes-shell--app .cms-grapes-docbar,
 .cms-grapes-shell--app .cms-grapes-doc-bar.is-rte-mode {
-  background: #fff !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  color: #374151 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  background: linear-gradient(180deg, #0a1024 0%, #0f172a 100%) !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.28) !important;
+  color: #e2e8f0 !important;
+  min-height: 42px !important;
+  max-height: none !important;
+  height: auto !important;
+  padding: 6px 12px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host.is-active {
+  display: flex !important;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  max-width: min(100%, 980px) !important;
+  min-width: 0 !important;
+  margin: 0 auto !important;
+  justify-content: center !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__actions {
+  display: inline-flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 2px 0 !important;
+  margin: 0 auto !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-format-wrap {
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-format-wrap:hover {
+  background: transparent !important;
+  border: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__btn,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-action,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions span.cms-grapes-rte-host__btn {
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__btn:hover,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-action:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  color: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__btn.gjs-rte-active,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-active {
+  background: rgba(99, 102, 241, 0.32) !important;
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  color: #eef2ff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__btn i,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-action i {
+  color: inherit !important;
+}
+
+/* Format dropdown — light surface so native menu stays readable on Windows */
+.cms-grapes-shell--app .cms-grapes-rte-host__actions select.cms-gjs-rte-format,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .cms-gjs-rte-format,
+.cms-grapes-shell--app .cms-grapes-rte-host__btn select.cms-gjs-rte-format {
+  color-scheme: light !important;
+  min-width: 120px !important;
+  padding: 0 28px 0 10px !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.55rem center !important;
+  background-size: 12px 9px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  cursor: pointer !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__actions select.cms-gjs-rte-format option,
+.cms-grapes-shell--app .cms-grapes-rte-host__btn select.cms-gjs-rte-format option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-rte-host__btn[title="Left to right"] i,
+.cms-grapes-shell--app .cms-grapes-rte-host__btn[title="Right to left"] i,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-action[title="Left to right"] i,
+.cms-grapes-shell--app .cms-grapes-rte-host__actions .gjs-rte-action[title="Right to left"] i,
+.cms-grapes-shell--app .cms-grapes-rte-host__btn .fa-arrow-right-long,
+.cms-grapes-shell--app .cms-grapes-rte-host__btn .fa-arrow-left-long {
+  color: #60a5fa !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar__menu-btn {
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar__menu-btn:hover:not(:disabled),
+.cms-grapes-shell--app .cms-grapes-doc-bar__menu-btn.is-open {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #eef2ff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar__dropdown {
+  background: #0f172a !important;
+  border: 1px solid rgba(129, 140, 248, 0.35) !important;
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.55) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar__dropdown-item {
+  color: #e2e8f0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-doc-bar__dropdown-item:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #f8fafc !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-shell__workspace {
-  background: #e8eaed !important;
+  display: grid !important;
+  grid-template-columns: var(--cms-left-sidebar-width, 340px) minmax(0, 1fr) var(--cms-right-sidebar-width, 320px) !important;
+  background: #0c1226 !important;
   flex: 1 1 auto !important;
   min-height: 0 !important;
   height: auto !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--left-hidden {
+  --cms-left-sidebar-width: 0px !important;
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--right-hidden {
+  --cms-right-sidebar-width: 0px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__host-wrap {
+  grid-column: 2 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left {
+  grid-column: 1 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right {
+  grid-column: 3 !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar.is-hidden {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  border-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-shell__host,
+.cms-grapes-shell--app .cms-grapes-shell__host .gjs-editor,
+.cms-grapes-shell--app .cms-grapes-shell__host .gjs-editor-cont {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-shell__host-wrap,
@@ -239,26 +446,113 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-grapes-shell--app .cms-grapes-page-loader {
-  background: rgba(232, 234, 237, 0.92) !important;
+  background: rgba(12, 18, 38, 0.82) !important;
+  backdrop-filter: blur(6px);
 }
 
 .cms-grapes-shell--app .cms-grapes-page-loader__card {
-  background: #fff !important;
-  border-color: #e5e7eb !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  border: 1px solid rgba(129, 140, 248, 0.35) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.55) !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-page-loader__card strong {
-  color: #111827 !important;
+  color: #f8fafc !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar {
-  background: #fff !important;
-  border-color: #e5e7eb !important;
-  color: #111827 !important;
   height: 100% !important;
   min-height: 0 !important;
   max-height: 100% !important;
   overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left {
+  background: linear-gradient(180deg, #0a1024 0%, #0f172a 48%, #0c1226 100%) !important;
+  border-right: 1px solid rgba(99, 102, 241, 0.28) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04) !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__body,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-categories,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layers,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-manager {
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__toolbar {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__tab {
+  color: #94a3b8 !important;
+  border-color: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__tab:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__tab.is-active {
+  color: #eef2ff !important;
+  background: rgba(99, 102, 241, 0.28) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.35) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__tab i {
+  color: #a5b4fc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__search {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__search i {
+  color: #64748b !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__search input {
+  color: #f1f5f9 !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__search input::placeholder {
+  color: #64748b !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__search input:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-item,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-name,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-count,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-vis,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-caret {
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer-move {
+  color: #94a3b8 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer.gjs-selected .gjs-layer-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-layer.gjs-selected .gjs-layer-name {
+  color: #eef2ff !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__panel,
@@ -267,22 +561,107 @@ body.cms-visual-studio-open .cms-admin-main {
   min-height: 0 !important;
 }
 
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-one-bg,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-blocks-c,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-categories,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category {
+  background: transparent !important;
+}
+
 .cms-grapes-shell--app .cms-grapes-sidebar--right {
-  border-left: 1px solid #e5e7eb !important;
+  background: linear-gradient(180deg, #0a1024 0%, #0f172a 48%, #0c1226 100%) !important;
+  border-left: 1px solid rgba(99, 102, 241, 0.28) !important;
+  color: #e2e8f0 !important;
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__body,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-one-bg,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sectors,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-traits {
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__toolbar {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__tab {
+  color: #94a3b8 !important;
+  border-color: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__tab:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__tab.is-active {
+  color: #eef2ff !important;
+  background: rgba(99, 102, 241, 0.28) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.35) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__tab i {
+  color: #a5b4fc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__hint {
+  background: rgba(99, 102, 241, 0.12) !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
+  color: #c7d2fe !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__hint i {
+  color: #a5b4fc !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__toolbar {
-  background: #fff !important;
+  background: #f8fafc !important;
   border-bottom: 1px solid #e5e7eb !important;
+  padding: 10px 12px 12px !important;
+  gap: 8px !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__tab {
-  color: #6b7280 !important;
+  color: #64748b !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  min-height: 38px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__tab:hover {
+  background: #fff !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__tab.is-active {
-  color: #111827 !important;
-  background: #f3f4f6 !important;
+  color: #312e81 !important;
+  background: #fff !important;
+  border-color: #c7d2fe !important;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.12) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__tab i {
+  color: #6366f1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__hint {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #4338ca !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__hint i {
+  color: #4f46e5 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__collapse {
@@ -300,21 +679,86 @@ body.cms-visual-studio-open .cms-admin-main {
 .cms-grapes-shell--app .cms-grapes-sidebar__search {
   background: #fff !important;
   border-color: #e5e7eb !important;
+  padding: 10px 12px !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-sidebar__search input {
   color: #111827 !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 10px !important;
+  padding: 9px 12px 9px 10px !important;
+  font-size: 12px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__search input:focus {
+  background: #fff !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.14) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar__search i {
+  color: #94a3b8 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-shell__host-wrap,
 .cms-grapes-shell--app .cms-grapes-shell__host,
-.cms-grapes-shell--app .gjs-editor,
+.cms-grapes-shell--app .gjs-editor {
+  background: transparent !important;
+}
+
 .cms-grapes-shell--app .gjs-cv-canvas {
-  background: #e8eaed !important;
+  background-color: #141c2e !important;
+  background-image: radial-gradient(rgba(148, 163, 184, 0.14) 1px, transparent 1px) !important;
+  background-size: 22px 22px !important;
+  background-position: center top !important;
+  padding: 28px 36px 40px !important;
+  box-sizing: border-box !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.5) rgba(15, 23, 42, 0.6);
+}
+
+.cms-grapes-shell--app .gjs-cv-canvas::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.cms-grapes-shell--app .gjs-cv-canvas::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.cms-grapes-shell--app .gjs-cv-canvas::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, 0.65);
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--grid .gjs-cv-canvas::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  pointer-events: none !important;
+  z-index: 3 !important;
+  background-image:
+    linear-gradient(to right, rgba(129, 140, 248, 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(129, 140, 248, 0.22) 1px, transparent 1px) !important;
+  background-size: 24px 24px !important;
 }
 
 .cms-grapes-shell--app.cms-grapes-shell--dragging .gjs-cv-canvas {
   user-select: none;
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--dragging:not(.cms-grapes-shell--block-drag) .gjs-cv-canvas {
+  cursor: grabbing;
+}
+
+.cms-grapes-shell--app.cms-grapes-shell--dragging .gjs-ghost {
+  opacity: 0.92 !important;
+  transform: scale(0.98);
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22) !important;
+  transition: transform 0.16s ease, opacity 0.16s ease, box-shadow 0.16s ease;
+  pointer-events: none !important;
 }
 
 .cms-grapes-shell--app .gjs-cv-canvas__frames,
@@ -325,18 +769,35 @@ body.cms-visual-studio-open .cms-admin-main {
   max-width: none !important;
 }
 
+.cms-grapes-shell--app[data-cms-device="desktop"] .gjs-cv-canvas__frames,
+.cms-grapes-shell--app[data-cms-device="desktop"] .gjs-frames {
+  height: 100% !important;
+  min-height: calc(100% - 8px) !important;
+}
+
 .cms-grapes-shell--app .gjs-frame-wrapper {
   display: block !important;
-  background: #fff !important;
+  background: #ffffff !important;
   width: 100% !important;
   min-width: 100% !important;
   max-width: none !important;
-  height: auto !important;
-  min-height: 100% !important;
-  overflow: visible !important;
-  box-shadow: none !important;
-  margin: 0 !important;
-  border-radius: 0 !important;
+  height: 100% !important;
+  min-height: calc(100% - 8px) !important;
+  overflow: hidden !important;
+  margin: 0 auto !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 28px 70px rgba(2, 6, 23, 0.5) !important;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.cms-grapes-shell--app[data-cms-device="desktop"] .gjs-frame-wrapper:hover {
+  border-color: rgba(129, 140, 248, 0.35) !important;
+  box-shadow:
+    0 0 0 1px rgba(129, 140, 248, 0.12),
+    0 32px 80px rgba(2, 6, 23, 0.55) !important;
 }
 
 .cms-grapes-shell--app[data-cms-device="tablet"] .gjs-cv-canvas__frames,
@@ -360,10 +821,13 @@ body.cms-visual-studio-open .cms-admin-main {
   min-width: 0 !important;
   min-height: calc(100% - 40px) !important;
   max-width: calc(100% - 40px) !important;
-  margin: 20px auto !important;
+  margin: 8px auto 0 !important;
   overflow: hidden !important;
   border-radius: 24px !important;
-  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22) !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 24px 64px rgba(2, 6, 23, 0.55) !important;
 }
 
 .cms-grapes-shell--app[data-cms-device="tablet"] .gjs-frame-wrapper {
@@ -378,7 +842,7 @@ body.cms-visual-studio-open .cms-admin-main {
   display: block !important;
   width: 100% !important;
   min-width: 100% !important;
-  height: auto !important;
+  height: 100% !important;
   min-height: 100% !important;
 }
 
@@ -399,11 +863,75 @@ body.cms-visual-studio-open .cms-admin-main {
   left: 0 !important;
   right: 0 !important;
   top: auto !important;
-  bottom: 18px !important;
+  bottom: 24px !important;
   width: max-content !important;
   margin: 0 auto !important;
   transform: none !important;
   translate: none !important;
+  z-index: 8 !important;
+  padding: 10px 18px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(129, 140, 248, 0.45) !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 12px 32px rgba(79, 70, 229, 0.45) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-add-section:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 16px 40px rgba(79, 70, 229, 0.52) !important;
+}
+
+/* Canvas selection chrome */
+.cms-grapes-shell--app .gjs-badge {
+  background: rgba(99, 102, 241, 0.92) !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 2px 6px !important;
+}
+
+.cms-grapes-shell--app .gjs-toolbar {
+  background: rgba(15, 23, 42, 0.94) !important;
+  border: 1px solid rgba(129, 140, 248, 0.35) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45) !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .gjs-toolbar-item {
+  color: #e2e8f0 !important;
+}
+
+.cms-grapes-shell--app .gjs-toolbar-item:hover {
+  background: rgba(99, 102, 241, 0.25) !important;
+  color: #fff !important;
+}
+
+.cms-grapes-shell--app .gjs-toolbar-item i {
+  font-size: 13px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.cms-grapes-shell--app .gjs-toolbar-item svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.cms-grapes-shell--app .gjs-toolbar-item__move-up,
+.cms-grapes-shell--app .gjs-toolbar-item__move-down {
+  min-width: 32px !important;
+}
+
+.cms-grapes-shell--app .gjs-resizer-h,
+.cms-grapes-shell--app .gjs-resizer-c {
+  border-color: #818cf8 !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-shell__edge-toggle:hover,
@@ -414,18 +942,39 @@ body.cms-visual-studio-open .cms-admin-main {
 
 .cms-grapes-shell--app .cms-grapes-empty-guide {
   background: transparent !important;
-  color: #111827 !important;
+  color: #e2e8f0 !important;
   border: 0 !important;
   pointer-events: none !important;
 }
 
+.cms-grapes-shell--app .cms-grapes-empty-guide__card {
+  pointer-events: auto !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-empty-guide__card h3 {
+  color: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-empty-guide__card > p:not(.cms-grapes-empty-guide__tips) {
+  color: #cbd5e1 !important;
+}
+
 .cms-grapes-shell--app .cms-grapes-empty-guide h2,
 .cms-grapes-shell--app .cms-grapes-empty-guide p {
-  color: #111827 !important;
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-empty-guide__tips {
+  color: #94a3b8 !important;
 }
 
 .cms-grapes-shell--app .gjs-one-bg {
   background: #fff !important;
+}
+
+/* Keep panel chrome transparent; block tiles must stay opaque (labels sit on gjs-one-bg). */
+.cms-grapes-shell--app .cms-grapes-sidebar .gjs-one-bg:not(.gjs-block) {
+  background: transparent !important;
 }
 
 .cms-grapes-shell--app .gjs-two-color,
@@ -470,11 +1019,245 @@ body.cms-visual-studio-open .cms-admin-main {
   color: #4f46e5 !important;
 }
 
-.cms-grapes-shell--app .gjs-blocks-c,
-.cms-grapes-shell--app .gjs-block-category .gjs-title {
-  background: #fff !important;
-  border-color: #e5e7eb !important;
+.cms-grapes-shell--app .gjs-blocks-c {
+  background: transparent !important;
+  border-color: transparent !important;
   box-shadow: none !important;
+}
+
+.cms-grapes-shell--app .gjs-block-category .gjs-title,
+.cms-grapes-shell--app .cms-block-category-title {
+  background: #f8fafc !important;
+  border: 1px solid #e5e7eb !important;
+  color: #334155 !important;
+  box-shadow: none !important;
+}
+
+.cms-grapes-shell--app .gjs-block-category.gjs-open .gjs-title,
+.cms-grapes-shell--app .gjs-block-category.gjs-open .cms-block-category-title {
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+  color: #3730a3 !important;
+}
+
+.cms-grapes-shell--app .cms-block-cat-icon {
+  background: #fff !important;
+  border-color: #e0e7ff !important;
+  color: #4f46e5 !important;
+}
+
+.cms-grapes-shell--app .gjs-block-category.gjs-open .cms-block-cat-icon {
+  background: #4f46e5 !important;
+  border-color: #4338ca !important;
+  color: #fff !important;
+}
+
+.cms-grapes-shell--app .cms-block-cat-count {
+  background: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+.cms-grapes-shell--app .gjs-block-category.gjs-open .cms-block-cat-count {
+  background: #c7d2fe !important;
+  color: #312e81 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-categories {
+  padding: 0 0 12px !important;
+}
+
+/* Library — category rows on dark navy (not stark white bars) */
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category .gjs-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-block-category-title {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  color: #e2e8f0 !important;
+  box-shadow: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category.gjs-open .gjs-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category.gjs-open .cms-block-category-title {
+  background: rgba(99, 102, 241, 0.22) !important;
+  border-color: rgba(129, 140, 248, 0.45) !important;
+  color: #eef2ff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-block-cat-icon {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
+  color: #c7d2fe !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category.gjs-open .cms-block-cat-icon {
+  background: #6366f1 !important;
+  border-color: #818cf8 !important;
+  color: #fff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-block-cat-count {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-category.gjs-open .cms-block-cat-count {
+  background: rgba(99, 102, 241, 0.45) !important;
+  color: #eef2ff !important;
+}
+
+/* Library — block cards: full light tile + readable caption */
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block.gjs-one-bg,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block:hover {
+  border-color: #818cf8 !important;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.28) !important;
+  background: #ffffff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block.gjs-four-color,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block .gjs-block-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block-label {
+  color: #0f172a !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block .gjs-block-label {
+  background: #f8fafc !important;
+  border-top: 1px solid #e2e8f0 !important;
+  padding: 6px 8px 8px !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .gjs-block .gjs-block__media {
+  background: #ffffff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-gjs-block-media {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  color: #4f46e5 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__collapse {
+  color: #94a3b8 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__collapse:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__collapse:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__collapse {
+  color: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__panel {
+  padding: 0 8px 12px !important;
+}
+
+/* Right sidebar — style / traits on dark navy */
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-traits .gjs-trt-trait {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector .gjs-sm-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-title {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #eef2ff !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-title {
+  background: rgba(99, 102, 241, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-properties {
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-property__label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait__label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-header,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-empty,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-two-color,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-four-color,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector-caret,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-arrow-u,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-arrow-d {
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field input,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field textarea,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder textarea {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f1f5f9 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field::placeholder,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input::placeholder {
+  color: #64748b !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field:focus-within,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder select:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder textarea:focus {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items label {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items label:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item input:checked + label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items input:checked + label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item.gjs-radio-item-active,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item.gjs-radio-item-active label {
+  background: rgba(99, 102, 241, 0.35) !important;
+  color: #eef2ff !important;
+  border-color: rgba(129, 140, 248, 0.5) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__value {
+  color: #f1f5f9 !important;
 }
 
 .cms-grapes-shell--app .gjs-sm-sectors,
@@ -618,30 +1401,11 @@ body.cms-visual-studio-open .cms-admin-main {
   font-weight: 700 !important;
 }
 
-.cms-grapes-shell--app .cms-grapes-sidebar__panel,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-sectors,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-trt-traits,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-layers,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-layer-manager,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-clm-tags {
-  color: #111827 !important;
-}
-
-.cms-grapes-shell--app .cms-grapes-sidebar__panel input,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel select,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel textarea,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel label,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-label,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-label,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-property__label,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-trt-trait__wrp,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-field-units,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-field-unit,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-input-unit,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-stack,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-composite,
-.cms-grapes-shell--app .cms-grapes-sidebar__panel .gjs-sm-icon {
-  color: #111827 !important;
+/* Light text overrides only for left Layers panel (right Design panel uses dark theme below). */
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__panel .gjs-layers,
+.cms-grapes-shell--app .cms-grapes-sidebar--left .cms-grapes-sidebar__panel .gjs-layer-manager {
+  color: #cbd5e1 !important;
 }
 
 .cms-grapes-shell--app .cms-gjs-color-field__picker,
@@ -713,9 +1477,25 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-grapes-shell--app .gjs-placeholder,
+.cms-grapes-shell--app .gjs-placeholder.horizontal,
+.cms-grapes-shell--app .gjs-placeholder.vertical {
+  min-height: 4px !important;
+  height: 4px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #6366f1, #818cf8) !important;
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.18),
+    0 4px 14px rgba(99, 102, 241, 0.35) !important;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, opacity 0.15s ease;
+}
+
 .cms-grapes-shell--app .gjs-placeholder-int {
-  border-color: #2563eb !important;
-  background: rgba(37, 99, 235, 0.08) !important;
+  min-height: 2px !important;
+  height: 2px !important;
+  background: transparent !important;
+  border: 0 !important;
 }
 
 .cms-grapes-shell--app .gjs-clm-tag {
@@ -738,16 +1518,17 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-grapes-shell--app .cms-grapes-shell__edge-toggle {
-  background: #2563eb !important;
-  color: #fff !important;
-  border: 1px solid #1d4ed8 !important;
-  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.38) !important;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(129, 140, 248, 0.42) !important;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.45) !important;
 }
 
-.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:hover {
-  background: #1d4ed8 !important;
-  color: #fff !important;
-  border-color: #1e40af !important;
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:hover,
+.cms-grapes-shell--app .cms-grapes-shell__edge-toggle:focus-visible {
+  background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
+  color: #f8fafc !important;
+  border-color: rgba(165, 180, 252, 0.55) !important;
 }
 
 .cms-grapes-shell--app .cms-grapes-context-menu {
@@ -778,11 +1559,11 @@ body.cms-visual-studio-open .cms-admin-main {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #f4f6f8;
-  border-left: 1px solid #dbe1ea;
-  box-shadow: none;
+  background: linear-gradient(180deg, #0a1024 0%, #0f172a 48%, #0c1226 100%);
+  border-left: 1px solid rgba(99, 102, 241, 0.28);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.04);
   padding: 0;
-  color: #0f172a;
+  color: #e2e8f0;
 }
 
 .cms-visual-builder-settings__header {
@@ -792,15 +1573,15 @@ body.cms-visual-studio-open .cms-admin-main {
   gap: 12px;
   min-height: 52px;
   padding: 0 16px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-  color: #0f172a;
+  background: rgba(15, 23, 42, 0.65);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  color: #eef2ff;
 }
 
 .cms-visual-builder-settings__header strong {
   font-size: 14px;
   font-weight: 800;
-  color: #0f172a;
+  color: #eef2ff;
 }
 
 .cms-visual-builder-settings__close {
@@ -808,8 +1589,8 @@ body.cms-visual-studio-open .cms-admin-main {
   height: 32px;
   border: 0;
   border-radius: 8px;
-  background: #f1f5f9;
-  color: #334155;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -817,20 +1598,20 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-visual-builder-settings__close:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
 }
 
 .cms-visual-builder-settings__body {
   flex: 1 1 auto;
   overflow: auto;
   padding: 16px;
-  background: #f4f6f8;
+  background: transparent;
 }
 
 .cms-visual-builder-settings,
 .cms-visual-builder-settings * {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 .cms-visual-builder-settings .page-editor__settings-stack {
@@ -838,17 +1619,17 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-visual-builder-settings .page-editor__settings-card {
-  background: #fff !important;
-  border: 1px solid #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
   border-radius: 14px !important;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04) !important;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.35) !important;
   overflow: hidden;
 }
 
 .cms-visual-builder-settings .page-editor__settings-header,
 .cms-visual-builder-settings .page-editor__settings-header:hover {
-  background: #f8fafc !important;
-  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #eef2ff !important;
 }
 
 .cms-visual-builder-settings .page-editor__settings-header h5,
@@ -859,7 +1640,7 @@ body.cms-visual-studio-open .cms-admin-main {
 .cms-visual-builder-settings .small,
 .cms-visual-builder-settings p,
 .cms-visual-builder-settings strong {
-  color: #0f172a !important;
+  color: #e2e8f0 !important;
 }
 
 .cms-visual-builder-settings .form-label {
@@ -867,29 +1648,58 @@ body.cms-visual-studio-open .cms-admin-main {
   font-weight: 800 !important;
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
-  color: #64748b !important;
+  color: #94a3b8 !important;
 }
 
 .cms-visual-builder-settings .form-control,
 .cms-visual-builder-settings .form-select,
 .cms-visual-builder-settings textarea {
-  background: #fff !important;
-  color: #0f172a !important;
-  border: 1px solid #d7dee8 !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
   border-radius: 10px !important;
   box-shadow: none !important;
 }
 
+.cms-visual-builder-settings .form-select {
+  padding-right: 2.25rem !important;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23cbd5e1' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 0.65rem center !important;
+  background-size: 14px 10px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-toggle {
+  background: rgba(99, 102, 241, 0.22) !important;
+  color: #eef2ff !important;
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.4) !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-toggle i,
+.cms-visual-builder-settings .page-editor__settings-toggle .fa-solid {
+  color: #eef2ff !important;
+  opacity: 1 !important;
+  font-size: 12px !important;
+}
+
+.cms-visual-builder-settings .cms-tooltip-icon,
+.cms-visual-builder-settings .cms-tooltip-trigger {
+  color: #a5b4fc !important;
+}
+
 .cms-visual-builder-settings .form-control::placeholder,
 .cms-visual-builder-settings textarea::placeholder {
-  color: #94a3b8 !important;
+  color: #64748b !important;
 }
 
 .cms-visual-builder-settings .form-control:focus,
 .cms-visual-builder-settings .form-select:focus,
 .cms-visual-builder-settings textarea:focus {
-  border-color: #6366f1 !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.16) !important;
+  border-color: rgba(129, 140, 248, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
 }
 
 .cms-visual-builder-settings .page-editor__editor-toggle {
@@ -897,7 +1707,7 @@ body.cms-visual-studio-open .cms-admin-main {
   width: 100%;
   padding: 4px !important;
   border-radius: 999px !important;
-  background: #e2e8f0 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .cms-visual-builder-settings .page-editor__editor-toggle .form-check {
@@ -920,15 +1730,15 @@ body.cms-visual-studio-open .cms-admin-main {
   padding: 8px 12px !important;
   border-radius: 999px !important;
   background: transparent !important;
-  color: #475569 !important;
+  color: #94a3b8 !important;
   font-size: 13px !important;
   font-weight: 700 !important;
 }
 
 .cms-visual-builder-settings .page-editor__editor-toggle .form-check-input:checked + .form-check-label {
-  background: #fff !important;
-  color: #0f172a !important;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08) !important;
+  background: rgba(99, 102, 241, 0.35) !important;
+  color: #eef2ff !important;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.35) !important;
 }
 
 .cms-visual-builder-settings .form-check-input {
@@ -942,11 +1752,323 @@ body.cms-visual-studio-open .cms-admin-main {
 }
 
 .cms-visual-builder-settings .form-check-label {
-  color: #0f172a !important;
+  color: #e2e8f0 !important;
   font-weight: 700 !important;
 }
 
 .cms-visual-builder-settings .text-muted,
 .cms-visual-builder-settings .small.text-muted {
-  color: #64748b !important;
+  color: #94a3b8 !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-body,
+.cms-visual-builder-settings .page-editor__settings-card .card-body,
+.cms-visual-builder-settings .accordion-body {
+  padding: 14px 16px !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-header {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+.cms-visual-builder-settings .page-editor__settings-header h5,
+.cms-visual-builder-settings .page-editor__settings-header h4 {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.cms-visual-builder-settings__body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+/* ─── Right Design / Properties — dark theme (must load after light overrides) ─── */
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__panel,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sectors,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-traits {
+  padding: 10px 10px 14px !important;
+  color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-traits .gjs-trt-trait {
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.28) !important;
+  color: #e2e8f0 !important;
+  overflow: hidden !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-traits .gjs-trt-trait {
+  border-color: rgba(129, 140, 248, 0.38) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector .gjs-sm-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector:hover .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-header {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #eef2ff !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.03em !important;
+  padding: 12px 14px !important;
+  border-radius: 0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-sector-title,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector.gjs-sm-open .gjs-sm-title {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-bottom: 1px solid rgba(129, 140, 248, 0.28) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-properties {
+  padding: 12px 14px 14px !important;
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-property {
+  margin: 0 0 12px !important;
+  padding: 0 !important;
+  color: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-field,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-composite .gjs-sm-property {
+  color: #f8fafc !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right {
+  --gjs-arrow-color: #cbd5e1;
+  --gjs-font-color: #f8fafc;
+  --gjs-secondary-light-color: #f8fafc;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-property__label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait__label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-header,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-sels-info,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-sel-id,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-no-sel,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-empty,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-icon,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__panel label {
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-two-color,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-four-color,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-sector-caret,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-clear {
+  color: #cbd5e1 !important;
+  fill: currentColor !important;
+  opacity: 1 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-unit,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-unit,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-units {
+  color: #cbd5e1 !important;
+  text-transform: none !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: normal !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-arrow-u {
+  border-bottom-color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-arrow-d {
+  border-top-color: #cbd5e1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-property__label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait__label {
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-properties {
+  gap: 10px 8px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-property,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-sm-composite,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-fields {
+  width: 100% !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-fields {
+  gap: 8px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait .gjs-field {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(148, 163, 184, 0.32) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field input,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field textarea,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder textarea,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait .gjs-field input,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait .gjs-field select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait .gjs-field textarea {
+  color: #f8fafc !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: 34px !important;
+  padding: 8px 40px 8px 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field select,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder select {
+  padding-right: 28px !important;
+  cursor: pointer !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field::placeholder,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field input::placeholder,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field:focus-within,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-trt-trait .gjs-field:focus-within {
+  background: rgba(255, 255, 255, 0.13) !important;
+  border-color: rgba(129, 140, 248, 0.58) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field input:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field select:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field textarea:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder input:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder select:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-input-holder textarea:focus {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-arrows {
+  z-index: 2 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-field-radio {
+  background: transparent !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items label {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.24) !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item input:checked + label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-items input:checked + label,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item.gjs-radio-item-active,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-radio-item.gjs-radio-item-active label {
+  background: rgba(99, 102, 241, 0.35) !important;
+  color: #eef2ff !important;
+  border-color: rgba(129, 140, 248, 0.5) !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-tag,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-clm-tags {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: #e2e8f0 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker:hover,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker:focus,
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__picker[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  border-radius: 10px !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__value {
+  color: #f1f5f9 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-gjs-color-field__affordance {
+  border-right-color: #94a3b8 !important;
+  border-bottom-color: #94a3b8 !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__hint {
+  margin: 10px 10px 4px !important;
+  padding: 12px 14px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  font-weight: 600 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .cms-grapes-sidebar__panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.cms-grapes-shell--app .cms-grapes-sidebar--right .gjs-select option,
+.cms-grapes-shell--app .cms-grapes-sidebar--right select option {
+  background: #0f172a !important;
+  color: #f1f5f9 !important;
 }

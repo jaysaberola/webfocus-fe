@@ -1,5 +1,7 @@
 import LandingPageLayout from "@/components/Layout/GuestLayout";
+import CmsPublicContactForms from "@/components/Public/CmsPublicContactForms";
 import GoogleRecaptcha, { GoogleRecaptchaHandle } from "@/components/UI/GoogleRecaptcha";
+import { buildPublicPageHtml, normalizeGrapesPageData } from "@/lib/grapesContent";
 import { getPublicPageBySlug, sendContactMessage } from "@/services/publicPageService";
 import { websiteService } from "@/services/websiteService";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -36,9 +38,37 @@ const PREFERRED_SERVICE_OPTIONS = [
 
 type ContactUsPageProps = {
   recaptchaSiteKey?: string;
+  cmsHtml?: string;
+  useCmsLayout?: boolean;
 };
 
-export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPageProps) {
+export default function ContactUsPage({
+  recaptchaSiteKey = "",
+  cmsHtml = "",
+  useCmsLayout = false,
+}: ContactUsPageProps) {
+  const cmsContentRef = useRef<HTMLDivElement>(null);
+
+  if (useCmsLayout && cmsHtml.trim()) {
+    return (
+      <>
+        <div
+          ref={cmsContentRef}
+          className="public-page-content public-contact"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: cmsHtml }}
+        />
+        <CmsPublicContactForms recaptchaSiteKey={recaptchaSiteKey} rootRef={cmsContentRef} />
+      </>
+    );
+  }
+
+  return (
+    <LegacyContactUsPage recaptchaSiteKey={recaptchaSiteKey} />
+  );
+}
+
+function LegacyContactUsPage({ recaptchaSiteKey = "" }: { recaptchaSiteKey?: string }) {
   const [form, setForm] = useState({
     inquiry_type: "",
     first_name: "",
@@ -431,10 +461,20 @@ export default function ContactUsPage({ recaptchaSiteKey = "" }: ContactUsPagePr
 export async function getServerSideProps() {
   let pageData = { slug: "contact-us", title: "Contact Us" };
   let recaptchaSiteKey = "";
+  let cmsHtml = "";
+  let useCmsLayout = false;
 
   try {
     const res = await getPublicPageBySlug("contact-us");
     pageData = res.data;
+    const normalized = normalizeGrapesPageData(res.data);
+    const hasGrapes =
+      normalized.content_type === "grapes" ||
+      Boolean(normalized.grapes_html?.trim() || normalized.grapes_css?.trim() || normalized.grapes_js?.trim());
+    if (hasGrapes && normalized.grapes_html?.trim()) {
+      cmsHtml = buildPublicPageHtml(normalized);
+      useCmsLayout = true;
+    }
   } catch {
     // use fallback page data
   }
@@ -450,6 +490,8 @@ export async function getServerSideProps() {
     props: {
       pageData,
       recaptchaSiteKey,
+      cmsHtml,
+      useCmsLayout,
       layout: { hideBanner: true, fullWidth: true },
     },
   };

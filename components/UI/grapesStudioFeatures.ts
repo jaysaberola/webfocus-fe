@@ -200,40 +200,63 @@ function isStackedPageSection(component: any) {
   return /section|hero|footer|header|navbar|showcase|pricing|faq|testimonial|gallery|cta/i.test(name);
 }
 
-function moveRootOnWrapper(editor: any, root: any, at: number) {
-  const wrapper = editor.getWrapper?.();
-  if (!wrapper || !root) return;
+/** Grapes `Component.move` skips when `at === index + 1`; use `at + 1` when moving down. */
+function grapesReorderAt(currentIndex: number, nextIndex: number) {
+  if (nextIndex > currentIndex) return nextIndex + 1;
+  return nextIndex;
+}
+
+function moveBlockToIndex(block: any, parent: any, currentIndex: number, nextIndex: number) {
+  if (!block?.move || !parent || currentIndex < 0 || nextIndex === currentIndex) return;
 
   try {
-    if (root.parent?.() !== wrapper) {
-      wrapper.append?.(root, { at });
+    if (block.parent?.() !== parent) {
+      block.move(parent, { at: grapesReorderAt(Math.max(0, currentIndex), nextIndex) });
       return;
     }
-  } catch {
-    try {
-      root.move?.(wrapper, { at });
-      return;
-    } catch {
-      return;
-    }
-  }
-
-  try {
-    const collection = wrapper.components?.();
-    const models = collection?.models || [];
-    const currentIndex = typeof collection?.indexOf === "function" ? collection.indexOf(root) : models.indexOf(root);
-    if (currentIndex >= 0 && currentIndex !== at) {
-      root.move?.(wrapper, { at });
-    }
+    block.move(parent, { at: grapesReorderAt(currentIndex, nextIndex) });
   } catch {
     // ignore reorder errors
   }
+}
+
+function moveRootOnWrapper(editor: any, root: any, nextIndex: number) {
+  const wrapper = editor.getWrapper?.();
+  if (!wrapper || !root) return;
+  const collection = wrapper.components?.();
+  const currentIndex = collectionIndexOf(collection, root);
+  moveBlockToIndex(root, wrapper, currentIndex, nextIndex);
 }
 
 function appendSectionToPageBottom(editor: any, root: any) {
   const wrapper = editor.getWrapper?.();
   const lastIndex = Math.max(0, (wrapper?.components?.()?.length ?? 1) - 1);
   moveRootOnWrapper(editor, root, lastIndex);
+}
+
+function applyStackedFlowLayout(root: any, opts?: { fullWidth?: boolean }) {
+  if (!root) return;
+  const fullWidth = opts?.fullWidth ?? true;
+  const nextStyle: Record<string, string> = {
+    position: "relative",
+    left: "auto",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    width: fullWidth ? "100%" : "auto",
+    maxWidth: "100%",
+    margin: "0",
+    transform: "none",
+  };
+
+  if (typeof root.setStyle === "function") {
+    const current = root.getStyle?.() || {};
+    root.setStyle({ ...current, ...nextStyle });
+  }
+  root.addStyle?.(nextStyle);
+  root.set?.("dmode", "");
+  root.setDragMode?.("");
+  applyComponentLayout(root.getEl?.(), nextStyle);
 }
 
 function pinSectionAtPageTop(editor: any, root: any) {
@@ -295,14 +318,280 @@ function scrollCanvasToComponent(editor: any, root: any, viewport?: CanvasViewpo
   }
 }
 
+/** Where to place a block: respect Grapes sorter index vs always append on page root. */
+export type CanvasDropPlacement = "respect-sorter" | "append-root";
+
+function normalizeStackedComponent(editor: any, component: any) {
+  const root = resolveDroppedRoot(component);
+  const wrapper = editor?.getWrapper?.();
+  if (!root || !wrapper) return null;
+
+  const parent = root.parent?.();
+  const onPageRoot = !parent || parent === wrapper;
+  applyStackedFlowLayout(root, { fullWidth: onPageRoot && !isCompactCanvasElement(root) });
+  return root;
+}
+
+function toolbarFaIcon(className: string) {
+  return `<i class="${className}" aria-hidden="true"></i>`;
+}
+
+const TOOLBAR_ARROW_DOWN_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11,4H13V16L18.5,10.5L19.92,11.92L12,19.84L4.08,11.92L5.5,10.5L11,16V4Z" /></svg>';
+
+function resolveEditorFromEm(em: any) {
+  if (!em || em.destroyed) return null;
+  const editor = em.Editor ?? em.get?.("Editor");
+  if (!editor || editor.destroyed || typeof editor.getWrapper !== "function") return null;
+  return editor;
+}
+
+function collectionIndexOf(collection: any, model: any) {
+  if (!collection || !model) return -1;
+  const models = collection.models || [];
+  return models.indexOf(model);
+}
+
+/** Section row to reorder and the sibling list it belongs to (wrapper or inner container). */
+function findSectionListParent(component: any, editor: any) {
+  const wrapper = editor?.getWrapper?.();
+  if (!wrapper || !component) return null;
+
+  let wrapperChild = component;
+  while (wrapperChild?.parent?.() && wrapperChild.parent() !== wrapper) {
+    wrapperChild = wrapperChild.parent();
+  }
+
+  if (wrapperChild?.parent?.() === wrapper) {
+    const wrapperCollection = wrapper.components?.();
+    const wrapperCount = wrapperCollection?.length ?? 0;
+    if (wrapperCount > 1) {
+      return { block: wrapperChild, parent: wrapper, collection: wrapperCollection };
+    }
+  }
+
+  const wrapperKids = wrapper.components?.()?.models || [];
+  if (wrapperKids.length === 1) {
+    const container = wrapperKids[0];
+    const innerCollection = container.components?.();
+    const innerCount = innerCollection?.length ?? 0;
+    if (innerCount > 1) {
+      let innerBlock = component;
+      while (innerBlock?.parent?.() && innerBlock.parent() !== container) {
+        innerBlock = innerBlock.parent();
+      }
+      if (innerBlock?.parent?.() === container) {
+        return { block: innerBlock, parent: container, collection: innerCollection };
+      }
+    }
+  }
+
+  if (wrapperChild?.parent?.() === wrapper) {
+    const wrapperCollection = wrapper.components?.();
+    return { block: wrapperChild, parent: wrapper, collection: wrapperCollection };
+  }
+
+  return null;
+}
+
+function resolveReorderContext(component: any, editor: any) {
+  const list = findSectionListParent(component, editor);
+  if (list) {
+    const { block, parent, collection } = list;
+    const count = collection?.length ?? 0;
+    const index = collectionIndexOf(collection, block);
+    if (index < 0) return null;
+    return { block, parent, index, count };
+  }
+
+  const parent = component?.parent?.();
+  const collection = parent?.components?.();
+  if (!parent || !collection) return null;
+  const count = collection.length ?? 0;
+  const index = collectionIndexOf(collection, component);
+  if (index < 0 || count <= 1) return null;
+  return { block: component, parent, index, count };
+}
+
+function movePageBlock(editor: any, component: any, direction: number) {
+  const ed = resolveEditorFromEm(editor?.getModel?.()) ?? resolveEditorFromEm(component?.em) ?? editor;
+  if (!ed || ed.destroyed || !component) return;
+  editor = ed;
+
+  const context = resolveReorderContext(component, editor);
+  if (!context) return;
+
+  const { block, parent, index, count } = context;
+  const nextIndex = index + direction;
+  if (nextIndex < 0 || nextIndex >= count || nextIndex === index) return;
+
+  try {
+    block.set?.({ draggable: true, droppable: true });
+
+    const onCanvasRoot = parent === editor.getWrapper?.();
+    moveBlockToIndex(block, parent, index, nextIndex);
+
+    applyStackedFlowLayout(block, { fullWidth: onCanvasRoot });
+    normalizeStackedComponent(editor, block);
+    unlockCanvasPageScroll(editor);
+    editor.select?.(block);
+    editor.trigger?.("update");
+    refreshStudioComponentToolbars(editor);
+  } catch {
+    // ignore reorder errors during teardown
+  }
+}
+
+function buildStudioComponentToolbar(component: any, em: any, editor: any) {
+  const ppfx = (em && em.getConfig()?.stylePrefix) || "gjs-";
+  const tb: any[] = [];
+  const ed = resolveEditorFromEm(em) ?? (editor && !editor.destroyed ? editor : null);
+  const draggable = component.get?.("draggable") !== false;
+  const reorderCtx = ed ? resolveReorderContext(component, ed) : null;
+  const showStackArrows = draggable && Boolean(reorderCtx && reorderCtx.count > 1);
+
+  if (showStackArrows) {
+    tb.push({
+      id: "move-up",
+      label: em.getIcon?.("arrowUp") || toolbarFaIcon("fa-solid fa-arrow-up"),
+      attributes: { title: "Move section up", class: `${ppfx}no-touch-actions` },
+      command: (ed: any) => movePageBlock(ed, component, -1),
+    });
+    tb.push({
+      id: "move-down",
+      label: TOOLBAR_ARROW_DOWN_SVG,
+      attributes: { title: "Move section down", class: `${ppfx}no-touch-actions` },
+      command: (ed: any) => movePageBlock(ed, component, 1),
+    });
+  } else if (component.collection) {
+    tb.push({
+      label: em.getIcon("arrowUp"),
+      attributes: { title: "Select parent" },
+      command: (ed: any) => ed.runCommand("core:component-exit", { force: 1 }),
+    });
+  }
+
+  if (component.get?.("draggable") !== false) {
+    tb.push({
+      attributes: { class: `${ppfx}no-touch-actions`, draggable: true, title: "Drag to reorder" },
+      label: em.getIcon("move"),
+      command: "tlb-move",
+    });
+  }
+  if (component.get?.("copyable") !== false) {
+    tb.push({
+      label: em.getIcon("copy"),
+      attributes: { title: "Duplicate" },
+      command: "tlb-clone",
+    });
+  }
+  if (component.get?.("removable") !== false) {
+    tb.push({
+      label: em.getIcon("delete"),
+      attributes: { title: "Delete" },
+      command: "tlb-delete",
+    });
+  }
+
+  return tb;
+}
+
+function grapesParserReady(editor: any): boolean {
+  if (!editor || editor.destroyed) return false;
+  const em = editor.getModel?.();
+  if (!em || em.destroyed) return false;
+  const parser = em?.Parser ?? editor.Parser;
+  if (typeof parser?.parseHtml !== "function") return false;
+  if (typeof em.Selectors?.getAll !== "function") return false;
+  if (typeof em.Css?.getAll !== "function") return false;
+  return true;
+}
+
+export function refreshStudioComponentToolbars(editor: any) {
+  if (!editor || editor.destroyed || typeof editor.getWrapper !== "function") return;
+  const wrapper = editor.getWrapper?.();
+  if (!wrapper) return;
+
+  const refreshTreeToolbars = (component: any) => {
+    if (!component?.set) return;
+    component.set("toolbar", null);
+    component.initToolbar?.();
+    const children = component.components?.()?.models || [];
+    children.forEach(refreshTreeToolbars);
+  };
+
+  refreshTreeToolbars(wrapper);
+  const selected = editor.getSelected?.();
+  if (selected) {
+    editor.trigger?.("component:toggled", selected);
+  }
+}
+
+function installStudioComponentToolbar(editor: any) {
+  const patchInitToolbar = () => {
+    try {
+      const defType = editor.DomComponents?.getType?.("default");
+      const prototype = defType?.model?.prototype;
+      if (!prototype) return;
+      prototype.initToolbar = function initCmsStudioToolbar(this: any) {
+        const em = this.em;
+        if (this.get("toolbar") || !em) return;
+        const ed = resolveEditorFromEm(em);
+        if (!ed) return;
+        this.set("toolbar", buildStudioComponentToolbar(this, em, ed));
+      };
+    } catch {
+      // ignore toolbar patch errors
+    }
+  };
+
+  const refreshSelectedToolbar = (component: any) => {
+    if (!component?.set || !resolveEditorFromEm(component?.em)) return;
+    component.set("toolbar", null);
+    component.initToolbar?.();
+  };
+
+  patchInitToolbar();
+  editor.on("load", () => {
+    patchInitToolbar();
+    let attempts = 0;
+    const refreshWhenReady = () => {
+      if (resolveEditorFromEm(editor.getModel?.())) {
+        refreshStudioComponentToolbars(editor);
+        return;
+      }
+      if (attempts < 60) {
+        attempts += 1;
+        window.requestAnimationFrame(refreshWhenReady);
+      }
+    };
+    window.requestAnimationFrame(refreshWhenReady);
+  });
+  editor.on("component:selected", refreshSelectedToolbar);
+  const onComponentAdded = (component: any) => {
+    window.requestAnimationFrame(() => refreshSelectedToolbar(component));
+  };
+
+  editor.on("component:add", onComponentAdded);
+  editor.on("destroy", () => {
+    editor.off("component:selected", refreshSelectedToolbar);
+    editor.off("component:add", onComponentAdded);
+  });
+}
+
 /**
- * Page sections stack at the bottom of the page.
- * Smaller elements stay centered in the current view.
+ * After a drop, keep blocks in normal document flow (stacked), not absolute overlap.
  */
-export function centerComponentOnCanvas(editor: any, component: any, viewport?: CanvasViewport) {
+export function centerComponentOnCanvas(
+  editor: any,
+  component: any,
+  viewport?: CanvasViewport,
+  placement: CanvasDropPlacement = "append-root",
+) {
   const root = resolveDroppedRoot(component);
   if (!editor || !root) return;
   const frozen = viewport || snapshotCanvasViewport(editor);
+  const respectSorter = placement === "respect-sorter";
 
   try {
     const wrapper = editor.getWrapper?.();
@@ -316,30 +605,11 @@ export function centerComponentOnCanvas(editor: any, component: any, viewport?: 
       if (siteTemplate || emptyPage) {
         replaceCanvasWithTemplate(editor, root);
         pinSectionAtPageTop(editor, root);
-      } else {
+      } else if (!respectSorter) {
         appendSectionToPageBottom(editor, root);
       }
 
-      const nextStyle: Record<string, string> = {
-        position: "relative",
-        left: "0",
-        top: "0",
-        right: "auto",
-        bottom: "auto",
-        width: "100%",
-        maxWidth: "100%",
-        margin: "0",
-        transform: "none",
-      };
-      if (typeof root.setStyle === "function") {
-        const current = root.getStyle?.() || {};
-        root.setStyle({ ...current, ...nextStyle });
-      }
-      root.addStyle?.(nextStyle);
-      root.set?.("dmode", "");
-      root.setDragMode?.("");
-
-      applyComponentLayout(root.getEl?.(), nextStyle);
+      applyStackedFlowLayout(root, { fullWidth: true });
       editor.select?.(root);
       if (siteTemplate || emptyPage) {
         restoreCanvasViewport(editor, { ...frozen, scrollTop: 0 });
@@ -352,92 +622,36 @@ export function centerComponentOnCanvas(editor: any, component: any, viewport?: 
     }
 
     const parent = root.parent?.();
-    if (parent && parent !== wrapper) {
-      try {
-        root.move?.(wrapper, { at: wrapper.components?.()?.length ?? 0 });
-      } catch {
-        // keep current parent if move is blocked
-      }
+    const onPageRoot = !parent || parent === wrapper;
+
+    if (onPageRoot && !respectSorter) {
+      appendSectionToPageBottom(editor, root);
     }
 
-    root.set?.("dmode", "absolute");
-    root.setDragMode?.("absolute");
+    applyStackedFlowLayout(root, { fullWidth: onPageRoot && !isCompactCanvasElement(root) });
 
-    const frameEl = editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
-    const body = frameEl?.contentDocument?.body as HTMLElement | undefined;
-    if (!body) return;
-
-    // Center on the white page (frame body), not the outer editor chrome.
-    const pageWidth = Math.max(body.clientWidth || 0, 960);
-    const viewHeight = frozen.viewHeight;
-    const wrapperCount = wrapper.components?.()?.length ?? 0;
-    const scrollTop = wrapperCount <= 1 ? 0 : frozen.scrollTop;
-
-    const el = root.getEl?.() as HTMLElement | null | undefined;
-    let width = el?.offsetWidth || 0;
-    let height = el?.offsetHeight || 0;
-    const compact = isCompactCanvasElement(root) || (width > 0 && width < pageWidth * 0.55 && height > 0 && height < 96);
-
-    if (compact) {
-      width = Math.max(width || 160, 80);
-      height = Math.max(height || 44, 36);
-    } else {
-      if (!width || width > pageWidth * 0.9) {
-        width = Math.min(720, Math.round(pageWidth * 0.7));
-      }
-      if (!height || height < 48) {
-        height = 180;
-      }
-    }
-
-    const left = Math.max(0, Math.round((pageWidth - width) / 2));
-    const desiredTop = Math.round(scrollTop + Math.max(32, (viewHeight - height) / 2));
-    const maxTop = Math.max(32, Math.round(scrollTop + viewHeight - height - 32));
-    const top = Math.max(32, Math.min(desiredTop, maxTop));
-
-    const nextStyle: Record<string, string> = compact
-      ? {
-          position: "absolute",
-          left: `${left}px`,
-          top: `${top}px`,
-          width: "auto",
-          height: "auto",
-          maxWidth: "100%",
-          margin: "0",
-          transform: "none",
-        }
-      : {
-          position: "absolute",
-          left: `${left}px`,
-          top: `${top}px`,
-          width: `${width}px`,
-          maxWidth: "100%",
-          margin: "0",
-          transform: "none",
-        };
-
-    if (typeof root.setStyle === "function") {
-      const current = root.getStyle?.() || {};
-      root.setStyle({ ...current, ...nextStyle });
-    }
-    root.addStyle?.(nextStyle);
-    applyComponentLayout(el, nextStyle);
     editor.select?.(root);
-    restoreCanvasViewport(editor, { ...frozen, scrollTop });
+    restoreCanvasViewport(editor, frozen);
+    scrollCanvasToComponent(editor, root, frozen);
   } catch {
-    // ignore centering errors
+    // ignore layout errors
   }
 }
 
-/** Re-apply center a couple of times so Grapes mouse-drop coords cannot win the race. */
-export function scheduleCenterComponentOnCanvas(editor: any, component: any, viewport?: CanvasViewport) {
+/** Re-apply stacked layout so Grapes drop coords cannot restore absolute positioning. */
+export function scheduleCenterComponentOnCanvas(
+  editor: any,
+  component: any,
+  viewport?: CanvasViewport,
+  placement: CanvasDropPlacement = "append-root",
+) {
   if (!editor || !component) return;
   const frozen = viewport || snapshotCanvasViewport(editor);
   cancelPendingCanvasCenters();
-  [0, 24, 80].forEach((ms) => {
+  [0, 48].forEach((ms) => {
     const id = window.setTimeout(() => {
       pendingCenterTimers.delete(id);
-      centerComponentOnCanvas(editor, component, frozen);
+      centerComponentOnCanvas(editor, component, frozen, placement);
     }, ms);
     pendingCenterTimers.add(id);
   });
@@ -602,13 +816,7 @@ export function registerStudioEditorFeatures(editor: any, buildContent: BuildCon
   const moveSelected = (direction: number) => {
     const selected = getSelected();
     if (!selected) return;
-    const parent = selected.parent?.();
-    if (!parent?.components) return;
-    const collection = parent.components();
-    const index = collection.indexOf(selected);
-    const nextIndex = Math.max(0, Math.min(collection.length - 1, index + direction));
-    if (nextIndex === index) return;
-    selected.move?.(parent, { at: nextIndex });
+    movePageBlock(editor, selected, direction);
   };
 
   let copiedStyle: Record<string, string> | null = null;
@@ -827,8 +1035,17 @@ ${js ? `<script>${js.replace(/<\/script/gi, "<\\/script")}</script>` : ""}
   ];
 
   commands.forEach(({ id, run }) => {
-    if (editor.Commands.has(id)) return;
-    editor.Commands.add(id, { run, stop() {} });
+    const def = {
+      run() {
+        run();
+      },
+      stop() {},
+    };
+    if (editor.Commands.has(id)) {
+      editor.Commands.extend(id, def);
+    } else {
+      editor.Commands.add(id, def);
+    }
   });
 
   const keymaps = [
@@ -847,6 +1064,8 @@ ${js ? `<script>${js.replace(/<\/script/gi, "<\\/script")}</script>` : ""}
     if (editor.Keymaps?.get?.(keys)) return;
     editor.Keymaps?.add?.(keys, cmd);
   });
+
+  installStudioComponentToolbar(editor);
 
   ["section", "header", "footer"].forEach((type) => {
     try {
@@ -1003,6 +1222,7 @@ function collapseEmptyStretchElements(root: HTMLElement | null, canvasHeight: nu
 
 export function unlockCanvasPageScroll(editor: any) {
   try {
+    if (!editor || editor.destroyed || typeof editor.Parser?.parseHtml !== "function") return;
     disableGrapesAutoscroll(editor);
     const frame = editor?.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
     const canvas = editor?.Canvas?.getElement?.() as HTMLElement | undefined;
@@ -1016,27 +1236,27 @@ export function unlockCanvasPageScroll(editor: any) {
       applyCanvas7Frame(editor);
     }
 
-    const applyBaseStyles = () => {
-      html.style.setProperty("height", "auto", "important");
-      html.style.setProperty("min-height", "0", "important");
-      html.style.setProperty("overflow", "visible", "important");
-      body.style.setProperty("height", "auto", "important");
-      body.style.setProperty("min-height", "0", "important");
-      body.style.setProperty("overflow", "visible", "important");
-      body.style.setProperty("padding-bottom", "0", "important");
-    };
-
-    applyBaseStyles();
-
     const wrapper = (
       body.matches?.('[data-gjs-type="wrapper"]')
         ? body
         : body.querySelector('[data-gjs-type="wrapper"]')
     ) as HTMLElement | null;
-    wrapper?.style.setProperty("height", "auto", "important");
-    wrapper?.style.setProperty("min-height", "0", "important");
-    wrapper?.style.setProperty("overflow", "visible", "important");
-    wrapper?.style.setProperty("padding-bottom", `${PAGE_BOTTOM_PAD}px`, "important");
+
+    const applyArtboardFill = (artboardPx: number) => {
+      const fillPx = Math.max(0, Math.round(artboardPx));
+      const fill = `${fillPx}px`;
+      html.style.setProperty("overflow", "visible", "important");
+      html.style.setProperty("height", fill, "important");
+      html.style.setProperty("min-height", fill, "important");
+      body.style.setProperty("height", "auto", "important");
+      body.style.setProperty("min-height", fill, "important");
+      body.style.setProperty("overflow", "visible", "important");
+      body.style.setProperty("padding-bottom", "0", "important");
+      wrapper?.style.setProperty("height", "auto", "important");
+      wrapper?.style.setProperty("min-height", fill, "important");
+      wrapper?.style.setProperty("overflow", "visible", "important");
+      wrapper?.style.setProperty("padding-bottom", `${PAGE_BOTTOM_PAD}px`, "important");
+    };
 
     const measureContentHeight = () => {
       const source = wrapper || body;
@@ -1072,13 +1292,16 @@ export function unlockCanvasPageScroll(editor: any) {
         if (Math.abs(currentHeight - nextHeight) >= 2) {
           const next = `${nextHeight}px`;
           frame.style.setProperty("height", next, "important");
-          frame.style.setProperty("min-height", "0", "important");
+          frame.style.setProperty("min-height", next, "important");
           wrapEl?.style.setProperty("height", next, "important");
-          wrapEl?.style.setProperty("min-height", "0", "important");
+          wrapEl?.style.setProperty("min-height", next, "important");
           wrapEl?.style.setProperty("overflow", "visible", "important");
-          framesEl?.style.setProperty("height", "auto", "important");
-          framesEl?.style.setProperty("min-height", "0", "important");
+          framesEl?.style.setProperty("height", next, "important");
+          framesEl?.style.setProperty("min-height", next, "important");
         }
+
+        const artboardPx = Math.max(nextHeight, frame.clientHeight || 0, minCanvas);
+        applyArtboardFill(artboardPx);
 
         canvas.style.setProperty("overflow-x", "hidden", "important");
         canvas.style.setProperty("overflow-y", "auto", "important");
@@ -1108,21 +1331,28 @@ export function unlockCanvasPageScroll(editor: any) {
     observer.observe(body);
     if (wrapper) observer.observe(wrapper);
 
-    win.addEventListener(
-      "wheel",
-      (event: WheelEvent) => {
-        if (event.ctrlKey) return;
-        const maxScroll = Math.max(0, canvas.scrollHeight - canvas.clientHeight);
-        if (maxScroll <= 1) return;
-        const next = Math.min(maxScroll, Math.max(0, canvas.scrollTop + event.deltaY));
-        if (next === canvas.scrollTop) return;
-        canvas.scrollTop = next;
-        event.preventDefault();
-      },
-      { passive: false },
-    );
+    const onCanvasWheel = (event: WheelEvent) => {
+      if (event.ctrlKey) return;
+      const maxScroll = Math.max(0, canvas.scrollHeight - canvas.clientHeight);
+      if (maxScroll <= 1) return;
+      const next = Math.min(maxScroll, Math.max(0, canvas.scrollTop + event.deltaY));
+      if (next === canvas.scrollTop) return;
+      canvas.scrollTop = next;
+      event.preventDefault();
+    };
 
-    win.addEventListener("unload", () => observer.disconnect());
+    win.addEventListener("wheel", onCanvasWheel, { passive: false });
+
+    const disconnectPageScroll = () => {
+      observer.disconnect();
+      win.removeEventListener("wheel", onCanvasWheel);
+      win.removeEventListener("pagehide", disconnectPageScroll);
+    };
+
+    // `unload` is blocked in cross-origin / policy-restricted iframe documents; pagehide is supported.
+    win.addEventListener("pagehide", disconnectPageScroll);
+
+    editor?.on?.("destroy", disconnectPageScroll);
   } catch {
     // ignore iframe access errors
   }
@@ -1144,6 +1374,88 @@ function wrapperComponentCount(editor: any) {
   } catch {
     return 0;
   }
+}
+
+/** WebWave-style section drag: full section clone follows pointer; thin insert line. */
+function createWebwaveSectionDrag(editor: any) {
+  let sourceEl: HTMLElement | null = null;
+  let cloneEl: HTMLElement | null = null;
+  let pointerOffsetX = 0;
+  let pointerOffsetY = 0;
+  let moveListener: ((event: PointerEvent) => void) | null = null;
+
+  const getFrame = () => editor.Canvas?.getFrameEl?.() as HTMLIFrameElement | undefined;
+
+  const stripCloneIds = (root: HTMLElement) => {
+    root.removeAttribute("id");
+    root.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+  };
+
+  const positionClone = (clientX: number, clientY: number) => {
+    if (!cloneEl) return;
+    const frame = getFrame();
+    const win = frame?.contentWindow;
+    if (!frame || !win) return;
+
+    const frameRect = frame.getBoundingClientRect();
+    const left = clientX - frameRect.left - pointerOffsetX + win.scrollX;
+    const top = clientY - frameRect.top - pointerOffsetY + win.scrollY;
+    cloneEl.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
+  };
+
+  const begin = (sourceModel: any, pointer?: { x: number; y: number }) => {
+    const el = sourceModel?.getEl?.() as HTMLElement | undefined;
+    const doc = getFrame()?.contentDocument;
+    if (!el || !doc) return;
+
+    sourceEl = el;
+    const rect = el.getBoundingClientRect();
+    const frameRect = getFrame()!.getBoundingClientRect();
+    const localLeft = rect.left - frameRect.left;
+    const localTop = rect.top - frameRect.top;
+
+    if (pointer) {
+      pointerOffsetX = pointer.x - frameRect.left - localLeft;
+      pointerOffsetY = pointer.y - frameRect.top - localTop;
+    } else {
+      pointerOffsetX = Math.min(rect.width * 0.5, 120);
+      pointerOffsetY = 28;
+    }
+
+    el.classList.add("cms-studio-sort-source");
+
+    cloneEl = el.cloneNode(true) as HTMLElement;
+    cloneEl.classList.add("cms-ww-drag-clone");
+    stripCloneIds(cloneEl);
+    cloneEl.style.width = `${Math.round(rect.width)}px`;
+    cloneEl.style.minHeight = `${Math.round(rect.height)}px`;
+    cloneEl.setAttribute("aria-hidden", "true");
+    doc.body.appendChild(cloneEl);
+
+    moveListener = (event: PointerEvent) => positionClone(event.clientX, event.clientY);
+    window.addEventListener("pointermove", moveListener, { passive: true });
+    doc.addEventListener("pointermove", moveListener, { passive: true });
+
+    positionClone(
+      pointer?.x ?? rect.left + pointerOffsetX,
+      pointer?.y ?? rect.top + pointerOffsetY,
+    );
+  };
+
+  const end = () => {
+    const doc = getFrame()?.contentDocument;
+    if (moveListener) {
+      window.removeEventListener("pointermove", moveListener);
+      doc?.removeEventListener("pointermove", moveListener);
+      moveListener = null;
+    }
+    cloneEl?.remove();
+    cloneEl = null;
+    sourceEl?.classList.remove("cms-studio-sort-source");
+    sourceEl = null;
+  };
+
+  return { begin, end };
 }
 
 function isPointerOverCanvas(editor: any, clientX: number, clientY: number) {
@@ -1171,10 +1483,18 @@ export function installCanvasInteractionGuards(
   let pinRaf = 0;
 
   const getCanvasElement = () => editor.Canvas?.getElement?.() as HTMLElement | undefined;
+  const webwaveDrag = createWebwaveSectionDrag(editor);
 
   disableGrapesAutoscroll(editor);
 
   let lastPointerY = 0;
+  let lastPointerX = 0;
+
+  const trackGlobalPointer = (event: PointerEvent) => {
+    lastPointerX = event.clientX;
+    lastPointerY = event.clientY;
+  };
+  document.addEventListener("pointermove", trackGlobalPointer, { passive: true });
 
   const freezeFrameHeight = () => {
     try {
@@ -1213,7 +1533,7 @@ export function installCanvasInteractionGuards(
   };
 
   const pinCanvasScroll = () => {
-    if (!isEditorAlive() || !dragging) return;
+    if (!isEditorAlive() || !dragging || !blockDragActive) return;
     freezeFrameHeight();
     scrollCanvasFromPointer();
   };
@@ -1249,11 +1569,42 @@ export function installCanvasInteractionGuards(
   let canvasElForDrop: HTMLElement | undefined;
 
   const onCanvasScroll = () => {
-    if (dragging) freezeFrameHeight();
+    if (dragging && blockDragActive) freezeFrameHeight();
+  };
+
+  const markSortingDragTarget = (sourceEl?: HTMLElement, sourceModel?: any) => {
+    try {
+      const doc = getFrameDoc();
+      doc?.documentElement?.classList?.add("cms-studio-sorting");
+      doc?.body?.classList?.add("cms-studio-sorting");
+      const model = sourceModel || editor.getSelected?.();
+      if (model) {
+        webwaveDrag.begin(model, lastPointerY > 0 ? { x: lastPointerX, y: lastPointerY } : undefined);
+      } else if (sourceEl) {
+        sourceEl.classList.add("cms-studio-sort-source");
+      }
+    } catch {
+      // ignore class setup errors
+    }
+  };
+
+  const clearSortingDragClasses = () => {
+    webwaveDrag.end();
+    try {
+      const doc = getFrameDoc();
+      doc?.querySelectorAll(".cms-studio-sort-source").forEach((node) => {
+        node.classList.remove("cms-studio-sort-source");
+      });
+      doc?.body?.classList?.remove("cms-studio-sorting");
+      doc?.documentElement?.classList?.remove("cms-studio-sorting");
+    } catch {
+      // ignore class cleanup errors
+    }
   };
 
   const onPointerMove = (event: DragEvent | MouseEvent) => {
     lastPointerY = event.clientY;
+    lastPointerX = event.clientX;
   };
 
   const onPointerOverCanvas = (event: DragEvent | MouseEvent) => {
@@ -1314,7 +1665,10 @@ export function installCanvasInteractionGuards(
     document.removeEventListener("pointermove", onPointerMove);
     dragging = false;
     lastPointerY = 0;
-    shellEl?.classList.remove("cms-grapes-shell--dragging");
+    lastPointerX = 0;
+    pinnedFrameHeight = "";
+    shellEl?.classList.remove("cms-grapes-shell--dragging", "cms-grapes-shell--block-drag");
+    clearSortingDragClasses();
     const canvas = getCanvasElement();
     if (canvas) {
       canvas.style.setProperty("overflow-x", "hidden", "important");
@@ -1329,16 +1683,38 @@ export function installCanvasInteractionGuards(
     finishDrag();
   };
 
+  const onSorterDragEnd = (payload?: any) => {
+    if (blockDragActive) return;
+    try {
+      const model =
+        payload?.modelToDrop ||
+        payload?.validResult?.srcModel ||
+        editor.getSelected?.();
+      normalizeStackedComponent(editor, model);
+    } catch {
+      // ignore reorder layout errors
+    }
+    finishDrag();
+  };
+
   const beginDrag = () => {
     if (!isEditorAlive()) return;
     cancelPendingCanvasCenters();
     const alreadyDragging = dragging;
-    if (!alreadyDragging) capturePinnedScroll();
+    const pinScroll = blockDragActive;
+    if (!alreadyDragging && pinScroll) capturePinnedScroll();
     dragging = true;
     shellEl?.classList.add("cms-grapes-shell--dragging");
-    freezeFrameHeight();
-    pinCanvasScroll();
-    startPinLoop();
+    if (blockDragActive) {
+      shellEl?.classList.add("cms-grapes-shell--block-drag");
+    } else {
+      shellEl?.classList.remove("cms-grapes-shell--block-drag");
+    }
+    if (pinScroll) {
+      freezeFrameHeight();
+      pinCanvasScroll();
+      startPinLoop();
+    }
     if (!alreadyDragging) {
       document.addEventListener("dragend", onDragEnd);
       document.addEventListener("dragover", onPointerMove);
@@ -1346,9 +1722,10 @@ export function installCanvasInteractionGuards(
     }
   };
 
-  const onDragStart = () => {
+  const onDragStart = (sourceEl?: HTMLElement, sourceModel?: any) => {
     beginDrag();
-    unlockComponentLayout(editor.getSelected?.());
+    unlockComponentLayout(sourceModel || editor.getSelected?.());
+    if (!blockDragActive) markSortingDragTarget(sourceEl, sourceModel);
   };
 
   const onComponentMoveStart = () => {
@@ -1372,13 +1749,14 @@ export function installCanvasInteractionGuards(
     const dropped = resolveDroppedRoot(component) || editor.getSelected?.();
     if (!dropped) return;
     const frozen = frozenDropViewport();
-    centerComponentOnCanvas(editor, dropped, frozen);
-    scheduleCenterComponentOnCanvas(editor, dropped, frozen);
+    centerComponentOnCanvas(editor, dropped, frozen, "respect-sorter");
+    scheduleCenterComponentOnCanvas(editor, dropped, frozen, "respect-sorter");
   };
 
   const placePendingBlock = () => {
     const content = getBlockContent(pendingBlock);
     if (!content) return null;
+    if (editor.destroyed || typeof editor.Parser?.parseHtml !== "function") return null;
     try {
       return resolveDroppedRoot(editor.addComponents(content));
     } catch {
@@ -1444,8 +1822,21 @@ export function installCanvasInteractionGuards(
 
   attachCanvasListeners();
 
+  const ensureWrapperReorderable = () => {
+    try {
+      const wrapper = editor.getWrapper?.();
+      wrapper?.set?.({
+        droppable: true,
+        draggable: false,
+        stylable: false,
+      });
+    } catch {
+      // ignore wrapper setup errors
+    }
+  };
+
   editor.on("sorter:drag:start", onDragStart);
-  editor.on("sorter:drag:end", onDragEnd);
+  editor.on("sorter:drag:end", onSorterDragEnd);
   editor.on("block:drag:start", onBlockDragStart);
   editor.on("block:drag:stop", onBlockDragStop);
   editor.on("canvas:drop", onCanvasDrop);
@@ -1460,20 +1851,24 @@ export function installCanvasInteractionGuards(
   editor.on("component:selected", onComponentSelected);
   editor.on("load", () => {
     attachCanvasListeners();
+    ensureWrapperReorderable();
   });
+
+  ensureWrapperReorderable();
 
   return {
     isDragging: () => dragging,
     pinViewport: pinCanvasScroll,
     rememberViewport: () => {},
     cleanup: () => {
+      document.removeEventListener("pointermove", trackGlobalPointer);
       unbindPointerTracking();
       pendingBlock = null;
       blockDragActive = false;
       finishDrag();
       detachCanvasListeners();
       editor.off("sorter:drag:start", onDragStart);
-      editor.off("sorter:drag:end", onDragEnd);
+      editor.off("sorter:drag:end", onSorterDragEnd);
       editor.off("block:drag:start", onBlockDragStart);
       editor.off("block:drag:stop", onBlockDragStop);
       editor.off("canvas:drop", onCanvasDrop);

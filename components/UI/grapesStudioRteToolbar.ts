@@ -194,6 +194,46 @@ export function registerStudioRteActions(editor: Editor) {
   }
 }
 
+const FORMAT_BLOCK_OPTIONS: { value: string; label: string }[] = [
+  { value: "p", label: "Paragraph" },
+  { value: "h1", label: "Heading 1" },
+  { value: "h2", label: "Heading 2" },
+  { value: "h3", label: "Heading 3" },
+  { value: "h4", label: "Heading 4" },
+  { value: "blockquote", label: "Quote" },
+];
+
+function createStudioFormatSelect(): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = "cms-gjs-rte-format";
+  select.setAttribute("aria-label", "Text format");
+  FORMAT_BLOCK_OPTIONS.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function syncStudioFormatSelect(editor: Editor, select: HTMLSelectElement) {
+  try {
+    const doc = editor.Canvas.getFrameEl()?.contentDocument;
+    const selection = doc?.getSelection?.();
+    if (!selection?.anchorNode) return;
+    const node = selection.anchorNode.nodeType === Node.ELEMENT_NODE
+      ? (selection.anchorNode as Element)
+      : selection.anchorNode.parentElement;
+    const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote");
+    const tag = block?.tagName?.toLowerCase();
+    if (tag && FORMAT_BLOCK_OPTIONS.some((item) => item.value === tag)) {
+      select.value = tag;
+    }
+  } catch {
+    // ignore
+  }
+}
+
 export const CMS_RTE_TOOLBAR_ACTIONS = [
   "bold",
   "italic",
@@ -232,11 +272,37 @@ export function mountStudioRteToolbar(
   container.innerHTML = "";
   const toolbar = document.createElement("div");
   toolbar.className = "cms-grapes-rte-host__actions";
+  const rteEnableHandlers: Array<() => void> = [];
 
   const rteModule = editor.RichTextEditor;
   const actions = (rteModule?.getAll?.() || []) as RteActionLike[];
 
   CMS_RTE_TOOLBAR_ACTIONS.forEach((name) => {
+    if (name === "formatBlock") {
+      const select = createStudioFormatSelect();
+      const wrap = document.createElement("span");
+      wrap.className = "cms-grapes-rte-host__btn cms-grapes-rte-format-wrap";
+      wrap.appendChild(select);
+
+      select.addEventListener("mousedown", (event) => event.stopPropagation());
+      select.addEventListener("change", (event) => {
+        event.stopPropagation();
+        if (!ensureStudioRteEnabled(editor)) return;
+        const tag = select.value || "p";
+        const frameDoc = editor.Canvas.getFrameEl()?.contentDocument;
+        frameDoc?.execCommand?.("formatBlock", false, `<${tag}>`);
+        syncStudioFormatSelect(editor, select);
+      });
+
+      const onRteEnable = () => syncStudioFormatSelect(editor, select);
+      editor.on("rte:enable", onRteEnable);
+      rteEnableHandlers.push(onRteEnable);
+      syncStudioFormatSelect(editor, select);
+
+      toolbar.appendChild(wrap);
+      return;
+    }
+
     const action = actions.find((item) => item.name === name);
     if (!action?.btn) return;
 
@@ -276,6 +342,9 @@ export function mountStudioRteToolbar(
   container.appendChild(toolbar);
 
   return () => {
+    rteEnableHandlers.forEach((handler) => {
+      editor.off?.("rte:enable", handler);
+    });
     container.innerHTML = "";
   };
 }

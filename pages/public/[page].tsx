@@ -6,7 +6,8 @@ import { stabilizeAboutPage } from "@/lib/stabilizeAboutPage";
 import { initHomeBrandMarquee } from "@/lib/initHomeBrandMarquee";
 import { initHomePortfolioModal } from "@/lib/initHomePortfolioModal";
 import { rewritePublicHtmlHrefs } from "@/lib/publicMenuLinks";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import CmsPublicContactForms from "@/components/Public/CmsPublicContactForms";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 interface PublicPageViewProps {
   pageData: PublicPage;
@@ -157,15 +158,23 @@ export default function PublicPageView({ pageData, htmlContent }: PublicPageView
     };
   }, [htmlContent, pageData?.slug]);
 
+  const hasContactForm = useMemo(
+    () => htmlContent.includes('data-cms-contact-form="1"'),
+    [htmlContent],
+  );
+
   if (!pageData) return <div>Page not found</div>;
 
   return (
-    <div
-      ref={contentRef}
-      className="public-page-content"
-      suppressHydrationWarning
-      dangerouslySetInnerHTML={{ __html: htmlContent }}
-    />
+    <>
+      <div
+        ref={contentRef}
+        className={`public-page-content${hasContactForm ? " public-contact" : ""}`}
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: htmlContent }}
+      />
+      {hasContactForm ? <CmsPublicContactForms rootRef={contentRef} /> : null}
+    </>
   );
 }
 
