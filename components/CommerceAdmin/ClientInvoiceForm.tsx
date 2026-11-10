@@ -509,9 +509,11 @@ export default function ClientInvoiceForm({ client, transaction, onBack, onSaved
           <Field label="Official Receipt">
             <input
               className={inputClass()}
-              type="date"
+              type="text"
               value={form.officialReceipt}
               onChange={(e) => setField("officialReceipt", e.target.value)}
+              placeholder="OR number"
+              autoComplete="off"
             />
           </Field>
           <Field label="Payment Date">

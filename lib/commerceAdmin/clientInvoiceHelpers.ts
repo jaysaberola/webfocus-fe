@@ -629,7 +629,7 @@ export function invoiceFormFromTransaction(
     currency: String(invoiceMeta?.currency || client.currency || "PHP").trim() || "PHP",
     status: invoiceStatus(transaction, invoiceMeta?.status || meta?.invoiceStatus),
     collectionDate: invoiceDateInput(invoiceMeta?.collectionDate || meta?.invoiceReceivedDate),
-    officialReceipt: invoiceDateInput(invoiceMeta?.officialReceipt),
+    officialReceipt: String(invoiceMeta?.officialReceipt ?? "").trim(),
     paymentDate: invoiceDateInput(transaction.payment_date || invoiceMeta?.paymentDate || meta?.paymentDate),
     paymentMode: normalizePaymentMode(transaction.payment_mode || invoiceMeta?.paymentMode || meta?.paymentMode),
     exchangeRate: String(invoiceMeta?.exchangeRate || client.exchange_rate || "1").trim() || "1",
@@ -704,9 +704,7 @@ export function buildClientInvoiceRows(
           : meta?.invoiceReceivedDate
             ? formatDealDate(meta.invoiceReceivedDate)
             : "—",
-        officialReceipt: invoiceMeta?.officialReceipt
-          ? formatDealDate(invoiceMeta.officialReceipt)
-          : "—",
+        officialReceipt: dash(invoiceMeta?.officialReceipt),
         paymentDate: transactionPaymentDate(transaction, {
           paymentDate: invoiceMeta?.paymentDate || meta?.paymentDate,
         }),
