@@ -4,7 +4,6 @@ import {
   formatInvoiceAmount,
   invoiceLineAmount,
   invoiceLineTotal,
-  invoiceMoney,
   invoiceTotals,
   type InvoiceLineItem,
 } from "@/lib/commerceAdmin/clientInvoiceHelpers";
@@ -25,18 +24,22 @@ function withExtraOption(options: readonly string[], value?: string | null) {
   return [text, ...options];
 }
 
-function catalogPriceForDealName(dealName: string) {
+function catalogPriceForDealName(dealName: string): number | null {
   const needle = dealName.trim().toLowerCase();
   if (!needle) return null;
+
   const hosting = HOSTING_PLANS.find((plan) => plan.name.toLowerCase() === needle);
-  if (hosting) return hosting.price;
+  if (hosting) return Number(hosting.price) || 0;
+
   const design = WEBDESIGN_PACKAGES.find((pkg) => pkg.name.toLowerCase() === needle);
-  if (design) return design.price;
+  if (design) return Number(design.price) || 0;
+
   const domainType = matchDomainTypeOption(dealName);
   if (domainType) {
     const price = domainPriceForType(domainType);
-    return price > 0 ? price : null;
+    return price > 0 ? price : 0;
   }
+
   return null;
 }
 
@@ -53,18 +56,15 @@ export default function InvoiceItemsPanel({
   };
 
   const handleDealNameChange = (id: string, dealName: string) => {
-    const current = items.find((item) => item.id === id);
-    if (!current) return;
-
     const catalogPrice = catalogPriceForDealName(dealName);
-    const currentPrice = invoiceMoney(current.listPrice);
-    const isDomain = Boolean(matchDomainTypeOption(dealName));
-    const shouldFillPrice =
-      catalogPrice != null && (isDomain || currentPrice === 0 || !String(current.listPrice).trim());
+    const nextPrice =
+      dealName.trim() === ""
+        ? ""
+        : formatInvoiceAmount(catalogPrice != null && catalogPrice > 0 ? catalogPrice : 0);
 
     updateItem(id, {
       productName: dealName,
-      ...(shouldFillPrice ? { listPrice: formatInvoiceAmount(catalogPrice) } : {}),
+      listPrice: nextPrice,
     });
   };
 
