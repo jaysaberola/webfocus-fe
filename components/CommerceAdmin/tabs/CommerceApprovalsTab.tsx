@@ -4,6 +4,7 @@ import ResizableTableFrame from "@/components/UI/ResizableTableFrame";
 import {
   approveCommerceProfileChange,
   fetchCommerceApprovals,
+  openCommercePaymentProofFile,
   rejectCommercePaymentProof,
   rejectCommerceProfileChange,
   verifyCommercePaymentProof,
@@ -318,16 +319,25 @@ export default function CommerceApprovalsTab() {
       setProvisionTarget({ id: row.salesTransactionId, service: approvalServiceLabel(row) });
     }
     if (action === "file") {
+      if (row.kind !== "profile_change") {
+        try {
+          await openCommercePaymentProofFile(row.id);
+        } catch (err: any) {
+          const status = err?.response?.status;
+          toast.error(
+            status === 404
+              ? "Attached file was not found on the server. Ask the customer to re-upload, or run storage:link / check storage/app/public on cPanel."
+              : err?.response?.data?.message || "Could not open attached file.",
+          );
+        }
+        return;
+      }
       const fileUrl = resolveStorageAssetUrl(row.fileUrl) || row.fileUrl;
       if (fileUrl) {
         window.open(fileUrl, "_blank", "noopener,noreferrer");
         return;
       }
-      if (row.kind === "profile_change") {
-        toast.info("No pending profile photo attached to this request.");
-        return;
-      }
-      toast.error("No receipt file attached.");
+      toast.info("No pending profile photo attached to this request.");
       return;
     }
     if (action === "reject") {

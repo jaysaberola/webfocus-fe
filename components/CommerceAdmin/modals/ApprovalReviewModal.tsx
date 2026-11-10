@@ -1,8 +1,13 @@
-import { useState } from "react";
-import type { CommercePaymentProofRow } from "@/services/commerceAdminService";
+import { useEffect, useState } from "react";
+import {
+  openCommercePaymentProofFile,
+  type CommercePaymentProofRow,
+} from "@/services/commerceAdminService";
+import { axiosInstance } from "@/services/axios";
 import { approvalIssuedDate } from "@/lib/commerceAdmin/approvalHelpers";
 import { formatCommerceMoney } from "@/lib/commerceAdmin/mockData";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
+import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
 type Props = {
   open: boolean;
@@ -13,8 +18,8 @@ type Props = {
   onReject: (row: CommercePaymentProofRow) => void;
 };
 
-function isImageUrl(value: string) {
-  return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(value);
+function isImageFileName(value?: string | null) {
+  return /\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(String(value || ""));
 }
 
 function resolveApprovalImageUrl(value?: string | null, fallback?: string | null) {
@@ -48,6 +53,43 @@ function ApprovalPhoto({ src, label }: { src?: string; label: string }) {
 }
 
 export default function ApprovalReviewModal({ open, row, busy, onClose, onApprove, onReject }: Props) {
+  const [receiptBlobUrl, setReceiptBlobUrl] = useState<string | null>(null);
+  const [receiptLoadError, setReceiptLoadError] = useState(false);
+
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+
+    setReceiptBlobUrl(null);
+    setReceiptLoadError(false);
+
+    if (!open || !row || row.kind === "profile_change") {
+      return () => undefined;
+    }
+
+    void (async () => {
+      try {
+        const res = await axiosInstance.get(`/commerce-admin/payment-proofs/${row.id}/file`, {
+          responseType: "blob",
+          headers: { "X-No-Loading": true },
+        });
+        if (cancelled) return;
+        const contentType = String(res.headers?.["content-type"] || "application/octet-stream");
+        const blob = new Blob([res.data], { type: contentType });
+        const objectUrl = URL.createObjectURL(blob);
+        revoked = objectUrl;
+        setReceiptBlobUrl(objectUrl);
+      } catch {
+        if (!cancelled) setReceiptLoadError(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [open, row]);
+
   if (!open || !row) return null;
 
   const isProfileChange = row.kind === "profile_change";
@@ -57,7 +99,8 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
   const textChanges = changes.filter((change) => change.field !== "avatar");
   const currentPhotoUrl = resolveApprovalImageUrl(avatarChange?.from, row.currentAvatarUrl);
   const requestedPhotoUrl = resolveApprovalImageUrl(avatarChange?.to, row.fileUrl);
-  const receiptUrl = resolveStorageAssetUrl(row.fileUrl);
+  const receiptUrl = receiptBlobUrl || resolveStorageAssetUrl(row.fileUrl);
+  const receiptIsImage = isImageFileName(row.fileName) || isImageFileName(row.fileUrl);
 
   return (
     <div className={styles.modalOverlay} role="dialog" aria-modal="true" onClick={onClose}>
@@ -152,8 +195,13 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
         ) : (
           <section className={styles.approvalCompareSection}>
             <h4 className={styles.approvalCompareTitle}>Attached Receipt</h4>
-            {receiptUrl ? (
-              isImageUrl(receiptUrl) ? (
+            {receiptLoadError ? (
+              <p className={styles.emptyState}>
+                Attached file was not found on the server. Ask the customer to re-upload, or check `storage:link` /
+                `storage/app/public` on cPanel.
+              </p>
+            ) : receiptUrl ? (
+              receiptIsImage ? (
                 <div className={styles.approvalReceiptPreview}>
                   <img src={receiptUrl} alt={row.fileName || "Payment receipt"} />
                 </div>
@@ -161,13 +209,21 @@ export default function ApprovalReviewModal({ open, row, busy, onClose, onApprov
                 <div className={styles.approvalReceiptFile}>
                   <i className="fa-solid fa-file-lines" aria-hidden="true" />
                   <span>{row.fileName || "Receipt file"}</span>
-                  <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className={styles.primaryBtnSm}>
+                  <button
+                    type="button"
+                    className={styles.primaryBtnSm}
+                    onClick={() => {
+                      void openCommercePaymentProofFile(row.id).catch((err: any) => {
+                        toast.error(err?.response?.data?.message || "Could not open attached file.");
+                      });
+                    }}
+                  >
                     Open File
-                  </a>
+                  </button>
                 </div>
               )
             ) : (
-              <p className={styles.emptyState}>No receipt file attached.</p>
+              <p className={styles.emptyState}>Loading receipt...</p>
             )}
           </section>
         )}

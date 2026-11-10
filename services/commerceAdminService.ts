@@ -286,6 +286,28 @@ export async function verifyCommercePaymentProof(id: number) {
   return res.data as { message?: string; data?: CommercePaymentProofRow };
 }
 
+/** Open payment-proof attachment via authenticated API (works without public/storage symlink). */
+export async function openCommercePaymentProofFile(id: number) {
+  const res = await axiosInstance.get(`/commerce-admin/payment-proofs/${id}/file`, {
+    responseType: "blob",
+    headers: { "X-No-Loading": true },
+  });
+  const contentType = String(res.headers?.["content-type"] || "application/octet-stream");
+  const blob = new Blob([res.data], { type: contentType });
+  const objectUrl = URL.createObjectURL(blob);
+  const opened = window.open(objectUrl, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+}
+
 export async function fetchProvisioning(salesTransactionId: number) {
   const res = await axiosInstance.get(`/commerce-admin/sales-transactions/${salesTransactionId}/provisioning`, {
     headers: { "X-No-Loading": true },
