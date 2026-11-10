@@ -326,7 +326,8 @@ export default function CommerceApprovalsTab() {
           const status = err?.response?.status;
           toast.error(
             status === 404
-              ? "Attached file was not found on the server. Ask the customer to re-upload, or run storage:link / check storage/app/public on cPanel."
+              ? err?.response?.data?.message ||
+                  "Attached file missing on disk. On cPanel run: php artisan commerce:audit-payment-proofs --fix-sample"
               : err?.response?.data?.message || "Could not open attached file.",
           );
         }
