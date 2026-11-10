@@ -34,6 +34,7 @@ import { createLead, updateLead, type CrmLeadRow } from "@/services/leadService"
 import { fetchCommerceAssignableUsers, type CommerceAssignableUser } from "@/services/commerceAdminService";
 import { getCurrentUserCached } from "@/lib/currentUser";
 import LeadOwnerAssignSelect from "@/components/CommerceAdmin/LeadOwnerAssignSelect";
+import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import styles from "@/styles/commerceAdmin.module.css";
 
 function Field({
@@ -138,6 +139,7 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
   const [staffUsers, setStaffUsers] = useState<CommerceAssignableUser[]>([]);
   const [addressRegion, setAddressRegion] = useState("");
   const [leadBarangay, setLeadBarangay] = useState("");
+  const [actionIntent, setActionIntent] = useState<FormActionIntent | null>(null);
 
   useEffect(() => {
     if (lead) {
@@ -330,6 +332,22 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
     }
   };
 
+  const confirmFormAction = () => {
+    const next = actionIntent;
+    setActionIntent(null);
+    if (next === "cancel") {
+      onBack();
+      return;
+    }
+    if (next === "save-and-new") {
+      void save(true);
+      return;
+    }
+    if (next === "save") {
+      void save(false);
+    }
+  };
+
   return (
     <div className={styles.clientCrmPage}>
       <div className={styles.clientCrmTopBar}>
@@ -343,7 +361,12 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
           </div>
         </div>
         <div className={styles.clientCrmActions}>
-          <button type="button" className={styles.secondaryBtnSm} onClick={onBack} disabled={submitting}>
+          <button
+            type="button"
+            className={styles.secondaryBtnSm}
+            onClick={() => setActionIntent("cancel")}
+            disabled={submitting}
+          >
             Cancel
           </button>
           {mode === "create" ? (
@@ -351,12 +374,17 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
               type="button"
               className={styles.secondaryBtnSm}
               disabled={submitting}
-              onClick={() => void save(true)}
+              onClick={() => setActionIntent("save-and-new")}
             >
               Save and New
             </button>
           ) : null}
-          <button type="button" className={styles.primaryBtnSm} disabled={submitting} onClick={() => void save(false)}>
+          <button
+            type="button"
+            className={styles.primaryBtnSm}
+            disabled={submitting}
+            onClick={() => setActionIntent("save")}
+          >
             {submitting ? "Saving..." : "Save"}
           </button>
         </div>
@@ -654,6 +682,12 @@ export default function LeadCrmForm({ mode, lead, onBack, onSaved }: Props) {
           </div>
         </div>
       </section>
+      <FormActionConfirmModal
+        intent={actionIntent}
+        entity="lead"
+        onConfirm={confirmFormAction}
+        onDismiss={() => setActionIntent(null)}
+      />
     </div>
   );
 }

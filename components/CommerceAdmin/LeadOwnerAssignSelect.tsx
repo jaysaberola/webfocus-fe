@@ -1,16 +1,16 @@
-import type { CommerceAssignableUser } from "@/services/commerceAdminService";
+import type { AssignablePerson } from "@/lib/commerceAdmin/clientHelpers";
 import styles from "@/styles/commerceAdmin.module.css";
 
 type Props = {
   value: number | null;
-  users: CommerceAssignableUser[];
+  users: AssignablePerson[];
   disabled?: boolean;
   className?: string;
   onChange: (userId: number | null) => void;
   onClick?: (event: React.MouseEvent<HTMLSelectElement>) => void;
 };
 
-function displayName(user: CommerceAssignableUser) {
+function displayName(user: AssignablePerson) {
   return user.name || user.email || `User #${user.id}`;
 }
 
