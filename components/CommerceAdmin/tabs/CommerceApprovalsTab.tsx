@@ -34,6 +34,7 @@ import {
   CommerceSelectRowCell,
 } from "@/components/CommerceAdmin/CommerceSelectCells";
 import TableFilterPanel, { TableFilterShell } from "@/components/shared/TableFilterPanel";
+import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { useRowSelection } from "@/lib/useRowSelection";
 import { exportRowsToExcel } from "@/lib/commerceAdmin/exportTableExcel";
 import {
@@ -317,8 +318,9 @@ export default function CommerceApprovalsTab() {
       setProvisionTarget({ id: row.salesTransactionId, service: approvalServiceLabel(row) });
     }
     if (action === "file") {
-      if (row.fileUrl) {
-        window.open(row.fileUrl, "_blank", "noopener,noreferrer");
+      const fileUrl = resolveStorageAssetUrl(row.fileUrl) || row.fileUrl;
+      if (fileUrl) {
+        window.open(fileUrl, "_blank", "noopener,noreferrer");
         return;
       }
       if (row.kind === "profile_change") {
