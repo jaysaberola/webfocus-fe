@@ -55,6 +55,16 @@
 
 .cms-table-wrap--audit .dt-enhanced-table thead th {
   white-space: nowrap;
+  background: #ffffff !important;
+  background-clip: padding-box;
+  box-shadow: inset 0 -1px 0 #e2e8f0;
+  z-index: 3;
+}
+
+.cms-table-wrap--audit .dt-enhanced-table thead {
+  position: relative;
+  z-index: 3;
+  background: #ffffff;
 }
 
 .cms-table-wrap--audit .dt-enhanced-table tbody td {
@@ -72,7 +82,7 @@
 }
 
 .dt-enhanced-table thead th {
-  background: transparent;
+  background: #ffffff;
   color: #64748b;
   font-size: 11px;
   font-weight: 700;

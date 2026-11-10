@@ -355,7 +355,9 @@ export default function DataTable<T>({
                   className="dt-select-col"
                   style={{
                     ...thPad,
-                    ...(stickyHeader ? { position: "sticky", top: 0, zIndex: 2 } : {}),
+                    ...(stickyHeader
+                      ? { position: "sticky", top: 0, zIndex: 3, background: "#ffffff" }
+                      : {}),
                   }}
                 >
                   <input
@@ -377,7 +379,9 @@ export default function DataTable<T>({
                   className={[col.key === "select" ? "dt-select-col" : "", col.thClassName].filter(Boolean).join(" ") || undefined}
                   style={{
                     ...thPad,
-                    ...(stickyHeader ? { position: "sticky", top: 0, zIndex: 2 } : {}),
+                    ...(stickyHeader
+                      ? { position: "sticky", top: 0, zIndex: 3, background: "#ffffff" }
+                      : {}),
                     ...(col.width != null ? { width: col.width } : {}),
                     ...col.thStyle,
                   }}
