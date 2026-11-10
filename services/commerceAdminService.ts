@@ -54,6 +54,8 @@ export type CommercePaymentProofRow = {
   email?: string;
   fileName: string;
   fileUrl?: string | null;
+  /** True only when the file exists on the server disk (not just a DB path/URL). */
+  fileAvailable?: boolean;
   status: string;
   notes?: string | null;
   summary?: string | null;

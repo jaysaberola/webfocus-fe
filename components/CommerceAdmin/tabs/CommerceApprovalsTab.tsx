@@ -360,40 +360,51 @@ export default function CommerceApprovalsTab() {
     />
   );
 
-  const renderActionSelect = (row: CommercePaymentProofRow) => (
-    <select
-      className={styles.actionSelect}
-      defaultValue=""
-      disabled={busyId === row.id}
-      onChange={(e) => {
-        const value = e.target.value;
-        e.target.value = "";
-        if (value) void handleAction(row, value);
-      }}
-    >
-      <option value="" disabled>
-        Actions...
-      </option>
-      <option value="view">
-        {row.kind === "profile_change" ? "View Profile Changes" : "View Service Details"}
-      </option>
-      <option value="edit">Edit</option>
-      {row.status === "Provisioning" ? (
-        <option value="provision">Provisioning actions</option>
-      ) : (
-        <>
-          <option value="pay">
-            {row.kind === "profile_change" ? "Approve Profile Change" : "Approve Order"}
+  const renderActionSelect = (row: CommercePaymentProofRow) => {
+    const hasAttachedFile = row.fileAvailable ?? Boolean(row.fileUrl);
+
+    return (
+      <select
+        className={styles.actionSelect}
+        defaultValue=""
+        disabled={busyId === row.id}
+        onChange={(e) => {
+          const value = e.target.value;
+          e.target.value = "";
+          if (value === "file" && !hasAttachedFile) return;
+          if (value) void handleAction(row, value);
+        }}
+      >
+        <option value="" disabled>
+          Actions...
+        </option>
+        <option value="view">
+          {row.kind === "profile_change" ? "View Profile Changes" : "View Service Details"}
+        </option>
+        <option value="edit">Edit</option>
+        {row.status === "Provisioning" ? (
+          <option value="provision">Provisioning actions</option>
+        ) : (
+          <>
+            <option value="pay">
+              {row.kind === "profile_change" ? "Approve Profile Change" : "Approve Order"}
+            </option>
+            <option value="file" disabled={!hasAttachedFile}>
+              Attached File{hasAttachedFile ? "" : " (unavailable)"}
+            </option>
+            <option value="reject">
+              {row.kind === "profile_change" ? "Reject Profile Change" : "Reject Purchase"}
+            </option>
+          </>
+        )}
+        {row.status === "Provisioning" ? (
+          <option value="file" disabled={!hasAttachedFile}>
+            Attached File{hasAttachedFile ? "" : " (unavailable)"}
           </option>
-          {row.fileUrl ? <option value="file">Attached File</option> : null}
-          <option value="reject">
-            {row.kind === "profile_change" ? "Reject Profile Change" : "Reject Purchase"}
-          </option>
-        </>
-      )}
-      {row.status === "Provisioning" && row.fileUrl ? <option value="file">Attached File</option> : null}
-    </select>
-  );
+        ) : null}
+      </select>
+    );
+  };
 
   const handleExportSelected = () => {
     if (selectedRows.length === 0 || exporting) return;
