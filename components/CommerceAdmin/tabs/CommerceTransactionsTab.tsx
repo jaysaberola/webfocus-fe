@@ -319,10 +319,12 @@ export default function CommerceTransactionsTab() {
     }
   }, []);
 
+  const [draftDealCount, setDraftDealCount] = useState(0);
+
   const loadRows = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, services] = await Promise.all([
+      const [res, services, draftRes] = await Promise.all([
         getSalesTransactions(
           dealsScope === "drafts"
             ? { per_page: 200, order_status: "draft" }
@@ -330,6 +332,7 @@ export default function CommerceTransactionsTab() {
           { silent: true },
         ),
         fetchCommerceServices(undefined, undefined, { perPage: 500 }).catch(() => []),
+        getSalesTransactions({ per_page: 1, order_status: "draft" }, { silent: true }),
       ]);
       const raw: SalesTransaction[] = Array.isArray(res?.data) ? (res.data as SalesTransaction[]) : [];
       setRows(
@@ -338,9 +341,12 @@ export default function CommerceTransactionsTab() {
           : raw.filter((row) => String(row.order_status ?? "").toLowerCase() !== "draft"),
       );
       setAdminServices(Array.isArray(services) ? services : []);
+      const draftTotal = Number(draftRes?.total);
+      setDraftDealCount(Number.isFinite(draftTotal) ? draftTotal : 0);
     } catch {
       setRows([]);
       setAdminServices([]);
+      setDraftDealCount(0);
     } finally {
       setLoading(false);
     }
@@ -435,10 +441,13 @@ export default function CommerceTransactionsTab() {
       });
     }
     filtered = filtered
-      .filter((row) =>
-        rowMatchesSearch(
+      .filter((row) => {
+        const meta = parseDealMeta(row.notes);
+        return rowMatchesSearch(
           [
             row.transaction_no,
+            orderAdminColumnValue(row, "invoiceId", {}),
+            String(meta?.joNumber ?? "").trim(),
             row.customer_name,
             row.customer_email,
             paymentStatusLabel(row.payment_status),
@@ -446,8 +455,8 @@ export default function CommerceTransactionsTab() {
             transactionItemSummary(row),
           ],
           search,
-        ),
-      )
+        );
+      })
       .filter((row) =>
         rowMatchesDateRange(
           transactionIssuedDate(row) || row.transacted_at || row.issued_date,
@@ -1182,10 +1191,14 @@ export default function CommerceTransactionsTab() {
               type="button"
               role="tab"
               aria-selected={dealsScope === "drafts"}
-              className={`${styles.clientCrmTab}${dealsScope === "drafts" ? ` ${styles.clientCrmTabActive}` : ""}`}
+              className={`${styles.clientCrmTab}${styles.dealsScopeTab}${dealsScope === "drafts" ? ` ${styles.clientCrmTabActive}` : ""}`}
               onClick={() => switchDealsScope("drafts")}
+              aria-label={`Drafts, ${draftDealCount} deal${draftDealCount === 1 ? "" : "s"}`}
             >
-              Drafts
+              <span className={styles.dealsScopeTabLabel}>Drafts</span>
+              <span className={styles.dealsScopeTabCount} aria-hidden="true">
+                {draftDealCount > 99 ? "99+" : draftDealCount}
+              </span>
             </button>
           </div>
           {!hasSelection ? (
@@ -1246,7 +1259,7 @@ export default function CommerceTransactionsTab() {
           onToggle={() => setFilterOpen((open) => !open)}
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search transactions..."
+          searchPlaceholder="Search invoice..."
           dateRange={dateRange}
           onDateRangeChange={(next) => {
             setDateRange(next);
