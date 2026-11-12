@@ -62,6 +62,8 @@ export type PortalDealConversation = {
   salesNotes?: string;
   conversation?: PortalOrder["conversation"];
   quotedPrice?: number;
+  seenByClientAt?: string | null;
+  seenByStaffAt?: string | null;
 };
 
 export async function fetchPortalDealConversation(recordId: number): Promise<PortalDealConversation> {
@@ -69,6 +71,13 @@ export async function fetchPortalDealConversation(recordId: number): Promise<Por
     headers: silentHeaders,
   });
   return res.data?.data ?? {};
+}
+
+export async function markPortalDealConversationSeen(recordId: number) {
+  const res = await axiosInstance.post(`/customer/portal/orders/${recordId}/conversation/seen`, null, {
+    headers: silentHeaders,
+  });
+  return res.data?.data as PortalDealConversation;
 }
 
 export async function replyPortalOrderNote(

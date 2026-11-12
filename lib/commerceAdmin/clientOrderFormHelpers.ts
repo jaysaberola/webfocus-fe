@@ -1,3 +1,4 @@
+import { isFinanceRfqChatText } from "@/lib/commerceAdmin/priceRequestChatFilter";
 import { HOSTING_PLANS, WEBDESIGN_PACKAGES } from "@/lib/servicesCatalog";
 import { looksLikeDomain } from "@/lib/serviceCategory";
 import {
@@ -594,6 +595,13 @@ export type ClientOrderFormState = {
   salesNotes: string;
   priceAssigneeId: string;
   pricingRequestNote: string;
+  quoteDataCenter: string;
+  quoteProcessor: string;
+  quoteCores: string;
+  quoteThreads: string;
+  quoteRam: string;
+  quoteStorage: string;
+  quoteAnnualSrp: string;
 };
 
 export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): ClientOrderFormState => ({
@@ -654,6 +662,13 @@ export const emptyClientOrderForm = (defaults?: Partial<ClientOrderFormState>): 
   salesNotes: "",
   priceAssigneeId: "",
   pricingRequestNote: "",
+  quoteDataCenter: "",
+  quoteProcessor: "",
+  quoteCores: "",
+  quoteThreads: "",
+  quoteRam: "",
+  quoteStorage: "",
+  quoteAnnualSrp: "",
   ...defaults,
 });
 
@@ -767,7 +782,15 @@ export type DealMeta = {
   conversation?: Array<{ from?: string; text?: string; at?: string; file?: { name?: string; url?: string; kind?: string } }>;
   pricingWorkflowStatus?: string;
   priceAssigneeId?: string | number;
+  priceRequestedByUserId?: string | number;
   dealCreatedByUserId?: string | number;
+  quoteDataCenter?: string;
+  quoteProcessor?: string;
+  quoteCores?: string;
+  quoteThreads?: string;
+  quoteRam?: string;
+  quoteStorage?: string;
+  quoteAnnualSrp?: string;
 };
 
 const DEAL_META_PREFIX = "[DEAL_META]";
@@ -1278,6 +1301,13 @@ export function clientOrderFormFromTransaction(transaction: {
       if (fromItem > 0) return String(fromItem);
       return String(meta?.domainRegistrationCost ?? "").trim();
     })(),
+    quoteDataCenter: String(meta?.quoteDataCenter ?? "").trim(),
+    quoteProcessor: String(meta?.quoteProcessor ?? "").trim(),
+    quoteCores: String(meta?.quoteCores ?? "").trim(),
+    quoteThreads: String(meta?.quoteThreads ?? "").trim(),
+    quoteRam: String(meta?.quoteRam ?? "").trim(),
+    quoteStorage: String(meta?.quoteStorage ?? "").trim(),
+    quoteAnnualSrp: String(meta?.quoteAnnualSrp ?? "").trim(),
   });
 
   const derivedInvoice = deriveInvoiceFields(nextForm, transaction);
@@ -1369,7 +1399,35 @@ function dealMetaFromForm(form: ClientOrderFormState, existingNotes?: string | n
     salesNotes: String(parseDealMeta(existingNotes)?.salesNotes ?? "").trim(),
     quotedPrice: Number(parseDealMeta(existingNotes)?.quotedPrice ?? 0) || undefined,
     conversation: parseDealMeta(existingNotes)?.conversation,
+    quoteDataCenter: form.quoteDataCenter.trim(),
+    quoteProcessor: form.quoteProcessor.trim(),
+    quoteCores: form.quoteCores.trim(),
+    quoteThreads: form.quoteThreads.trim(),
+    quoteRam: form.quoteRam.trim(),
+    quoteStorage: form.quoteStorage.trim(),
+    quoteAnnualSrp: form.quoteAnnualSrp.trim(),
+    pricingWorkflowStatus:
+      String(parseDealMeta(existingNotes)?.pricingWorkflowStatus ?? "").trim() || undefined,
+    priceAssigneeId: form.priceAssigneeId || parseDealMeta(existingNotes)?.priceAssigneeId,
+    priceRequestedByUserId: parseDealMeta(existingNotes)?.priceRequestedByUserId,
+    priceRequestedAt: parseDealMeta(existingNotes)?.priceRequestedAt,
   };
+}
+
+export function patchDealMetaInNotes(
+  notes: string | null | undefined,
+  patch: Record<string, unknown>,
+): string {
+  const meta = { ...(parseDealMeta(notes) ?? {}), ...patch };
+  const metaLine = `${DEAL_META_PREFIX}${JSON.stringify(meta)}`;
+  const text = String(notes ?? "");
+  const marker = text.indexOf(DEAL_META_PREFIX);
+  if (marker < 0) return [metaLine, text].filter(Boolean).join("\n");
+  const before = text.slice(0, marker).trim();
+  const afterMarker = text.slice(marker + DEAL_META_PREFIX.length);
+  const newline = afterMarker.indexOf("\n");
+  const after = newline >= 0 ? afterMarker.slice(newline + 1).trim() : "";
+  return [before, metaLine, after].filter(Boolean).join("\n");
 }
 
 export function dealConversationNotes(notes?: string | null) {
@@ -1393,7 +1451,9 @@ export function dealConversationThread(notes?: string | null) {
     .filter((row): row is { from: "client" | "sales"; text: string; at?: string; file?: { name: string; url: string; kind?: "file" | "proposal" | "signed" } } => {
       if (!row || typeof row !== "object") return false;
       const text = String(row.text ?? "").trim();
-      return text !== "" && (row.from === "client" || row.from === "sales");
+      if (text === "" || !(row.from === "client" || row.from === "sales")) return false;
+      if (isFinanceRfqChatText(text, row.from === "sales" ? "sales" : "client")) return false;
+      return true;
     })
     .map((row) => ({
       from: row.from === "sales" ? ("sales" as const) : ("client" as const),

@@ -5341,6 +5341,183 @@ select.clientCrmInput {
   line-height: 1.45;
 }
 
+.dealClientQuotePanel {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--ca-slate-200);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dealClientQuoteTitle {
+  margin: 0;
+  font-size: var(--ca-text-sm);
+  font-weight: 700;
+  color: var(--ca-slate-800);
+}
+
+.dealClientQuoteHint {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  font-weight: 500;
+  color: var(--ca-slate-500);
+  line-height: 1.45;
+}
+
+.dealClientQuoteAwaiting {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--ca-radius-md);
+  background: #fef3c7;
+  color: #92400e;
+  font-size: var(--ca-text-xs);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.dealClientQuoteGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+@media (min-width: 720px) {
+  .dealClientQuoteGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dealClientQuoteFieldWide {
+    grid-column: 1 / -1;
+  }
+}
+
+.dealClientQuotePreviewBrand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+}
+
+.dealClientQuotePreviewLogo {
+  display: block;
+  height: 30px;
+  width: auto;
+  max-width: 148px;
+  object-fit: contain;
+}
+
+.dealClientQuotePreviewTagline {
+  margin: 0;
+  font-size: var(--ca-text-xs);
+  font-style: italic;
+  color: var(--ca-slate-500);
+  line-height: 1.35;
+}
+
+.dealClientQuoteDownloadActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.dealClientQuoteBtnPdf {
+  composes: primaryBtnSm;
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px rgba(220, 38, 38, 0.2);
+}
+
+.dealClientQuoteBtnPdf:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #991b1b !important;
+  color: #fff !important;
+}
+
+.dealClientQuoteBtnExcel {
+  composes: primaryBtnSm;
+  background: var(--ca-emerald) !important;
+  border-color: #047857 !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.22);
+}
+
+.dealClientQuoteBtnExcel:hover:not(:disabled) {
+  background: #047857 !important;
+  border-color: #065f46 !important;
+  color: #fff !important;
+}
+
+.dealClientQuotePreview {
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--ca-radius-md);
+  background: var(--ca-slate-50);
+  border: 1px solid var(--ca-slate-200);
+}
+
+.dealClientQuotePreviewTitle {
+  margin: 0 0 0.5rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ca-slate-500);
+}
+
+.dealClientQuotePreviewList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dealClientQuotePreviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  font-size: var(--ca-text-sm);
+  line-height: 1.4;
+}
+
+.dealClientQuotePreviewRow dt {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ca-slate-700);
+}
+
+.dealClientQuotePreviewRow dd {
+  margin: 0;
+  color: var(--ca-slate-900);
+  font-weight: 500;
+}
+
+.dealClientQuoteMoney {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ca-slate-900);
+}
+
+.dealClientQuotePeso {
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+  color: var(--ca-slate-700);
+  line-height: 1;
+}
+
+.dealClientQuoteMoneyNum {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .dealPricingRequestActions {
   display: flex;
   justify-content: flex-start;

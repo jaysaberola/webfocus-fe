@@ -160,6 +160,8 @@ export type PortalNotification = {
   salesNotes?: string | null;
   conversation?: PortalConversationMessage[];
   quotedPrice?: number;
+  seenByClientAt?: string | null;
+  seenByStaffAt?: string | null;
 };
 
 export type PortalPaymentProof = {

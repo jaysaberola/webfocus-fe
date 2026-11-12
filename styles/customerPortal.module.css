@@ -5513,6 +5513,57 @@
   text-align: center;
 }
 
+.chatDateDivider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.35rem 0 0.15rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.chatDateDivider span {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.22);
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.chatBubbleStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-width: 100%;
+}
+
+.chatBubbleMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+
+.chatBubbleMetaMine {
+  justify-content: flex-end;
+  padding-right: 0.1rem;
+}
+
+.chatBubbleMetaTheirs {
+  justify-content: flex-start;
+  padding-left: 0.1rem;
+}
+
+.chatSeen {
+  color: #3b82f6;
+  font-weight: 700;
+}
+
 .chatRowMine,
 .chatRowTheirs {
   display: flex;

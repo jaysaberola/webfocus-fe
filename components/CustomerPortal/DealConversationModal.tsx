@@ -2,15 +2,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import PortalModal from "@/components/CustomerPortal/PortalModal";
 import WebFocusBrandMark from "@/components/CustomerPortal/WebFocusBrandMark";
+import { isFinanceRfqChatText } from "@/lib/commerceAdmin/priceRequestChatFilter";
+import {
+  buildChatThreadItems,
+  enrichDealMessages,
+  visibleDealChatMessages,
+  formatChatTime,
+  isOutgoingMessageSeen,
+  type DealChatMessage,
+} from "@/lib/dealConversationDisplay";
 import {
   fetchPortalDealConversation,
   fetchPortalDealFile,
+  markPortalDealConversationSeen,
   notifyPortalNotificationsUpdated,
   replyPortalOrderNote,
 } from "@/services/customerPortalService";
 import {
   fetchSalesDealConversation,
   fetchSalesDealFile,
+  markSalesDealConversationSeen,
   replySalesDealNote,
 } from "@/services/salesTransactionService";
 import { notifyCommerceNotificationsUpdated } from "@/services/commerceAdminService";
@@ -19,8 +30,6 @@ import { formatPeso } from "@/lib/customerPortal/mockData";
 import { toast } from "@/lib/toast";
 import type { PortalConversationMessage, PortalOrder } from "@/lib/customerPortal/types";
 import styles from "@/styles/customerPortal.module.css";
-
-export type DealChatMessage = PortalConversationMessage;
 
 function conversationFingerprint(messages: DealChatMessage[]) {
   return messages
@@ -36,10 +45,12 @@ function splitMessages(value?: string | null) {
 }
 
 function fallbackThread(clientNotes?: string | null, salesNotes?: string | null): DealChatMessage[] {
-  return [
+  return enrichDealMessages([
     ...splitMessages(clientNotes).map((text) => ({ from: "client" as const, text })),
-    ...splitMessages(salesNotes).map((text) => ({ from: "sales" as const, text })),
-  ];
+    ...splitMessages(salesNotes)
+      .filter((text) => !isFinanceRfqChatText(text, "sales"))
+      .map((text) => ({ from: "sales" as const, text })),
+  ]);
 }
 
 function seenKey(viewer: "customer" | "sales", recordId?: number | null) {
@@ -142,6 +153,8 @@ export default function DealConversationModal({
   const [liveConversation, setLiveConversation] = useState<DealChatMessage[] | null>(null);
   const [liveQuotedPrice, setLiveQuotedPrice] = useState<number | null>(null);
   const [seen, setSeen] = useState(() => readSeen(viewer, recordId));
+  const [seenByClientAt, setSeenByClientAt] = useState<string | null>(null);
+  const [seenByStaffAt, setSeenByStaffAt] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const scroller = useRef<HTMLDivElement | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -163,9 +176,16 @@ export default function DealConversationModal({
   const pinnedPrice = Number(liveQuotedPrice ?? quotedPrice ?? 0);
 
   const resolvedThread = useMemo(() => {
-    if (liveConversation && liveConversation.length) return liveConversation;
-    return conversation && conversation.length ? conversation : fallbackThread(clientNotes, salesNotes);
+    const base =
+      liveConversation && liveConversation.length
+        ? liveConversation
+        : conversation && conversation.length
+          ? conversation
+          : fallbackThread(clientNotes, salesNotes);
+    return visibleDealChatMessages(enrichDealMessages(base));
   }, [clientNotes, conversation, liveConversation, salesNotes]);
+
+  const threadItems = useMemo(() => buildChatThreadItems(resolvedThread), [resolvedThread]);
 
   const otherCount = useMemo(
     () => resolvedThread.filter((message) => message.from === otherFrom).length,
@@ -195,6 +215,17 @@ export default function DealConversationModal({
   }, [open, otherCount, recordId, viewer]);
 
   useEffect(() => {
+    if (!open || !recordId) return;
+    const mark = salesView ? markSalesDealConversationSeen : markPortalDealConversationSeen;
+    void mark(recordId)
+      .then((payload) => {
+        if (payload?.seenByClientAt) setSeenByClientAt(payload.seenByClientAt);
+        if (payload?.seenByStaffAt) setSeenByStaffAt(payload.seenByStaffAt);
+      })
+      .catch(() => undefined);
+  }, [open, recordId, salesView]);
+
+  useEffect(() => {
     if (!open) return;
     const node = scroller.current;
     if (node) node.scrollTop = node.scrollHeight;
@@ -216,12 +247,15 @@ export default function DealConversationModal({
       void request
         .then((next) => {
           if (cancelled) return;
+          if (next.seenByClientAt) setSeenByClientAt(next.seenByClientAt);
+          if (next.seenByStaffAt) setSeenByStaffAt(next.seenByStaffAt);
+
           const messages = (next.conversation ?? []) as DealChatMessage[];
           if (!messages.length && !next.clientNotes && !next.salesNotes) return;
 
-          const nextThread = messages.length
-            ? messages
-            : fallbackThread(next.clientNotes, next.salesNotes);
+          const nextThread = enrichDealMessages(
+            messages.length ? messages : fallbackThread(next.clientNotes, next.salesNotes),
+          );
           const fingerprint = conversationFingerprint(nextThread);
           if (fingerprint === lastFingerprint.current) {
             if (typeof next.quotedPrice === "number" && next.quotedPrice > 0) {
@@ -411,10 +445,28 @@ export default function DealConversationModal({
           {empty ? (
             <p className={styles.chatEmpty}>No messages yet. Start the conversation below.</p>
           ) : (
-            thread.map((message, index) => {
+            threadItems.map((item) => {
+              if (item.type === "date") {
+                return (
+                  <div key={item.key} className={styles.chatDateDivider} role="separator">
+                    <span>{item.label}</span>
+                  </div>
+                );
+              }
+
+              const { message, index } = item;
               const mine = salesView ? message.from === "sales" : message.from === "client";
               const fileUrl = resolveStorageAssetUrl(message.file?.url);
               const image = Boolean(message.file && isImageFile(message.file.name, message.file.url));
+              const timeLabel = formatChatTime(message.at);
+              const showSeen = isOutgoingMessageSeen(
+                resolvedThread,
+                index,
+                viewer,
+                seenByClientAt,
+                seenByStaffAt,
+              );
+
               return (
                 <div
                   key={`${message.from}-${index}-${message.text.slice(0, 12)}`}
@@ -429,39 +481,52 @@ export default function DealConversationModal({
                   ) : (
                     <WebFocusBrandMark variant="badge" className={styles.chatBubbleMark} />
                   )}
-                  <div
-                    className={[
-                      mine ? styles.chatBubbleMine : styles.chatBubbleTheirs,
-                      /grand total:/i.test(message.text) ? styles.chatQuote : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {message.text ? <p>{message.text}</p> : null}
-                    {message.file ? (
-                      <div className={styles.chatFile}>
-                        {image && fileUrl ? (
-                          <img
-                            src={fileUrl}
-                            alt=""
-                            onError={(event) => {
-                              event.currentTarget.style.display = "none";
-                            }}
-                          />
-                        ) : (
-                          <i className="fa-regular fa-file" aria-hidden="true" />
-                        )}
-                        <div className={styles.chatFileMeta}>
-                          <span>{message.file.name}</span>
-                          <div className={styles.chatFileActions}>
-                            <button type="button" onClick={() => openAttachment(message.file!, "view")}>
-                              View
-                            </button>
-                            <button type="button" onClick={() => openAttachment(message.file!, "download")}>
-                              Download
-                            </button>
+                  <div className={styles.chatBubbleStack}>
+                    <div
+                      className={[
+                        mine ? styles.chatBubbleMine : styles.chatBubbleTheirs,
+                        /grand total:/i.test(message.text) ? styles.chatQuote : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {message.text ? <p>{message.text}</p> : null}
+                      {message.file ? (
+                        <div className={styles.chatFile}>
+                          {image && fileUrl ? (
+                            <img
+                              src={fileUrl}
+                              alt=""
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <i className="fa-regular fa-file" aria-hidden="true" />
+                          )}
+                          <div className={styles.chatFileMeta}>
+                            <span>{message.file.name}</span>
+                            <div className={styles.chatFileActions}>
+                              <button type="button" onClick={() => openAttachment(message.file!, "view")}>
+                                View
+                              </button>
+                              <button type="button" onClick={() => openAttachment(message.file!, "download")}>
+                                Download
+                              </button>
+                            </div>
                           </div>
                         </div>
+                      ) : null}
+                    </div>
+                    {timeLabel || showSeen ? (
+                      <div
+                        className={[
+                          styles.chatBubbleMeta,
+                          mine ? styles.chatBubbleMetaMine : styles.chatBubbleMetaTheirs,
+                        ].join(" ")}
+                      >
+                        {timeLabel ? <span>{timeLabel}</span> : null}
+                        {showSeen ? <span className={styles.chatSeen}>Seen</span> : null}
                       </div>
                     ) : null}
                   </div>

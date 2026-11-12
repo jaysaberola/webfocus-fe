@@ -212,6 +212,8 @@ export type SalesDealConversation = {
     file?: { name: string; url: string; path?: string; kind?: "file" | "proposal" | "signed" };
   }>;
   quotedPrice?: number;
+  seenByClientAt?: string | null;
+  seenByStaffAt?: string | null;
 };
 
 export const fetchSalesDealConversation = async (id: number): Promise<SalesDealConversation> => {
@@ -220,6 +222,13 @@ export const fetchSalesDealConversation = async (id: number): Promise<SalesDealC
   });
   return res.data?.data ?? {};
 };
+
+export async function markSalesDealConversationSeen(id: number) {
+  const res = await axiosInstance.post(`/sales-transactions/${id}/conversation/seen`, null, {
+    headers: { "X-No-Loading": true },
+  });
+  return res.data?.data as SalesDealConversation;
+}
 
 export const replySalesDealNote = async (
   id: number,

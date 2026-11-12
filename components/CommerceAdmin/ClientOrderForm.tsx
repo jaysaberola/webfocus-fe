@@ -1,4 +1,5 @@
 import { Children, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import DealClientQuotePanel from "@/components/CommerceAdmin/DealClientQuotePanel";
 import FormActionConfirmModal, { type FormActionIntent } from "@/components/CommerceAdmin/FormActionConfirmModal";
 import OrderProductDetailsPanel from "@/components/CommerceAdmin/OrderProductDetailsPanel";
 import SetWebDesignPriceModal from "@/components/CommerceAdmin/modals/SetWebDesignPriceModal";
@@ -67,6 +68,10 @@ import {
   WEB_DESIGN_PENDING_QUOTATION_MARKER,
   buildWebDesignPricedNotes,
 } from "@/lib/commerceAdmin/webDesignPricing";
+import {
+  buildPriceRequestSpecBlock,
+  hostingQuoteCategory,
+} from "@/lib/commerceAdmin/hostingClientQuote";
 import { readStoredCurrentUser } from "@/lib/currentUser";
 import { toast } from "@/lib/toast";
 import {
@@ -90,9 +95,10 @@ import {
   type DomainCheckResult,
 } from "@/services/domainSearchService";
 import {
+  displayPricingWorkflowForDraft,
   isDraftTransaction,
-  pricingWorkflowFromNotes,
   pricingWorkflowLabel,
+  withDraftPricingWorkflowNotes,
 } from "@/lib/commerceAdmin/dealPricingWorkflow";
 import {
   createSalesTransaction,
@@ -1997,6 +2003,9 @@ export default function ClientOrderForm({
       if (transaction) {
         const itemPayload = buildDealItemPayload(services, form, transaction, effectiveNotes);
         let notes = mergeDealMetaIntoNotes(effectiveNotes, form);
+        if (draftSave || draftDeal) {
+          notes = withDraftPricingWorkflowNotes(notes, dealPriceLines, form);
+        }
         if (pendingWebQuote) {
           notes = buildWebDesignPricedNotes(notes, netTotal);
         }
@@ -2051,12 +2060,16 @@ export default function ClientOrderForm({
           }
         }
 
+        const savedNotes = saved?.data?.notes;
+        if (typeof savedNotes === "string" && savedNotes.trim()) {
+          setLiveNotes(savedNotes);
+        }
         notifyIfDealPriceInboxUpdated(saved as DealSaveApiResponse);
         toast.success(
           saved?.quoted_price_sent
             ? "Deal saved. The customer was sent the updated quotation."
             : (saved as DealSaveApiResponse)?.draft_price_notified
-              ? "Deal saved. Staff were notified about the updated pricing."
+              ? "Deal saved. The requester was notified that the price is set."
               : draftSave
                 ? "Deal saved as draft."
                 : "Deal information saved.",
@@ -2150,11 +2163,23 @@ export default function ClientOrderForm({
     }
   };
 
+  const draftDeal = isDraftTransaction(transaction?.order_status);
+  const pricingStatus = displayPricingWorkflowForDraft(effectiveNotes, dealPriceLines, form);
+  const showPricingWorkflow = draftDeal || dealPriceLines.some((row) => row.needsAmount && !(row.price > 0));
+  const showClientQuotePanel = showPricingWorkflow || hostingQuoteCategory(form.productCategory);
+  const quoteClientName = selectedClient
+    ? clientDisplayName(selectedClient)
+    : String(transaction?.customer_name ?? newClientName ?? "").trim() || "Client";
+  const quoteDealName =
+    parseDealNames(form.dealName)[0] ||
+    String(form.productName || form.dealName || "").trim() ||
+    "—";
+
   const handleSendPriceRequest = async () => {
     const message = form.pricingRequestNote.trim();
     const assigneeId = Number(form.priceAssigneeId || form.dealOwnerId);
     if (!message) {
-      toast.error("Enter a note describing the pricing you need.");
+      toast.error("Enter a short note for Finance (specs below are added automatically when filled).");
       return;
     }
     if (!(assigneeId > 0)) {
@@ -2163,17 +2188,52 @@ export default function ClientOrderForm({
     }
 
     if (!transaction?.id) {
-      toast.info("Save as draft first, then send the price request.");
+      toast.error("Save as Draft first, then open this deal again and tap Send price request.");
       return;
     }
 
+    const missingPricedLines = catalogLinesForDealNames(
+      services,
+      form.dealName,
+      transaction,
+      form.dealAmounts,
+    )
+      .filter((row) => row.needsAmount && !(dealAmountNumber(form.dealAmounts, row.name) > 0))
+      .map((row) => row.name);
+
+    const quoteFields = {
+      quoteDataCenter: form.quoteDataCenter,
+      quoteProcessor: form.quoteProcessor,
+      quoteCores: form.quoteCores,
+      quoteThreads: form.quoteThreads,
+      quoteRam: form.quoteRam,
+      quoteStorage: form.quoteStorage,
+      quoteAnnualSrp: form.quoteAnnualSrp,
+    };
+    const appendix = buildPriceRequestSpecBlock({
+      clientName: quoteClientName,
+      dealName: quoteDealName,
+      missingPricedLines,
+      fields: quoteFields,
+    });
+    const composed = appendix ? `${message}\n\n${appendix}` : message;
+
     setSendingPriceRequest(true);
     try {
-      const res = await requestDealPrice(transaction.id, { message, assignee_id: assigneeId });
+      await updateSalesTransaction(transaction.id, {
+        notes: mergeDealMetaIntoNotes(effectiveNotes, form),
+        order_status: "draft",
+        save_mode: "draft",
+      });
+      const res = await requestDealPrice(transaction.id, { message: composed, assignee_id: assigneeId });
       const nextTxn = res?.data as SalesTransaction | undefined;
       if (nextTxn?.notes) setLiveNotes(nextTxn.notes);
       notifyCommerceNotificationsUpdated();
-      toast.success("Price request sent. The assignee was notified.");
+      toast.success(
+        missingPricedLines.length
+          ? "Price request sent with missing line items + RFQ specs."
+          : "Price request sent.",
+      );
       setField("pricingRequestNote", "");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Could not send the price request.");
@@ -2181,10 +2241,6 @@ export default function ClientOrderForm({
       setSendingPriceRequest(false);
     }
   };
-
-  const draftDeal = isDraftTransaction(transaction?.order_status);
-  const pricingStatus = pricingWorkflowFromNotes(effectiveNotes);
-  const showPricingWorkflow = draftDeal || dealPriceLines.some((row) => row.needsAmount && !(row.price > 0));
 
   const headerTitle = useMemo(() => {
     if (!isEditing) return pageTitle || "Create Deal";
@@ -2541,7 +2597,7 @@ export default function ClientOrderForm({
                 onChange={(e) => setField("campaignSource", e.target.value)}
               />
             </Field>
-            {dealPriceLines.length || showPricingWorkflow ? (
+            {dealPriceLines.length || showPricingWorkflow || showClientQuotePanel ? (
               <div className={styles.dealPriceSummarySlot}>
                 <div className={styles.dealPriceSummary}>
                   <span className={styles.clientOrderLabel}>
@@ -2648,7 +2704,10 @@ export default function ClientOrderForm({
                           <div>
                             <strong className={styles.dealPricingRequestTitle}>Request pricing</strong>
                             <p className={styles.dealPricingRequestHint}>
-                              Save as draft, then notify someone to set missing line prices.
+                              Walang price pa? (1) Save as Draft (2) Fill specs sa &quot;Client quote&quot; kung
+                              hosting (3) Short note dito (4) <strong>Send price request</strong> — notification lang kay
+                              Finance (assignee), <strong>hindi</strong> client chat. Auto-kasama ang RFQ specs. Huwag
+                              i-send PDF/Excel sa client hanggang may Annual SRP na.
                             </p>
                           </div>
                           {draftDeal ? (
@@ -2676,7 +2735,7 @@ export default function ClientOrderForm({
                             <textarea
                               className={`${inputClass()} ${styles.dealPricingRequestTextarea}`}
                               rows={3}
-                              placeholder="Describe the pricing needed for this deal…"
+                              placeholder="Note para sa Finance assignee (hindi ipapadala sa client)…"
                               value={form.pricingRequestNote}
                               onChange={(e) => setField("pricingRequestNote", e.target.value)}
                             />
@@ -2694,6 +2753,17 @@ export default function ClientOrderForm({
                           </button>
                         </div>
                       </div>
+                    ) : null}
+
+                    {showClientQuotePanel ? (
+                      <DealClientQuotePanel
+                        clientName={quoteClientName}
+                        dealName={quoteDealName}
+                        form={form}
+                        setField={setField}
+                        inputClass={inputClass}
+                        awaitingFinancePrice={showPricingWorkflow}
+                      />
                     ) : null}
                   </div>
                 </div>
