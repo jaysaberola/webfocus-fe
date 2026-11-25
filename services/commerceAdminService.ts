@@ -417,6 +417,24 @@ export async function broadcastCommerceNotification(payload: { title: string; bo
   return res.data;
 }
 
+export type BulkCollectionSoaResult = {
+  message: string;
+  sent: number;
+  skipped: number;
+};
+
+export async function sendBulkCollectionSoa(payload: {
+  transaction_ids: number[];
+  message?: string;
+}): Promise<BulkCollectionSoaResult> {
+  const res = await axiosInstance.post("/commerce-admin/collection-queue/bulk-soa", payload);
+  return {
+    message: String(res.data?.message ?? ""),
+    sent: Number(res.data?.sent ?? 0),
+    skipped: Number(res.data?.skipped ?? 0),
+  };
+}
+
 export async function markCommerceNotificationRead(id: number) {
   await axiosInstance.patch(`/commerce-admin/notifications/${id}/read`, null, {
     headers: { "X-No-Loading": true },

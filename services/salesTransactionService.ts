@@ -53,11 +53,25 @@ export interface SalesTransaction {
   due_date?: string | null;
   payment_date?: string | null;
   payment_mode?: string | null;
+  paynamics_payment_references?: PaynamicsPaymentReferenceRow[];
+  paynamicsPaymentReferences?: PaynamicsPaymentReferenceRow[];
   items?: SalesTransactionItem[];
   proposals?: SalesTransactionProposal[];
   provisioning_run?: ProvisioningRunSummary | null;
   provisioningRun?: ProvisioningRunSummary | null;
 }
+
+export type PaynamicsPaymentReferenceRow = {
+  id?: number;
+  sales_transaction_id?: number;
+  request_id: string;
+  response_id?: string | null;
+  response_code?: string | null;
+  payment_method?: string | null;
+  status?: string;
+  paid_at?: string | null;
+  failed_at?: string | null;
+};
 
 export type ProvisioningRunActionSummary = {
   id: number;

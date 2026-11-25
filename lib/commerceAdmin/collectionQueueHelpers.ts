@@ -7,7 +7,8 @@ import {
 import { parseInvoiceMeta, type ClientInvoiceRow } from "@/lib/commerceAdmin/clientInvoiceHelpers";
 import { isPaidStatus } from "@/lib/commerceAdmin/transactionHelpers";
 import type { CommercePaymentProofRow } from "@/services/commerceAdminService";
-import type { SalesTransaction } from "@/services/salesTransactionService";
+import { getPaynamicsPaymentLabel } from "@/lib/checkoutPaymentMethods";
+import type { PaynamicsPaymentReferenceRow, SalesTransaction } from "@/services/salesTransactionService";
 
 export type CollectionAccountBadge = "active" | "grace" | "suspension";
 
@@ -22,6 +23,7 @@ export type CollectionQueueRow = {
   invoice: ClientInvoiceRow;
   transaction: SalesTransaction;
   proof: CommercePaymentProofRow | null;
+  isSample?: boolean;
   accountBadge: CollectionAccountBadge;
   queueStatus: CollectionQueueStatus;
   duePrimary: string;
@@ -35,6 +37,45 @@ export type CollectionQueueRow = {
   daysPastDue: number;
 };
 
+export type CollectionQueueColumnKey =
+  | "customer"
+  | "invoice"
+  | "due"
+  | "amount"
+  | "payment"
+  | "taxOr"
+  | "status";
+
+export const COLLECTION_QUEUE_COLUMN_LABELS: Record<CollectionQueueColumnKey, string> = {
+  customer: "Customer & account",
+  invoice: "Invoice #",
+  due: "Due & PTP / logs",
+  amount: "Amount",
+  payment: "Payment & ref",
+  taxOr: "2307 & OR",
+  status: "Status",
+};
+
+export const COLLECTION_QUEUE_COLUMN_KEYS: CollectionQueueColumnKey[] = [
+  "customer",
+  "invoice",
+  "due",
+  "amount",
+  "payment",
+  "taxOr",
+  "status",
+];
+
+export const DEFAULT_COLLECTION_QUEUE_COLUMNS: Record<CollectionQueueColumnKey, boolean> = {
+  customer: true,
+  invoice: true,
+  due: true,
+  amount: true,
+  payment: true,
+  taxOr: true,
+  status: true,
+};
+
 export type CollectionQueueKpis = {
   totalReceivables: number;
   overdueAmount: number;
@@ -43,6 +84,88 @@ export type CollectionQueueKpis = {
   forVerificationSub: string;
   collectedThisMonth: number;
 };
+
+export type CollectionQueueKpiFilter =
+  | "all"
+  | "receivables"
+  | "overdue"
+  | "verification"
+  | "collected";
+
+function isPendingPaymentProof(proof: CommercePaymentProofRow) {
+  const status = String(proof.proofStatus ?? proof.status ?? "")
+    .toLowerCase()
+    .trim();
+  return proof.kind !== "profile_change" && status.includes("pending");
+}
+
+function isVerifiedPaymentProof(proof: CommercePaymentProofRow) {
+  const status = String(proof.proofStatus ?? proof.status ?? "")
+    .toLowerCase()
+    .trim();
+  return proof.kind !== "profile_change" && status.includes("verified");
+}
+
+function isCancelledQueueRow(row: CollectionQueueRow) {
+  const order = String(row.transaction.order_status ?? "").toLowerCase();
+  const payment = String(row.transaction.payment_status ?? "").toLowerCase();
+  return (
+    order === "cancelled" ||
+    order === "canceled" ||
+    order === "draft" ||
+    payment === "cancelled" ||
+    payment === "canceled"
+  );
+}
+
+export function isCollectionReceivableRow(row: CollectionQueueRow) {
+  if (isCancelledQueueRow(row)) return false;
+  if (row.queueStatus === "paid" || isPaidStatus(row.transaction.payment_status)) return false;
+  return true;
+}
+
+function rowCollectedThisMonth(row: CollectionQueueRow, monthStartMs: number) {
+  if (!isPaidStatus(row.transaction.payment_status) && row.queueStatus !== "paid") return false;
+  const paidAt =
+    parseWhen(row.transaction.payment_date) ??
+    parseWhen(row.invoice.paymentDate) ??
+    parseWhen(row.transaction.issued_date) ??
+    parseWhen(row.transaction.transacted_at) ??
+    parseWhen(row.transaction.created_at);
+  return paidAt != null && paidAt >= monthStartMs;
+}
+
+function buildForVerificationSubtext(queueRows: CollectionQueueRow[], pendingProofs: number) {
+  const awaitingTax = queueRows.filter(
+    (row) => isCollectionReceivableRow(row) && row.tax2307Label === "Pending 2307",
+  ).length;
+  const parts: string[] = [];
+  if (pendingProofs > 0) {
+    parts.push(`${pendingProofs} payment${pendingProofs === 1 ? "" : "s"} pending review`);
+  }
+  if (awaitingTax > 0) {
+    parts.push(`${awaitingTax} awaiting 2307`);
+  }
+  if (parts.length === 0) return "Nothing pending review";
+  return parts.join(" · ");
+}
+
+export function matchesCollectionKpiFilter(row: CollectionQueueRow, filter: CollectionQueueKpiFilter) {
+  if (filter === "all") return true;
+  if (row.isSample) return false;
+  if (filter === "receivables") return isCollectionReceivableRow(row);
+  if (filter === "overdue") {
+    return isCollectionReceivableRow(row) && (row.queueStatus === "overdue" || row.daysPastDue > 0);
+  }
+  if (filter === "verification") return row.queueStatus === "for_verification";
+  if (filter === "collected") {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    return rowCollectedThisMonth(row, monthStart.getTime());
+  }
+  return true;
+}
 
 export type ReceivablesAgingBucket = {
   label: string;
@@ -163,26 +286,88 @@ function buildProofIndexes(proofs: CommercePaymentProofRow[]) {
   return { byTx, byInvoice };
 }
 
-function extractPaymentReference(notes?: string | null, proof?: CommercePaymentProofRow | null) {
-  const proofNo = String(proof?.proofNo ?? "").trim();
-  if (proofNo) return proofNo;
+const WEAK_REF_VALUES = new Set(["tes", "test", "note", "notes", "pending", "null", "none"]);
 
+function isUsableReference(value: string) {
+  const ref = value.trim();
+  if (ref.length < 4) return false;
+  if (WEAK_REF_VALUES.has(ref.toLowerCase())) return false;
+  if (/^PRF-/i.test(ref)) return true;
+  return ref.length >= 5 || /\d{4,}/.test(ref);
+}
+
+function paynamicsReferenceRows(transaction: SalesTransaction): PaynamicsPaymentReferenceRow[] {
+  const snake = transaction.paynamics_payment_references;
+  const camel = transaction.paynamicsPaymentReferences;
+  if (Array.isArray(snake) && snake.length) return snake;
+  if (Array.isArray(camel) && camel.length) return camel;
+  return [];
+}
+
+function pickPaynamicsReference(transaction: SalesTransaction): PaynamicsPaymentReferenceRow | null {
+  const rows = paynamicsReferenceRows(transaction);
+  if (!rows.length) return null;
+
+  const score = (row: PaynamicsPaymentReferenceRow) => {
+    const status = String(row.status ?? "").toLowerCase();
+    if (status === "paid" || row.paid_at) return 30;
+    if (status === "pending") return 20;
+    return 10;
+  };
+
+  return [...rows].sort(
+    (a, b) => score(b) - score(a) || Number(b.id ?? 0) - Number(a.id ?? 0),
+  )[0];
+}
+
+function normalizePaynamicsMethod(
+  transaction: SalesTransaction,
+  paynamics: PaynamicsPaymentReferenceRow | null,
+  invoiceMeta: Partial<ReturnType<typeof parseInvoiceMeta>> | null,
+  meta: ReturnType<typeof parseDealMeta>,
+  invoice: ClientInvoiceRow,
+) {
+  const fromPaynamics = String(paynamics?.payment_method ?? "").trim();
+  if (fromPaynamics) {
+    const idMatch = fromPaynamics.match(/^paynamics[-_]([a-z0-9]+)$/i);
+    if (idMatch?.[1]) {
+      const label = getPaynamicsPaymentLabel(idMatch[1]);
+      return label !== idMatch[1] ? label : fromPaynamics;
+    }
+    return fromPaynamics;
+  }
+
+  const modeMeta = { paymentMode: invoiceMeta?.paymentMode || meta?.paymentMode };
+  let method = transactionPaymentMode(transaction, modeMeta);
+  if (method === "—" && invoice.paymentMode && invoice.paymentMode !== "—") {
+    method = invoice.paymentMode;
+  }
+  return method;
+}
+
+function paynamicsReferenceNumber(paynamics: PaynamicsPaymentReferenceRow | null): string {
+  if (!paynamics) return "";
+  const response = String(paynamics.response_id ?? "").trim();
+  if (isUsableReference(response)) return response;
+  const request = String(paynamics.request_id ?? "").trim();
+  if (isUsableReference(request)) return request;
+  return "";
+}
+
+function extractPaymentReferenceFromNotes(notes?: string | null) {
   const raw = String(notes ?? "");
   const patterns = [
-    /(?:Ref|Reference)\s*#?\s*:?\s*([A-Za-z0-9][\w-]*)/i,
-    /Check\s*#\s*([A-Za-z0-9][\w-]*)/i,
-    /(?:Transaction|Txn|Request)\s*(?:ID|No\.?)\s*:?\s*([A-Za-z0-9][\w-]*)/i,
-    /Proof\s*#?\s*([A-Za-z0-9][\w-]*)/i,
+    /(?:Pay\s*reference|payreference)\s*:?\s*([A-Za-z0-9-]{4,})/i,
+    /(?:processor\s*response\s*id)\s*:?\s*([A-Za-z0-9-]{4,})/i,
+    /(?:Ref|Reference)\s*#\s*([A-Za-z0-9-]{4,})/i,
+    /Check\s*#\s*([A-Za-z0-9-]{4,})/i,
+    /(?:Transaction|Txn|Request)\s*(?:ID|No\.?)\s*:?\s*([A-Za-z0-9-]{5,})/i,
   ];
   for (const pattern of patterns) {
     const match = raw.match(pattern);
     const value = String(match?.[1] ?? "").trim();
-    if (value) return value;
+    if (isUsableReference(value)) return value;
   }
-
-  const invoiceId = String(proof?.invoiceId ?? "").trim();
-  if (invoiceId && !invoiceId.startsWith("INV-")) return invoiceId;
-
   return "";
 }
 
@@ -232,19 +417,228 @@ function buildPaymentRefDisplay(
   invoiceMeta: Partial<ReturnType<typeof parseInvoiceMeta>> | null,
   meta: ReturnType<typeof parseDealMeta>,
 ) {
-  const modeMeta = {
-    paymentMode: invoiceMeta?.paymentMode || meta?.paymentMode,
-  };
-  let method = transactionPaymentMode(transaction, modeMeta);
-  if (method === "—" && invoice.paymentMode && invoice.paymentMode !== "—") {
-    method = invoice.paymentMode;
+  const paynamics = pickPaynamicsReference(transaction);
+  const method = normalizePaynamicsMethod(transaction, paynamics, invoiceMeta, meta, invoice);
+
+  let reference = paynamicsReferenceNumber(paynamics);
+  if (!reference) {
+    const proofNo = String(proof?.proofNo ?? "").trim();
+    if (isUsableReference(proofNo)) reference = proofNo;
+  }
+  if (!reference) {
+    reference = extractPaymentReferenceFromNotes(transaction.notes);
   }
 
-  const reference = extractPaymentReference(transaction.notes, proof);
-  const paymentPrimary = formatPaymentRefLabel(method, reference, proof);
-  const paymentSecondary = formatPaymentRefDate(transaction, invoice, proof, invoiceMeta, meta);
+  const paymentPrimary = formatPaymentRefLabel(
+    method,
+    reference,
+    paynamics || reference ? null : proof,
+  );
+
+  let paymentSecondary = "";
+  const paynamicsPaidAt = paynamics?.paid_at ? parseWhen(paynamics.paid_at) : null;
+  if (paynamicsPaidAt != null) {
+    paymentSecondary = new Date(paynamicsPaidAt).toLocaleDateString("en-PH", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } else {
+    paymentSecondary = formatPaymentRefDate(transaction, invoice, proof, invoiceMeta, meta);
+  }
 
   return { paymentPrimary, paymentSecondary };
+}
+
+function shouldShowCollectionQueueSamples() {
+  const flag = String(process.env.NEXT_PUBLIC_COLLECTION_QUEUE_SAMPLES ?? "").trim();
+  if (flag === "0") return false;
+  return true;
+}
+
+function buildCollectionQueueSampleRows(): CollectionQueueRow[] {
+  const baseTransaction = {
+    subtotal: 0,
+    discount_total: 0,
+    tax_total: 0,
+    shipping_total: 0,
+    grand_total: 0,
+    order_status: "processing",
+    notes: "",
+  } satisfies Partial<SalesTransaction>;
+
+  const sampleId = (n: number) => -(10_000 + n);
+
+  const wrapSample = (row: Omit<CollectionQueueRow, "isSample">, sampleIndex: number): CollectionQueueRow => ({
+    ...row,
+    isSample: true,
+    invoice: { ...row.invoice, transactionId: sampleId(sampleIndex) },
+    transaction: { ...row.transaction, id: sampleId(sampleIndex) } as SalesTransaction,
+  });
+
+  return [
+    wrapSample({
+      invoice: {
+        id: "sample-for-verification",
+        transactionId: -1,
+        invoiceOwner: "Sample",
+        subject: "Sample — For verification",
+        invoiceDate: "—",
+        dueDate: "Oct 25, 2026",
+        clientName: "Apex Solutions Inc.",
+        contactName: "—",
+        currency: "PHP",
+        status: "Unpaid",
+        collectionDate: "—",
+        officialReceipt: "",
+        paymentDate: "—",
+        paymentMode: "GCash",
+        exchangeRate: "1",
+        billingStreet: "—",
+        billingCity: "—",
+        billingState: "—",
+        billingCode: "—",
+        billingCountry: "—",
+        billingInCharge: "—",
+        wsiInvoiceNumber: "INV-00921",
+        grandTotal: 85_000,
+      },
+      transaction: {
+        ...baseTransaction,
+        payment_status: "pending",
+        grand_total: 85_000,
+        payment_mode: "GCash",
+        paynamics_payment_references: [
+          {
+            request_id: "REQ-88412",
+            response_id: "88412",
+            payment_method: "GCash",
+            status: "pending",
+          },
+        ],
+      } as SalesTransaction,
+      proof: null,
+      accountBadge: "active",
+      queueStatus: "for_verification",
+      duePrimary: "25 Oct 2026",
+      dueSecondary: "PTP: Nov 28 • Called",
+      amountPrimary: formatDealAmount(85_000),
+      amountSecondary: "Net: ₱83.3k",
+      paymentPrimary: "GCash • Ref #88412",
+      paymentSecondary: "Nov 24, 2026",
+      orLabel: "Pending OR",
+      tax2307Label: "Pending 2307",
+      daysPastDue: 0,
+    }, 1),
+    wrapSample({
+      invoice: {
+        id: "sample-partial",
+        transactionId: -1,
+        invoiceOwner: "Sample",
+        subject: "Sample — Partially paid",
+        invoiceDate: "—",
+        dueDate: "Oct 18, 2026",
+        clientName: "Pacific Office Supplies",
+        contactName: "—",
+        currency: "PHP",
+        status: "Partial",
+        collectionDate: "—",
+        officialReceipt: "OR-1024",
+        paymentDate: "Nov 23, 2026",
+        paymentMode: "Check",
+        exchangeRate: "1",
+        billingStreet: "—",
+        billingCity: "—",
+        billingState: "—",
+        billingCode: "—",
+        billingCountry: "—",
+        billingInCharge: "—",
+        wsiInvoiceNumber: "PO-11220",
+        grandTotal: 42_500,
+      },
+      transaction: {
+        ...baseTransaction,
+        payment_status: "partial",
+        grand_total: 42_500,
+        payment_mode: "Check",
+        paynamics_payment_references: [
+          {
+            request_id: "REQ-004512",
+            response_id: "004512",
+            payment_method: "Check",
+            status: "paid",
+            paid_at: "2026-11-23",
+          },
+        ],
+      } as SalesTransaction,
+      proof: null,
+      accountBadge: "grace",
+      queueStatus: "partially_paid",
+      duePrimary: "18 Oct 2026",
+      dueSecondary: "Reminded",
+      amountPrimary: formatDealAmount(42_500),
+      amountSecondary: "Bal: ₱21.3k",
+      paymentPrimary: "Check • Ref #004512",
+      paymentSecondary: "Nov 23, 2026",
+      orLabel: "OR Issued",
+      tax2307Label: "2307 Received",
+      daysPastDue: 12,
+    }, 2),
+    wrapSample({
+      invoice: {
+        id: "sample-paid",
+        transactionId: -1,
+        invoiceOwner: "Sample",
+        subject: "Sample — Paid",
+        invoiceDate: "—",
+        dueDate: "Oct 10, 2026",
+        clientName: "Sunrise Marketing",
+        contactName: "—",
+        currency: "PHP",
+        status: "Paid",
+        collectionDate: "—",
+        officialReceipt: "OR-2201",
+        paymentDate: "Nov 18, 2026",
+        paymentMode: "Maya",
+        exchangeRate: "1",
+        billingStreet: "—",
+        billingCity: "—",
+        billingState: "—",
+        billingCode: "—",
+        billingCountry: "—",
+        billingInCharge: "—",
+        wsiInvoiceNumber: "SM-33455",
+        grandTotal: 18_200,
+      },
+      transaction: {
+        ...baseTransaction,
+        payment_status: "paid",
+        grand_total: 18_200,
+        payment_mode: "Maya",
+        paynamics_payment_references: [
+          {
+            request_id: "REQ-77210",
+            response_id: "77210",
+            payment_method: "Maya",
+            status: "paid",
+            paid_at: "2026-11-18",
+          },
+        ],
+      } as SalesTransaction,
+      proof: null,
+      accountBadge: "active",
+      queueStatus: "paid",
+      duePrimary: "10 Oct 2026",
+      dueSecondary: "",
+      amountPrimary: formatDealAmount(18_200),
+      amountSecondary: "",
+      paymentPrimary: "Maya • Ref #77210",
+      paymentSecondary: "Nov 18, 2026",
+      orLabel: "OR Issued",
+      tax2307Label: "2307 Received",
+      daysPastDue: 0,
+    }, 3),
+  ];
 }
 
 function formatQueueDueDate(value: string) {
@@ -266,7 +660,7 @@ export function buildCollectionQueueRows(
   const txById = new Map(transactions.map((t) => [t.id, t]));
   const { byTx: proofsByTx, byInvoice: proofsByInvoice } = buildProofIndexes(proofs);
 
-  return invoices.map((invoice) => {
+  const built = invoices.map((invoice) => {
     const transaction =
       txById.get(invoice.transactionId) ??
       ({
@@ -324,6 +718,22 @@ export function buildCollectionQueueRows(
       daysPastDue: days,
     };
   });
+
+  if (!shouldShowCollectionQueueSamples()) return built;
+  return [...buildCollectionQueueSampleRows(), ...built];
+}
+
+export function collectionQueueRowsForMetrics(rows: CollectionQueueRow[]) {
+  return rows.filter((row) => !row.isSample);
+}
+
+export function collectionQueueRowsEligibleForBulkSoa(rows: CollectionQueueRow[]) {
+  return rows.filter((row) => {
+    if (row.isSample) return false;
+    if (!(row.invoice.transactionId > 0)) return false;
+    if (row.queueStatus === "paid" || row.queueStatus === "for_verification") return false;
+    return Number(row.transaction.customer_id ?? 0) > 0;
+  });
 }
 
 function formatDealDateShort(value: string) {
@@ -336,6 +746,7 @@ export function computeCollectionQueueKpis(
   rows: CollectionQueueRow[],
   proofs: CommercePaymentProofRow[],
 ): CollectionQueueKpis {
+  rows = collectionQueueRowsForMetrics(rows);
   let totalReceivables = 0;
   let overdueAmount = 0;
   let suspensionCount = 0;
@@ -344,43 +755,47 @@ export function computeCollectionQueueKpis(
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
+  const monthStartMs = monthStart.getTime();
+
+  const creditedTxnIds = new Set<number>();
+
+  for (const proof of proofs) {
+    if (!isVerifiedPaymentProof(proof)) continue;
+    const paidAt = parseWhen(proof.submittedAt) ?? parseWhen(proof.issuedDate);
+    if (paidAt == null || paidAt < monthStartMs) continue;
+    const amount = Number(proof.amount ?? 0);
+    if (amount > 0) collectedThisMonth += amount;
+    if (proof.salesTransactionId) creditedTxnIds.add(Number(proof.salesTransactionId));
+  }
 
   for (const row of rows) {
-    const amount = Number(row.invoice.grandTotal ?? 0);
-    if (!isPaidStatus(row.transaction.payment_status)) {
+    const amount = Number(row.invoice.grandTotal ?? row.transaction.grand_total ?? 0);
+    if (isCollectionReceivableRow(row)) {
       totalReceivables += amount;
       if (row.queueStatus === "overdue" || row.daysPastDue > 0) overdueAmount += amount;
       if (row.accountBadge === "suspension") suspensionCount += 1;
-    } else {
-      const paidAt =
-        parseWhen(row.transaction.payment_date) ??
-        parseWhen(row.invoice.paymentDate) ??
-        parseWhen(row.transaction.transacted_at);
-      if (paidAt != null && paidAt >= monthStart.getTime()) {
-        collectedThisMonth += amount;
-      }
+    }
+    if (rowCollectedThisMonth(row, monthStartMs) && !creditedTxnIds.has(row.invoice.transactionId)) {
+      collectedThisMonth += amount;
     }
   }
 
-  const pendingProofs = proofs.filter(
-    (p) =>
-      p.kind !== "profile_change" &&
-      String(p.status ?? "")
-        .toLowerCase()
-        .includes("pending"),
-  );
+  const verificationRows = rows.filter((row) => row.queueStatus === "for_verification");
+  const pendingProofs = proofs.filter(isPendingPaymentProof);
+  const forVerificationCount = Math.max(verificationRows.length, pendingProofs.length);
 
   return {
     totalReceivables,
     overdueAmount,
     suspensionCount,
-    forVerificationCount: pendingProofs.length,
-    forVerificationSub: `${pendingProofs.length} payment${pendingProofs.length === 1 ? "" : "s"} & 2307 not tracked yet`,
+    forVerificationCount,
+    forVerificationSub: buildForVerificationSubtext(rows, pendingProofs.length),
     collectedThisMonth,
   };
 }
 
 export function computeReceivablesAging(rows: CollectionQueueRow[]): ReceivablesAgingBucket[] {
+  rows = collectionQueueRowsForMetrics(rows);
   const buckets = { current: 0, d30: 0, d60: 0, d61_90: 0, d90plus: 0 };
 
   for (const row of rows) {
@@ -416,6 +831,55 @@ export function collectionQueueStatusLabel(status: CollectionQueueStatus) {
     default:
       return "Pending";
   }
+}
+
+export type CollectionQueueActionKind = "verify" | "remind" | "view" | "soa" | "log";
+
+export type CollectionQueueAction = {
+  kind: CollectionQueueActionKind;
+  label: string;
+};
+
+export function collectionQueueActions(row: CollectionQueueRow): CollectionQueueAction[] {
+  const withLog = (primary: CollectionQueueAction): CollectionQueueAction[] => [
+    primary,
+    { kind: "log", label: "Log" },
+  ];
+
+  if (row.isSample) {
+    if (row.queueStatus === "for_verification") {
+      return withLog({ kind: "verify", label: "Verify" });
+    }
+    if (row.queueStatus === "partially_paid") {
+      return withLog({ kind: "remind", label: "Remind" });
+    }
+    if (row.queueStatus === "paid") {
+      return [{ kind: "soa", label: "View SOA" }];
+    }
+    return withLog({ kind: "view", label: "View" });
+  }
+
+  if (row.queueStatus === "for_verification" && row.proof) {
+    return withLog({ kind: "verify", label: "Verify" });
+  }
+
+  if (
+    row.queueStatus === "overdue" ||
+    (row.queueStatus === "pending" && row.daysPastDue > 0) ||
+    row.accountBadge === "suspension"
+  ) {
+    return withLog({ kind: "remind", label: "Remind" });
+  }
+
+  if (row.queueStatus === "paid") {
+    return withLog({ kind: "soa", label: "View SOA" });
+  }
+
+  if (row.queueStatus === "partially_paid") {
+    return withLog({ kind: "view", label: "View" });
+  }
+
+  return withLog({ kind: "view", label: "View" });
 }
 
 export function collectionAccountBadgeLabel(badge: CollectionAccountBadge) {

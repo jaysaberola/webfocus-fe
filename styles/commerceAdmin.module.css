@@ -10132,8 +10132,15 @@ select.clientCrmInput {
   max-width: 22rem;
 }
 
-.collectionQueueTotal {
+.collectionQueueToolsMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
   margin-left: auto;
+}
+
+.collectionQueueTotal {
   font-size: 0.875rem;
   font-weight: 700;
   color: #475569;
@@ -10160,9 +10167,9 @@ select.clientCrmInput {
 
 .collectionColAction,
 .collectionQueueTable td.collectionActionsCell {
-  width: 8.75rem;
-  min-width: 8.75rem;
-  max-width: 10rem;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 11rem;
 }
 
 .collectionAgingTitle {
@@ -10176,12 +10183,21 @@ select.clientCrmInput {
 }
 
 .collectionKpiCardStatic {
-  cursor: default;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font: inherit;
+  color: inherit;
 }
 
 .collectionKpiCardStatic:hover {
-  border-color: var(--ca-slate-200);
-  box-shadow: none;
+  border-color: var(--ca-blue);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+}
+
+.collectionKpiCardActive {
+  border-color: var(--ca-blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .collectionKpiValue {
@@ -10205,6 +10221,37 @@ select.clientCrmInput {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.collectionBulkSoaList {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  list-style: none;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-lg);
+  background: var(--ca-slate-50);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: var(--ca-text-sm);
+}
+
+.collectionBulkSoaList li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  color: var(--ca-slate-700);
+}
+
+.collectionBulkSoaList strong {
+  color: var(--ca-slate-900);
+  font-weight: 700;
+}
+
+.collectionBulkSoaMore {
+  font-weight: 600;
+  color: var(--ca-slate-500) !important;
 }
 
 .collectionTableScroll {
@@ -10251,6 +10298,24 @@ select.clientCrmInput {
   font-weight: 500;
 }
 
+.collectionQueueSampleRow {
+  background: #fafbff;
+}
+
+.collectionQueueSampleTag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .collectionQueueTable td[data-label="Due"] > span:first-child,
 .collectionQueueTable td[data-label="Amount"] > span:first-child {
   font-weight: 600;
@@ -10266,11 +10331,31 @@ select.clientCrmInput {
 }
 
 .collectionActionsCell {
-  white-space: nowrap;
+  white-space: normal;
+}
+
+.collectionActionsInner {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.35rem;
+  max-width: 100%;
+}
+
+.collectionActionSep {
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  user-select: none;
 }
 
 .collectionActionsCell .tableCellLink {
-  margin-right: 0.5rem;
+  margin-right: 0;
+  padding: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .collectionAgingSection {
@@ -10440,6 +10525,12 @@ select.clientCrmInput {
     width: 100%;
     max-width: none;
     flex: 1 1 auto;
+  }
+
+  .collectionQueueToolsMeta {
+    margin-left: 0;
+    width: 100%;
+    justify-content: space-between;
   }
 
   .collectionQueueTotal {
