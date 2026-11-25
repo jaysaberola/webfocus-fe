@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import CommerceCollectionQueuePanel from "@/components/CommerceAdmin/CommerceCollectionQueuePanel";
 import ClientCrmForm from "@/components/CommerceAdmin/ClientCrmForm";
 import ClientInvoiceForm from "@/components/CommerceAdmin/ClientInvoiceForm";
 import CommerceBulkSelectionBar from "@/components/CommerceAdmin/CommerceBulkSelectionBar";
@@ -38,6 +39,10 @@ import {
 import { useRowSelection } from "@/lib/useRowSelection";
 import { getCustomer, type CustomerRow } from "@/services/customerService";
 import {
+  fetchCommercePaymentProofs,
+  type CommercePaymentProofRow,
+} from "@/services/commerceAdminService";
+import {
   deleteSalesTransaction,
   getSalesTransactions,
   type SalesTransaction,
@@ -45,6 +50,8 @@ import {
 import styles from "@/styles/commerceAdmin.module.css";
 
 const INVOICE_PAGE_SIZE = 10;
+
+type BillingListMode = "queue" | "invoices";
 
 const INVOICE_FILTER_FIELDS: TableFilterFieldDef[] = [
   { id: "clientName", label: "Client Name", mode: "contains" },
@@ -58,8 +65,10 @@ const getInvoiceRowId = (row: ClientInvoiceRow) => row.id;
 
 export default function CommerceBillingTab() {
   const [transactions, setTransactions] = useState<SalesTransaction[]>([]);
+  const [paymentProofs, setPaymentProofs] = useState<CommercePaymentProofRow[]>([]);
   const [rows, setRows] = useState<ClientInvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [listMode, setListMode] = useState<BillingListMode>("queue");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"list" | "create" | "edit" | "client">("list");
   const [formClient, setFormClient] = useState<CustomerRow | null>(null);
@@ -83,12 +92,17 @@ export default function CommerceBillingTab() {
   const loadInvoices = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getSalesTransactions({ per_page: 200 }, { silent: true });
+      const [res, proofs] = await Promise.all([
+        getSalesTransactions({ per_page: 200 }, { silent: true }),
+        fetchCommercePaymentProofs("Pending Review", 200).catch(() => []),
+      ]);
       const list = Array.isArray(res?.data) ? (res.data as SalesTransaction[]) : [];
       setTransactions(list);
+      setPaymentProofs(Array.isArray(proofs) ? proofs : []);
       setRows(buildGlobalInvoiceRows(list));
     } catch {
       setTransactions([]);
+      setPaymentProofs([]);
       setRows([]);
     } finally {
       setLoading(false);
@@ -304,17 +318,60 @@ export default function CommerceBillingTab() {
   }
 
   return (
-    <section className={styles.panel}>
+    <section className={`${styles.panel} ${styles.billingPanel}`}>
       <div className={styles.panelHeader}>
         <div>
-          <h3 className={styles.panelTitle}>Invoices</h3>
+          <h3 className={styles.panelTitle}>Bills and Payments</h3>
           <p className={styles.panelSubtitle}>
-            Track billing invoices, receipts, and payment status across all clients.
+            Collection queue for verification and follow-ups, or switch to All invoices for create / edit (same flow as
+            before).
           </p>
         </div>
       </div>
 
-      {hasSelection ? (
+      <div className={styles.billingListModeTabs} role="tablist" aria-label="Bills view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={listMode === "queue"}
+          className={`${styles.clientCrmTab} ${styles.billingListModeTab}${
+            listMode === "queue" ? ` ${styles.clientCrmTabActive}` : ""
+          }`}
+          onClick={() => setListMode("queue")}
+        >
+          Collection queue
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={listMode === "invoices"}
+          className={`${styles.clientCrmTab} ${styles.billingListModeTab}${
+            listMode === "invoices" ? ` ${styles.clientCrmTabActive}` : ""
+          }`}
+          onClick={() => setListMode("invoices")}
+        >
+          All invoices
+        </button>
+      </div>
+
+      {listMode === "queue" ? (
+        <CommerceCollectionQueuePanel
+          invoices={rows}
+          transactions={transactions}
+          proofs={paymentProofs}
+          loading={loading}
+          search={search}
+          onSearchChange={setSearch}
+          onOpenClient={(invoice) => void openClientInfo(invoice)}
+          onEditInvoice={(invoice) => {
+            const transaction = transactions.find((row) => row.id === invoice.transactionId);
+            if (transaction) openEditInvoice(transaction);
+          }}
+          onReload={loadInvoices}
+        />
+      ) : null}
+
+      {listMode === "invoices" && hasSelection ? (
         <CommerceBulkSelectionBar
           selectedCount={selection.selectedCount}
           entityLabel="invoice"
@@ -324,7 +381,7 @@ export default function CommerceBillingTab() {
           onDelete={() => setBulkDeleteOpen(true)}
           onClear={selection.clearSelection}
         />
-      ) : (
+      ) : listMode === "invoices" ? (
         <div className={styles.toolbarRow}>
           <div className={styles.toolbarFilters}>
             <div className={styles.colVisWrap} ref={colVisRef}>
@@ -368,8 +425,9 @@ export default function CommerceBillingTab() {
             <span className={styles.toolbarLabelShort}>Create</span>
           </button>
         </div>
-      )}
+      ) : null}
 
+      {listMode === "invoices" ? (
       <TableFilterShell
         open={filterOpen}
         active={isTableFilterActive(appliedFilter)}
@@ -497,6 +555,7 @@ export default function CommerceBillingTab() {
           </>
         )}
       </TableFilterShell>
+      ) : null}
 
       <ConfirmModal
         show={bulkDeleteOpen}

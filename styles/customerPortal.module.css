@@ -2121,6 +2121,12 @@
   flex: 1 1 16rem;
 }
 
+.inboxSearchRow .searchWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 22rem;
+}
+
 .inboxSearch {
   display: flex;
   align-items: center;

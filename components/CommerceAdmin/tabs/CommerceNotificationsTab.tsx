@@ -22,8 +22,10 @@ import { useCommerceAdminAuth } from "@/lib/commerceAdmin/useCommerceAdminAuth";
 import { resolveStorageAssetUrl } from "@/lib/storageAssets";
 import { stashOpenDealFromInbox, type OpenDealInboxAction } from "@/lib/commerceAdmin/openDealFromInbox";
 import DealConversationModal from "@/components/CustomerPortal/DealConversationModal";
+import SearchField from "@/components/shared/SearchField";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
+import filterStyles from "@/styles/tableFilter.module.css";
 
 type Props = {
   onOpenOrders?: () => void;
@@ -650,16 +652,14 @@ export default function CommerceNotificationsTab({ onOpenOrders, onTabChange }: 
         ) : null}
 
         {opened ? null : (
-          <label className={styles.inboxSearch}>
-            <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-            <input
-              type="text"
+          <div className={filterStyles.searchWrap}>
+            <SearchField
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
               placeholder="Search mail"
-              aria-label="Search notifications"
+              ariaLabel="Search notifications"
             />
-          </label>
+          </div>
         )}
 
         {opened ? (

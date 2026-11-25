@@ -1182,7 +1182,9 @@ export default function CommerceTransactionsTab() {
               type="button"
               role="tab"
               aria-selected={dealsScope === "published"}
-              className={`${styles.clientCrmTab}${dealsScope === "published" ? ` ${styles.clientCrmTabActive}` : ""}`}
+              className={`${styles.clientCrmTab} ${styles.dealsScopeTabBtn}${
+                dealsScope === "published" ? ` ${styles.clientCrmTabActive}` : ""
+              }`}
               onClick={() => switchDealsScope("published")}
             >
               Active
@@ -1191,7 +1193,9 @@ export default function CommerceTransactionsTab() {
               type="button"
               role="tab"
               aria-selected={dealsScope === "drafts"}
-              className={`${styles.clientCrmTab}${styles.dealsScopeTab}${dealsScope === "drafts" ? ` ${styles.clientCrmTabActive}` : ""}`}
+              className={`${styles.clientCrmTab} ${styles.dealsScopeTabBtn} ${styles.dealsScopeTab}${
+                dealsScope === "drafts" ? ` ${styles.clientCrmTabActive}` : ""
+              }`}
               onClick={() => switchDealsScope("drafts")}
               aria-label={`Drafts, ${draftDealCount} deal${draftDealCount === 1 ? "" : "s"}`}
             >

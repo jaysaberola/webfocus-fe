@@ -6516,23 +6516,44 @@ select.clientCrmInput {
 .toolbarFilters .clientCrmTabs {
   flex-shrink: 0;
   overflow: visible;
-  padding: 0.28rem 0.34rem;
-  gap: 0.3rem;
+  gap: 0.2rem;
+  padding: 0.3rem;
+  background: #f1f5f9;
+  border-color: var(--ca-slate-200);
 }
 
-.toolbarFilters .clientCrmTabs .clientCrmTab,
+.toolbarFilters .clientCrmTabs .clientCrmTab:not(.clientCrmTabActive) {
+  color: #1e293b;
+  font-weight: 500;
+}
+
 .toolbarFilters .clientCrmTabs .clientCrmTabActive {
+  color: #4338ca;
+  font-weight: 700;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.toolbarFilters .clientCrmTabs .clientCrmTab:hover:not(.clientCrmTabActive) {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.dealsScopeTabBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  gap: 0.4rem;
+  min-height: 2.125rem;
+  padding: 0.45rem 1.15rem;
+  line-height: 1.15;
   white-space: nowrap;
-  padding: 0.48rem 1rem;
+  vertical-align: middle;
 }
 
 .dealsScopeTab {
-  gap: 0.45rem;
-  padding: 0.48rem 0.72rem 0.48rem 0.95rem !important;
+  padding: 0.45rem 1rem;
 }
 
 .dealsScopeTabLabel {
@@ -6545,29 +6566,28 @@ select.clientCrmInput {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.125rem;
-  height: 1.125rem;
-  padding: 0 0.3rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
   border-radius: 999px;
-  background: #e2e8f0;
-  color: var(--ca-slate-700);
+  background: #e0e7ff;
+  color: #4338ca;
   font-size: 0.6875rem;
   font-weight: 800;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-  transform: translateY(0);
-}
-
-.clientCrmTab.dealsScopeTab:not(.clientCrmTabActive) .dealsScopeTabCount {
-  background: #e0e7ff;
-  color: #4338ca;
 }
 
 .clientCrmTabActive.dealsScopeTab .dealsScopeTabCount {
   background: #eef2ff;
   color: #4f46e5;
-  box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(79, 70, 229, 0.14);
+}
+
+.clientCrmTab.dealsScopeTab:not(.clientCrmTabActive) .dealsScopeTabCount {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .clientCrmTabs {
@@ -8256,6 +8276,13 @@ select.clientCrmInput {
   margin: 0;
 }
 
+.inboxHeader .searchWrap {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  max-width: 22rem;
+  margin-left: auto;
+}
+
 .inboxHeaderTools {
   display: flex;
   align-items: center;
@@ -9361,6 +9388,20 @@ select.clientCrmInput {
     margin-bottom: 0.75rem;
   }
 
+  .toolbarFilters .clientCrmTabs {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .toolbarFilters .clientCrmTabs .dealsScopeTabBtn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+    font-size: 0.75rem;
+  }
+
   .toolbarFilters,
   .colVisWrap,
   .colVisBtn,
@@ -9420,7 +9461,8 @@ select.clientCrmInput {
   .invoiceItemsTableWrap,
   .queueTableWrap,
   .activityTableWrap,
-  .approvalChangesTableWrap {
+  .approvalChangesTableWrap,
+  .collectionTableScroll {
     max-width: 100%;
     overflow-x: hidden !important;
   }
@@ -10000,6 +10042,492 @@ select.clientCrmInput {
 
 @media (max-width: 980px) {
   .provisionAdd {
+    grid-template-columns: 1fr;
+  }
+}
+
+.billingListModeTabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.3rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: 999px;
+  background: #f1f5f9;
+  width: fit-content;
+}
+
+.billingListModeTab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.125rem;
+  padding: 0.45rem 1.2rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.billingListModeTabs .clientCrmTab:not(.clientCrmTabActive) {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.billingListModeTabs .clientCrmTabActive {
+  color: #4338ca;
+  font-weight: 700;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+}
+
+.billingListModeTabs .clientCrmTab:hover:not(.clientCrmTabActive) {
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.billingListModeTabs .clientCrmTab:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.collectionQueueWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.collectionQueueSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.collectionQueueTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ca-slate-800);
+  line-height: 1.35;
+}
+
+.collectionQueueTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+  width: 100%;
+}
+
+.collectionQueueTools .searchWrap {
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.collectionQueueTotal {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.collectionQueueSection .emptyState {
+  padding: 2rem 0.5rem;
+  text-align: center;
+}
+
+.collectionQueueEmptyCell {
+  padding: 2rem 0.85rem !important;
+  text-align: center;
+  color: var(--ca-slate-500);
+}
+
+.collectionColStatus,
+.collectionQueueTable td[data-label="Status"] {
+  width: 7.5rem;
+  min-width: 7.5rem;
+  max-width: 9rem;
+}
+
+.collectionColAction,
+.collectionQueueTable td.collectionActionsCell {
+  width: 8.75rem;
+  min-width: 8.75rem;
+  max-width: 10rem;
+}
+
+.collectionAgingTitle {
+  margin: 0 0 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--ca-slate-200);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ca-slate-700);
+  line-height: 1.35;
+}
+
+.collectionKpiCardStatic {
+  cursor: default;
+}
+
+.collectionKpiCardStatic:hover {
+  border-color: var(--ca-slate-200);
+  box-shadow: none;
+}
+
+.collectionKpiValue {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ca-slate-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.collectionQueueHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.collectionQueueToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.collectionTableScroll {
+  margin: 0 -0.15rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-sm);
+  background: #f8fafc;
+}
+
+.collectionQueueTable {
+  width: 100%;
+}
+
+@media (min-width: 769px) {
+  .collectionQueueTable {
+    min-width: 52rem;
+    table-layout: fixed;
+  }
+}
+
+.collectionQueueTable td .badge,
+.collectionQueueTable td .badgeMuted,
+.collectionQueueTable td .badgePaid,
+.collectionQueueTable td .badgePending {
+  margin-top: 0.35rem;
+}
+
+.collectionCellSub {
+  margin-top: 0.15rem;
+  font-size: var(--ca-text-xs);
+  font-weight: 400;
+  color: var(--ca-slate-500);
+  line-height: 1.35;
+}
+
+.collectionDocBadgeGap {
+  margin-left: 0.35rem;
+}
+
+.collectionActionsCell {
+  white-space: nowrap;
+}
+
+.collectionActionsCell .tableCellLink {
+  margin-right: 0.5rem;
+}
+
+.collectionAgingSection {
+  padding: 1rem 1.1rem 1.25rem;
+  border: 1px solid var(--ca-slate-200);
+  border-radius: var(--ca-radius-md);
+  background: #fff;
+}
+
+.collectionAgingChartFrame {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.85rem;
+  align-items: start;
+  padding: 0.25rem 0.15rem 0;
+}
+
+.collectionAgingYAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 4.75rem;
+}
+
+.collectionAgingYTick {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.collectionAgingPlotArea {
+  position: relative;
+  min-width: 0;
+}
+
+.collectionAgingGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.collectionAgingGridLine {
+  width: 100%;
+  border-top: 1px solid #e8edf3;
+}
+
+.collectionAgingBars {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  gap: clamp(0.65rem, 4vw, 2.5rem);
+  padding: 0 0.35rem 0;
+}
+
+.collectionAgingBarSlot {
+  flex: 0 1 4.5rem;
+  max-width: 5.5rem;
+  min-width: 2.25rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 100%;
+}
+
+.collectionAgingBarSolid {
+  width: 100%;
+  max-width: 3.75rem;
+  background: #121f33;
+  border-radius: 0;
+  transition: height 0.25s ease;
+}
+
+.collectionAgingXAxis {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-evenly;
+  gap: clamp(0.65rem, 4vw, 2.5rem);
+  margin-top: 0.55rem;
+  padding: 0 0.35rem;
+}
+
+.collectionAgingXLabel {
+  flex: 0 1 4.5rem;
+  max-width: 5.5rem;
+  min-width: 2.25rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #64748b;
+  text-align: center;
+  line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .billingPanel .panelSubtitle {
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .billingListModeTabs {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .billingListModeTab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.5rem 0.55rem;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+
+  .collectionQueueWrap {
+    gap: 0.85rem;
+  }
+
+  .collectionQueueSection {
+    padding: 0.85rem 0.75rem 0.95rem;
+  }
+
+  .collectionQueueHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+
+  .collectionQueueTitle {
+    font-size: 0.875rem;
+  }
+
+  .collectionQueueToolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem;
+    width: 100%;
+  }
+
+  .collectionQueueToolbar .secondaryBtnSm {
+    justify-content: center;
+    min-width: 0;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+    font-size: 0.75rem;
+    line-height: 1.25;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .collectionQueueTools {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .collectionQueueTools .searchWrap {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+
+  .collectionQueueTotal {
+    margin-left: 0;
+    text-align: right;
+    font-size: 0.8125rem;
+  }
+
+  .collectionTableScroll {
+    margin: 0;
+    border-radius: 0.65rem;
+  }
+
+  .collectionQueueTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .collectionColStatus,
+  .collectionQueueTable th.collectionColStatus,
+  .collectionColAction,
+  .collectionQueueTable th.collectionColAction,
+  .collectionQueueTable td[data-label="Status"],
+  .collectionQueueTable td.collectionActionsCell {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .collectionActionsCell {
+    white-space: normal;
+  }
+
+  .collectionQueueTable td.collectionQueueEmptyCell {
+    display: block;
+    grid-template-columns: none;
+    padding: 1.5rem 0.5rem !important;
+    text-align: center;
+  }
+
+  .collectionQueueTable td.collectionQueueEmptyCell::before {
+    content: none;
+  }
+
+  .collectionQueueTable td[data-label="2307 & OR"] .collectionDocBadgeGap {
+    margin-left: 0;
+  }
+
+  .collectionAgingSection {
+    padding: 0.85rem 0.75rem 1rem;
+  }
+
+  .collectionAgingChartFrame {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 0.5rem;
+  }
+
+  .collectionAgingYAxis {
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 3.1rem;
+    overflow: visible;
+  }
+
+  .collectionAgingYTick {
+    font-size: 0.6rem;
+  }
+
+  .collectionAgingPlotArea {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .collectionAgingBars,
+  .collectionAgingXAxis {
+    gap: 0.45rem;
+    min-width: 17.5rem;
+    padding-left: 0.15rem;
+    padding-right: 0.15rem;
+  }
+
+  .collectionAgingBarSlot,
+  .collectionAgingXLabel {
+    flex: 1 1 0;
+    min-width: 1.75rem;
+    max-width: none;
+  }
+
+  .collectionAgingBarSolid {
+    max-width: 2.35rem;
+  }
+
+  .collectionKpiCardStatic {
+    padding: 1rem 1.05rem;
+  }
+
+  .collectionKpiValue {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .billingListModeTab {
+    font-size: 0.6875rem;
+    padding: 0.48rem 0.4rem;
+  }
+
+  .collectionQueueToolbar {
     grid-template-columns: 1fr;
   }
 }

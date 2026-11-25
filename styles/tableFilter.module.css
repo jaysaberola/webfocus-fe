@@ -84,12 +84,103 @@
 }
 
 .searchWrap {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  max-width: 26rem;
+}
+
+.searchField {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.375rem;
+  padding: 0 0.55rem 0 0.8rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+}
+
+.searchField:hover:not(:focus-within) {
+  border-color: #cbd5e1;
+}
+
+.searchField:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #fff;
+}
+
+.searchFieldIcon {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+  transition: color 0.15s ease;
+}
+
+.searchField:focus-within .searchFieldIcon {
+  color: #2563eb;
+}
+
+.searchFieldInput {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0.35rem 0;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #0f172a !important;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  appearance: none;
+}
+
+.searchFieldInput::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.searchFieldInput:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.searchFieldClear {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  flex: 1 1 14rem;
-  min-width: 12rem;
-  max-width: 20rem;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.1rem;
+  padding: 0;
+  border: none !important;
+  border-radius: 999px;
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.searchFieldClear:hover {
+  background: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.searchFieldFull {
+  width: 100%;
+  max-width: none;
 }
 
 .searchLabel,
@@ -210,7 +301,6 @@
     max-width: none;
   }
 
-  .searchLabel,
   .toolLabel,
   .total {
     display: none;

@@ -8,6 +8,7 @@ import {
   type TableFilterState,
 } from "@/lib/tableFilterHelpers";
 import type { DateRangeValue } from "@/lib/dateRangeHelpers";
+import SearchField from "@/components/shared/SearchField";
 import styles from "@/styles/tableFilter.module.css";
 
 type Props<T> = {
@@ -294,17 +295,14 @@ export function TableFilterShell({
           {showTools ? (
             <div className={styles.tools}>
               {showSearch ? (
-                <label className={styles.searchWrap}>
-                  <span className={styles.searchLabel}>Search</span>
-                  <input
-                    type="search"
-                    className={styles.searchInput}
-                    value={search}
-                    onChange={(e) => onSearchChange?.(e.target.value)}
+                <div className={styles.searchWrap}>
+                  <SearchField
+                    value={search ?? ""}
+                    onChange={(next) => onSearchChange?.(next)}
                     placeholder={searchPlaceholder}
-                    aria-label="Search table"
+                    ariaLabel="Search table"
                   />
-                </label>
+                </div>
               ) : null}
               {showDateRange && dateRange && onDateRangeChange ? (
                 <DateRangePicker value={dateRange} onChange={onDateRangeChange} />

@@ -5,8 +5,10 @@ import {
   fetchCommerceAssignableUsers,
   type CommerceAssignableUser,
 } from "@/services/commerceAdminService";
+import SearchField from "@/components/shared/SearchField";
 import { toast } from "@/lib/toast";
 import styles from "@/styles/commerceAdmin.module.css";
+import filterStyles from "@/styles/tableFilter.module.css";
 
 type Props = {
   open: boolean;
@@ -93,17 +95,17 @@ export default function AssignClientOwnerModal({ open, client, onClose, onAssign
         </div>
 
         <form className={styles.modalForm} onSubmit={handleSubmit}>
-          <label className={styles.modalLabel}>
-            Search users
-            <input
-              className={styles.modalInput}
-              type="search"
+          <div className={styles.modalLabel}>
+            <span>Search users</span>
+            <SearchField
+              className={filterStyles.searchFieldFull}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, email, or role..."
+              onChange={setSearch}
+              placeholder="Search by name, email, or role…"
+              ariaLabel="Search users"
               autoFocus
             />
-          </label>
+          </div>
 
           <div className={styles.assignUserList} role="listbox" aria-label="Active users">
             <button
