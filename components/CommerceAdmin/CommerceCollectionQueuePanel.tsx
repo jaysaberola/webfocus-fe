@@ -42,6 +42,8 @@ import { usePersistedColumnVisibility } from "@/lib/commerceAdmin/usePersistedCo
 import styles from "@/styles/commerceAdmin.module.css";
 import filterStyles from "@/styles/tableFilter.module.css";
 
+const COLLECTION_QUEUE_PAGE_SIZE = 10;
+
 type Props = {
   invoices: ClientInvoiceRow[];
   transactions: SalesTransaction[];
@@ -92,6 +94,7 @@ export default function CommerceCollectionQueuePanel({
   );
   const [colVisOpen, setColVisOpen] = useState(false);
   const colVisRef = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(1);
 
   const allQueueRows = useMemo(
     () => buildCollectionQueueRows(invoices, transactions, proofs),
@@ -104,11 +107,24 @@ export default function CommerceCollectionQueuePanel({
       .filter((r) => matchesCollectionKpiFilter(r, kpiFilter));
   }, [allQueueRows, search, kpiFilter]);
 
-  const selectableRows = useMemo(() => rows.filter((row) => !row.isSample), [rows]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / COLLECTION_QUEUE_PAGE_SIZE));
+
+  const paginatedRows = useMemo(() => {
+    const start = (page - 1) * COLLECTION_QUEUE_PAGE_SIZE;
+    return rows.slice(start, start + COLLECTION_QUEUE_PAGE_SIZE);
+  }, [rows, page]);
+
+  const paginatedSelectableRows = useMemo(
+    () => paginatedRows.filter((row) => !row.isSample),
+    [paginatedRows],
+  );
+
+  const rangeStart = rows.length ? (page - 1) * COLLECTION_QUEUE_PAGE_SIZE + 1 : 0;
+  const rangeEnd = Math.min(page * COLLECTION_QUEUE_PAGE_SIZE, rows.length);
 
   const getQueueRowId = useCallback((row: CollectionQueueRow) => row.invoice.id, []);
 
-  const selection = useRowSelection(selectableRows, getQueueRowId);
+  const selection = useRowSelection(paginatedSelectableRows, getQueueRowId);
 
   const selectedRows = useMemo(() => {
     const ids = new Set(selection.selectedIds);
@@ -145,6 +161,14 @@ export default function CommerceCollectionQueuePanel({
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [colVisOpen]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, kpiFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const submitBulkSoa = async (message: string) => {
     const transactionIds = bulkSoaTargets.map((row) => row.invoice.transactionId).filter((id) => id > 0);
@@ -463,6 +487,7 @@ export default function CommerceCollectionQueuePanel({
         {loading ? (
           <p className={styles.emptyState}>Loading collection queue…</p>
         ) : (
+          <>
           <div className={`${styles.tableWrap} ${styles.collectionTableScroll}`}>
             <table className={`${styles.table} ${styles.invoicesTable} ${styles.collectionQueueTable}`}>
               <thead>
@@ -471,8 +496,8 @@ export default function CommerceCollectionQueuePanel({
                     allSelected={selection.allSelected}
                     someSelected={selection.someSelected}
                     onToggleAll={selection.toggleAll}
-                    disabled={loading || selectableRows.length === 0}
-                    label="Select all invoices in this list"
+                    disabled={loading || paginatedSelectableRows.length === 0}
+                    label="Select all invoices on this page"
                   />
                   {isColumnVisible("customer") ? <th>Customer &amp; account</th> : null}
                   {isColumnVisible("invoice") ? <th>Invoice #</th> : null}
@@ -498,7 +523,7 @@ export default function CommerceCollectionQueuePanel({
                     </td>
                   </tr>
                 ) : (
-              rows.map((row) => (
+              paginatedRows.map((row) => (
                 <tr
                   key={row.invoice.id}
                   className={[
@@ -665,6 +690,38 @@ export default function CommerceCollectionQueuePanel({
               </tbody>
             </table>
           </div>
+
+          {rows.length > 0 ? (
+            <div className={styles.paginationBar}>
+              <div className={styles.paginationInfo}>
+                Showing {rangeStart} to {rangeEnd} of {rows.length}
+              </div>
+              <div className={styles.paginationControls}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtnSm}
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  aria-label="Previous collection queue page"
+                >
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+                <span className={styles.paginationRange}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  className={styles.secondaryBtnSm}
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  aria-label="Next collection queue page"
+                >
+                  <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          ) : null}
+          </>
         )}
       </div>
 
