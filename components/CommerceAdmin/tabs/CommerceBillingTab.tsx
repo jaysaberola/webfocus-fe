@@ -94,7 +94,7 @@ export default function CommerceBillingTab() {
     try {
       const [res, proofs] = await Promise.all([
         getSalesTransactions({ per_page: 200 }, { silent: true }),
-        fetchCommercePaymentProofs("Pending Review", 200).catch(() => []),
+        fetchCommercePaymentProofs("all", 500).catch(() => []),
       ]);
       const list = Array.isArray(res?.data) ? (res.data as SalesTransaction[]) : [];
       setTransactions(list);

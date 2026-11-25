@@ -10240,6 +10240,27 @@ select.clientCrmInput {
   line-height: 1.35;
 }
 
+.collectionPaymentPrimary {
+  font-weight: 600;
+  color: var(--ca-slate-800);
+  line-height: 1.35;
+}
+
+.collectionPaymentMuted {
+  color: var(--ca-slate-400);
+  font-weight: 500;
+}
+
+.collectionQueueTable td[data-label="Due"] > span:first-child,
+.collectionQueueTable td[data-label="Amount"] > span:first-child {
+  font-weight: 600;
+  color: var(--ca-slate-900);
+}
+
+.collectionQueueTable td[data-label="Payment"] .collectionCellSub {
+  font-variant-numeric: tabular-nums;
+}
+
 .collectionDocBadgeGap {
   margin-left: 0.35rem;
 }

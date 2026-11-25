@@ -1,6 +1,10 @@
 import { parseDealMeta } from "@/lib/commerceAdmin/clientOrderFormHelpers";
-import { formatDealAmount } from "@/lib/commerceAdmin/clientDealHelpers";
-import type { ClientInvoiceRow } from "@/lib/commerceAdmin/clientInvoiceHelpers";
+import {
+  formatDealAmount,
+  transactionPaymentDate,
+  transactionPaymentMode,
+} from "@/lib/commerceAdmin/clientDealHelpers";
+import { parseInvoiceMeta, type ClientInvoiceRow } from "@/lib/commerceAdmin/clientInvoiceHelpers";
 import { isPaidStatus } from "@/lib/commerceAdmin/transactionHelpers";
 import type { CommercePaymentProofRow } from "@/services/commerceAdminService";
 import type { SalesTransaction } from "@/services/salesTransactionService";
@@ -110,22 +114,148 @@ function formatCompactMoney(amount: number) {
   return formatDealAmount(amount);
 }
 
-function proofMap(proofs: CommercePaymentProofRow[]) {
+function normalizeInvoiceKey(value?: string | null) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
+function proofTimestamp(proof: CommercePaymentProofRow) {
+  return parseWhen(proof.submittedAt) ?? 0;
+}
+
+function proofRank(proof: CommercePaymentProofRow) {
+  const status = String(proof.proofStatus ?? proof.status ?? "").toLowerCase();
+  if (status.includes("pending")) return 30;
+  if (status.includes("verified") || status.includes("credited")) return 20;
+  if (status.includes("reject") || status.includes("declin")) return 5;
+  return 10;
+}
+
+function shouldReplaceProof(
+  current: CommercePaymentProofRow | undefined,
+  candidate: CommercePaymentProofRow,
+) {
+  if (!current) return true;
+  const rankDelta = proofRank(candidate) - proofRank(current);
+  if (rankDelta !== 0) return rankDelta > 0;
+  return proofTimestamp(candidate) > proofTimestamp(current);
+}
+
+function buildProofIndexes(proofs: CommercePaymentProofRow[]) {
   const byTx = new Map<number, CommercePaymentProofRow>();
+  const byInvoice = new Map<string, CommercePaymentProofRow>();
+
+  const upsert = <K,>(map: Map<K, CommercePaymentProofRow>, key: K, proof: CommercePaymentProofRow) => {
+    const existing = map.get(key);
+    if (shouldReplaceProof(existing, proof)) map.set(key, proof);
+  };
+
   for (const proof of proofs) {
     if (proof.kind === "profile_change") continue;
     const txId = Number(proof.salesTransactionId ?? 0);
-    if (!(txId > 0)) continue;
-    const existing = byTx.get(txId);
-    if (!existing) {
-      byTx.set(txId, proof);
-      continue;
-    }
-    const pending = String(proof.status ?? "").toLowerCase().includes("pending");
-    const existingPending = String(existing.status ?? "").toLowerCase().includes("pending");
-    if (pending && !existingPending) byTx.set(txId, proof);
+    if (txId > 0) upsert(byTx, txId, proof);
+    const invoiceKey = normalizeInvoiceKey(proof.invoiceId);
+    if (invoiceKey) upsert(byInvoice, invoiceKey, proof);
   }
-  return byTx;
+
+  return { byTx, byInvoice };
+}
+
+function extractPaymentReference(notes?: string | null, proof?: CommercePaymentProofRow | null) {
+  const proofNo = String(proof?.proofNo ?? "").trim();
+  if (proofNo) return proofNo;
+
+  const raw = String(notes ?? "");
+  const patterns = [
+    /(?:Ref|Reference)\s*#?\s*:?\s*([A-Za-z0-9][\w-]*)/i,
+    /Check\s*#\s*([A-Za-z0-9][\w-]*)/i,
+    /(?:Transaction|Txn|Request)\s*(?:ID|No\.?)\s*:?\s*([A-Za-z0-9][\w-]*)/i,
+    /Proof\s*#?\s*([A-Za-z0-9][\w-]*)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = raw.match(pattern);
+    const value = String(match?.[1] ?? "").trim();
+    if (value) return value;
+  }
+
+  const invoiceId = String(proof?.invoiceId ?? "").trim();
+  if (invoiceId && !invoiceId.startsWith("INV-")) return invoiceId;
+
+  return "";
+}
+
+function formatPaymentRefLabel(method: string, reference: string, proof?: CommercePaymentProofRow | null) {
+  const normalizedMethod = method && method !== "—" ? method : "";
+  const refValue = String(reference || proof?.proofNo || "").trim();
+  const proofNo = String(proof?.proofNo ?? "").trim();
+
+  if (normalizedMethod && refValue) {
+    return `${normalizedMethod} • Ref #${refValue.replace(/^#+/, "")}`;
+  }
+  if (normalizedMethod) return normalizedMethod;
+  if (proofNo) return `Proof ${proofNo}`;
+  if (refValue) return `Ref #${refValue.replace(/^#+/, "")}`;
+  return "—";
+}
+
+function formatPaymentRefDate(
+  transaction: SalesTransaction,
+  invoice: ClientInvoiceRow,
+  proof: CommercePaymentProofRow | null,
+  invoiceMeta: Partial<ReturnType<typeof parseInvoiceMeta>> | null,
+  meta: ReturnType<typeof parseDealMeta>,
+) {
+  const proofAt = proof?.submittedAt ? parseWhen(proof.submittedAt) : null;
+  if (proofAt != null) {
+    return new Date(proofAt).toLocaleDateString("en-PH", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  const paymentDate = transactionPaymentDate(transaction, {
+    paymentDate: invoiceMeta?.paymentDate || meta?.paymentDate,
+  });
+  if (paymentDate && paymentDate !== "—") return paymentDate;
+
+  const invoiceDate = String(invoice.paymentDate ?? "").trim();
+  return invoiceDate && invoiceDate !== "—" ? invoiceDate : "";
+}
+
+function buildPaymentRefDisplay(
+  transaction: SalesTransaction,
+  invoice: ClientInvoiceRow,
+  proof: CommercePaymentProofRow | null,
+  invoiceMeta: Partial<ReturnType<typeof parseInvoiceMeta>> | null,
+  meta: ReturnType<typeof parseDealMeta>,
+) {
+  const modeMeta = {
+    paymentMode: invoiceMeta?.paymentMode || meta?.paymentMode,
+  };
+  let method = transactionPaymentMode(transaction, modeMeta);
+  if (method === "—" && invoice.paymentMode && invoice.paymentMode !== "—") {
+    method = invoice.paymentMode;
+  }
+
+  const reference = extractPaymentReference(transaction.notes, proof);
+  const paymentPrimary = formatPaymentRefLabel(method, reference, proof);
+  const paymentSecondary = formatPaymentRefDate(transaction, invoice, proof, invoiceMeta, meta);
+
+  return { paymentPrimary, paymentSecondary };
+}
+
+function formatQueueDueDate(value: string) {
+  if (!value || value === "—") return "—";
+  const ms = parseWhen(value);
+  if (ms == null) return value;
+  return new Date(ms).toLocaleDateString("en-PH", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function buildCollectionQueueRows(
@@ -134,7 +264,7 @@ export function buildCollectionQueueRows(
   proofs: CommercePaymentProofRow[],
 ): CollectionQueueRow[] {
   const txById = new Map(transactions.map((t) => [t.id, t]));
-  const proofsByTx = proofMap(proofs);
+  const { byTx: proofsByTx, byInvoice: proofsByInvoice } = buildProofIndexes(proofs);
 
   return invoices.map((invoice) => {
     const transaction =
@@ -145,18 +275,21 @@ export function buildCollectionQueueRows(
         grand_total: invoice.grandTotal,
       } as SalesTransaction);
 
-    const proof = proofsByTx.get(invoice.transactionId) ?? null;
+    const invoiceKey = normalizeInvoiceKey(invoice.wsiInvoiceNumber);
+    const proof =
+      proofsByTx.get(invoice.transactionId) ??
+      (invoiceKey ? proofsByInvoice.get(invoiceKey) : undefined) ??
+      null;
+    const invoiceMeta = parseInvoiceMeta(transaction.notes);
     const meta = parseDealMeta(transaction.notes);
     const days = daysPastDue(transaction);
     const ptp = String(meta?.paymentCommitmentDate ?? "").trim();
     const collectionNote = String(meta?.collectionNote ?? "").trim();
-    const dueSecondary = ptp
-      ? `PTP: ${formatDealDateShort(ptp)}`
-      : collectionNote
-        ? collectionNote.slice(0, 48)
-        : days > 0
-          ? "Past due"
-          : "";
+    const dueParts: string[] = [];
+    if (ptp) dueParts.push(`PTP: ${formatDealDateShort(ptp)}`);
+    if (collectionNote) dueParts.push(collectionNote.slice(0, 40));
+    const dueSecondary =
+      dueParts.length > 0 ? dueParts.join(" • ") : days > 0 ? "Past due" : "";
 
     const total = Number(invoice.grandTotal ?? transaction.grand_total ?? 0);
     const netGuess = total > 0 ? total / 1.12 : 0;
@@ -165,19 +298,13 @@ export function buildCollectionQueueRows(
     const orLabel = or && or !== "—" ? "OR Issued" : "Pending OR";
     const tax2307Label = "Pending 2307";
 
-    let paymentPrimary = invoice.paymentMode && invoice.paymentMode !== "—" ? invoice.paymentMode : "—";
-    let paymentSecondary = invoice.paymentDate && invoice.paymentDate !== "—" ? invoice.paymentDate : "";
-    if (proof) {
-      const ref = proof.proofNo || proof.invoiceId;
-      paymentPrimary = ref ? `${paymentPrimary !== "—" ? `${paymentPrimary} • ` : ""}Ref #${ref}` : paymentPrimary;
-      paymentSecondary = proof.submittedAt
-        ? new Date(proof.submittedAt).toLocaleDateString("en-PH", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
-        : paymentSecondary;
-    }
+    const { paymentPrimary, paymentSecondary } = buildPaymentRefDisplay(
+      transaction,
+      invoice,
+      proof,
+      invoiceMeta,
+      meta,
+    );
 
     return {
       invoice,
@@ -185,7 +312,8 @@ export function buildCollectionQueueRows(
       proof,
       accountBadge: accountBadge(transaction),
       queueStatus: queueStatus(invoice, transaction, proof),
-      duePrimary: invoice.dueDate && invoice.dueDate !== "—" ? invoice.dueDate : "—",
+      duePrimary:
+        invoice.dueDate && invoice.dueDate !== "—" ? formatQueueDueDate(invoice.dueDate) : "—",
       dueSecondary,
       amountPrimary: formatDealAmount(total) || "—",
       amountSecondary: netGuess > 0 ? `Net: ${formatCompactMoney(netGuess)}` : "",

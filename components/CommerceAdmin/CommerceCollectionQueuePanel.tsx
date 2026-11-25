@@ -276,7 +276,13 @@ export default function CommerceCollectionQueuePanel({
                     {row.amountSecondary ? <div className={styles.collectionCellSub}>{row.amountSecondary}</div> : null}
                   </td>
                   <td data-label="Payment">
-                    <span>{row.paymentPrimary}</span>
+                    <span
+                      className={
+                        row.paymentPrimary !== "—" ? styles.collectionPaymentPrimary : styles.collectionPaymentMuted
+                      }
+                    >
+                      {row.paymentPrimary}
+                    </span>
                     {row.paymentSecondary ? <div className={styles.collectionCellSub}>{row.paymentSecondary}</div> : null}
                   </td>
                   <td data-label="2307 & OR">
